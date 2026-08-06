@@ -745,3 +745,33 @@ body.tv .content.wall{display:flex;flex-direction:column;gap:var(--s4);
 .finmonth{height:22px;border-radius:5px;background:var(--sunk);overflow:hidden;margin:var(--s1) 0}
 .finmonth span{display:block;height:100%;background:var(--brand);opacity:.55}
 .note-derived{grid-column:1/-1;margin:var(--s2) 0 0;font-size:var(--t-small);color:var(--ink-faint)}
+
+/* ── Import ──
+   A sheet rather than a page. Importing is something you do *to* the morning you are
+   looking at, so the morning stays behind it and the numbers you are about to replace are
+   still on screen when you decide. */
+.sheet{border:none;border-radius:var(--radius-lg);padding:0;width:min(1100px,94vw);
+  max-height:88vh;background:var(--surface);color:var(--ink);box-shadow:0 24px 70px rgba(0,0,0,.3)}
+.sheet::backdrop{background:rgba(15,23,42,.55)}
+.sheet__head{display:flex;align-items:center;gap:var(--s3);padding:var(--s4) var(--s5);
+  border-bottom:1px solid var(--rule);position:sticky;top:0;background:var(--surface);z-index:2}
+.sheet__title{flex:1;margin:0;font-family:var(--font-condensed);font-size:calc(24px*var(--scale));
+  font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-muted)}
+.sheet__body{padding:var(--s4) var(--s5) var(--s5);overflow:auto;max-height:calc(88vh - 70px)}
+.sheet__sub{font-family:var(--font-condensed);font-size:calc(17px*var(--scale));font-weight:700;
+  text-transform:uppercase;letter-spacing:.06em;color:var(--ink-muted);margin:var(--s5) 0 var(--s2)}
+.sheet__foot{display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap;
+  margin-top:var(--s5);padding-top:var(--s4);border-top:1px solid var(--rule)}
+.sheet__foot .btn--go{margin-left:auto}
+
+.drop{border:2px dashed var(--rule-strong);border-radius:var(--radius-lg);padding:var(--s6);
+  text-align:center;background:var(--sunk);transition:border-color .15s,background .15s}
+.drop--over{border-color:var(--brand);background:var(--brand-wash)}
+.drop__lead{margin:0 0 var(--s2);font-size:var(--t-lead);font-weight:600}
+.drop__note{margin:0 0 var(--s3);font-size:var(--t-small);color:var(--ink-muted);line-height:1.5}
+.drop__bad{margin-top:var(--s3);padding:var(--s3);border-radius:var(--radius);
+  background:var(--stop-wash);border:1px solid var(--stop-rule);color:var(--stop);font-weight:600}
+.drop__wait{padding:var(--s6);text-align:center;color:var(--ink-muted);font-size:var(--t-lead)}
+.drop__names{display:flex;flex-wrap:wrap;gap:var(--s2);margin:0}
+.drop__notes{margin:0;padding-left:var(--s4);font-size:var(--t-small);color:var(--ink-muted);line-height:1.6}
+.drop .btn{cursor:pointer}

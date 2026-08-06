@@ -140,6 +140,20 @@ const withTargets = (config, targets) => (config || []).map(dept => {
              : dept;
 });
 
+// The names the Team column is matched against on import, with their known variants.
+export const loadOperators = location =>
+  run(() => client.from('operators').select('name, aliases, department, active')
+    .eq('location_id', location).order('name'));
+
+// Which mornings already exist. An import needs this to know what window it is filling:
+// the span runs from the last morning to yesterday, so a long weekend or a shutdown falls
+// out of the same rule instead of needing one of its own.
+export const loadReportedDates = (location, fromDate, toDate) =>
+  run(() => client.from('daily_metrics').select('metric_date')
+    .eq('location_id', location).gte('metric_date', fromDate).lte('metric_date', toDate)
+    .order('metric_date'))
+    .then(rows => (rows || []).map(r => r.metric_date));
+
 // One row per machine per year. A department's figure is the mean of its live machines,
 // so 2027 is written by inserting rows rather than by editing 2026's.
 export const loadMachines = location =>

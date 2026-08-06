@@ -8,7 +8,7 @@
 import {
   currentSession, signOut, myProfile, myLocations, savePreference,
   openDay, loadDay, loadHistory, loadBudgets, saveField, saveDepartment, saveReview,
-  saveBudget, publish, recordEdit, joinDay,
+  saveBudget, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
 } from '../db.js';
 import { assess, attention, settled } from '../assess.js';
 import {
@@ -935,3 +935,169 @@ if (!state.locations.length) {
   state.canEdit = state.locations[0].canEdit;
   await open(state.locations[0].id, state.date);
 }
+
+// ── Import ──────────────────────────────────────────────────────────────────────
+//
+// The plant collects its numbers in spreadsheets kept in several places, and someone
+// retypes them into the dashboard every morning. This reads them instead — but it reads
+// them into a preview, not into the day. Nothing is written until a person has looked at
+// what the files say and pressed the button, because an importer that writes on drop is
+// one nobody can safely try.
+//
+// What it does write, it writes through `persist`, the same path a typed field takes. So
+// an imported figure gets the same one-column update, the same attribution in the edit
+// trail, and the same broadcast to the other two people working the morning.
+
+const importState = { reading: false, preview: null, error: null };
+
+function importPanel() {
+  const p = importState.preview;
+  if (importState.reading) return `<p class="drop__wait">Reading the files…</p>`;
+
+  const drop = `<div class="drop" id="drop">
+    <p class="drop__lead">Drop the morning's workbooks here</p>
+    <p class="drop__note">DOR_V9.xlsx, OTDOTIF.xlsx — or pick them.
+      Files are read in this browser and nothing leaves it until you accept.</p>
+    <label class="btn btn--primary">Choose files
+      <input type="file" id="drop-input" multiple accept=".xlsx" hidden></label>
+  </div>`;
+
+  if (importState.error) {
+    return drop + `<p class="drop__bad">${esc(importState.error)}</p>`;
+  }
+  if (!p) return drop;
+
+  const covering = p.covering.length === 1
+    ? shortDate(p.covering[0])
+    : `${shortDate(p.covering[0])} – ${shortDate(p.covering[p.covering.length - 1])}`;
+
+  const rows = p.departments.map(d => {
+    const config = state.config.find(c => c.key === d.dept_key);
+    const current = dept(d.dept_key);
+    const changed = Number(current.qty) !== d.qty || Number(current.hours) !== d.hours;
+    return `<tr>
+      <td class="dept">${esc(config?.name || d.dept_key)}</td>
+      <td class="num big">${num(d.qty)}</td>
+      <td class="num">${d.hours}<em> h</em></td>
+      <td class="num big">${d.rate ? num(Math.round(d.rate)) : '—'}</td>
+      <td class="num">${d.uptime == null ? '—' : (d.uptime * 100).toFixed(1) + '%'}</td>
+      <td class="num">${d.make_ready == null ? '—' : d.make_ready.toFixed(2) + ' h'}</td>
+      <td>${esc(d.machines.join(', '))} · ${d.shifts} shift${d.shifts === 1 ? '' : 's'}</td>
+      <td>${changed ? '<span class="pill pill--warn">changes</span>'
+                    : '<span class="pill pill--ok">same</span>'}</td></tr>`;
+  }).join('');
+
+  const ship = p.shipping ? `<table class="tbl"><thead><tr>
+      <th>Jobs shipped</th><th class="num">Late</th><th class="num">Short</th>
+      <th class="num">OTD</th><th class="num">OTIF</th></tr></thead>
+    <tbody><tr><td class="big">${p.shipping.jobs_shipped}</td>
+      <td class="num">${p.shipping.late}</td><td class="num">${p.shipping.shorts}</td>
+      <td class="num">${p.shipping.otd.toFixed(1)}%</td>
+      <td class="num">${p.shipping.otif.toFixed(2)}%</td></tr></tbody></table>`
+    : `<p class="drop__note">No shipping row for ${shortDate(p.span.to)}.</p>`;
+
+  return `
+    <p class="drop__lead">This morning covers <b>${esc(covering)}</b> — ${p.shiftCount}
+      shift${p.shiftCount === 1 ? '' : 's'} across ${p.departments.length} department${
+      p.departments.length === 1 ? '' : 's'}.</p>
+    <p class="drop__note">A morning reports the production since the last one. On Tuesday to
+      Friday that is yesterday; on Monday it is Friday, Saturday and Sunday together.</p>
+    <table class="tbl"><thead><tr><th>Department</th><th class="num">Output</th>
+      <th class="num">Crew hrs</th><th class="num">Per hr</th><th class="num">Uptime</th>
+      <th class="num">Make-ready</th><th>From</th><th></th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="8">Nothing found for these dates.</td></tr>'}</tbody></table>
+    <h3 class="sheet__sub">Shipping</h3>
+    ${ship}
+    ${p.unknownNames.length ? `<h3 class="sheet__sub">Names not on the operator list</h3>
+      <p class="drop__note">Imported as typed. Nothing is dropped and nothing is invented —
+      add them to the operator list if they belong there.</p>
+      <p class="drop__names">${p.unknownNames.slice(0, 12).map(n =>
+        `<span class="pill pill--info">${esc(n.name)} · ${n.count}</span>`).join(' ')}</p>` : ''}
+    ${p.notes.length ? `<h3 class="sheet__sub">Notes</h3>
+      <ul class="drop__notes">${p.notes.map(n => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
+    <div class="sheet__foot">
+      <span class="drop__note">${p.sources.map(s => `${esc(s.file)} · ${num(s.rows)} rows`).join(' · ')}</span>
+      <button class="btn" id="import-again">Choose different files</button>
+      <button class="btn btn--go" id="import-apply"${p.departments.length ? '' : ' disabled'}>
+        Apply to ${esc(shortDate(state.date))}</button>
+    </div>`;
+}
+
+async function readDropped(files) {
+  if (!files?.length) return;
+  importState.reading = true; importState.error = null;
+  drawImport();
+  try {
+    const { readFiles } = await import('../import.js');
+    const [operators, reported] = await Promise.all([
+      loadOperators(state.location).catch(() => []),
+      loadReportedDates(state.location, addDays(state.date, -21), state.date).catch(() => []),
+    ]);
+    importState.preview = await readFiles([...files], {
+      date: state.date, reported: reported.filter(d => d < state.date), operators: operators || [],
+    });
+  } catch (error) {
+    importState.error = error.message || 'Those files could not be read.';
+    importState.preview = null;
+  } finally {
+    importState.reading = false;
+    drawImport();
+  }
+}
+
+// Applying is a batch of ordinary field writes. Uptime, make-ready and the make-ready
+// count only overwrite when the files actually carry them: a blank in the workbook means
+// nothing was recorded, and writing null over a figure somebody typed would be the import
+// deciding it knows better.
+async function applyImport() {
+  const p = importState.preview;
+  if (!p) return;
+  const writes = [];
+  for (const d of p.departments) {
+    writes.push([`dept:${d.dept_key}:qty`, d.qty], [`dept:${d.dept_key}:hours`, d.hours]);
+    if (d.uptime != null) writes.push([`dept:${d.dept_key}:uptime`, Number(d.uptime.toFixed(4))]);
+    if (d.make_ready != null) writes.push([`dept:${d.dept_key}:make_ready`, Number(d.make_ready.toFixed(3))]);
+    if (d.mr_count != null) writes.push([`dept:${d.dept_key}:mr_count`, d.mr_count]);
+  }
+  if (p.shipping) {
+    writes.push(['jobs_shipped', p.shipping.jobs_shipped], ['jobs_on_time', p.shipping.jobs_on_time],
+                ['late', p.shipping.late], ['shorts', p.shipping.shorts]);
+  }
+  for (const [name, value] of writes) {
+    applyLocally(name, value);
+    await persist(name, value);
+  }
+  importState.preview = null;
+  $('#import-sheet').close();
+  render();
+  toast(`${writes.length} readings imported.`);
+}
+
+const addDays = (value, n) => {
+  const d = dateOf(value);
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+};
+
+function drawImport() {
+  $('#import-body').innerHTML = importPanel();
+  const zone = $('#drop');
+  if (zone) {
+    $('#drop-input')?.addEventListener('change', e => readDropped(e.target.files));
+    for (const type of ['dragenter', 'dragover']) {
+      zone.addEventListener(type, e => { e.preventDefault(); zone.classList.add('drop--over'); });
+    }
+    for (const type of ['dragleave', 'drop']) {
+      zone.addEventListener(type, () => zone.classList.remove('drop--over'));
+    }
+    zone.addEventListener('drop', e => { e.preventDefault(); readDropped(e.dataTransfer?.files); });
+  }
+  $('#import-again')?.addEventListener('click', () => { importState.preview = null; drawImport(); });
+  $('#import-apply')?.addEventListener('click', applyImport);
+}
+
+$('#import-btn')?.addEventListener('click', () => {
+  if (!state.canEdit) return toast('Your account cannot change this plant.');
+  drawImport();
+  $('#import-sheet').showModal();
+});

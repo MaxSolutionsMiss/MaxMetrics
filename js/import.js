@@ -144,7 +144,7 @@ const number = value => {
 // department day would throw away the three dimensions — machine, shift and team — that
 // every question beyond the morning meeting is asked along.
 export async function readDor(workbook, { matchName = raw => ({ name: tidy(raw), known: true }) } = {}) {
-  const shifts = [], unknownNames = new Map(), notes = [];
+  const shifts = [], notes = [];
 
   for (const { sheet, dept, unit } of DOR_SHEETS) {
     const rows = await workbook.rows(sheet);
@@ -162,9 +162,6 @@ export async function readDor(workbook, { matchName = raw => ({ name: tidy(raw),
       const date = serialToISO(row?.[at.date]);
       if (!date) continue;                                   // blank or a stray label
       const matched = matchName(row[at.team]);
-      if (!matched.known && matched.name) {
-        unknownNames.set(matched.name, (unknownNames.get(matched.name) || 0) + 1);
-      }
       shifts.push({
         dept, unit, date,
         machine: tidy(row[at.machine]),
@@ -179,7 +176,22 @@ export async function readDor(workbook, { matchName = raw => ({ name: tidy(raw),
       });
     }
   }
-  return { shifts, unknownNames, notes };
+  return { shifts, notes };
+}
+
+// Only the days being imported. The workbook holds years of history and half its names
+// left the plant before the operator list existed; counting all of them would put a dozen
+// strangers in front of someone importing one Tuesday, and a warning nobody can act on is
+// one they learn to scroll past.
+export function unknownNamesIn(shifts, from, to) {
+  const tally = new Map();
+  for (const row of shifts) {
+    if (row.date < from || row.date > to) continue;
+    if (row.teamKnown || !row.team) continue;
+    tally.set(row.team, (tally.get(row.team) || 0) + 1);
+  }
+  return [...tally.entries()].map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 }
 
 // A department's morning figure is the sum over its machines and shifts in the window.
@@ -258,7 +270,7 @@ const looksLikeShipping = names => names.some(n => /otd/i.test(n));
 // person to look at first.
 export async function readFiles(files, { date, reported = [], operators = [] } = {}) {
   const matchName = nameMatcher(operators);
-  const notes = [], unknown = new Map();
+  const notes = [];
   let shifts = [], shipping = null, sources = [];
 
   for (const file of files) {
@@ -273,7 +285,6 @@ export async function readFiles(files, { date, reported = [], operators = [] } =
     if (looksLikeDor(names)) {
       const read = await readDor(workbook, { matchName });
       shifts = shifts.concat(read.shifts);
-      for (const [name, count] of read.unknownNames) unknown.set(name, (unknown.get(name) || 0) + count);
       notes.push(...read.notes.map(n => `${file.name}: ${n}`));
       sources.push({ file: file.name, kind: 'production', rows: read.shifts.length });
     } else if (looksLikeShipping(names)) {
@@ -295,8 +306,7 @@ export async function readFiles(files, { date, reported = [], operators = [] } =
   return {
     date, span, sources, departments, shipping: ship,
     covering: daysBetweenInclusive(span.from, span.to),
-    unknownNames: [...unknown.entries()].map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count),
+    unknownNames: unknownNamesIn(shifts, span.from, span.to),
     notes,
     shiftCount: shifts.filter(s => s.date >= span.from && s.date <= span.to).length,
   };

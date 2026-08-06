@@ -53,6 +53,7 @@
           <span class="chartpick" id="chartpick" role="group" aria-label="Chart style"></span>
           <span class="chip" id="status">—</span>
           <input class="date-inp" type="date" id="date" aria-label="Dashboard date">
+          <button class="btn" id="import-btn">Import</button>
           <button class="btn" id="edit-btn">Enter data</button>
           <button class="btn btn--go hide" id="publish-btn">Publish</button>
           <button class="btn btn--primary" id="tv-btn">Present</button>
@@ -65,6 +66,15 @@
       </div>
     </div>
   </div>
+
+  <!-- The importer. Nothing here writes until somebody has seen what it read. -->
+  <dialog class="sheet" id="import-sheet" aria-label="Import the morning's files">
+    <form method="dialog" class="sheet__head">
+      <h2 class="sheet__title">Import a morning</h2>
+      <button class="btn" value="cancel">Close</button>
+    </form>
+    <div class="sheet__body" id="import-body"></div>
+  </dialog>
 
   <div class="tvbar">
     <button class="btn" id="tv-prev" aria-label="Previous section">‹</button>
