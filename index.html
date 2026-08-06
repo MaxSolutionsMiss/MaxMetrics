@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="MaxMetrics daily plant dashboard">
+  <title>Sign in · MaxMetrics</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700&family=Barlow+Condensed:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="assets/maxmetrics.css?v=2f9567fb7e3a">
+</head>
+<body class="login-page">
+  <main class="login-wrap">
+    <section class="login-card" id="sign-in-panel">
+      <div class="login-brand">
+        <span class="rail__mark">
+          <svg viewBox="0 0 40 30" aria-hidden="true">
+            <path d="M2 28 L13 3 L24 28" fill="none" stroke="#fff" stroke-width="4.4" stroke-linejoin="miter"/>
+            <path d="M16 28 L27 3 L38 28" fill="none" stroke="#fff" stroke-width="4.4" stroke-linejoin="miter" opacity=".62"/>
+          </svg>
+        </span>
+        <span class="login-brand__name">Max<b>Metrics</b></span>
+      </div>
+      <h1 class="login-title">Sign in</h1>
+      <p class="login-intro">Use the email and password assigned to your MaxMetrics account.</p>
+      <form id="sign-in-form" novalidate>
+        <div class="field">
+          <label class="field__label" for="email">Email</label>
+          <input class="inp inp--lg" id="email" name="email" type="email" autocomplete="username" required>
+        </div>
+        <div class="field">
+          <label class="field__label" for="password">Password</label>
+          <input class="inp inp--lg" id="password" name="password" type="password" autocomplete="current-password" required>
+        </div>
+        <p class="form-message" id="sign-in-message" role="alert" aria-live="polite"></p>
+        <button class="btn btn--primary btn--block" id="sign-in-submit" type="submit">Sign in</button>
+      </form>
+      <button class="text-link" id="forgot-link" type="button">Forgot your password?</button>
+      <div class="login-divider">A system by</div>
+      <div class="login-owner">Max Solutions</div>
+    </section>
+
+    <section class="login-card" id="forgot-panel" hidden>
+      <div class="login-brand">
+        <span class="rail__mark">
+          <svg viewBox="0 0 40 30" aria-hidden="true">
+            <path d="M2 28 L13 3 L24 28" fill="none" stroke="#fff" stroke-width="4.4" stroke-linejoin="miter"/>
+            <path d="M16 28 L27 3 L38 28" fill="none" stroke="#fff" stroke-width="4.4" stroke-linejoin="miter" opacity=".62"/>
+          </svg>
+        </span>
+        <span class="login-brand__name">Max<b>Metrics</b></span>
+      </div>
+      <h1 class="login-title">Reset your password</h1>
+      <p class="login-intro">Enter your email and MaxMetrics will send a secure reset link.</p>
+      <form id="forgot-form" novalidate>
+        <div class="field">
+          <label class="field__label" for="reset-email">Email</label>
+          <input class="inp inp--lg" id="reset-email" type="email" autocomplete="username" required>
+        </div>
+        <p class="form-message" id="forgot-message" role="alert" aria-live="polite"></p>
+        <button class="btn btn--primary btn--block" id="forgot-submit" type="submit">Send reset link</button>
+      </form>
+      <button class="text-link" id="back-link" type="button">Back to sign in</button>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.52.1/dist/umd/supabase.min.js"></script>
+  <script type="module" src="js/pages/sign-in.js?v=2f9567fb7e3a"></script>
+</body>
+</html>
