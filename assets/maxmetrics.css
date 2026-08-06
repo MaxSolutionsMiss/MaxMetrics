@@ -246,19 +246,34 @@ html[data-rail="mini"]{--rail-w:62px}
 .card--ok .viz-v{fill:var(--ok)}.card--warn .viz-v{fill:var(--warn)}.card--stop .viz-v{fill:var(--stop)}
 .viz-s{fill:var(--ink-muted);font-weight:600;text-anchor:middle;font-family:var(--font)}
 
-.foot{margin-top:auto;width:100%;align-self:stretch;padding-top:var(--s2);
-  border-top:1px solid var(--rule);display:flex;
-  gap:var(--s4);flex-wrap:wrap}
+/* Two to a line, facing each other, all one size.
+   The foot used to be a flex row that wrapped: five readings of two different sizes fell
+   into three uneven rows, nothing lined up with anything below it, and neighbours ran
+   together. A fixed pair per line fixes both — the eye gets a left column and a right
+   column instead of a paragraph of numbers, and every value carries the same weight
+   because none of them is less true than the others. */
+.foot{margin-top:auto;width:100%;align-self:stretch;padding-top:var(--s3);
+  border-top:1px solid var(--rule);display:grid;grid-template-columns:1fr 1fr;
+  gap:var(--s3) var(--s4);text-align:left}
 .card--ok .foot{border-top-color:var(--ok-rule)}.card--warn .foot{border-top-color:var(--warn-rule)}
 .card--stop .foot{border-top-color:var(--stop-rule)}
-.fstat{display:flex;flex-direction:column;gap:0;min-width:0}
+.fstat{display:flex;flex-direction:column;gap:1px;min-width:0}
+/* The right of each pair turns to face the left of it across the card. */
+.foot .fstat:nth-child(even){text-align:right;align-items:flex-end}
+/* Labels reserve the same height whether or not they wrap, so the two values in a pair
+   always start at the same line. Without it "Last near-miss" wraps, "Record" does not, and
+   the two numbers underneath sit at different heights on the same row. */
 .fstat__l{font-family:var(--font-condensed);font-size:calc(11px*var(--scale));text-transform:uppercase;
-  letter-spacing:.08em;font-weight:700;color:var(--ink-faint)}
-.fstat__v{font-family:var(--font-condensed);font-size:min(calc(var(--t-metric)*.95),10cqi);
-  font-weight:600;line-height:1.15;
-  letter-spacing:-.02em;color:var(--ink);white-space:nowrap}
+  letter-spacing:.07em;font-weight:700;color:var(--ink-faint);line-height:1.25;
+  min-height:1.25em;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* No nowrap. A card narrow enough that "Nov 20, 2025" does not fit beside "136 days"
+   should break the date over two lines, not run it through its neighbour. Sized against
+   the card's own width so the same rule holds on a laptop and on the TV. */
+.fstat__v{font-family:var(--font-condensed);font-size:min(calc(var(--t-metric)*.8),8.6cqi);
+  font-weight:600;line-height:1.15;letter-spacing:-.01em;color:var(--ink);
+  overflow-wrap:anywhere}
 .fstat__v em{font-style:normal;font-size:.55em;font-weight:600;opacity:.75}
-.fstat__v--sm{font-size:var(--t-base);font-weight:600;color:var(--ink-muted);letter-spacing:0}
+.fstat__v--sm{font-weight:600}
 .card--ok .fstat__v{color:var(--ok)}.card--warn .fstat__v{color:var(--warn)}.card--stop .fstat__v{color:var(--stop)}
 .card--ok .fstat__v--sm,.card--warn .fstat__v--sm,.card--stop .fstat__v--sm{opacity:.85}
 .flag{align-self:center;font-size:var(--t-micro);font-weight:700;text-transform:uppercase;
@@ -336,7 +351,27 @@ html[data-rail="mini"]{--rail-w:62px}
 
 .fin{display:grid;grid-template-columns:1fr 1fr;gap:var(--s5)}
 @media(max-width:880px){.fin{grid-template-columns:1fr}}
-.fin__pane{min-width:0;container-type:inline-size;text-align:center}
+/* A pane is a card in its own right: its own wash, its own rule, its own verdict.
+   Two panes side by side, one green and one red, is the honest picture of a year that is
+   ahead and a month that is five days old. */
+.fin__pane{min-width:0;container-type:inline-size;text-align:center;
+  padding:var(--s4);border-radius:var(--radius-lg);border:1px solid var(--rule);
+  background:var(--surface)}
+.fin__pane--ok{background:var(--ok-wash);border-color:var(--ok-rule)}
+.fin__pane--warn{background:var(--warn-wash);border-color:var(--warn-rule)}
+.fin__pane--stop{background:var(--stop-wash);border-color:var(--stop-rule)}
+.fin__pane--ok .fin__v,.fin__pane--ok .fin__pace{color:var(--ok)}
+.fin__pane--warn .fin__v,.fin__pane--warn .fin__pace{color:var(--warn)}
+.fin__pane--stop .fin__v,.fin__pane--stop .fin__pace{color:var(--stop)}
+.fin__pane--ok .fin__t{color:var(--ok)}.fin__pane--warn .fin__t{color:var(--warn)}
+.fin__pane--stop .fin__t{color:var(--stop)}
+/* Per cent of plan, said plainly. The plant reads this number as "am I at a hundred or
+   not", so it leads the pane and the money sits under it as the amount behind the claim. */
+.fin__pace{font-family:var(--font-condensed);font-size:min(calc(var(--t-metric)*2.1),22cqi);
+  font-weight:500;line-height:1;letter-spacing:-.01em;color:var(--ink)}
+.fin__pace i{font-family:var(--font);font-style:normal;font-size:.22em;font-weight:400;
+  opacity:.75;letter-spacing:0}
+.fin__v{font-size:min(calc(var(--t-metric)*1.1),12cqi);margin-bottom:var(--s3)}
 .fin__v--under{margin-top:var(--s2)}
 .fin__t{font-family:var(--font-condensed);font-size:calc(14px*var(--scale));text-transform:uppercase;
   letter-spacing:.08em;font-weight:700;color:var(--ink-muted);margin-bottom:var(--s2)}

@@ -129,6 +129,7 @@ const field = (label, name, attrs = '') =>
    <input class="inp" data-field="${name}" ${attrs}></div>`;
 
 function streakCard(kind, label, lastField, recordField, word) {
+  const footLabel = word[0].toUpperCase() + word.slice(1);
   const last = metric(lastField), record = Number(metric(recordField) || 0);
   const days = last ? daysBetween(last, state.date) : null;
   const beaten = days != null && record > 0 && days >= record;
@@ -141,7 +142,7 @@ function streakCard(kind, label, lastField, recordField, word) {
     sub: beaten || !record ? null : `record ${record} days`,
     flag: beaten ? `<div class="flag flag--ok">Record broken · +${days - record} days</div>` : '',
     foot: footStat('Record', record ? `${record}<em> days</em>` : '—')
-        + footStat(`Last ${word}`, shortDate(last), true),
+        + footStat(footLabel, shortDate(last)),
     edit: field('Last', lastField, `type="date" value="${last || ''}"`)
         + field('Record', recordField, `type="number" value="${record || ''}"`),
   });
@@ -276,15 +277,20 @@ const SECTIONS = {
         value: rate ? num(Math.round(rate)) : '—', sub: `${config.unit} / hr`,
         percent: target ? rate / (target * 1.25) * 100 : 0,
         markPercent: 100 / 1.25, markLabel: 'target',
-        foot: footStat('Target / hr', num(target))
-            + footStat('Total', row.qty ? `${num(row.qty)} · ${row.hours || 0}h` : '—', true)
-            + footStat('vs target', rate && target ? trend(rate, target) : '—', true)
-            + (row.uptime != null ? footStat('Uptime',
-                `<span class="tone--${band.rate(Number(row.uptime) * 100, Number(config.uptime_target || 0) * 100) || 'none'}">${
-                  (Number(row.uptime) * 100).toFixed(1)}%</span>`, true) : '')
-            + (row.make_ready != null ? footStat('Make-ready',
-                `<span class="tone--${band.lower(Number(row.make_ready), Number(config.mr_target || 0)) || 'none'}">${
-                  Number(row.make_ready).toFixed(2)} h</span>`, true) : ''),
+        // Three lines, two readings each, paired so the eye can run down a column:
+        // what was made against the hours it took, the target against how far off it was,
+        // then the two that explain the gap. Uptime and make-ready share a line because
+        // they are the same question — where the hours went — asked two ways.
+        foot: footStat(config.unit, row.qty ? num(row.qty) : '—')
+            + footStat('Crew hrs', row.hours ? `${row.hours}<em> h</em>` : '—')
+            + footStat('Target / hr', num(Math.round(target)))
+            + footStat('vs target', rate && target ? trend(rate, target) : '—')
+            + footStat('Uptime', row.uptime == null ? '—'
+                : `<span class="tone--${band.rate(Number(row.uptime) * 100, Number(config.uptime_target || 0) * 100) || 'none'}">${
+                  (Number(row.uptime) * 100).toFixed(1)}%</span>`)
+            + footStat('Make-ready', row.make_ready == null ? '—'
+                : `<span class="tone--${band.lower(Number(row.make_ready), Number(config.mr_target || 0)) || 'none'}">${
+                  Number(row.make_ready).toFixed(2)}<em> h</em></span>`),
         edit: field(config.unit, `dept:${config.key}:qty`, `type="number" value="${row.qty ?? ''}"`)
             + field('Hours', `dept:${config.key}:hours`, `type="number" step="0.1" value="${row.hours ?? ''}"`)
             + field('Target', `dept:${config.key}:target`, `type="number" value="${row.target ?? config.target}"`)
@@ -446,7 +452,6 @@ const SECTIONS = {
     const varianceYtd = actualYtd - planYtd;
     const percentYtd = planYtd ? varianceYtd / planYtd * 100 : 0;
     const toneMtd = band.money(percentMtd), toneYtd = band.money(percentYtd);
-    const worst = band.worst([toneMtd, toneYtd]);
 
     // The chart choice reaches the financials too. Sales against plan is a reading like
     // any other, and a page where five cards are rings and the money is a bar reads as
@@ -457,10 +462,15 @@ const SECTIONS = {
         percent: pacePercent / 1.4, markPercent: 100 / 1.4, markLabel: 'plan',
         value: `${Math.round(pacePercent)}%`, unit: '',
       });
-      return `<div class="fin__pane"><div class="fin__t">${title}</div>
+      // The pane is the thing being judged, not the card. Month to date and year to date
+      // are two different questions — one about the last few days, one about the year —
+      // and a card washed by the worse of them tells the room the year is in trouble
+      // because the month is five days old. Each pane now carries its own verdict.
+      return `<div class="fin__pane fin__pane--${tone}"><div class="fin__t">${title}</div>
+        <div class="fin__pace">${Math.round(pacePercent)}<i>% of plan</i></div>
         ${showsHeroNumber(state.chart)
-          ? `<div class="fin__v" style="color:var(--${tone})">${money(actual)}</div>${drawn}`
-          : `${drawn}<div class="fin__v fin__v--under" style="color:var(--${tone})">${money(actual)}</div>`}
+          ? `<div class="fin__v">${money(actual)}</div>${drawn}`
+          : `${drawn}<div class="fin__v fin__v--under">${money(actual)}</div>`}
         <div>${rows.map(([label, value, colour]) => `<div class="fin__row"><span>${label}</span>
           <strong${colour ? ` style="color:var(--${colour})"` : ''}>${value}</strong></div>`).join('')}</div></div>`;
     };
@@ -468,7 +478,7 @@ const SECTIONS = {
     const monthSeries = (state.history?.metrics || [])
       .map(r => Number(r.fin_actual_mtd)).filter(v => Number.isFinite(v) && v > 0);
     const pace = planMtd ? actualMtd / planMtd * 100 : 0;
-    return `<div class="card card--${worst}" data-pkey="financials" style="padding:var(--s5)">
+    return `<div class="card" data-pkey="financials" style="padding:var(--s5)">
       <div class="card__head">
         <span class="card__ico" aria-hidden="true">💰</span>
         <span class="card__label">Sales against budget · through ${
