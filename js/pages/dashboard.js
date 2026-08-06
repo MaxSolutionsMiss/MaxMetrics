@@ -9,13 +9,13 @@ import {
   currentSession, signOut, myProfile, myLocations, savePreference,
   openDay, loadDay, loadHistory, loadBudgets, saveField, saveDepartment, saveReview,
   saveBudget, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
-} from '../db.js?v=3e6cf4c4af85';
-import { assess, attention, settled } from '../assess.js?v=3e6cf4c4af85';
+} from '../db.js?v=118bca47d29e';
+import { assess, attention, settled } from '../assess.js?v=118bca47d29e';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, footStat, drawReading, showsHeroNumber, CHART_ICONS, CHART_NAMES, iconFor,
   spark, bullet, chip,
-} from '../readings.js?v=3e6cf4c4af85';
+} from '../readings.js?v=118bca47d29e';
 
 const $ = selector => document.querySelector(selector);
 
