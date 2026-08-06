@@ -1,0 +1,158 @@
+// Judgement and drawing.
+//
+// Two rules hold this file together.
+//
+// `band` decides. Nothing else in MaxMetrics is allowed to form an opinion about whether
+// a number is good, so a card, the dot beside a section in the rail, and the colour of a
+// ring can never disagree about the same reading.
+//
+// The draw functions draw. Each takes a verdict that has already been reached and renders
+// it. That is why the chart style can be a free choice: swapping a bar for a ring changes
+// the shape and cannot change the answer.
+
+export const esc = value =>
+  String(value ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+export const band = {
+  // A streak is measured against the record it is chasing, not against a fixed number.
+  streak: (days, record) => !record ? 'ok' : days >= record ? 'ok' : days >= record * 0.6 ? 'warn' : 'stop',
+  count:  value => value === 0 ? 'ok' : value === 1 ? 'warn' : 'stop',
+  coq:    (value, target) => value <= target ? 'ok' : value <= target * 1.18 ? 'warn' : 'stop',
+  rate:   (actual, target) => !actual || !target ? '' : actual >= target ? 'ok' : actual >= target * 0.9 ? 'warn' : 'stop',
+  pct:    (value, target) => value >= target ? 'ok' : value >= target - 3 ? 'warn' : 'stop',
+  money:  percent => percent > 0 ? 'ok' : percent >= -3 ? 'warn' : 'stop',
+  maint:  status => status === 'Complete' ? 'ok' : status === 'Overdue' ? 'stop'
+                  : status === 'Due Today' ? 'warn' : 'info',
+  // A section reports the worst thing in it, so a closed rail still tells the truth.
+  worst: list => list.includes('stop') ? 'stop' : list.includes('warn') ? 'warn' : 'ok',
+};
+
+export const MONTHS = ['January','February','March','April','May','June',
+                       'July','August','September','October','November','December'];
+export const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+export const dateOf = value => new Date(`${value}T00:00:00`);
+export const daysBetween = (from, to) => Math.floor((dateOf(to) - dateOf(from)) / 86400000);
+export const num = value => Number(value ?? 0).toLocaleString('en-US');
+
+export function shortDate(value) {
+  if (!value) return '—';
+  const d = dateOf(value);
+  return Number.isNaN(+d) ? '—' : `${MONTHS[d.getMonth()].slice(0, 3)} ${d.getDate()}, ${d.getFullYear()}`;
+}
+
+export function money(value) {
+  const v = Number(value || 0), sign = v < 0 ? '-' : '', abs = Math.abs(v);
+  if (abs >= 1e6) return `${sign}$${(abs / 1e6).toFixed(abs >= 1e7 ? 1 : 2)}M`;
+  if (abs >= 1e3) return `${sign}$${Math.round(abs / 1e3).toLocaleString()}K`;
+  return `${sign}$${Math.round(abs).toLocaleString()}`;
+}
+
+export function trend(current, previous) {
+  if (!current || !previous) return '<span class="trend trend--flat">—</span>';
+  const percent = (current - previous) / previous * 100, up = current >= previous;
+  return `<span class="trend trend--${up ? 'up' : 'dn'}">${up ? '▲' : '▼'} ${Math.abs(percent).toFixed(1)}%</span>`;
+}
+
+// ── The four drawings ───────────────────────────────────────────────────────────
+//
+// Text inside an SVG scales with the viewBox, so a caption that fits on a laptop collides
+// with the arc on a 48" screen. Only the reading itself goes inside a drawing; every label
+// around it is HTML and scales with the type ramp instead.
+
+const vizFont = value => String(value).length > 5 ? 15 : String(value).length > 3 ? 19 : 24;
+const ridesInside = unit => unit === '%';
+
+function drawBar({ percent, markPercent, markLabel }) {
+  const mark = markPercent == null ? ''
+    : `<span class="track__mark${markPercent >= 99 ? ' track__mark--end' : ''}"
+        style="left:${markPercent}%" data-lbl="${esc(markLabel)}"></span>`;
+  return `<div class="track"><span class="track__fill"
+    style="width:${Math.min(100, percent).toFixed(1)}%"></span>${mark}</div>`;
+}
+
+function drawDonut({ percent, value, unit }) {
+  const r = 38, circumference = 2 * Math.PI * r;
+  const filled = Math.max(0, Math.min(100, percent)) / 100 * circumference;
+  return `<svg class="viz" viewBox="0 0 100 100" role="img" aria-label="${esc(`${value} ${unit || ''}`)}">
+    <circle class="viz-track" cx="50" cy="50" r="${r}" stroke-width="10"/>
+    ${filled > 0.5 ? `<circle class="viz-fill" cx="50" cy="50" r="${r}" stroke-width="10"
+      stroke-linecap="round" stroke-dasharray="${filled.toFixed(2)} ${(circumference - filled).toFixed(2)}"
+      transform="rotate(-90 50 50)"/>` : ''}
+    <text class="viz-v" x="50" y="50" dominant-baseline="central" font-size="${vizFont(value)}">${esc(value)}${
+      ridesInside(unit) ? `<tspan font-size="${vizFont(value) * 0.52}">${esc(unit)}</tspan>` : ''}</text>
+  </svg>`;
+}
+
+function drawGauge({ percent, value, unit, markPercent }) {
+  const r = 38, cx = 50, cy = 58, length = Math.PI * r;
+  const filled = Math.max(0, Math.min(100, percent)) / 100 * length;
+  const path = `M${cx - r} ${cy} A${r} ${r} 0 0 1 ${cx + r} ${cy}`;
+  let mark = '';
+  if (markPercent != null) {
+    const angle = Math.PI * (1 - Math.min(100, markPercent) / 100);
+    const x1 = cx + Math.cos(angle) * (r - 6.5), y1 = cy - Math.sin(angle) * (r - 6.5);
+    const x2 = cx + Math.cos(angle) * (r + 6.5), y2 = cy - Math.sin(angle) * (r + 6.5);
+    mark = `<line class="viz-mark" x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}"
+      x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke-width="2"/>`;
+  }
+  return `<svg class="viz" viewBox="0 0 100 66" role="img" aria-label="${esc(`${value} ${unit || ''}`)}">
+    <path class="viz-track" d="${path}" stroke-width="10" stroke-linecap="round"/>
+    ${filled > 0.5 ? `<path class="viz-fill" d="${path}" stroke-width="10" stroke-linecap="round"
+      stroke-dasharray="${filled.toFixed(2)} ${length.toFixed(2)}"/>` : ''}
+    ${mark}
+    <text class="viz-v" x="50" y="${cy}" font-size="${vizFont(value)}">${esc(value)}${
+      ridesInside(unit) ? `<tspan font-size="${vizFont(value) * 0.52}">${esc(unit)}</tspan>` : ''}</text>
+  </svg>`;
+}
+
+export const CHART_NAMES = { number: 'Number only', bar: 'Bar', donut: 'Ring', gauge: 'Gauge' };
+
+export const CHART_ICONS = {
+  number: `<svg viewBox="0 0 24 24"><text x="12" y="17" font-size="15" font-weight="700"
+    text-anchor="middle" fill="currentColor" stroke="none">7</text></svg>`,
+  bar: `<svg viewBox="0 0 24 24"><path d="M3 16h18"/><path d="M3 16h11" stroke-width="4"/></svg>`,
+  donut: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.5"/>
+    <path d="M12 4.5A7.5 7.5 0 0 1 19.5 12" stroke-width="3.6"/></svg>`,
+  gauge: `<svg viewBox="0 0 24 24"><path d="M4 17a8 8 0 0 1 16 0"/>
+    <path d="M4 17a8 8 0 0 1 5-7.4" stroke-width="3.4"/></svg>`,
+};
+
+// One entry point. A card asks for its reading to be drawn and gets whichever form the
+// reader picked, without knowing which that is.
+export function drawReading(style, options) {
+  if (style === 'number') return '';
+  if (style === 'donut') return drawDonut(options);
+  if (style === 'gauge') return drawGauge(options);
+  return drawBar(options);
+}
+
+export const showsHeroNumber = style => style === 'number' || style === 'bar';
+
+export const footStat = (label, value, small) =>
+  `<div class="fstat"><span class="fstat__l">${esc(label)}</span>
+   <span class="fstat__v${small ? ' fstat__v--sm' : ''}">${value}</span></div>`;
+
+// A card is a label, a verdict, a reading drawn some way, and the numbers that give the
+// reading its context. Everything that varies between cards arrives as an argument.
+export function metricCard({ chart, pkey, label, tone, value, unit, percent, markPercent,
+                             markLabel, sub, flag, foot, edit, medium }) {
+  const hero = showsHeroNumber(chart);
+  const drawn = drawReading(chart, { percent, markPercent, markLabel, value, unit });
+  const caption = hero
+    ? (sub ? `<div class="unit">${esc(sub)}</div>` : '')
+    : ((unit && !ridesInside(unit)) || sub
+        ? `<div class="unit unit--under">${esc([unit && !ridesInside(unit) ? unit : '', sub]
+            .filter(Boolean).join(' · '))}</div>`
+        : '');
+  return `<div class="card card--${tone}" data-pkey="${esc(pkey)}">
+    <div class="card__label">${esc(label)}</div>
+    ${flag || ''}
+    <div class="card__mid">
+      ${hero ? `<div class="hero${medium ? ' hero--md' : ''}">${esc(value)}${
+        unit ? `<i>${esc(unit)}</i>` : ''}</div>${caption}${drawn}` : `${drawn}${caption}`}
+    </div>
+    <div class="foot">${foot}</div>
+    ${edit ? `<div class="ez">${edit}</div>` : ''}
+  </div>`;
+}

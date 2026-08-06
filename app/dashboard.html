@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="MaxMetrics daily plant dashboard">
+  <title>Daily dashboard · MaxMetrics</title>
+  <link rel="stylesheet" href="../assets/maxmetrics.css">
+</head>
+<body>
+  <div class="shell">
+    <nav class="rail" aria-label="Sections">
+      <div class="rail__brand">
+        <span class="rail__mark">
+          <svg viewBox="0 0 40 30" aria-hidden="true">
+            <path d="M2 28 L13 3 L24 28" fill="none" stroke="#fff" stroke-width="4.4" stroke-linejoin="miter"/>
+            <path d="M16 28 L27 3 L38 28" fill="none" stroke="#fff" stroke-width="4.4" stroke-linejoin="miter" opacity=".62"/>
+          </svg>
+        </span>
+        <span class="rail__name">Max<b>Metrics</b></span>
+      </div>
+      <div class="rail__group">
+        <div class="rail__labelrow">
+          <span class="rail__label">Daily dashboard</span>
+          <button class="rail__collapse" id="rail-btn" aria-label="Collapse menu">
+            <svg viewBox="0 0 24 24"><path d="M15 5 L8 12 L15 19"/></svg>
+          </button>
+        </div>
+        <div id="nav"></div>
+      </div>
+      <div class="rail__foot">
+        <strong id="foot-loc">—</strong>
+        <span id="foot-user">—</span>
+      </div>
+    </nav>
+
+    <div class="main">
+      <header class="top">
+        <select class="top__loc" id="loc" aria-label="Location"></select>
+        <div class="top__date"><b id="date-long">—</b><span id="date-rel">—</span></div>
+        <span class="who" id="who" aria-label="People on this dashboard"></span>
+        <span class="saved" id="saved"></span>
+        <div class="top__spacer"></div>
+        <div class="top__actions">
+          <span class="chartpick" id="chartpick" role="group" aria-label="Chart style"></span>
+          <span class="chip" id="status">—</span>
+          <input class="date-inp" type="date" id="date" aria-label="Dashboard date">
+          <button class="btn" id="edit-btn">Enter data</button>
+          <button class="btn btn--go hide" id="publish-btn">Publish</button>
+          <button class="btn btn--primary" id="tv-btn">Present</button>
+          <button class="btn" id="theme-btn">Theme</button>
+          <button class="btn" id="signout-btn">Sign out</button>
+        </div>
+      </header>
+      <div class="content" id="content">
+        <div class="loading">Loading the morning…</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tvbar">
+    <button class="btn" id="tv-prev" aria-label="Previous section">‹</button>
+    <button class="btn" id="tv-play">Auto</button>
+    <button class="btn" id="tv-next" aria-label="Next section">›</button>
+    <button class="btn" id="tv-exit">Exit</button>
+  </div>
+  <div class="conn" id="conn">Reconnecting…</div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.52.1/dist/umd/supabase.min.js"></script>
+  <script type="module" src="../js/pages/dashboard.js"></script>
+</body>
+</html>
