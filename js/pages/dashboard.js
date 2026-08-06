@@ -667,8 +667,23 @@ state.locations = (grants || []).map(g => ({
 })).sort((a, b) => a.sort - b.sort);
 
 if (!state.locations.length) {
-  $('#content').innerHTML = `<div class="loading">
-    Your account is not assigned to a plant yet. Ask a MaxMetrics administrator to add you.</div>`;
+  // Nothing to choose a plant from, no day to load, no sections to draw. Leaving the
+  // chrome on screen would surround the explanation with an empty menu, an empty
+  // location list and a blank date — which reads as a broken page rather than as an
+  // account waiting on access.
+  document.body.classList.add('no-access');
+  $('#content').innerHTML = `<div class="state">
+    <div class="state__inner">
+      <h1 class="state__title">Waiting on access</h1>
+      <p class="state__body">Your account is signed in, but it has not been assigned to a
+      plant yet, so there is nothing to show. A MaxMetrics administrator can add you.</p>
+      <p class="state__who">Signed in as ${esc(state.me.full_name || session.user.email)}</p>
+      <button class="btn" id="state-signout">Sign out</button>
+    </div></div>`;
+  $('#state-signout').addEventListener('click', async () => {
+    await signOut();
+    location.replace('../index.html');
+  });
 } else {
   $('#loc').innerHTML = state.locations.map(l =>
     `<option value="${esc(l.id)}">${esc(l.name)}</option>`).join('');

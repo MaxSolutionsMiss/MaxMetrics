@@ -423,3 +423,23 @@ body[data-connection="offline"] .conn{background:var(--stop-wash);border-color:v
    display beats it — so a panel marked hidden stays on screen. Restated last, at equal
    specificity, so it wins on order rather than by force. */
 [hidden]{display:none}
+
+/* ── NO ACCESS ──
+   An account with no plant has no location to pick, no day to load and no sections to
+   draw. Showing the menu, the plant list and the date picker anyway leaves a person
+   staring at dead controls, which reads as a broken page rather than as an explanation. */
+body.no-access .rail,
+body.no-access .top__actions,
+body.no-access .top__loc,
+body.no-access .top__date,
+body.no-access .who,
+body.no-access .saved{display:none}
+body.no-access .shell{grid-template-columns:1fr}
+body.no-access .top{justify-content:flex-start;padding:var(--s3) var(--s5)}
+body.no-access .top::before{content:"MaxMetrics";font-size:var(--t-lead);font-weight:600;
+  letter-spacing:-.015em;color:var(--ink)}
+.state{display:grid;place-items:center;min-height:70vh;padding:var(--s5);text-align:center}
+.state__inner{max-width:430px;display:flex;flex-direction:column;gap:var(--s3);align-items:center}
+.state__title{font-size:var(--t-title);font-weight:700;letter-spacing:-.02em;margin:0}
+.state__body{margin:0;color:var(--ink-muted);line-height:1.55}
+.state__who{margin:0;font-size:var(--t-small);color:var(--ink-faint)}
