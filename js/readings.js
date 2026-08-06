@@ -21,10 +21,20 @@ export const band = {
   // after an injury the counter reads 1 and the old rule painted it red, which is the
   // dashboard telling a plant it is failing on the day it most needs the opposite.
   streak: days => days === 0 ? 'stop' : 'ok',
+  // These four thresholds are the plant's, carried over from the dashboard it has been
+  // running since January. They are not mine to improve: the room already reads a colour
+  // and knows what it means, and quietly moving a line would change what the meeting
+  // believes without anyone being told.
+  //
+  // A shortage is red at one, not amber — a job short is a customer waiting.
+  shortage: count => Number(count) === 0 ? 'ok' : 'stop',
+  // A late or short shipment is amber at one and red at two.
   count:  value => value === 0 ? 'ok' : value === 1 ? 'warn' : 'stop',
-  coq:    (value, target) => value <= target ? 'ok' : value <= target * 1.18 ? 'warn' : 'stop',
+  // Cost of quality is amber up to one per cent of sales whatever the target is set to.
+  coq:    (value, target) => value <= target ? 'ok' : value <= 1.0 ? 'warn' : 'stop',
   rate:   (actual, target) => !actual || !target ? '' : actual >= target ? 'ok' : actual >= target * 0.9 ? 'warn' : 'stop',
-  pct:    (value, target) => value >= target ? 'ok' : value >= target - 3 ? 'warn' : 'stop',
+  // Shipping percentages are amber down to ninety, not down to three points off target.
+  pct:    (value, target) => value >= target ? 'ok' : value >= 90 ? 'warn' : 'stop',
   money:  percent => percent > 0 ? 'ok' : percent >= -3 ? 'warn' : 'stop',
   maint:  status => status === 'Complete' ? 'ok' : status === 'Overdue' ? 'stop'
                   : status === 'Due Today' ? 'warn' : 'info',

@@ -52,7 +52,7 @@ export function assess({ date, metrics, departments, review, maintenance, config
   if (has(m('shortages'))) {
     const count = Number(m('shortages'));
     out.push({ key:'shortages', area:'Quality', owner:'QA', title:'Shortages',
-      tone: band.count(count), value: count, unit: count === 1 ? 'job short' : 'jobs short',
+      tone: band.shortage(count), value: count, unit: count === 1 ? 'job short' : 'jobs short',
       target: 0, targetLabel:'target 0', percent: count ? 100 : 0 });
   }
   if (has(m('coq'))) {

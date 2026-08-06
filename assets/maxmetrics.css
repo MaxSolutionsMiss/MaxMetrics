@@ -306,12 +306,18 @@ body:not(.editing) .ez,body:not(.editing) .edit-only{display:none!important}
 /* Chart picker — the reader chooses how a reading is drawn, per card. */
 /* Its own row, right-aligned: sharing a line with the label pushed a four-word
    heading onto four lines. */
-.vizpick{display:flex;gap:3px;justify-content:flex-end;margin:0 0 var(--s2)}
-.vizpick button{width:26px;height:24px;border-radius:4px;border:1px solid var(--rule-strong);
-  background:var(--surface);cursor:pointer;display:grid;place-items:center;padding:0}
-.vizpick button svg{width:13px;height:13px;stroke:var(--ink-muted);fill:none;stroke-width:1.9}
-.vizpick button[aria-pressed="true"]{background:var(--brand);border-color:var(--brand)}
-.vizpick button[aria-pressed="true"] svg{stroke:#fff}
+/* Chart style — one control in the top bar, one choice, applied to every card. The
+   markup was renamed to .chartpick when the picker stopped being per-card; these rules
+   kept the old name and so matched nothing, leaving four blank buttons. */
+.chartpick{display:inline-flex;gap:2px;background:var(--sunk);border-radius:var(--radius);padding:2px}
+.chartpick button{width:30px;height:calc(var(--ctl-h) - 4px);border-radius:4px;border:none;
+  background:none;cursor:pointer;display:grid;place-items:center;padding:0}
+.chartpick button svg{width:16px;height:16px;stroke:var(--ink-muted);fill:none;stroke-width:1.9}
+.chartpick button svg text{fill:var(--ink-muted);stroke:none}
+.chartpick button:hover{background:rgba(128,128,128,.14)}
+.chartpick button[aria-pressed="true"]{background:var(--brand)}
+.chartpick button[aria-pressed="true"] svg{stroke:#fff}
+.chartpick button[aria-pressed="true"] svg text{fill:#fff}
 
 /* ── PRESENT / 16:9 BROADCAST ──
    A 48" screen at 1920×1080 shows one section, whole, with no scrollbar. Type is
@@ -600,3 +606,34 @@ body.tv .content.wall{display:flex;flex-direction:column;gap:var(--s4);
 .flagcard__row{display:flex;justify-content:space-between;gap:var(--s2);font-size:var(--t-small)}
 .flagcard__row span{color:var(--ink-muted)}
 .flagcard__row b{font-weight:700;white-space:nowrap}
+
+/* ── The 24-hour review, read across ──
+   One card per department in a row, because the room compares departments to each other
+   at this point in the meeting, and a stacked list makes that a scroll. */
+.revcard{background:var(--surface);border:1px solid var(--rule);border-radius:var(--radius-lg);
+  padding:var(--s4);box-shadow:var(--shadow);border-top:3px solid var(--rule-strong);
+  display:flex;flex-direction:column;gap:var(--s2);min-width:0;position:relative}
+.revcard--warn{border-top-color:var(--warn)}
+.revcard--stop{border-top-color:var(--stop)}
+.revcard--ok{border-top-color:var(--ok)}
+.revcard__head{display:flex;align-items:center;gap:var(--s2)}
+.revcard__head h4{margin:0;font-size:var(--t-small);font-weight:800;text-transform:uppercase;
+  letter-spacing:.07em;color:var(--ink-muted)}
+.revcard--warn .revcard__head h4{color:var(--warn)}
+.revcard--stop .revcard__head h4{color:var(--stop)}
+/* The plant writes these as short lists — one line per machine — so the line breaks
+   they typed are part of the meaning and must survive to the screen. */
+.rev__note{white-space:pre-line}
+.revcard .rev__note{font-size:var(--t-base);line-height:1.6;min-height:2.6em}
+.rev__note--none{color:var(--ink-faint);font-style:italic}
+
+/* ── Financials, standing on its own ── */
+.finbars{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--s4);
+  margin-top:var(--s4);padding-top:var(--s4);border-top:1px solid var(--rule)}
+@media(max-width:900px){.finbars{grid-template-columns:1fr}}
+.finbar__l{font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.08em;
+  font-weight:700;color:var(--ink-muted);margin-bottom:6px;display:flex;
+  justify-content:space-between;gap:var(--s2);flex-wrap:wrap}
+.finbar__l b{font-weight:800;letter-spacing:0;text-transform:none;font-size:var(--t-small)}
+.finmonth{height:22px;border-radius:5px;background:var(--sunk);overflow:hidden;margin:var(--s1) 0}
+.finmonth span{display:block;height:100%;background:var(--brand);opacity:.55}

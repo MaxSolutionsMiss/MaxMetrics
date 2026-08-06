@@ -26,7 +26,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 const state = {
   me: null, locations: [], canEdit: true,
-  location: null, date: today(), active: 'line',
+  location: null, date: today(), active: 'overview',
   metrics: null, departments: [], review: [], maintenance: [], config: [], budgets: [],
   history: { metrics: [], departments: [] }, findings: [],
   chart: 'bar', team: [], live: null, wallStep: 0,
@@ -42,7 +42,7 @@ const budgetFor = month => Number(state.budgets.find(b => b.month === month + 1)
 
 function sectionTone(key) {
   if (key === 'safety') {
-    const tones = [band.count(Number(metric('shortages') || 0))];
+    const tones = [band.shortage(Number(metric('shortages') || 0))];
     if (metric('injury_last')) tones.push(band.streak(daysBetween(metric('injury_last'), state.date)));
     if (metric('near_miss_last')) tones.push(band.streak(daysBetween(metric('near_miss_last'), state.date)));
     if (metric('coq') != null) tones.push(band.coq(Number(metric('coq')), Number(metric('coq_target') || 0.85)));
@@ -79,7 +79,9 @@ const ICONS = {
 // question the views do not answer. Today is first because the meeting is two minutes
 // long and the fastest possible read is the one that says what needs deciding.
 const VIEWS = ['line', 'board'];
-const ORDER = ['safety', 'production', 'shipping', 'maintenance', 'financials'];
+// The order the meeting actually walks: what happened to people, what the plant made,
+// what left the building, what it earned, and what needs fixing.
+const ORDER = ['safety', 'production', 'shipping', 'financials', 'maintenance'];
 const TITLES = {
   safety: 'Safety & Quality', production: 'Production', shipping: 'Shipping',
   maintenance: 'Maintenance & Staffing', financials: 'Financials',
@@ -229,7 +231,7 @@ const SECTIONS = {
       ${streakCard('nearmiss', 'Days since near-miss', 'near_miss_last', 'near_miss_record', 'near-miss')}
       ${metricCard({
         chart: state.chart, pkey: 'shortages', label: 'Shortage count',
-        tone: shortages == null ? '' : band.count(Number(shortages)),
+        tone: shortages == null ? '' : band.shortage(Number(shortages)),
         value: shortages ?? '—', sub: 'jobs short today',
         percent: Number(shortages) ? 100 : 0, markPercent: null,
         foot: footStat('Target', '0'),
@@ -256,8 +258,8 @@ const SECTIONS = {
         percent: target ? rate / (target * 1.25) * 100 : 0,
         markPercent: 100 / 1.25, markLabel: 'target',
         foot: footStat('Target / hr', num(target))
-            + footStat('Shift', row.qty ? `${num(row.qty)} · ${row.hours || 0}h` : '—', true)
-            + footStat('vs last wk', trend(rate, previous), true),
+            + footStat('Total', row.qty ? `${num(row.qty)} · ${row.hours || 0}h` : '—', true)
+            + footStat('vs target', rate && target ? trend(rate, target) : '—', true),
         edit: field(config.unit, `dept:${config.key}:qty`, `type="number" value="${row.qty ?? ''}"`)
             + field('Hours', `dept:${config.key}:hours`, `type="number" step="0.1" value="${row.hours ?? ''}"`)
             + field('Target', `dept:${config.key}:target`, `type="number" value="${row.target ?? config.target}"`),
@@ -272,7 +274,7 @@ const SECTIONS = {
         <td class="num">${row.pw_hours ?? '—'}</td>
         <td class="num big">${previous ? num(Math.round(previous)) : '—'}</td>
         <td class="num big">${rate ? num(Math.round(rate)) : '—'}</td>
-        <td class="num">${trend(rate, previous)}</td></tr>`;
+        <td class="num">${previous ? trend(previous, Number(row.target ?? config.target)) : '—'}</td></tr>`;
     }).join('');
 
     const weekEdit = list.map(config => {
@@ -294,7 +296,7 @@ const SECTIONS = {
         <div class="panel__body">
           <table class="tbl"><thead><tr><th>Department</th><th class="num">Volume</th>
             <th class="num">Crew hrs</th><th class="num">Per hr</th><th class="num">Today</th>
-            <th class="num">Trend</th></tr></thead><tbody>${rows}</tbody></table>
+            <th class="num">vs target</th></tr></thead><tbody>${rows}</tbody></table>
           <div class="ez">${weekEdit}</div>
         </div>
       </div>
@@ -302,24 +304,24 @@ const SECTIONS = {
     <div class="sec__head" style="margin-top:var(--s3)">
       <h3 class="sec__title" style="font-size:var(--t-lead)">Review — last 24 hours</h3>
       <div class="sec__rule"></div></div>
-    <div class="panel"><div class="panel__body">
+    <div class="grid g4">
       ${state.review.map(row => {
         const name = state.config.find(c => c.key === row.dept_key)?.name || row.dept_key;
-        return `<div class="rev" data-pkey="rev-${esc(row.dept_key)}">
-          <span class="rev__dot rev__dot--${row.status}"></span>
-          <div class="rev__body"><div class="rev__dept">${esc(name)}</div>
-            <div class="rev__note${row.note ? '' : ' rev__note--none'}">${esc(row.note || 'Nothing reported.')}</div>
-            <div class="ez">
-              <div class="er"><label>Status</label>
-                <select class="inp" data-field="review:${esc(row.dept_key)}:status">
-                  ${[['ok','No issue'],['warn','Warning'],['stop','Issue']].map(([v, t]) =>
-                    `<option value="${v}"${row.status === v ? ' selected' : ''}>${t}</option>`).join('')}
-                </select></div>
-              <div class="er"><label>Note</label>
-                <textarea class="inp" data-field="review:${esc(row.dept_key)}:note">${esc(row.note)}</textarea></div>
-            </div></div></div>`;
+        return `<div class="revcard revcard--${row.status}" data-pkey="rev-${esc(row.dept_key)}">
+          <div class="revcard__head"><span class="rev__dot rev__dot--${row.status}"></span>
+            <h4>${esc(name)}</h4></div>
+          <div class="rev__note${row.note ? '' : ' rev__note--none'}">${esc(row.note || 'No issues reported.')}</div>
+          <div class="ez">
+            <div class="er"><label>Status</label>
+              <select class="inp" data-field="review:${esc(row.dept_key)}:status">
+                ${[['ok','No issue'],['warn','Warning'],['stop','Issue']].map(([v, t]) =>
+                  `<option value="${v}"${row.status === v ? ' selected' : ''}>${t}</option>`).join('')}
+              </select></div>
+            <div class="er"><label>Note</label>
+              <textarea class="inp" data-field="review:${esc(row.dept_key)}:note">${esc(row.note)}</textarea></div>
+          </div></div>`;
       }).join('')}
-    </div></div>`;
+    </div>`;
   },
 
   shipping: () => {
@@ -420,6 +422,9 @@ const SECTIONS = {
       <div>${rows.map(([label, value, colour]) => `<div class="fin__row"><span>${label}</span>
         <strong${colour ? ` style="color:var(--${colour})"` : ''}>${value}</strong></div>`).join('')}</div></div>`;
 
+    const monthSeries = (state.history?.metrics || [])
+      .map(r => Number(r.fin_actual_mtd)).filter(v => Number.isFinite(v) && v > 0);
+    const pace = planMtd ? actualMtd / planMtd * 100 : 0;
     return `<div class="card card--${worst}" data-pkey="financials" style="padding:var(--s5)">
       <div class="card__label">Sales against budget · reporting through ${
         shortDate(reportDate.toISOString().slice(0, 10))}</div>
@@ -434,6 +439,23 @@ const SECTIONS = {
           ['Expected by today', money(planYtd)],
           ['Variance', `${varianceYtd >= 0 ? '▲' : '▼'} ${money(Math.abs(varianceYtd))} (${Math.abs(percentYtd).toFixed(1)}%)`, toneYtd],
         ], toneYtd)}
+      </div>
+      <div class="finbars">
+        <div class="finbar">
+          <div class="finbar__l">Month to date against plan
+            <b class="tone--${toneMtd}">${pace.toFixed(0)}% of pace</b></div>
+          ${bullet({ actual: actualMtd, target: planMtd, tone: toneMtd })}
+        </div>
+        <div class="finbar">
+          <div class="finbar__l">Year to date against plan
+            <b class="tone--${toneYtd}">${(planYtd ? actualYtd / planYtd * 100 : 0).toFixed(0)}% of pace</b></div>
+          ${bullet({ actual: actualYtd, target: planYtd, tone: toneYtd })}
+        </div>
+        <div class="finbar">
+          <div class="finbar__l">Month so far
+            <b>${MONTHS[month]} · day ${elapsed} of ${inMonth}</b></div>
+          <div class="finmonth"><span style="width:${(elapsed / inMonth * 100).toFixed(1)}%"></span></div>
+        </div>
       </div>
       <div class="ez">
         ${field('Actual MTD', 'fin_actual_mtd', `type="number" value="${metric('fin_actual_mtd') ?? ''}"`)}
