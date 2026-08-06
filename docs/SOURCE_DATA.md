@@ -8,12 +8,71 @@ Everything below was read out of the plant's own files, not assumed.
 
 ## DOR_V9.xlsx — production
 
-11 MB. `Die Cutting Data` alone is a million rows of raw shift records; the sheet that
-matters is **`Daily Report`**, a pivot with one row per machine per day:
+11 MB and eighteen tabs, of which **nine matter**. The rest are stale, scratch, or a
+formula store, and can be ignored:
+
+| Tabs | What they are |
+|---|---|
+| `Printing Data`, `Die Cutting Data`, `Gluing Data` | **the source** — one row per machine per shift, entered from timesheets |
+| `Printing By Month`, `Die Cutting by Month`, `Gluing by Month` | monthly productivity, filterable by fiscal year, team and machine |
+| `Printing Pivot`, `Die Cutting Pivot`, `Gluing Pivot` | the charts |
+
+The last six are **pivots over the first three**. That makes the Data tabs the only thing
+worth importing: everything else in the workbook is a view of them, and MaxMetrics can
+compute the same rollups from the daily rows it already stores.
+
+`Daily Report` is *not* a source. It was last refreshed in November 2024 and is not
+maintained — an earlier version of this document said it was the sheet that mattered,
+which was wrong.
+
+### The shape of a Data tab
+
+Header row is **row 4**, under a title block. Columns:
+
+`Fiscal Year | Month | Week Ending | Day | Date | Team | Shift | Machine | # of Plates |
+MR Imps | Net Imps | Gross Imps | # of MR's | MR Hrs | Run Hrs | Sched Maint | Crewed Hours`
+
+and further right, `MR`, `Speed`, `Uptime`.
+
+The same field sits in a different column in each of the three sheets — `Net Imps` is
+column 10 in printing and 9 in die cutting — so position cannot be assumed and headers
+must be matched by name.
+
+### Three dimensions the dashboard does not use yet
+
+| Dimension | Values |
+|---|---|
+| Machine | printing `40`, `41` · die cutting `2017`, `2018` · gluing `Bobst`, `Hdlbrg`, `Omega` |
+| Shift | `D` days, `A` afternoons, `M` midnights |
+| Team | the crew leader's name |
+
+Storing imports at **shift and machine grain** rather than rolling straight to a
+department day would let MaxMetrics answer the same questions the By Month pivots answer —
+productivity by team, by machine, by shift, across years — without anyone opening the
+workbook. The department figure the morning dashboard shows becomes a sum over those rows
+rather than a separately stored number.
+
+### One thing to fix in the source
+
+Team names are typed, not picked from a list, and the same person appears more than once:
+
+- `Anton Philips` (116 rows), `Anton Phillips` (16), `Anton Phillips ` (16, trailing space)
+- `Pawan Jeet` (33), `PAWAN JEET` (3)
+- shift `M` (279) and `M ` (2)
+
+Any pivot filtered by Team therefore splits Anton's 148 shifts across three entries and
+reports each as a different person. The importer will normalise names on the way in —
+trimmed, collapsed spacing, matched case-insensitively against names already seen — but
+the workbook itself is still wrong, and a validation list on that column would stop it
+happening again.
+
+### The daily figures
+
+The department figure the dashboard shows comes from the same rows:
 
 | Column | Meaning |
 |---|---|
-| Press | the date |
+| Date | the day |
 | Run Speed | output per running hour |
 | **NNN Speed** | output per crewed hour |
 | Uptime | fraction of crewed time running |
