@@ -136,3 +136,50 @@ known spellings per field, including the misspellings already present:
 
 The header row is found by scanning for the first row that matches several known columns,
 rather than assuming row 1 — these exports carry title blocks above their headers.
+
+## The rest of Mississauga_KPIs.xlsx
+
+The sheets beyond `Dept KPIs` and `COQ` are all **monthly or per-pay-period**, not daily.
+That matters: none of them belongs on a morning dashboard, because a number that moves
+once a month cannot be discussed usefully in a two-minute meeting twenty times a month.
+They belong on a separate monthly view, which is worth building but is not this one.
+
+| Sheet | Grain | Holds |
+|---|---|---|
+| `Stock Variance` | monthly | inventory accuracy against a target of 1.000 — July 0.998 |
+| `Labour Cost` | pay period | earnings, 2024/2025/2026 side by side |
+| `Overtime` | pay period | OT hours and dollars, three years side by side |
+| `Production & Delivery Summary` | monthly | orders, deliveries, cartons produced and delivered, invoiced CAD, revenue per 1000 cartons, revenue per order |
+| `Printing` / `Die-Cutting` / `Gluing` | monthly | the DOR columns rolled up, plus `Target Net Output/Crewed Hrs` and `Target Avg Make-Ready Time`, pre-filled to December |
+
+The department sheets confirm the naming: the dashboard's production target is **target net
+output per crewed hour**, which is why it compares against `NNN Speed` and not `Run Speed`.
+
+### Two KPIs the DOR already carries daily and the dashboard does not show
+
+`Uptime` and `Avg MR Time` are in the daily report next to the volumes already being read,
+and `Dept KPIs` sets a target for both on every machine — 0.88 uptime on the 40" press,
+1.25 hours make-ready, and so on. They are the most obvious next readings, because they
+need no new source and no new typing.
+
+### Two numbers in the Overtime sheet that are wrong
+
+Overtime averages **$38–40 an hour** across all three years. Two rows do not:
+
+- `2025-01-04` — 295.7 hours for $3,090.40, which is $10.45 an hour
+- `2026-04-11` — 432.2 hours for $1,832.39, which is $4.24 an hour
+
+Both look like an amount typed short. Neither is used by the morning dashboard, so nothing
+downstream is affected, but they will distort any yearly overtime comparison drawn from
+this sheet.
+
+### What the summary sheet says about the business
+
+Revenue per 1000 cartons delivered fell from **$271 in January 2025 to $143 by March
+2026**, recovering to roughly $173–190 through mid-2026. Over the same period overtime
+rose: 2026 is running about 1,035 OT hours per pay week against 858 in 2025 and 952 in
+2024 — the highest of the three years.
+
+More cartons for less revenue, produced with more overtime, is a margin story rather than
+a production one, and it is the kind of thing a monthly view should put in front of people
+rather than leaving it to be noticed.
