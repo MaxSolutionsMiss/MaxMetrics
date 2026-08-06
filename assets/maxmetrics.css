@@ -637,3 +637,4 @@ body.tv .content.wall{display:flex;flex-direction:column;gap:var(--s4);
 .finbar__l b{font-weight:800;letter-spacing:0;text-transform:none;font-size:var(--t-small)}
 .finmonth{height:22px;border-radius:5px;background:var(--sunk);overflow:hidden;margin:var(--s1) 0}
 .finmonth span{display:block;height:100%;background:var(--brand);opacity:.55}
+.note-derived{grid-column:1/-1;margin:var(--s2) 0 0;font-size:var(--t-small);color:var(--ink-faint)}
