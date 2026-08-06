@@ -105,8 +105,9 @@ export const openDay = async (location, date) => {
 };
 
 export function loadDay(location, date) {
-  // Five reads, issued together. They do not depend on each other, so waiting for them
+  // Six reads, issued together. They do not depend on each other, so waiting for them
   // in turn would only make the morning slower.
+  const year = Number(date.slice(0, 4));
   return Promise.all([
     run(() => client.from('daily_metrics').select('*')
       .eq('location_id', location).eq('metric_date', date).limit(1)),
@@ -118,10 +119,38 @@ export function loadDay(location, date) {
       .eq('location_id', location).eq('metric_date', date).order('sort_order')),
     run(() => client.from('location_departments').select('*')
       .eq('location_id', location).eq('active', true).order('sort_order')),
-  ]).then(([metrics, departments, review, maintenance, config]) => ({
-    metrics: metrics?.[0] ?? null, departments, review, maintenance, config,
+    run(() => client.from('department_targets').select('*')
+      .eq('location_id', location).eq('year', year)),
+  ]).then(([metrics, departments, review, maintenance, config, targets]) => ({
+    metrics: metrics?.[0] ?? null, departments, review, maintenance,
+    // A target belongs to a year. Reading the morning of 2 January 2027 has to compare
+    // against 2027's number, and reopening a day in 2026 has to keep comparing against
+    // 2026's — which only works if the year is part of the lookup rather than a column
+    // somebody overwrites each January. Where a year has no machine targets set, the
+    // department's own default stands, so a plant whose machines are not listed yet
+    // behaves exactly as it did before.
+    config: withTargets(config, targets),
   }));
 }
+
+const withTargets = (config, targets) => (config || []).map(dept => {
+  const set = (targets || []).find(t => t.dept_key === dept.key);
+  return set ? { ...dept, target: Number(set.target), mr_target: Number(set.mr_target),
+                 uptime_target: Number(set.uptime_target), target_machines: set.machines }
+             : dept;
+});
+
+// One row per machine per year. A department's figure is the mean of its live machines,
+// so 2027 is written by inserting rows rather than by editing 2026's.
+export const loadMachines = location =>
+  run(() => client.from('machines')
+    .select('id, dept_key, code, name, active, sort_order, machine_targets(year, speed_target, mr_target, uptime_target)')
+    .eq('location_id', location).order('dept_key').order('sort_order'));
+
+export const saveMachineTarget = (machineId, year, patch) =>
+  run(() => client.from('machine_targets')
+    .upsert({ machine_id: machineId, year, ...patch }, { onConflict: 'machine_id,year' }),
+    { retry: 0 });
 
 // Seven days behind today. The old file kept no history at all, so nothing in it could
 // show a direction — a rate was a reading rather than a reading that is falling. Two

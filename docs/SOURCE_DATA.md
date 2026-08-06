@@ -27,16 +27,45 @@ which was wrong.
 
 ### The shape of a Data tab
 
-Header row is **row 4**, under a title block. Columns:
+Header row is **row 4**, under a title block. One row per machine per shift, keyed by
+`Fiscal Year | Month | Week Ending | Day | Date | Team | Shift | Machine`.
 
-`Fiscal Year | Month | Week Ending | Day | Date | Team | Shift | Machine | # of Plates |
-MR Imps | Net Imps | Gross Imps | # of MR's | MR Hrs | Run Hrs | Sched Maint | Crewed Hours`
+The two numbers the dashboard lives on sit in different columns in each sheet, and the
+plant reads them by letter:
 
-and further right, `MR`, `Speed`, `Uptime`.
+| Sheet | Net output | Crewed hours |
+|---|---|---|
+| `Printing Data` | **K** `Net Imps` | **Q** |
+| `Die Cutting Data` | **J** `Net Imps` | **Q** |
+| `Gluing Data` | **J** `Net Cartons` | **Q** |
 
-The same field sits in a different column in each of the three sheets — `Net Imps` is
-column 10 in printing and 9 in die cutting — so position cannot be assumed and headers
-must be matched by name.
+Printing carries an extra `# of Plates` column at I, which is what pushes its net output
+one place right. Position therefore cannot be assumed across sheets.
+
+### Seven columns called Crewed Hours
+
+Neither can headers be trusted on their own. `Printing Data` labels its right-hand columns
+properly — `Maint. Hrs`, `Man Hours`, `MR Target`, `Speed Target`, `Uptime Target`, `Prod`
+— but **`Die Cutting Data` and `Gluing Data` head all of Q through W `Crewed Hours`**,
+seven identical labels over seven different measures:
+
+| Column | Header says | Actually holds |
+|---|---|---|
+| Q | Crewed Hours | **crewed hours** |
+| R | Crewed Hours | maintenance hours |
+| S | Crewed Hours | man hours — crewed × crew size |
+| T | Crewed Hours | make-ready target |
+| U | Crewed Hours | speed target |
+| V | Crewed Hours | uptime target |
+| W | Crewed Hours | uptime achieved |
+
+The order is identical to printing's, so the labels were dragged across a row that was
+never retyped. An importer that sums every column matching "crewed hours" would add a
+speed target of 30,000 to a crew's eight hours. **The leftmost match is the right one**,
+and the importer takes it deliberately rather than by luck.
+
+That the targets sit in the daily rows at all is useful: `Speed Target` and `Uptime Target`
+per machine agree with `Dept KPIs`, so the same numbers have two sources.
 
 ### Three dimensions the dashboard does not use yet
 
@@ -46,11 +75,28 @@ must be matched by name.
 | Shift | `D` days, `A` afternoons, `M` midnights |
 | Team | the crew leader's name |
 
+Retired machines still appear in history — printing `29`, die cutting `TR`, `JRK` and a
+`Bobst` that was a die cutter rather than the gluer of the same name. None has run since
+2024. They are carried in `machines` as inactive so an old row still resolves to something
+instead of being dropped.
+
 Storing imports at **shift and machine grain** rather than rolling straight to a
 department day would let MaxMetrics answer the same questions the By Month pivots answer —
 productivity by team, by machine, by shift, across years — without anyone opening the
 workbook. The department figure the morning dashboard shows becomes a sum over those rows
 rather than a separately stored number.
+
+### The week the plant runs
+
+Production starts **Sunday night in die cutting**, runs twenty-four hours Monday through
+Thursday, and stops around 22:00 Friday. Gluing works some Sundays too; printing has not
+worked a Sunday all year — 0 of 582 rows in 2026, against 60 of 924 in die cutting and 52
+of 1,069 in gluing.
+
+This is why a crew leader can be absent from the sheet for months and still work here. A
+line that does not crew every shift produces gaps that look like departures and are not,
+so **shift dates cannot be used to decide who is still employed** — a mistake worth
+recording because it was made here first.
 
 ### One thing to fix in the source
 
@@ -132,8 +178,18 @@ dashboard actually uses:
 | Gluing | Heidelberg, Bobst, Omega | 14000, 8800, 13000 | **11933** |
 
 So a department target is the mean of its machines' targets, and changing a machine moves
-it. The same sheet carries **make-ready** and **uptime** targets per machine, neither of
-which the dashboard shows yet.
+it. The same sheet carries **make-ready** and **uptime** targets per machine.
+
+The sheet is titled *Mississauga **2026** Machine KPIs*, and that word is the whole design
+of how MaxMetrics stores this. A target is a property of a machine **in a year**, not of a
+department forever: 2027 will have its own, and last year's rate must go on being judged
+against last year's number rather than being retroactively re-marked. So targets live in
+`machine_targets (machine, year)`, a department's target is a view over the mean of its
+live machines — reproducing the sheet's `Dept. Average` column exactly, 3050 / 2025 /
+11933.33 — and setting 2027 is inserting rows, never overwriting.
+
+`location_departments` keeps the same three columns as a default for a plant that has not
+had its machines listed yet.
 
 **`COQ 2025`** (2026 data despite the tab name) is monthly: `Month | COQ | Sales | COQ % of
 Sales | Target`. The percentage is `COQ ÷ Sales`, target 0.85%. June reads 0.23%, which is
@@ -141,6 +197,46 @@ the figure on the dashboard.
 
 Other sheets not yet used: `Stock Variance`, `Labour Cost`, `Overtime`, `Production &
 Delivery Summary`.
+
+## Production_Throughput_KPI.xlsx — the weekly report-out
+
+Four tabs — `2024`, `2025`, `2026`, `OTD&OTIF` — laid out sideways: rows are measures, one
+column per week, ending in a YTD total. Per machine and per department it carries
+make-readies, output, average order quantity, crewed hours and output per crewed hour, then
+plant totals and the week's OTD and OTIF.
+
+**Nothing on it is new data.** Every figure is a rollup of the DOR's daily rows by
+`Week Ending`, and the one measure that looks independent is not:
+
+```
+average order qty = sheets produced ÷ # of MR's
+```
+
+— 321,845 ÷ 17 = 18,932.06, matching to the cent. A make-ready is an order changeover, so
+counting them counts orders.
+
+Rebuilt from the DOR for all thirty weeks of 2026, the sheet reproduces exactly in **73 of
+90** department-weeks, with the rest drifting by a few thousand — the report is a snapshot
+taken on the day, and the daily rows kept being corrected afterwards. Two things are worth
+knowing:
+
+- `WEEK 1` is the week ending **10 January**, not 3 January. The short fiscal-year-opening
+  week is left out, so week numbers are offset by one from a straight count of
+  `Week Ending` values.
+- **Week 30 gluing is missing its Sunday.** The sheet reports 4,203,973 cartons against the
+  DOR's 4,581,634. The gap is exactly the three Sunday shifts of 26 July — 377,661 cartons
+  on Bobst and Omega, 24 crewed hours — while printing and die cutting for the same week
+  include theirs. Heidelberg is short a further 8 crewed hours, an idle Saturday shift that
+  produced nothing. The effect is not neutral: Omega's cartons per crewed hour reads 13,907
+  where the machine actually ran 15,563, so a good week is reported as a poor one.
+
+Neither is a reason to import this file. They are reasons not to: a weekly number computed
+from stored daily rows cannot lose a Sunday, cannot drift from a correction made later, and
+does not have to be rebuilt by hand every Monday. **MaxMetrics should generate this sheet
+rather than read it**, which also gives the weekly view the plant reports on for free.
+
+The `OTD&OTIF` tab is one row per week from January 2025, and is the weekly form of the
+same counts `OTDOTIF.xlsx` holds daily.
 
 ## Quality — SharePoint
 
