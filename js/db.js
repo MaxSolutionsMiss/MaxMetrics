@@ -123,6 +123,22 @@ export function loadDay(location, date) {
   }));
 }
 
+// Seven days behind today. The old file kept no history at all, so nothing in it could
+// show a direction — a rate was a reading rather than a reading that is falling. Two
+// reads, not one per day, because a week of mornings is a range query.
+export function loadHistory(location, fromDate, toDate) {
+  return Promise.all([
+    run(() => client.from('daily_metrics')
+      .select('metric_date, otif, otd, coq, shortages, late, jobs_shipped')
+      .eq('location_id', location)
+      .gte('metric_date', fromDate).lte('metric_date', toDate).order('metric_date')),
+    run(() => client.from('daily_departments')
+      .select('metric_date, dept_key, qty, hours')
+      .eq('location_id', location)
+      .gte('metric_date', fromDate).lte('metric_date', toDate).order('metric_date')),
+  ]).then(([metrics, departments]) => ({ metrics: metrics || [], departments: departments || [] }));
+}
+
 export const loadBudgets = (location, year) =>
   run(() => client.from('location_budgets').select('month, amount')
     .eq('location_id', location).eq('year', year).order('month'));

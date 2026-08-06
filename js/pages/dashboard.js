@@ -7,12 +7,14 @@
 
 import {
   currentSession, signOut, myProfile, myLocations, savePreference,
-  openDay, loadDay, loadBudgets, saveField, saveDepartment, saveReview, saveBudget,
-  publish, recordEdit, joinDay,
+  openDay, loadDay, loadHistory, loadBudgets, saveField, saveDepartment, saveReview,
+  saveBudget, publish, recordEdit, joinDay,
 } from '../db.js';
+import { assess, attention, settled } from '../assess.js';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, footStat, drawReading, showsHeroNumber, CHART_ICONS, CHART_NAMES,
+  spark, bullet, chip,
 } from '../readings.js';
 
 const $ = selector => document.querySelector(selector);
@@ -24,9 +26,10 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 const state = {
   me: null, locations: [], canEdit: true,
-  location: null, date: today(), active: 'overview',
+  location: null, date: today(), active: 'line',
   metrics: null, departments: [], review: [], maintenance: [], config: [], budgets: [],
-  chart: 'bar', team: [], live: null,
+  history: { metrics: [], departments: [] }, findings: [],
+  chart: 'bar', team: [], live: null, wallStep: 0,
 };
 
 // ── Reading the loaded morning ──────────────────────────────────────────────────
@@ -40,8 +43,8 @@ const budgetFor = month => Number(state.budgets.find(b => b.month === month + 1)
 function sectionTone(key) {
   if (key === 'safety') {
     const tones = [band.count(Number(metric('shortages') || 0))];
-    if (metric('injury_last')) tones.push(band.streak(daysBetween(metric('injury_last'), state.date), metric('injury_record')));
-    if (metric('near_miss_last')) tones.push(band.streak(daysBetween(metric('near_miss_last'), state.date), metric('near_miss_record')));
+    if (metric('injury_last')) tones.push(band.streak(daysBetween(metric('injury_last'), state.date)));
+    if (metric('near_miss_last')) tones.push(band.streak(daysBetween(metric('near_miss_last'), state.date)));
     if (metric('coq') != null) tones.push(band.coq(Number(metric('coq')), Number(metric('coq_target') || 0.85)));
     return band.worst(tones);
   }
@@ -72,12 +75,33 @@ const ICONS = {
   maintenance: 'M14.5 6.5a3.5 3.5 0 01-4.6 4.6L5 16l3 3 4.9-4.9a3.5 3.5 0 004.6-4.6l-2.4 2.4-2.1-2.1z',
   financials:  'M12 3v18M8.5 7.5h6M8.5 7.5a2.6 2.6 0 000 5.2h3a2.6 2.6 0 010 5.2h-6',
 };
+// Two views over the whole morning, then the five sections for when someone asks a
+// question the views do not answer. Today is first because the meeting is two minutes
+// long and the fastest possible read is the one that says what needs deciding.
+const VIEWS = ['line', 'board'];
 const ORDER = ['safety', 'production', 'shipping', 'maintenance', 'financials'];
 const TITLES = {
   safety: 'Safety & Quality', production: 'Production', shipping: 'Shipping',
   maintenance: 'Maintenance & Staffing', financials: 'Financials',
 };
-const NAV = { safety: 'Safety', maintenance: 'Maintenance' };
+const NAV = { safety: 'Safety', maintenance: 'Maintenance', line: 'Today', board: 'Board' };
+Object.assign(TITLES, { line: 'Today', board: 'The board' });
+Object.assign(ICONS, {
+  line:  'M4 6h16M4 12h10M4 18h6',
+  board: 'M4 4h4v16H4zM10 4h4v16h-4zM16 4h4v16h-4z',
+});
+
+// A reading, drawn the way the room reads it: what it is, how big, against what, and
+// which way it has been going. Used by both Today and the Board so the two cannot drift.
+function readingBody(r, { showSpark = true } = {}) {
+  const line = showSpark && r.series?.length > 1 ? spark(r.series, r.tone) : '';
+  const bar = r.target
+    ? bullet({ actual: Number(String(r.value).replace(/[^0-9.-]/g, '')) || r.raw || 0,
+               target: r.target, tone: r.tone, floor: r.floor || 0,
+               lowerIsBetter: !!r.lowerIsBetter })
+    : '';
+  return { line, bar };
+}
 
 const field = (label, name, attrs = '') =>
   `<div class="er"><label>${esc(label)}</label>
@@ -89,7 +113,7 @@ function streakCard(kind, label, lastField, recordField, word) {
   const beaten = days != null && record > 0 && days >= record;
   return metricCard({
     chart: state.chart, pkey: kind, label,
-    tone: days == null ? '' : band.streak(days, record),
+    tone: days == null ? '' : band.streak(days),
     value: days == null ? '—' : days, unit: 'days',
     percent: record ? (days || 0) / record * 100 : 0,
     markPercent: beaten || !record ? null : 100, markLabel: 'record',
@@ -119,6 +143,85 @@ function coqCard(kind, label, valueField, targetField) {
 }
 
 const SECTIONS = {
+  // ── Today ──
+  // Leads with what is not ok and counts the rest. Two minutes is the whole meeting, so
+  // a reading that needs no decision is a tick, not a paragraph.
+  line: () => {
+    const flags = attention(state.findings), fine = settled(state.findings);
+    const worst = flags.some(f => f.tone === 'stop') ? 'stop' : flags.length ? 'warn' : 'ok';
+    const headline = !state.findings.length
+      ? ['Nothing entered yet', 'Open Enter data and fill in this morning.']
+      : flags.length
+        ? [`${flags.length} thing${flags.length > 1 ? 's need' : ' needs'} the room today`,
+           `${fine.length} other reading${fine.length === 1 ? ' is' : 's are'} on target.`]
+        : ['Everything is on target', `All ${fine.length} readings within target this morning.`];
+
+    return `<div class="today today--${worst}">
+      <span class="today__n">${flags.length}</span>
+      <div class="today__t"><h2>${esc(headline[0])}</h2><p>${esc(headline[1])}</p></div>
+    </div>
+
+    ${flags.length ? `<div class="grid g3">${flags.map(r => {
+      const { line, bar } = readingBody(r);
+      return `<div class="flagcard flagcard--${r.tone}" data-pkey="${esc(r.key)}">
+        <div class="flagcard__top">
+          <span class="flagcard__who">${esc(r.area)}${r.owner ? ` · ${esc(r.owner)}` : ''}</span>
+          ${r.target && r.targetLabel ? chip(r.tone, r.targetLabel) : ''}
+        </div>
+        <div class="flagcard__n">${esc(r.value)}<small> ${esc(r.unit || '')}</small></div>
+        ${bar}${line}
+        ${r.note ? `<p class="flagcard__say">${esc(r.note)}</p>` : ''}
+        ${r.also?.length ? `<div class="flagcard__also">${r.also.map(o =>
+          `<div class="flagcard__row"><span>${esc(o.title)}</span>
+           <b class="tone--${o.tone}">${esc(o.value)}${o.unit === '%' ? '%' : ''}</b></div>`).join('')}</div>` : ''}
+        ${r.shortfall ? `<div class="flagcard__meta">
+          <div><div class="a-meta__l">Shortfall</div><div class="a-meta__v">${num(r.shortfall)} ${esc(r.unitWord || '')}</div></div>
+        </div>` : ''}
+      </div>`;
+    }).join('')}</div>` : ''}
+
+    ${fine.length ? `<div class="settled">
+      <div class="sec__head"><span class="eyebrow">On target</span><div class="sec__rule"></div></div>
+      <div class="settled__chips">${fine.map(r =>
+        `<span class="tick"><span class="tick__n">${esc(r.value)}</span>
+         <span class="tick__l">${esc(r.title.toLowerCase())}</span></span>`).join('')}</div>
+    </div>` : ''}`;
+  },
+
+  // ── The board ──
+  // One lane per area, one owner per lane, in the order the meeting walks them.
+  board: () => {
+    if (!state.findings.length) return `<div class="panel"><div class="panel__body">
+      Nothing entered for this morning yet.</div></div>`;
+    const areas = [];
+    for (const r of state.findings) {
+      let lane = areas.find(a => a.name === r.area);
+      if (!lane) areas.push(lane = { name: r.area, owner: r.owner, readings: [] });
+      lane.readings.push(r);
+    }
+    return `<div class="lanes">${areas.map(lane => {
+      const head = lane.readings[0];
+      const tone = band.worst(lane.readings.filter(r => !r.quiet && r.tone).map(r => r.tone));
+      const { line, bar } = readingBody(head);
+      const rest = lane.readings.slice(1);
+      const note = lane.readings.map(r => r.note).find(Boolean);
+      return `<div class="lane lane--${tone}" data-pkey="${esc(head.key)}">
+        <div class="lane__head"><h3>${esc(lane.name)}</h3>
+          <span class="lane__owner">${esc(lane.owner || '')}</span></div>
+        <div class="lane__body">
+          <div class="lane__n">${esc(head.value)}<small> ${esc(head.unit || '')}</small></div>
+          <div class="lane__sub">${esc(head.targetLabel || '')}${
+            head.delta ? ` · ${chip(head.deltaTone || tone, head.delta)}` : ''}</div>
+          ${bar}${line}
+          ${rest.length ? `<div class="lane__rest">${rest.map(r =>
+            `<div class="lane__row"><span>${esc(r.title)}</span>
+             <b class="tone--${r.tone || 'none'}">${esc(r.value)}</b></div>`).join('')}</div>` : ''}
+        </div>
+        <div class="lane__foot">${note ? esc(note) : '<span class="lane__quiet">Nothing reported.</span>'}</div>
+      </div>`;
+    }).join('')}</div>`;
+  },
+
   safety: () => {
     const shortages = metric('shortages');
     return `<div class="grid g5">
@@ -353,7 +456,12 @@ function renderNav() {
     <svg class="rail__ico" viewBox="0 0 24 24"><path d="${icon}"/></svg>
     <span class="rail__txt">${esc(label)}</span>
     <span class="rail__dot rail__dot--${dot}"></span></button>`;
-  $('#nav').innerHTML = link('overview', 'Overview', ICONS.overview, 'none')
+  const worstOfAll = band.worst(attention(state.findings).map(f => f.tone));
+  $('#nav').innerHTML =
+    VIEWS.map(key => link(key, NAV[key], ICONS[key],
+      key === 'line' ? (attention(state.findings).length ? worstOfAll : 'ok') : 'none')).join('')
+    + `<div class="rail__split"></div>`
+    + link('overview', 'Everything', ICONS.overview, 'none')
     + ORDER.map(key => link(key, NAV[key] || TITLES[key], ICONS[key], sectionTone(key))).join('');
 }
 
@@ -405,8 +513,14 @@ function paintPresence() {
 }
 
 function renderContent() {
+  if (document.body.classList.contains('tv')) return renderWall();
   const one = key => `<section class="sec"><div class="sec__head">
     <h2 class="sec__title">${TITLES[key]}</h2><div class="sec__rule"></div></div>${SECTIONS[key]()}</section>`;
+  if (VIEWS.includes(state.active)) {
+    $('#content').className = 'content content--view';
+    $('#content').innerHTML = `<section class="sec">${SECTIONS[state.active]()}</section>`;
+    return;
+  }
   const solo = state.active !== 'overview';
   const content = $('#content');
   content.className = `content${solo && !document.body.classList.contains('tv') ? ' content--solo' : ''}`;
@@ -414,7 +528,47 @@ function renderContent() {
 }
 
 function render() {
+  state.findings = assess(state);
+  document.body.dataset.view = state.active;
   renderHeader(); renderChartPicker(); renderNav(); renderContent(); renderWho(); paintPresence();
+}
+
+// ── The wall ──
+// One idea per screen at the size a 48" needs, with the sentence that says what it means.
+// It shows the exceptions first and then the rest, because a plant walking past the screen
+// should learn what is wrong before it learns what is fine.
+function renderWall() {
+  const flags = attention(state.findings), fine = settled(state.findings);
+  const cards = flags.concat(fine.filter(r => !r.quiet)).slice(0, 6);
+  if (!cards.length) {
+    $('#content').className = 'content wall';
+    $('#content').innerHTML = `<div class="wall__empty">Nothing entered for this morning yet.</div>`;
+    return;
+  }
+  const r = cards[state.wallStep % cards.length];
+  const others = cards.filter(x => x.key !== r.key).slice(0, 3);
+  $('#content').className = 'content wall';
+  $('#content').innerHTML = `
+    <div class="wall__top">
+      <h2>${esc(r.area)} · ${esc(state.locations.find(l => l.id === state.location)?.name || '')}</h2>
+      <span class="wall__date">${$('#date-long').textContent}</span>
+    </div>
+    <div class="wall__hero">
+      <div>
+        <div class="wall__l">${esc(r.title)}</div>
+        <div class="wall__n tone--${r.tone || 'none'}">${esc(r.value)}<small> ${esc(r.unit || '')}</small></div>
+        ${r.note ? `<p class="wall__say">${esc(r.note)}</p>`
+          : r.targetLabel ? `<p class="wall__say">${esc(r.targetLabel)}</p>` : ''}
+        ${r.series?.length > 1
+          ? `<div class="wall__trend">${spark(r.series, r.tone)}
+             <span class="wall__trendl">last seven mornings</span></div>` : ''}
+      </div>
+      <div class="wall__side">${others.map(o => `<div class="wall__row">
+        <span class="wall__rl">${esc(o.title)}</span>
+        <span class="wall__rn tone--${o.tone || 'none'}">${esc(o.value)}</span></div>`).join('')}</div>
+    </div>
+    <div class="wall__dots">${cards.map((_, i) =>
+      `<span class="wall__dot${i === state.wallStep % cards.length ? ' wall__dot--on' : ''}"></span>`).join('')}</div>`;
 }
 
 // ── Saving ──────────────────────────────────────────────────────────────────────
@@ -513,10 +667,13 @@ async function open(location, date) {
   $('#content').innerHTML = '<div class="loading">Loading the morning…</div>';
   try {
     if (state.canEdit) await openDay(location, date);
-    const [day, budgets] = await Promise.all([
-      loadDay(location, date), loadBudgets(location, dateOf(date).getFullYear()),
+    const from = new Date(dateOf(date)); from.setDate(from.getDate() - 6);
+    const [day, budgets, history] = await Promise.all([
+      loadDay(location, date),
+      loadBudgets(location, dateOf(date).getFullYear()),
+      loadHistory(location, from.toISOString().slice(0, 10), date),
     ]);
-    Object.assign(state, day, { budgets: budgets || [] });
+    Object.assign(state, day, { budgets: budgets || [], history });
     saved('All changes saved');
   } catch (error) {
     $('#content').innerHTML = `<div class="loading">${esc(error.message)}</div>`;
@@ -620,13 +777,14 @@ function toast(message) {
 let rotation = null;
 const stopRotation = () => { clearInterval(rotation); rotation = null; $('#tv-play').textContent = 'Auto'; };
 const step = direction => {
-  const index = ORDER.indexOf(state.active);
-  state.active = ORDER[(index + direction + ORDER.length) % ORDER.length];
-  render();
+  const count = Math.max(1, attention(state.findings).length
+    + settled(state.findings).filter(r => !r.quiet).length);
+  state.wallStep = (state.wallStep + direction + count) % count;
+  renderWall();
 };
 $('#tv-btn').addEventListener('click', () => {
   document.body.classList.add('tv');
-  if (state.active === 'overview') state.active = ORDER[0];
+  state.wallStep = 0;
   render();
 });
 $('#tv-exit').addEventListener('click', () => { stopRotation(); document.body.classList.remove('tv'); render(); });
@@ -634,7 +792,7 @@ $('#tv-next').addEventListener('click', () => step(1));
 $('#tv-prev').addEventListener('click', () => step(-1));
 $('#tv-play').addEventListener('click', () => {
   if (rotation) return stopRotation();
-  rotation = setInterval(() => step(1), 12000);
+  rotation = setInterval(() => step(1), 9000);
   $('#tv-play').textContent = 'Stop';
 });
 document.addEventListener('keydown', event => {

@@ -319,7 +319,7 @@ body:not(.editing) .ez,body:not(.editing) .edit-only{display:none!important}
 body.tv{overflow:hidden;--scale:1.45}
 @media(min-width:1500px){body.tv{--scale:1.8}}
 @media(min-width:1800px){body.tv{--scale:2.15}}
-body.tv .rail,body.tv .top__actions,body.tv .no-tv{display:none}
+body.tv .rail,body.tv .top,body.tv .no-tv{display:none}
 body.tv .shell{grid-template-columns:1fr;height:100vh}
 body.tv .main{height:100vh;overflow:hidden}
 body.tv .content{flex:1;min-height:0;overflow:hidden;padding:var(--s4) var(--s5) var(--s5);gap:var(--s4)}
@@ -446,3 +446,157 @@ body.no-access .top::before{content:"MaxMetrics";font-size:var(--t-lead);font-we
 .state__title{font-size:var(--t-title);font-weight:700;letter-spacing:-.02em;margin:0}
 .state__body{margin:0;color:var(--ink-muted);line-height:1.55}
 .state__who{margin:0;font-size:var(--t-small);color:var(--ink-faint)}
+
+/* ══ TODAY · THE BOARD · THE WALL ══
+   Three readings of one assessment. None of them decides anything; assess.js has already
+   done that, so a lane cannot be amber while the same number is green on the wall. */
+
+.content--view{padding-top:var(--s3)}
+body[data-view="line"] .chartpick,body[data-view="board"] .chartpick{display:none}
+.eyebrow{font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.1em;
+  font-weight:700;color:var(--ink-faint)}
+.tone--ok{color:var(--ok)}.tone--warn{color:var(--warn)}.tone--stop{color:var(--stop)}
+.tone--none{color:var(--ink-muted)}
+
+/* ── Today ── */
+.today{display:flex;align-items:center;gap:var(--s4);background:var(--surface);
+  border:1px solid var(--rule);border-radius:var(--radius-lg);padding:var(--s4) var(--s5);
+  box-shadow:var(--shadow);margin-bottom:var(--s4);border-left:6px solid var(--ink-faint)}
+.today--ok{border-left-color:var(--ok)}
+.today--warn{border-left-color:var(--warn)}
+.today--stop{border-left-color:var(--stop)}
+.today__n{font-size:calc(var(--t-metric)*1.9);font-weight:800;letter-spacing:-.04em;
+  line-height:1;color:var(--ink-faint)}
+.today--ok .today__n{color:var(--ok)}.today--warn .today__n{color:var(--warn)}
+.today--stop .today__n{color:var(--stop)}
+.today__t h2{font-size:var(--t-lead);font-weight:700;letter-spacing:-.01em;margin:0}
+.today__t p{margin:2px 0 0;color:var(--ink-muted);font-size:var(--t-small)}
+
+.flagcard{background:var(--surface);border:1px solid var(--rule);border-radius:var(--radius-lg);
+  padding:var(--s5);box-shadow:var(--shadow);border-top:4px solid var(--ink-faint);
+  display:flex;flex-direction:column;gap:var(--s2);min-width:0;position:relative}
+.flagcard--warn{border-top-color:var(--warn)}
+.flagcard--stop{border-top-color:var(--stop)}
+.flagcard__top{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--s2);flex-wrap:wrap}
+.flagcard__who{font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.1em;font-weight:700;
+  color:var(--ink-muted)}
+.flagcard--warn .flagcard__who{color:var(--warn)}
+.flagcard--stop .flagcard__who{color:var(--stop)}
+.flagcard__n{font-size:calc(var(--t-metric)*2);font-weight:800;letter-spacing:-.04em;
+  line-height:1;white-space:nowrap}
+.flagcard__n small{font-size:.32em;font-weight:600;opacity:.6;letter-spacing:0}
+.flagcard--warn .flagcard__n{color:var(--warn)}
+.flagcard--stop .flagcard__n{color:var(--stop)}
+.flagcard__say{margin:var(--s1) 0 0;font-size:var(--t-base);line-height:1.55;color:var(--ink)}
+.flagcard__meta{display:flex;gap:var(--s4);flex-wrap:wrap;padding-top:var(--s2);
+  border-top:1px solid var(--rule);margin-top:auto}
+.a-meta__l{font-size:9.5px;text-transform:uppercase;letter-spacing:.09em;font-weight:700;color:var(--ink-faint)}
+.a-meta__v{font-size:var(--t-lead);font-weight:700}
+
+.settled{background:var(--surface);border:1px solid var(--rule);border-radius:var(--radius-lg);
+  padding:var(--s3) var(--s5) var(--s4);box-shadow:var(--shadow);margin-top:var(--s4)}
+.settled__chips{display:flex;flex-wrap:wrap;gap:var(--s2) var(--s5);margin-top:var(--s2)}
+.tick{display:flex;align-items:baseline;gap:6px;font-size:var(--t-small);padding:3px 0}
+.tick::before{content:"✓";color:var(--ok);font-weight:700;font-size:11px}
+.tick__n{font-size:var(--t-lead);font-weight:700;color:var(--ok)}
+.tick__l{color:var(--ink-muted)}
+
+/* ── The board ── */
+.lanes{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--s3)}
+@media(max-width:1240px){.lanes{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){.lanes{grid-template-columns:1fr}}
+.lane{background:var(--surface);border:1px solid var(--rule);border-radius:var(--radius-lg);
+  box-shadow:var(--shadow);display:flex;flex-direction:column;min-width:0;position:relative}
+.lane__head{border-radius:var(--radius-lg) var(--radius-lg) 0 0}
+.lane__foot{border-radius:0 0 var(--radius-lg) var(--radius-lg)}
+.lane__head{padding:var(--s2) var(--s4);border-bottom:1px solid var(--rule);display:flex;
+  align-items:center;gap:var(--s2);background:var(--sunk);min-height:40px}
+.lane__head h3{font-size:var(--t-small);font-weight:800;text-transform:uppercase;
+  letter-spacing:.07em;flex:1;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lane__owner{font-size:10px;font-weight:700;color:#fff;background:var(--ink-faint);
+  border-radius:20px;width:23px;height:23px;display:grid;place-items:center;flex:none}
+.lane--warn .lane__head{background:var(--warn-wash)}
+.lane--stop .lane__head{background:var(--stop-wash)}
+.lane--ok .lane__owner{background:var(--ok)}
+.lane--warn .lane__owner{background:var(--warn)}
+.lane--stop .lane__owner{background:var(--stop)}
+.lane__body{padding:var(--s4);display:flex;flex-direction:column;gap:6px;flex:1}
+.lane__n{font-size:calc(var(--t-metric)*1.45);font-weight:800;letter-spacing:-.035em;
+  line-height:1;white-space:nowrap;color:var(--ink)}
+.lane__n small{font-size:.34em;font-weight:600;opacity:.6;letter-spacing:0}
+.lane--ok .lane__n{color:var(--ok)}.lane--warn .lane__n{color:var(--warn)}
+.lane--stop .lane__n{color:var(--stop)}
+.lane__sub{font-size:var(--t-small);color:var(--ink-muted)}
+.lane__rest{margin-top:var(--s2);padding-top:var(--s2);border-top:1px solid var(--rule);
+  display:flex;flex-direction:column;gap:3px}
+.lane__row{display:flex;justify-content:space-between;gap:var(--s2);font-size:var(--t-small)}
+.lane__row span{color:var(--ink-muted)}
+.lane__row b{font-weight:700;white-space:nowrap}
+.lane__foot{padding:var(--s2) var(--s4);border-top:1px solid var(--rule);font-size:var(--t-small);
+  color:var(--ink);line-height:1.5;background:var(--sunk);margin-top:auto;min-height:44px}
+.lane__quiet{color:var(--ink-faint)}
+
+/* ── Sparkline and bullet ── */
+.spark{display:block;width:100%;height:30px;margin-top:2px}
+.spark__area{fill:currentColor;opacity:.13;stroke:none}
+.spark__line{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;
+  vector-effect:non-scaling-stroke}
+.spark__end{fill:currentColor;stroke:none}
+.spark--ok{color:var(--ok)}.spark--warn{color:var(--warn)}.spark--stop{color:var(--stop)}
+.spark:not([class*="spark--"]){color:var(--ink-faint)}
+.bullet{position:relative;height:22px;border-radius:5px;overflow:hidden;background:var(--sunk);
+  margin:var(--s1) 0;color:var(--ink-faint)}
+.bullet--ok{color:var(--ok)}.bullet--warn{color:var(--warn)}.bullet--stop{color:var(--stop)}
+.bullet__band{position:absolute;inset:0 auto 0 0;height:100%;width:100%}
+.bullet__band--bad{background:var(--stop-wash)}
+.bullet__band--mid{background:var(--warn-wash)}
+.bullet__band--good{background:var(--ok-wash)}
+.bullet__fill{position:absolute;top:6px;bottom:6px;left:0;border-radius:3px;background:currentColor}
+.bullet__target{position:absolute;top:1px;bottom:1px;width:3px;background:var(--ink);
+  border-radius:2px;opacity:.75}
+.delta{display:inline-flex;align-items:center;gap:4px;font-size:var(--t-micro);font-weight:700;
+  padding:2px 8px;border-radius:20px;white-space:nowrap;background:var(--sunk);color:var(--ink-muted)}
+.delta--ok{background:var(--ok-wash);color:var(--ok)}
+.delta--warn{background:var(--warn-wash);color:var(--warn)}
+.delta--stop{background:var(--stop-wash);color:var(--stop)}
+
+.rail__split{height:1px;background:var(--rail-rule);margin:var(--s3) var(--s3)}
+
+/* ── The wall ── */
+body.tv .content.wall{display:flex;flex-direction:column;gap:var(--s4);
+  padding:var(--s5) var(--s6);height:100vh;overflow:hidden}
+.wall__top{display:flex;align-items:baseline;justify-content:space-between;gap:var(--s4);
+  padding-bottom:var(--s2);border-bottom:1px solid var(--rule);flex-wrap:wrap}
+.wall__top h2{font-size:calc(var(--t-title)*.9);font-weight:700;letter-spacing:-.02em;margin:0}
+.wall__date{font-size:var(--t-lead);font-weight:700;color:var(--warn)}
+.wall__hero{display:grid;grid-template-columns:1.3fr 1fr;gap:var(--s6);align-items:center;flex:1;min-height:0}
+@media(max-width:1000px){.wall__hero{grid-template-columns:1fr}}
+.wall__l{font-size:var(--t-base);text-transform:uppercase;letter-spacing:.16em;font-weight:700;
+  color:var(--ink-muted);margin-bottom:var(--s2)}
+.wall__n{font-size:min(16vw,220px);font-weight:800;letter-spacing:-.05em;line-height:.86;white-space:nowrap}
+.wall__n small{font-size:.22em;font-weight:600;color:var(--ink-muted);letter-spacing:0}
+.wall__say{font-size:var(--t-title);color:var(--ink-muted);margin:var(--s3) 0 0;line-height:1.45}
+.wall__side{display:flex;flex-direction:column;gap:var(--s2)}
+/* The week behind the number, at a size a room can read. A trend is the one thing a
+   passing glance can take from a wall that a single figure cannot give it. */
+.wall__trend{margin-top:var(--s5)}
+.wall__trend .spark{height:80px}
+.wall__trendl{display:block;font-size:var(--t-small);text-transform:uppercase;
+  letter-spacing:.12em;font-weight:700;color:var(--ink-faint);margin-top:6px}
+.wall__row{display:flex;align-items:baseline;justify-content:space-between;gap:var(--s4);
+  padding:var(--s3) 0;border-bottom:1px solid var(--rule)}
+.wall__row:last-child{border-bottom:none}
+.wall__rl{font-size:var(--t-lead);text-transform:uppercase;letter-spacing:.08em;font-weight:700;
+  color:var(--ink-muted)}
+.wall__rn{font-size:calc(var(--t-metric)*1.3);font-weight:700;letter-spacing:-.02em;line-height:1}
+.wall__dots{display:flex;gap:7px;justify-content:center}
+.wall__dot{width:36px;height:4px;border-radius:2px;background:var(--rule-strong)}
+.wall__dot--on{background:var(--warn)}
+.wall__empty{display:grid;place-items:center;flex:1;color:var(--ink-muted);font-size:var(--t-title)}
+/* The readings that rode along under an area's worst one. Present, so nothing is
+   hidden; quiet, so the meeting hears the story once. */
+.flagcard__also{display:flex;flex-direction:column;gap:3px;padding-top:var(--s2);
+  border-top:1px solid var(--rule);margin-top:var(--s1)}
+.flagcard__row{display:flex;justify-content:space-between;gap:var(--s2);font-size:var(--t-small)}
+.flagcard__row span{color:var(--ink-muted)}
+.flagcard__row b{font-weight:700;white-space:nowrap}

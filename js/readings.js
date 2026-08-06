@@ -14,8 +14,13 @@ export const esc = value =>
   String(value ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 export const band = {
-  // A streak is measured against the record it is chasing, not against a fixed number.
-  streak: (days, record) => !record ? 'ok' : days >= record ? 'ok' : days >= record * 0.6 ? 'warn' : 'stop',
+  // A streak is a counter that only goes up, so its length is never a fault. The
+  // exception is an incident today — not a streak that has yet to beat the record.
+  // Judging it against the record put safety in the exception list on almost every
+  // day of the year, and a warning that is always on is wallpaper. Worse, the morning
+  // after an injury the counter reads 1 and the old rule painted it red, which is the
+  // dashboard telling a plant it is failing on the day it most needs the opposite.
+  streak: days => days === 0 ? 'stop' : 'ok',
   count:  value => value === 0 ? 'ok' : value === 1 ? 'warn' : 'stop',
   coq:    (value, target) => value <= target ? 'ok' : value <= target * 1.18 ? 'warn' : 'stop',
   rate:   (actual, target) => !actual || !target ? '' : actual >= target ? 'ok' : actual >= target * 0.9 ? 'warn' : 'stop',
@@ -105,6 +110,47 @@ function drawGauge({ percent, value, unit, markPercent }) {
       ridesInside(unit) ? `<tspan font-size="${vizFont(value) * 0.52}">${esc(unit)}</tspan>` : ''}</text>
   </svg>`;
 }
+
+// A week behind the number. "1,900" is a reading; "1,900 and falling for five days" is
+// the thing worth two minutes of a meeting. The last point is marked because that is
+// today, and today is the one being discussed.
+export function spark(values, tone = '') {
+  const points = (values || []).filter(v => Number.isFinite(Number(v))).map(Number);
+  if (points.length < 2) return '';
+  const w = 200, h = 30;
+  const min = Math.min(...points), max = Math.max(...points), span = (max - min) || 1;
+  const xy = points.map((v, i) => [i / (points.length - 1) * w, h - ((v - min) / span) * (h - 7) - 3.5]);
+  const line = xy.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ');
+  const [ex, ey] = xy[xy.length - 1];
+  return `<svg class="spark spark--${tone}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">
+    <path class="spark__area" d="${line} L${w} ${h} L0 ${h} Z"/>
+    <path class="spark__line" d="${line}"/>
+    <circle class="spark__end" cx="${ex.toFixed(1)}" cy="${ey.toFixed(1)}" r="3"/>
+  </svg>`;
+}
+
+// Actual against target, with the bands that decided the verdict drawn behind it.
+//
+// `floor` is doing more work than it looks. OTIF of 97.87 against a target of 98, drawn
+// from zero, is a bar 99% full and coloured red — which reads as catastrophe for a miss
+// of 0.13 of a point. Readings that live in the high nineties get a floor, so the bar
+// shows the part of the range anyone actually argues about.
+export function bullet({ actual, target, tone = '', floor = 0, lowerIsBetter = false }) {
+  if (!Number.isFinite(Number(actual)) || !Number.isFinite(Number(target)) || !target) return '';
+  const top = target * (lowerIsBetter ? 2 : 1.35);
+  const at = v => Math.max(0, Math.min(100, (v - floor) / (top - floor) * 100));
+  const good = lowerIsBetter ? at(target) : 100;
+  const mid = lowerIsBetter ? at(target * 1.18) : at(target);
+  return `<div class="bullet bullet--${tone}">
+    <span class="bullet__band bullet__band--bad"></span>
+    <span class="bullet__band bullet__band--mid" style="width:${(lowerIsBetter ? mid : 100).toFixed(1)}%"></span>
+    <span class="bullet__band bullet__band--good" style="width:${(lowerIsBetter ? good : mid).toFixed(1)}%"></span>
+    <span class="bullet__fill" style="width:${at(Number(actual)).toFixed(1)}%"></span>
+    <span class="bullet__target" style="left:${at(target).toFixed(1)}%"></span>
+  </div>`;
+}
+
+export const chip = (tone, text) => `<span class="delta delta--${tone}">${esc(text)}</span>`;
 
 export const CHART_NAMES = { number: 'Number only', bar: 'Bar', donut: 'Ring', gauge: 'Gauge' };
 
