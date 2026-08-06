@@ -218,11 +218,20 @@ export function rollup(shifts, from, to) {
     qty: d.qty,
     hours: d.hours,
     rate: d.hours ? d.qty / d.hours : null,
-    // A blank is not a zero. Nothing recorded means nothing to record, and writing 0
-    // uptime for a department nobody logged would read as a machine standing idle.
+    // Uptime, make-ready and the make-ready count are computed but NOT imported, because
+    // these formulas are demonstrably not the plant's. Rolling 4 August the way the DOR's
+    // own columns suggest gives printing 68.2% uptime, 1.03 h make-ready and 9 make-readies;
+    // the figures the plant stored for that day are 100%, 0.95 h and 5. Output and crewed
+    // hours reproduce exactly, so the sheet is being read correctly — these three are
+    // derived somewhere else, from a definition nobody has written down yet.
+    //
+    // Writing them anyway would put three wrong numbers on a dashboard beside two right
+    // ones, which is worse than leaving them to be typed: a wrong number that arrived by
+    // itself is one nobody thinks to check.
     uptime: d.hours && d.runHours ? d.runHours / d.hours : null,
     make_ready: d.mrCount ? d.mrHours / d.mrCount : null,
     mr_count: d.mrCount || null,
+    derivedUnverified: true,
     machines: [...d.machines].sort(),
     teams: [...d.teams].sort(),
     shifts: d.rows,

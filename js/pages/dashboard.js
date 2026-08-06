@@ -980,8 +980,8 @@ function importPanel() {
       <td class="num big">${num(d.qty)}</td>
       <td class="num">${d.hours}<em> h</em></td>
       <td class="num big">${d.rate ? num(Math.round(d.rate)) : '—'}</td>
-      <td class="num">${d.uptime == null ? '—' : (d.uptime * 100).toFixed(1) + '%'}</td>
-      <td class="num">${d.make_ready == null ? '—' : d.make_ready.toFixed(2) + ' h'}</td>
+      <td class="num soft">${d.uptime == null ? '—' : (d.uptime * 100).toFixed(1) + '%'}</td>
+      <td class="num soft">${d.make_ready == null ? '—' : d.make_ready.toFixed(2) + ' h'}</td>
       <td>${esc(d.machines.join(', '))} · ${d.shifts} shift${d.shifts === 1 ? '' : 's'}</td>
       <td>${changed ? '<span class="pill pill--warn">changes</span>'
                     : '<span class="pill pill--ok">same</span>'}</td></tr>`;
@@ -1003,9 +1003,14 @@ function importPanel() {
     <p class="drop__note">A morning reports the production since the last one. On Tuesday to
       Friday that is yesterday; on Monday it is Friday, Saturday and Sunday together.</p>
     <table class="tbl"><thead><tr><th>Department</th><th class="num">Output</th>
-      <th class="num">Crew hrs</th><th class="num">Per hr</th><th class="num">Uptime</th>
-      <th class="num">Make-ready</th><th>From</th><th></th></tr></thead>
+      <th class="num">Crew hrs</th><th class="num">Per hr</th><th class="num soft">Uptime*</th>
+      <th class="num soft">Make-ready*</th><th>From</th><th></th></tr></thead>
       <tbody>${rows || '<tr><td colspan="8">Nothing found for these dates.</td></tr>'}</tbody></table>
+    <p class="drop__note">* Uptime and make-ready are shown from the DOR's own columns but
+      are <b>not imported</b>. Rolled the same way, 4 August gives printing 68.2% and 1.03 h
+      where the plant's own figures for that day are 100% and 0.95 h — so these two come
+      from a definition this cannot see. Output and crewed hours reproduce that day exactly.
+      Keep entering uptime and make-ready by hand until the definition is confirmed.</p>
     <h3 class="sheet__sub">Shipping</h3>
     ${ship}
     ${p.unknownNames.length ? `<h3 class="sheet__sub">Names not on the operator list</h3>
@@ -1054,10 +1059,8 @@ async function applyImport() {
   if (!p) return;
   const writes = [];
   for (const d of p.departments) {
+    // Output and crewed hours only. See rollup() for why the other three are not written.
     writes.push([`dept:${d.dept_key}:qty`, d.qty], [`dept:${d.dept_key}:hours`, d.hours]);
-    if (d.uptime != null) writes.push([`dept:${d.dept_key}:uptime`, Number(d.uptime.toFixed(4))]);
-    if (d.make_ready != null) writes.push([`dept:${d.dept_key}:make_ready`, Number(d.make_ready.toFixed(3))]);
-    if (d.mr_count != null) writes.push([`dept:${d.dept_key}:mr_count`, d.mr_count]);
   }
   if (p.shipping) {
     writes.push(['jobs_shipped', p.shipping.jobs_shipped], ['jobs_on_time', p.shipping.jobs_on_time],

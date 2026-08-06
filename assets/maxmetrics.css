@@ -775,3 +775,5 @@ body.tv .content.wall{display:flex;flex-direction:column;gap:var(--s4);
 .drop__names{display:flex;flex-wrap:wrap;gap:var(--s2);margin:0}
 .drop__notes{margin:0;padding-left:var(--s4);font-size:var(--t-small);color:var(--ink-muted);line-height:1.6}
 .drop .btn{cursor:pointer}
+
+.tbl .soft{opacity:.5}
