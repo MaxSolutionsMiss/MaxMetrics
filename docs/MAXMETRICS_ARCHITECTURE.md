@@ -91,6 +91,39 @@ it needs — the specific complaint that ran through several versions of the old
 Present mode is fitted to 1920×1080 and verified to fit with no scrollbar. Type is pegged
 to viewport breakpoints so one page fills a laptop and a 48" screen.
 
+**A card is as tall as what it has to say.** An earlier version stretched each section to
+the viewport and the cards with it, so three lines of a review note sat at the top of a
+four-hundred-pixel card and the rest was empty ground. Filling a screen is not the same as
+using it: an inflated card reads as one with something missing. Rows now end where their
+cards end and the leftover space stays empty. The meeting-room TV is the single exception,
+and even there the row is centred in the space rather than stretched to fill it.
+
+Within a row cards do still share a height — that part was right, because a ragged row of
+readings looks like a fault. What follows from it is that their contents must be
+top-anchored: printing carries five foot stats and gluing four, and centring the middle put
+each department's rate at a different height, which turns reading three numbers into three
+separate hunts. Card titles get two lines of room whether they need them or not, for the
+same reason.
+
+## Looking like the dashboard it replaces
+
+The plant has been reading one dashboard since January and the room knows where to look, so
+MaxMetrics keeps its visual grammar rather than inventing a better one: a pictogram and a
+title in condensed capitals at the top of every card, the number large and centred
+underneath, the whole card washed green, amber or red, and section headings set small
+between two rules. The icons are the plant's own — ⚕️ for the injury streak, 🖨️ ✂️ 📦 for the
+three departments, 🚚 for shipping.
+
+The two faces are the ones the old file asked for and never got. A single HTML file on a
+network share had nowhere to load a webfont from, so `Barlow Condensed` fell through to
+whatever Windows happened to have — usually Arial Narrow — and the look was an accident.
+Loading Barlow and Barlow Condensed properly makes every desk and the TV agree, and the
+same fallback chain still applies if the plant is offline.
+
+Numbers are set at weight 500, not bold. A condensed face at fifty pixels and 700 closes
+its own counters, and a 6 begins to read as an 8 from across a room — the one thing a
+number on a wall may not do.
+
 ## Security
 
 - The publishable key ships in the page. It is designed to; every table is behind row-level

@@ -93,7 +93,22 @@ Thursday, and stops around 22:00 Friday. Gluing works some Sundays too; printing
 worked a Sunday all year — 0 of 582 rows in 2026, against 60 of 924 in die cutting and 52
 of 1,069 in gluing.
 
-This is why a crew leader can be absent from the sheet for months and still work here. A
+Saturday and Sunday are whatever they turn out to be. A shift gets cancelled, or nobody is
+called in, or the work is overtime outside the normal pattern. There is no schedule the
+importer can check a row against.
+
+So **absence means absence, and the importer says nothing about it.** No row for a machine
+on a day means that machine did not run. A blank make-ready, uptime or maintenance figure
+means it was not recorded, which for these sheets means there was nothing to record. None
+of it is a warning, a gap to fill in, or a reason to hold up an import: the only things
+being counted are the hours crewed and the sheets or cartons produced, and a day with
+neither contributes nothing to either sum, which is the correct answer.
+
+This matters because the obvious alternative — flagging missing days — would raise an
+alarm every Monday morning about a Sunday nobody worked, and an alarm that fires on
+schedule is one people learn to close without reading.
+
+It is also why a crew leader can be absent from the sheet for months and still work here. A
 line that does not crew every shift produces gaps that look like departures and are not,
 so **shift dates cannot be used to decide who is still employed** — a mistake worth
 recording because it was made here first.

@@ -193,9 +193,32 @@ export const footStat = (label, value, small) =>
   `<div class="fstat"><span class="fstat__l">${esc(label)}</span>
    <span class="fstat__v${small ? ' fstat__v--sm' : ''}">${value}</span></div>`;
 
-// A card is a label, a verdict, a reading drawn some way, and the numbers that give the
-// reading its context. Everything that varies between cards arrives as an argument.
-export function metricCard({ chart, pkey, label, tone, value, unit, percent, markPercent,
+// Every reading carries a pictogram, and they are the plant's own — the ones printed on
+// the dashboard the room has been reading since January. Keeping them costs nothing and
+// means nobody has to learn where anything moved to.
+export const ICONS = {
+  injury: '⚕️', nearmiss: '⚠️', shortages: '🚫', coq: '🎯', coqytd: '🎯',
+  printing: '🖨️', diecutting: '✂️', gluing: '📦', windowing: '🪟',
+  stamping: '✨', flexo: '🎨', shipping: '🚚',
+  late: '🚚', otif: '🚚', otd: '🚚', jobs: '🚚',
+  uptime: '⏱️', mr: '🛠️',
+  maint: '🔧', notes: '📝', staffing: '👷', fin: '💰', week: '📅',
+};
+
+// A reading's key is `printing`, or `printing-uptime`, or `printing-mr`. The suffix
+// decides the pictogram, so a department added later gets sensible icons on all three of
+// its cards without anyone editing this map.
+export const iconFor = key => {
+  const name = String(key || '');
+  if (name.endsWith('-uptime')) return ICONS.uptime;
+  if (name.endsWith('-mr')) return ICONS.mr;
+  return ICONS[name] || '📊';
+};
+
+// A card is an icon, a label, a verdict, a reading drawn some way, and the numbers that
+// give the reading its context. Everything that varies between cards arrives as an
+// argument.
+export function metricCard({ chart, pkey, icon, label, tone, value, unit, percent, markPercent,
                              markLabel, sub, flag, foot, edit, medium }) {
   const hero = showsHeroNumber(chart);
   const drawn = drawReading(chart, { percent, markPercent, markLabel, value, unit });
@@ -206,7 +229,10 @@ export function metricCard({ chart, pkey, label, tone, value, unit, percent, mar
             .filter(Boolean).join(' · '))}</div>`
         : '');
   return `<div class="card card--${tone}" data-pkey="${esc(pkey)}">
-    <div class="card__label">${esc(label)}</div>
+    <div class="card__head">
+      <span class="card__ico" aria-hidden="true">${icon || iconFor(pkey)}</span>
+      <span class="card__label">${esc(label)}</span>
+    </div>
     ${flag || ''}
     <div class="card__mid">
       ${hero ? `<div class="hero${medium ? ' hero--md' : ''}">${esc(value)}${

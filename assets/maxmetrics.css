@@ -14,7 +14,12 @@
   --warn:#B8690E; --warn-wash:#FDF2E2; --warn-rule:#EFCE9E;
   --stop:#B3261E; --stop-wash:#FBEAE9; --stop-rule:#EEBDB9;
   --rail:#171A25; --rail-ink:#A6ABBD; --rail-rule:rgba(255,255,255,.09); --rail-label:#6B7188;
-  --font:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,'Helvetica Neue',Arial,sans-serif;
+  /* Two faces, the plant's own. Body copy is Barlow; every heading, label and number is
+     Barlow Condensed. The condensed face is not decoration — it is what lets a card title
+     read as a title at twenty pixels without wrapping, and a rate hold six digits at
+     fifty-six. The fallbacks are the ones the plant's file already named. */
+  --font:'Barlow',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,'Helvetica Neue',Arial,sans-serif;
+  --font-condensed:'Barlow Condensed','Oswald','Arial Narrow',var(--font);
   --scale:1;
   --t-micro:calc(11.5px*var(--scale)); --t-small:calc(13px*var(--scale)); --t-base:calc(14.5px*var(--scale));
   --t-lead:calc(17px*var(--scale)); --t-title:calc(21px*var(--scale)); --t-metric:calc(27px*var(--scale));
@@ -109,7 +114,8 @@ html[data-rail="mini"]{--rail-w:62px}
 .top{min-height:var(--topbar-h);background:var(--surface);border-bottom:1px solid var(--rule);
   display:flex;align-items:center;gap:var(--s3);padding:var(--s2) var(--s5);flex-wrap:wrap;
   position:sticky;top:0;z-index:20}
-.top__loc{font-size:var(--t-title);font-weight:700;letter-spacing:-.02em;color:var(--ink);
+.top__loc{font-family:var(--font-condensed);font-size:calc(28px*var(--scale));font-weight:600;
+  letter-spacing:0;color:var(--ink);
   background:none;border:none;font-family:inherit;cursor:pointer;padding:2px 22px 2px 0;
   appearance:none;-webkit-appearance:none;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='7'%3E%3Cpath d='M1 1l4.5 4.5L10 1' stroke='%235B46D9' stroke-width='1.9' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
@@ -143,9 +149,14 @@ html[data-rail="mini"]{--rail-w:62px}
 
 .content{padding:var(--s4) var(--s5) var(--s5);display:flex;flex-direction:column;gap:var(--s5);flex:1}
 .sec{display:flex;flex-direction:column;gap:var(--s3);min-width:0}
+/* A section heading sits between two rules, centred — the plant's own device, and a good
+   one: it separates without adding a heavy bar, and it reads as a divider rather than as
+   another thing competing with the numbers. */
 .sec__head{display:flex;align-items:center;gap:var(--s3)}
-.sec__title{font-size:var(--t-title);font-weight:700;letter-spacing:-.02em;margin:0;white-space:nowrap}
-.sec__rule{flex:1;height:1px;background:var(--rule)}
+.sec__head::before{content:"";flex:1;height:1.5px;background:var(--rule)}
+.sec__title{font-family:var(--font-condensed);font-size:calc(14px*var(--scale));font-weight:600;
+  text-transform:uppercase;letter-spacing:.16em;color:var(--ink-muted);margin:0;white-space:nowrap}
+.sec__rule{flex:1;height:1.5px;background:var(--rule)}
 
 .grid{display:grid;gap:var(--s3);min-width:0}
 .g5{grid-template-columns:repeat(5,minmax(0,1fr))}
@@ -165,28 +176,61 @@ html[data-rail="mini"]{--rail-w:62px}
 .card--ok{background:var(--ok-wash);border-color:var(--ok-rule);border-top-color:var(--ok)}
 .card--warn{background:var(--warn-wash);border-color:var(--warn-rule);border-top-color:var(--warn)}
 .card--stop{background:var(--stop-wash);border-color:var(--stop-rule);border-top-color:var(--stop)}
-.card__label{font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.08em;font-weight:700;
-  color:var(--ink-muted);margin-bottom:var(--s2);line-height:1.3;display:flex;align-items:center;gap:6px}
+/* A card announces itself with an icon and a title big enough to read from across a
+   room. The plant's own dashboard does this and it is the single thing that made its
+   cards legible at a glance: the eye finds the pictogram, then the word, then the number.
+   A ten-pixel grey caption in the corner asks the reader to hunt for what they are
+   looking at, which is a poor use of a three-minute meeting. */
+.card__head{display:flex;align-items:center;justify-content:center;gap:9px;margin-bottom:var(--s3);
+  min-width:0}
+.card__ico{font-size:26px;line-height:1;flex:none;font-family:var(--font)}
+.card__ico svg{width:1.05em;height:1.05em;display:block;stroke:currentColor;fill:none;stroke-width:4.5;
+  stroke-linecap:round;stroke-linejoin:round}
+/* Two lines' worth of room whether the title needs it or not. "Die Cutting" wraps and
+   "Gluing" does not, and without this the numbers in a row start at different heights —
+   which the eye reads as the cards being different sizes rather than the titles being
+   different lengths. */
+.card__label{font-family:var(--font-condensed);font-size:calc(20px*var(--scale));font-weight:700;
+  text-transform:uppercase;letter-spacing:.04em;color:var(--ink-muted);line-height:1.1;
+  text-align:center;min-width:0;min-height:2.2em;display:flex;align-items:center;
+  justify-content:center}
+.card--ok .card__head{color:var(--ok)}.card--warn .card__head{color:var(--warn)}
+.card--stop .card__head{color:var(--stop)}
 .card--ok .card__label{color:var(--ok)}.card--warn .card__label{color:var(--warn)}
 .card--stop .card__label{color:var(--stop)}
-.card__mid{display:flex;flex-direction:column;justify-content:center;flex:1;min-height:0}
+/* Top-aligned, not centred. Cards in a row are the same height, but their feet are not
+   the same depth — printing carries five foot stats and gluing four — and centring the
+   middle made each number float to a different height. Reading three departments then
+   means three separate hunts for the figure. Anchored under the heading, they line up. */
+.card__mid{display:flex;flex-direction:column;justify-content:flex-start;align-items:center;
+  text-align:center;flex:1;min-height:0;width:100%}
 
-.hero{font-size:min(calc(var(--t-metric)*2.05),25cqi);font-weight:700;line-height:.95;
-  letter-spacing:-.035em;color:var(--ink);display:flex;align-items:baseline;gap:4px;white-space:nowrap}
-.hero i{font-style:normal;font-size:.42em;font-weight:600;color:var(--ink-muted);letter-spacing:0}
+/* Numbers are the reason the page exists, so they get the condensed face and the room to
+   be large. Weight 500 rather than 700: at fifty pixels a condensed bold closes its own
+   counters and a 6 starts to read as an 8. */
+.hero{font-family:var(--font-condensed);font-size:min(calc(var(--t-metric)*2.3),28cqi);
+  font-weight:500;line-height:.95;letter-spacing:-.01em;color:var(--ink);
+  display:flex;align-items:baseline;justify-content:center;gap:5px;white-space:nowrap}
+.hero i{font-family:var(--font);font-style:normal;font-size:.3em;font-weight:400;
+  color:var(--ink-muted);letter-spacing:0}
 .card--ok .hero{color:var(--ok)}.card--warn .hero{color:var(--warn)}.card--stop .hero{color:var(--stop)}
-.card--ok .hero i,.card--warn .hero i,.card--stop .hero i{color:inherit;opacity:.65}
-.hero--md{font-size:min(calc(var(--t-metric)*1.5),19cqi)}
-.unit{font-size:var(--t-small);color:var(--ink-muted);margin-top:2px}
+.card--ok .hero i,.card--warn .hero i,.card--stop .hero i{color:inherit;opacity:.75}
+.hero--md{font-size:min(calc(var(--t-metric)*1.7),21cqi)}
+.unit{font-size:var(--t-small);color:var(--ink-muted);margin-top:3px;text-align:center}
 .card--ok .unit,.card--warn .unit,.card--stop .unit{color:inherit;opacity:.85}
 
 /* ── VIZ: bar / donut / gauge. One judgement, four ways of drawing it. ── */
-.track{position:relative;height:8px;border-radius:4px;background:var(--sunk);margin:var(--s3) 0 var(--s2)}
+/* The card centres its contents, and a centred flex child shrinks to fit — which for a
+   bar with no intrinsic width means it disappears. Every full-width drawing says so.
+   The top margin is for the mark's label, which hangs above the track and would
+   otherwise land on the caption. */
+.track{position:relative;width:100%;align-self:stretch;height:9px;border-radius:5px;
+  background:var(--sunk);margin:calc(var(--s4) + 4px) 0 var(--s2)}
 .track__fill{position:absolute;inset:0 auto 0 0;border-radius:4px;background:var(--ink-faint);transition:width .4s}
 .card--ok .track__fill{background:var(--ok)}.card--warn .track__fill{background:var(--warn)}
 .card--stop .track__fill{background:var(--stop)}
 .track__mark{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink);opacity:.55;border-radius:1px}
-.track__mark::after{content:attr(data-lbl);position:absolute;top:-15px;left:50%;transform:translateX(-50%);
+.track__mark::after{content:attr(data-lbl);position:absolute;top:-16px;left:50%;transform:translateX(-50%);
   font-size:9.5px;font-weight:700;letter-spacing:.05em;color:var(--ink-muted);white-space:nowrap;text-transform:uppercase}
 .track__mark--end::after{left:auto;right:0;transform:none}
 /* A ring is only readable if it is big enough to hold its own number, so it is sized
@@ -202,19 +246,22 @@ html[data-rail="mini"]{--rail-w:62px}
 .card--ok .viz-v{fill:var(--ok)}.card--warn .viz-v{fill:var(--warn)}.card--stop .viz-v{fill:var(--stop)}
 .viz-s{fill:var(--ink-muted);font-weight:600;text-anchor:middle;font-family:var(--font)}
 
-.foot{margin-top:auto;padding-top:var(--s2);border-top:1px solid var(--rule);display:flex;
+.foot{margin-top:auto;width:100%;align-self:stretch;padding-top:var(--s2);
+  border-top:1px solid var(--rule);display:flex;
   gap:var(--s4);flex-wrap:wrap}
 .card--ok .foot{border-top-color:var(--ok-rule)}.card--warn .foot{border-top-color:var(--warn-rule)}
 .card--stop .foot{border-top-color:var(--stop-rule)}
 .fstat{display:flex;flex-direction:column;gap:0;min-width:0}
-.fstat__l{font-size:9.5px;text-transform:uppercase;letter-spacing:.09em;font-weight:700;color:var(--ink-faint)}
-.fstat__v{font-size:min(calc(var(--t-metric)*.82),9cqi);font-weight:700;line-height:1.15;
+.fstat__l{font-family:var(--font-condensed);font-size:calc(11px*var(--scale));text-transform:uppercase;
+  letter-spacing:.08em;font-weight:700;color:var(--ink-faint)}
+.fstat__v{font-family:var(--font-condensed);font-size:min(calc(var(--t-metric)*.95),10cqi);
+  font-weight:600;line-height:1.15;
   letter-spacing:-.02em;color:var(--ink);white-space:nowrap}
 .fstat__v em{font-style:normal;font-size:.55em;font-weight:600;opacity:.75}
 .fstat__v--sm{font-size:var(--t-base);font-weight:600;color:var(--ink-muted);letter-spacing:0}
 .card--ok .fstat__v{color:var(--ok)}.card--warn .fstat__v{color:var(--warn)}.card--stop .fstat__v{color:var(--stop)}
 .card--ok .fstat__v--sm,.card--warn .fstat__v--sm,.card--stop .fstat__v--sm{opacity:.85}
-.flag{align-self:flex-start;font-size:var(--t-micro);font-weight:700;text-transform:uppercase;
+.flag{align-self:center;font-size:var(--t-micro);font-weight:700;text-transform:uppercase;
   letter-spacing:.07em;padding:3px 8px;border-radius:4px;margin-bottom:var(--s2);white-space:nowrap}
 .flag--ok{background:var(--ok);color:#fff}.flag--warn{background:var(--warn);color:#fff}
 .flag--stop{background:var(--stop);color:#fff}
@@ -223,13 +270,15 @@ html[data-rail="mini"]{--rail-w:62px}
 
 /* ── TABLE ── */
 .tbl{width:100%;border-collapse:collapse;font-size:var(--t-small)}
-.tbl th{font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.07em;font-weight:700;
+.tbl th{font-family:var(--font-condensed);font-size:calc(12px*var(--scale));text-transform:uppercase;
+  letter-spacing:.07em;font-weight:700;
   color:var(--ink-faint);text-align:left;padding:var(--s2);border-bottom:1px solid var(--rule);white-space:nowrap}
 .tbl th.num,.tbl td.num{text-align:right;white-space:nowrap}
 .tbl td{padding:var(--s2);border-bottom:1px solid var(--rule);color:var(--ink)}
 .tbl tr:last-child td{border-bottom:none}
-.tbl .dept{font-weight:700;text-transform:uppercase;letter-spacing:.03em;white-space:nowrap}
-.tbl .big{font-size:var(--t-lead);font-weight:700;letter-spacing:-.01em}
+.tbl .dept{font-family:var(--font-condensed);font-size:calc(16px*var(--scale));font-weight:700;
+  text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;color:var(--ink-muted)}
+.tbl .big{font-family:var(--font-condensed);font-size:calc(19px*var(--scale));font-weight:700;letter-spacing:-.01em}
 .pill{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;
   text-transform:uppercase;letter-spacing:.05em}
 .pill--ok{background:var(--ok-wash);color:var(--ok);border:1px solid var(--ok-rule)}
@@ -249,12 +298,15 @@ html[data-rail="mini"]{--rail-w:62px}
 .cell--warn{background:var(--warn-wash);border-top-color:var(--warn)}
 .cell--stop{background:var(--stop-wash);border-top-color:var(--stop)}
 .cell--info{background:var(--brand-wash);border-top-color:var(--brand)}
-.cell__l{font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.08em;font-weight:700;color:var(--ink-muted)}
+.cell__l{font-family:var(--font-condensed);font-size:calc(13px*var(--scale));text-transform:uppercase;
+  letter-spacing:.07em;font-weight:700;color:var(--ink-muted);display:flex;align-items:center;
+  justify-content:center;gap:5px}
+.cell__ico{font-family:var(--font);font-size:1.25em;line-height:1}
 .cell--ok .cell__l{color:var(--ok)}.cell--warn .cell__l{color:var(--warn)}
 .cell--stop .cell__l{color:var(--stop)}.cell--info .cell__l{color:var(--brand-deep)}
-.cell__v{font-size:min(calc(var(--t-metric)*1.45),30cqi);font-weight:700;line-height:1;
-  letter-spacing:-.03em;color:var(--ink);white-space:nowrap}
-.cell__v i{font-style:normal;font-size:.5em;font-weight:600;opacity:.6}
+.cell__v{font-family:var(--font-condensed);font-size:min(calc(var(--t-metric)*1.6),32cqi);
+  font-weight:500;line-height:1;letter-spacing:-.01em;color:var(--ink);white-space:nowrap}
+.cell__v i{font-family:var(--font);font-style:normal;font-size:.34em;font-weight:400;opacity:.65}
 .cell--ok .cell__v{color:var(--ok)}.cell--warn .cell__v{color:var(--warn)}
 .cell--stop .cell__v{color:var(--stop)}.cell--info .cell__v{color:var(--brand-deep)}
 .cell__v--lg{font-size:min(calc(var(--t-metric)*1.2),21cqi)}
@@ -264,9 +316,11 @@ html[data-rail="mini"]{--rail-w:62px}
 /* ── PANEL ── */
 .panel{background:var(--surface);border:1px solid var(--rule);border-radius:var(--radius-lg);
   overflow:hidden;box-shadow:var(--shadow);display:flex;flex-direction:column;min-width:0}
-.panel__head{display:flex;align-items:center;gap:var(--s3);padding:var(--s2) var(--s4);
+.panel__head .card__ico{font-size:22px}
+.panel__head{display:flex;align-items:center;gap:var(--s2);padding:var(--s2) var(--s4);
   border-bottom:1px solid var(--rule);min-height:44px;flex:none}
-.panel__title{font-size:var(--t-lead);font-weight:600;margin:0;white-space:nowrap}
+.panel__title{font-family:var(--font-condensed);font-size:calc(20px*var(--scale));font-weight:700;
+  text-transform:uppercase;letter-spacing:.04em;color:var(--ink-muted);margin:0;white-space:nowrap}
 .panel__actions{margin-left:auto;display:flex;gap:var(--s2);align-items:center}
 .panel__body{padding:var(--s2) var(--s4) var(--s3);flex:1;min-width:0;overflow-x:auto}
 
@@ -275,21 +329,24 @@ html[data-rail="mini"]{--rail-w:62px}
 .rev__dot{width:11px;height:11px;border-radius:50%;flex:none;margin-top:5px}
 .rev__dot--ok{background:var(--ok)}.rev__dot--warn{background:var(--warn)}.rev__dot--stop{background:var(--stop)}
 .rev__body{flex:1;min-width:0}
-.rev__dept{font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.08em;font-weight:700;
-  color:var(--ink-muted);margin-bottom:2px}
+.rev__dept .card__ico{font-size:.95em;display:inline-block;vertical-align:-.08em}
+.rev__dept{font-family:var(--font-condensed);font-size:calc(17px*var(--scale));text-transform:uppercase;
+  letter-spacing:.04em;font-weight:700;color:var(--ink-muted);margin-bottom:2px}
 .rev__note{font-size:var(--t-base);line-height:1.5;color:var(--ink)}
 
 .fin{display:grid;grid-template-columns:1fr 1fr;gap:var(--s5)}
 @media(max-width:880px){.fin{grid-template-columns:1fr}}
-.fin__t{font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.09em;font-weight:700;
-  color:var(--ink-muted);margin-bottom:var(--s2)}
-.fin__v{font-size:min(calc(var(--t-metric)*1.55),16cqi);font-weight:700;line-height:1;
-  letter-spacing:-.03em;margin-bottom:var(--s3);white-space:nowrap}
+.fin__pane{min-width:0;container-type:inline-size;text-align:center}
+.fin__v--under{margin-top:var(--s2)}
+.fin__t{font-family:var(--font-condensed);font-size:calc(14px*var(--scale));text-transform:uppercase;
+  letter-spacing:.08em;font-weight:700;color:var(--ink-muted);margin-bottom:var(--s2)}
+.fin__v{font-family:var(--font-condensed);font-size:min(calc(var(--t-metric)*1.75),18cqi);
+  font-weight:500;line-height:1;letter-spacing:-.01em;margin-bottom:var(--s3);white-space:nowrap}
 .fin__row{display:flex;justify-content:space-between;gap:var(--s3);padding:6px 0;
   border-bottom:1px solid var(--rule);font-size:var(--t-small)}
 .fin__row:last-child{border-bottom:none}
 .fin__row span{color:var(--ink-muted)}
-.fin__row strong{font-weight:700;white-space:nowrap}
+.fin__row strong{font-family:var(--font-condensed);font-size:calc(16px*var(--scale));font-weight:600;white-space:nowrap}
 
 /* ── EDIT ── */
 .ez{margin-top:var(--s3);padding-top:var(--s3);border-top:1px dashed var(--rule-strong);
@@ -310,9 +367,9 @@ body:not(.editing) .ez,body:not(.editing) .edit-only{display:none!important}
    markup was renamed to .chartpick when the picker stopped being per-card; these rules
    kept the old name and so matched nothing, leaving four blank buttons. */
 .chartpick{display:inline-flex;gap:2px;background:var(--sunk);border-radius:var(--radius);padding:2px}
-.chartpick button{width:30px;height:calc(var(--ctl-h) - 4px);border-radius:4px;border:none;
+.chartpick button{width:36px;height:calc(var(--ctl-h) - 4px);border-radius:4px;border:none;
   background:none;cursor:pointer;display:grid;place-items:center;padding:0}
-.chartpick button svg{width:16px;height:16px;stroke:var(--ink-muted);fill:none;stroke-width:1.9}
+.chartpick button svg{width:20px;height:20px;stroke:var(--ink-muted);fill:none;stroke-width:1.9}
 .chartpick button svg text{fill:var(--ink-muted);stroke:none}
 .chartpick button:hover{background:rgba(128,128,128,.14)}
 .chartpick button[aria-pressed="true"]{background:var(--brand)}
@@ -352,17 +409,20 @@ body.tv .fstat__v{font-size:min(calc(var(--t-metric)*1),11cqi)}
 body.tv .tvbar{display:flex}
 .tvbar .btn{border:none;background:none;height:30px;padding:0 10px}
 
-/* One section per screen on a normal monitor too. */
-.content--solo{min-height:calc(100vh - var(--topbar-h))}
-.content--solo .card{padding:var(--s5);min-height:min(38vh,320px)}
-.content--solo .hero{font-size:min(calc(var(--t-metric)*2.6),27cqi)}
-.content--solo .hero--md{font-size:min(calc(var(--t-metric)*2.1),21cqi)}
+/* A section on its own gets larger type, and nothing else.
+   It used to get the height as well: the section stretched to the viewport and the cards
+   stretched with it, so three lines of a review note sat at the top of a four-hundred
+   pixel card and the rest was empty ground. Filling a screen is not the same as using it.
+   A card is as tall as what it has to say, the row ends where the cards end, and the space
+   left over stays empty — which is what makes the cards look deliberate rather than
+   inflated. The TV is the one place height is the point, and that is handled in body.tv
+   by centring the row rather than by stretching the cards inside it. */
+.content--solo .card{padding:var(--s5)}
+.content--solo .hero{font-size:min(calc(var(--t-metric)*3),30cqi)}
+.content--solo .hero--md{font-size:min(calc(var(--t-metric)*2.3),23cqi)}
+.content--solo .card__label{font-size:calc(23px*var(--scale))}
+.content--solo .card__ico{font-size:30px}
 .content--solo .viz{max-height:min(56cqi,300px)}
-.content--solo .sec{flex:1;min-height:0}
-.content--solo .sec>.grid,.content--solo .sec>.strip{flex:1;min-height:0;align-content:stretch}
-.content--solo .grid{grid-auto-rows:minmax(0,1fr)}
-.content--solo .card{min-height:0}
-.content--solo .panel{min-height:0}
 
 /* ── PRESENCE ──
    Nobody is locked out of anything. Two people in the same section is normal, so
@@ -471,33 +531,37 @@ body[data-view="line"] .chartpick,body[data-view="board"] .chartpick{display:non
 .today--ok{border-left-color:var(--ok)}
 .today--warn{border-left-color:var(--warn)}
 .today--stop{border-left-color:var(--stop)}
-.today__n{font-size:calc(var(--t-metric)*1.9);font-weight:800;letter-spacing:-.04em;
-  line-height:1;color:var(--ink-faint)}
+.today__n{font-family:var(--font-condensed);font-size:calc(var(--t-metric)*2.2);font-weight:500;
+  letter-spacing:-.01em;line-height:1;color:var(--ink-faint)}
 .today--ok .today__n{color:var(--ok)}.today--warn .today__n{color:var(--warn)}
 .today--stop .today__n{color:var(--stop)}
 .today__t h2{font-size:var(--t-lead);font-weight:700;letter-spacing:-.01em;margin:0}
 .today__t p{margin:2px 0 0;color:var(--ink-muted);font-size:var(--t-small)}
 
+/* Each exception is as tall as what it has to say. A one-line shortage next to a
+   department with a note, a trend and a shortfall would otherwise be stretched to match
+   it, and the reader is left looking at an empty card wondering what is missing. */
+.flags{align-items:start}
 .flagcard{background:var(--surface);border:1px solid var(--rule);border-radius:var(--radius-lg);
   padding:var(--s5);box-shadow:var(--shadow);border-top:4px solid var(--ink-faint);
   display:flex;flex-direction:column;gap:var(--s2);min-width:0;position:relative}
 .flagcard--warn{border-top-color:var(--warn)}
 .flagcard--stop{border-top-color:var(--stop)}
 .flagcard__top{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--s2);flex-wrap:wrap}
-.flagcard__who{font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.1em;font-weight:700;
-  color:var(--ink-muted)}
+.flagcard__who{font-family:var(--font-condensed);font-size:calc(16px*var(--scale));text-transform:uppercase;
+  letter-spacing:.06em;font-weight:700;color:var(--ink-muted)}
 .flagcard--warn .flagcard__who{color:var(--warn)}
 .flagcard--stop .flagcard__who{color:var(--stop)}
-.flagcard__n{font-size:calc(var(--t-metric)*2);font-weight:800;letter-spacing:-.04em;
-  line-height:1;white-space:nowrap}
-.flagcard__n small{font-size:.32em;font-weight:600;opacity:.6;letter-spacing:0}
+.flagcard__n{font-family:var(--font-condensed);font-size:calc(var(--t-metric)*2.3);font-weight:500;
+  letter-spacing:-.01em;line-height:1;white-space:nowrap}
+.flagcard__n small{font-family:var(--font);font-size:.24em;font-weight:400;opacity:.7;letter-spacing:0}
 .flagcard--warn .flagcard__n{color:var(--warn)}
 .flagcard--stop .flagcard__n{color:var(--stop)}
 .flagcard__say{margin:var(--s1) 0 0;font-size:var(--t-base);line-height:1.55;color:var(--ink)}
 .flagcard__meta{display:flex;gap:var(--s4);flex-wrap:wrap;padding-top:var(--s2);
   border-top:1px solid var(--rule);margin-top:auto}
 .a-meta__l{font-size:9.5px;text-transform:uppercase;letter-spacing:.09em;font-weight:700;color:var(--ink-faint)}
-.a-meta__v{font-size:var(--t-lead);font-weight:700}
+.a-meta__v{font-family:var(--font-condensed);font-size:calc(20px*var(--scale));font-weight:600}
 
 .settled{background:var(--surface);border:1px solid var(--rule);border-radius:var(--radius-lg);
   padding:var(--s3) var(--s5) var(--s4);box-shadow:var(--shadow);margin-top:var(--s4)}
@@ -543,14 +607,15 @@ body[data-view="line"] .chartpick,body[data-view="board"] .chartpick{display:non
 .lane__quiet{color:var(--ink-faint)}
 
 /* ── Sparkline and bullet ── */
-.spark{display:block;width:100%;height:30px;margin-top:2px}
+.spark{display:block;width:100%;align-self:stretch;height:30px;margin-top:2px}
 .spark__area{fill:currentColor;opacity:.13;stroke:none}
 .spark__line{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;
   vector-effect:non-scaling-stroke}
 .spark__end{fill:currentColor;stroke:none}
 .spark--ok{color:var(--ok)}.spark--warn{color:var(--warn)}.spark--stop{color:var(--stop)}
 .spark:not([class*="spark--"]){color:var(--ink-faint)}
-.bullet{position:relative;height:22px;border-radius:5px;overflow:hidden;background:var(--sunk);
+.bullet{position:relative;width:100%;align-self:stretch;height:22px;border-radius:5px;
+  overflow:hidden;background:var(--sunk);
   margin:var(--s1) 0;color:var(--ink-faint)}
 .bullet--ok{color:var(--ok)}.bullet--warn{color:var(--warn)}.bullet--stop{color:var(--stop)}
 .bullet__band{position:absolute;inset:0 auto 0 0;height:100%;width:100%}
@@ -573,14 +638,18 @@ body.tv .content.wall{display:flex;flex-direction:column;gap:var(--s4);
   padding:var(--s5) var(--s6);height:100vh;overflow:hidden}
 .wall__top{display:flex;align-items:baseline;justify-content:space-between;gap:var(--s4);
   padding-bottom:var(--s2);border-bottom:1px solid var(--rule);flex-wrap:wrap}
-.wall__top h2{font-size:calc(var(--t-title)*.9);font-weight:700;letter-spacing:-.02em;margin:0}
+.wall__top h2{font-family:var(--font-condensed);font-size:calc(var(--t-title)*1.1);font-weight:700;
+  text-transform:uppercase;letter-spacing:.06em;margin:0}
 .wall__date{font-size:var(--t-lead);font-weight:700;color:var(--warn)}
 .wall__hero{display:grid;grid-template-columns:1.3fr 1fr;gap:var(--s6);align-items:center;flex:1;min-height:0}
 @media(max-width:1000px){.wall__hero{grid-template-columns:1fr}}
-.wall__l{font-size:var(--t-base);text-transform:uppercase;letter-spacing:.16em;font-weight:700;
+.wall__ico{font-size:1.6em;line-height:1;margin-right:.35em;vertical-align:-.12em}
+.wall__l{font-family:var(--font-condensed);font-size:calc(var(--t-base)*1.5);text-transform:uppercase;
+  letter-spacing:.1em;font-weight:700;
   color:var(--ink-muted);margin-bottom:var(--s2)}
-.wall__n{font-size:min(16vw,220px);font-weight:800;letter-spacing:-.05em;line-height:.86;white-space:nowrap}
-.wall__n small{font-size:.22em;font-weight:600;color:var(--ink-muted);letter-spacing:0}
+.wall__n{font-family:var(--font-condensed);font-size:min(18vw,260px);font-weight:500;
+  letter-spacing:-.01em;line-height:.86;white-space:nowrap}
+.wall__n small{font-family:var(--font);font-size:.16em;font-weight:400;color:var(--ink-muted);letter-spacing:0}
 .wall__say{font-size:var(--t-title);color:var(--ink-muted);margin:var(--s3) 0 0;line-height:1.45}
 .wall__side{display:flex;flex-direction:column;gap:var(--s2)}
 /* The week behind the number, at a size a room can read. A trend is the one thing a
@@ -592,9 +661,11 @@ body.tv .content.wall{display:flex;flex-direction:column;gap:var(--s4);
 .wall__row{display:flex;align-items:baseline;justify-content:space-between;gap:var(--s4);
   padding:var(--s3) 0;border-bottom:1px solid var(--rule)}
 .wall__row:last-child{border-bottom:none}
-.wall__rl{font-size:var(--t-lead);text-transform:uppercase;letter-spacing:.08em;font-weight:700;
+.wall__rl{font-family:var(--font-condensed);font-size:calc(var(--t-lead)*1.25);text-transform:uppercase;
+  letter-spacing:.06em;font-weight:700;
   color:var(--ink-muted)}
-.wall__rn{font-size:calc(var(--t-metric)*1.3);font-weight:700;letter-spacing:-.02em;line-height:1}
+.wall__rn{font-family:var(--font-condensed);font-size:calc(var(--t-metric)*1.5);font-weight:500;
+  letter-spacing:-.01em;line-height:1}
 .wall__dots{display:flex;gap:7px;justify-content:center}
 .wall__dot{width:36px;height:4px;border-radius:2px;background:var(--rule-strong)}
 .wall__dot--on{background:var(--warn)}
@@ -617,8 +688,9 @@ body.tv .content.wall{display:flex;flex-direction:column;gap:var(--s4);
 .revcard--stop{border-top-color:var(--stop)}
 .revcard--ok{border-top-color:var(--ok)}
 .revcard__head{display:flex;align-items:center;gap:var(--s2)}
-.revcard__head h4{margin:0;font-size:var(--t-small);font-weight:800;text-transform:uppercase;
-  letter-spacing:.07em;color:var(--ink-muted)}
+.revcard__head .card__ico{font-size:22px}
+.revcard__head h4{margin:0;font-family:var(--font-condensed);font-size:calc(19px*var(--scale));
+  font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-muted)}
 .revcard--warn .revcard__head h4{color:var(--warn)}
 .revcard--stop .revcard__head h4{color:var(--stop)}
 /* The plant writes these as short lists — one line per machine — so the line breaks
