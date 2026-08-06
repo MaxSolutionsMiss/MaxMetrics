@@ -36,6 +36,10 @@ export const band = {
   // Shipping percentages are amber down to ninety, not down to three points off target.
   pct:    (value, target) => value >= target ? 'ok' : value >= 90 ? 'warn' : 'stop',
   money:  percent => percent > 0 ? 'ok' : percent >= -3 ? 'warn' : 'stop',
+  // Make-ready is the one production reading where less is better: an hour saved
+  // setting up is an hour running.
+  lower:  (actual, target) => !actual || !target ? ''
+            : actual <= target ? 'ok' : actual <= target * 1.2 ? 'warn' : 'stop',
   maint:  status => status === 'Complete' ? 'ok' : status === 'Overdue' ? 'stop'
                   : status === 'Due Today' ? 'warn' : 'info',
   // A section reports the worst thing in it, so a closed rail still tells the truth.

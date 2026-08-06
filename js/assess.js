@@ -78,6 +78,23 @@ export function assess({ date, metrics, departments, review, maintenance, config
       series: seriesFor(c.key), raw: rate, previous,
       shortfall: rate < target ? Math.round((target - rate) * Number(row.hours)) : 0,
       unitWord: c.unit, note: said?.note || null });
+
+    // Uptime and make-ready ride with the department they belong to, so a press running
+    // at rate but losing an hour a shift to setup still shows up.
+    if (row.uptime != null && c.uptime_target) {
+      const up = Number(row.uptime) * 100, target = Number(c.uptime_target) * 100;
+      out.push({ key:`${c.key}-uptime`, area:c.name, owner:'ML', title:`${c.name} uptime`,
+        tone: band.rate(up, target), value: up.toFixed(1), unit:'%',
+        target, targetLabel:`target ${target.toFixed(0)}%`, floor: 50, percent: up });
+    }
+    if (row.make_ready != null && c.mr_target) {
+      const mr = Number(row.make_ready), target = Number(c.mr_target);
+      out.push({ key:`${c.key}-mr`, area:c.name, owner:'ML', title:`${c.name} make-ready`,
+        tone: band.lower(mr, target), value: mr.toFixed(2), unit:'hrs',
+        target, targetLabel:`target ${target.toFixed(2)} hrs`, lowerIsBetter: true,
+        percent: target ? mr / (target * 2) * 100 : 0,
+        note: row.mr_count ? `${row.mr_count} make-${row.mr_count === 1 ? 'ready' : 'readies'}.` : null });
+    }
   }
 
   // ── Shipping ──

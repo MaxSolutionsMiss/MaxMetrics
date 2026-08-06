@@ -278,10 +278,18 @@ const SECTIONS = {
         markPercent: 100 / 1.25, markLabel: 'target',
         foot: footStat('Target / hr', num(target))
             + footStat('Total', row.qty ? `${num(row.qty)} · ${row.hours || 0}h` : '—', true)
-            + footStat('vs target', rate && target ? trend(rate, target) : '—', true),
+            + footStat('vs target', rate && target ? trend(rate, target) : '—', true)
+            + (row.uptime != null ? footStat('Uptime',
+                `<span class="tone--${band.rate(Number(row.uptime) * 100, Number(config.uptime_target || 0) * 100) || 'none'}">${
+                  (Number(row.uptime) * 100).toFixed(1)}%</span>`, true) : '')
+            + (row.make_ready != null ? footStat('Make-ready',
+                `<span class="tone--${band.lower(Number(row.make_ready), Number(config.mr_target || 0)) || 'none'}">${
+                  Number(row.make_ready).toFixed(2)} h</span>`, true) : ''),
         edit: field(config.unit, `dept:${config.key}:qty`, `type="number" value="${row.qty ?? ''}"`)
             + field('Hours', `dept:${config.key}:hours`, `type="number" step="0.1" value="${row.hours ?? ''}"`)
-            + field('Target', `dept:${config.key}:target`, `type="number" value="${row.target ?? config.target}"`),
+            + field('Target', `dept:${config.key}:target`, `type="number" value="${row.target ?? config.target}"`)
+            + field('Uptime', `dept:${config.key}:uptime`, `type="number" step="0.001" placeholder="0.88" value="${row.uptime ?? ''}"`)
+            + field('Make-ready', `dept:${config.key}:make_ready`, `type="number" step="0.01" placeholder="hours" value="${row.make_ready ?? ''}"`),
       });
     }).join('');
 
