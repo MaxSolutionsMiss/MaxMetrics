@@ -8,7 +8,7 @@
      green / amber / red are already spoken for by status, so the product colour has
      to sit outside all three or a brand element reads as a verdict. */
   --brand:#5B46D9; --brand-hover:#4A38B8; --brand-wash:#EDEAFC; --brand-deep:#3B2B96;
-  --ground:#F1F3F7; --surface:#FFFFFF; --sunk:#E8EBF2; --rule:#DDE0E9; --rule-strong:#C3C7D4;
+  --ground:#EEF2F7; --surface:#FFFFFF; --sunk:#E5EAF1; --rule:#DDE3EC; --rule-strong:#C2CBD6;
   --ink:#171A25; --ink-muted:#575D70; --ink-faint:#8A90A2;
   --ok:#1B7A4B; --ok-wash:#E6F2EC; --ok-rule:#B7DAC6;
   --warn:#B8690E; --warn-wash:#FDF2E2; --warn-rule:#EFCE9E;
@@ -19,10 +19,10 @@
   --t-micro:calc(11.5px*var(--scale)); --t-small:calc(13px*var(--scale)); --t-base:calc(14.5px*var(--scale));
   --t-lead:calc(17px*var(--scale)); --t-title:calc(21px*var(--scale)); --t-metric:calc(27px*var(--scale));
   --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px;
-  --radius:5px; --radius-lg:8px; --rail-w:220px; --topbar-h:56px; --ctl-h:36px;
-  --shadow:0 1px 2px rgba(23,26,37,.06),0 1px 8px rgba(23,26,37,.04);
+  --radius:6px; --radius-lg:14px; --rail-w:220px; --topbar-h:56px; --ctl-h:36px;
+  --shadow:0 1px 8px rgba(15,23,42,.07);
 }
-@media (prefers-color-scheme:dark){:root{
+@media (prefers-color-scheme:dark){:root[data-theme="auto"]{
   --brand:#8A76F0; --brand-hover:#9E8DF5; --brand-wash:#1E1A40; --brand-deep:#BFB0FF;
   --ground:#0D101A; --surface:#161A28; --sunk:#1E2333; --rule:#2A3044; --rule-strong:#3A4157;
   --ink:#E8EAF2; --ink-muted:#9BA2B8; --ink-faint:#6E7590;
@@ -44,7 +44,7 @@
 }
 :root[data-theme="light"]{
   --brand:#5B46D9; --brand-hover:#4A38B8; --brand-wash:#EDEAFC; --brand-deep:#3B2B96;
-  --ground:#F1F3F7; --surface:#FFFFFF; --sunk:#E8EBF2; --rule:#DDE0E9; --rule-strong:#C3C7D4;
+  --ground:#EEF2F7; --surface:#FFFFFF; --sunk:#E5EAF1; --rule:#DDE3EC; --rule-strong:#C2CBD6;
   --ink:#171A25; --ink-muted:#575D70; --ink-faint:#8A90A2;
   --ok:#1B7A4B; --ok-wash:#E6F2EC; --ok-rule:#B7DAC6;
   --warn:#B8690E; --warn-wash:#FDF2E2; --warn-rule:#EFCE9E;
@@ -353,7 +353,10 @@ body.tv .tvbar{display:flex}
 .content--solo .hero--md{font-size:min(calc(var(--t-metric)*2.1),21cqi)}
 .content--solo .viz{max-height:min(56cqi,300px)}
 .content--solo .sec{flex:1;min-height:0}
-.content--solo .sec>*:not(.sec__head){margin-block:auto}
+.content--solo .sec>.grid,.content--solo .sec>.strip{flex:1;min-height:0;align-content:stretch}
+.content--solo .grid{grid-auto-rows:minmax(0,1fr)}
+.content--solo .card{min-height:0}
+.content--solo .panel{min-height:0}
 
 /* ── PRESENCE ──
    Nobody is locked out of anything. Two people in the same section is normal, so

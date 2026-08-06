@@ -595,9 +595,9 @@ $('#loc').addEventListener('change', event => open(event.target.value, state.dat
 $('#date').addEventListener('change', event => { if (event.target.value) open(state.location, event.target.value); });
 
 $('#theme-btn').addEventListener('click', () => {
-  const current = document.documentElement.dataset.theme
-    || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-  const next = current === 'dark' ? 'light' : 'dark';
+  // Light is the design and the default. The button is how someone gets dark, not the
+  // operating system, so the wall and the laptop show the same dashboard.
+  const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
   document.documentElement.dataset.theme = next;
   savePreference(state.me.id, { theme: next }).catch(() => {});
 });
@@ -655,7 +655,7 @@ if (!profile) { location.replace('../index.html'); }
 
 state.me = profile;
 state.chart = profile.chart_style || 'bar';
-if (profile.theme && profile.theme !== 'system') document.documentElement.dataset.theme = profile.theme;
+if (profile.theme === 'dark' || profile.theme === 'light') document.documentElement.dataset.theme = profile.theme;
 if (profile.rail_collapsed) {
   document.documentElement.dataset.rail = 'mini';
   $('#rail-btn').querySelector('path').setAttribute('d', 'M9 5 L16 12 L9 19');
