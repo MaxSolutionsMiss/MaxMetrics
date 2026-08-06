@@ -13,7 +13,7 @@ import {
 import { assess, attention, settled } from '../assess.js';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
-  metricCard, footStat, drawReading, showsHeroNumber, CHART_ICONS, CHART_NAMES,
+  metricCard, footStat, drawReading, showsHeroNumber, CHART_ICONS, CHART_NAMES, iconFor,
   spark, bullet, chip,
 } from '../readings.js';
 
@@ -182,7 +182,7 @@ const SECTIONS = {
       <div class="today__t"><h2>${esc(headline[0])}</h2><p>${esc(headline[1])}</p></div>
     </div>
 
-    ${flags.length ? `<div class="grid g3">${flags.map(r => {
+    ${flags.length ? `<div class="grid g3 flags">${flags.map(r => {
       const { line, bar } = readingBody(r);
       return `<div class="flagcard flagcard--${r.tone}" data-pkey="${esc(r.key)}">
         <div class="flagcard__top">
@@ -318,7 +318,8 @@ const SECTIONS = {
     return `<div class="grid" style="grid-template-columns:repeat(${list.length},minmax(160px,.68fr)) minmax(500px,1.9fr)">
       ${cards}
       <div class="panel">
-        <div class="panel__head"><h3 class="panel__title">Previous week</h3>
+        <div class="panel__head"><span class="card__ico" aria-hidden="true">📅</span>
+          <h3 class="panel__title">Previous week</h3>
           <span class="panel__actions chip">Same weekday</span></div>
         <div class="panel__body">
           <table class="tbl"><thead><tr><th>Department</th><th class="num">Volume</th>
@@ -336,6 +337,7 @@ const SECTIONS = {
         const name = state.config.find(c => c.key === row.dept_key)?.name || row.dept_key;
         return `<div class="revcard revcard--${row.status}" data-pkey="rev-${esc(row.dept_key)}">
           <div class="revcard__head"><span class="rev__dot rev__dot--${row.status}"></span>
+            <span class="card__ico" aria-hidden="true">${iconFor(row.dept_key)}</span>
             <h4>${esc(name)}</h4></div>
           <div class="rev__note${row.note ? '' : ' rev__note--none'}">${esc(row.note || 'No issues reported.')}</div>
           <div class="ez">
@@ -353,32 +355,32 @@ const SECTIONS = {
 
   shipping: () => {
     const read = name => metric(name);
-    const cell = (label, value, sub, tone, unit, pkey) => {
+    const cell = (label, value, sub, tone, unit, pkey, icon = '🚚') => {
       const size = String(value).length > 6 ? ' cell__v--xl' : String(value).length > 4 ? ' cell__v--lg' : '';
       return `<div class="cell cell--${tone}" data-pkey="${esc(pkey)}">
-        <div class="cell__l">${esc(label)}</div>
+        <div class="cell__l"><span class="cell__ico" aria-hidden="true">${icon}</span>${esc(label)}</div>
         <div class="cell__v${size}">${value}${unit ? `<i>${unit}</i>` : ''}</div>
         <div class="cell__s">${sub}</div></div>`;
     };
-    const pct = (name, label, sub) => {
+    const pct = (name, label, sub, icon) => {
       const value = read(name);
       return cell(label, value == null ? '—' : Number(value).toFixed(name === 'otd' ? 1 : 2),
-        sub, value == null ? '' : band.pct(Number(value), 98), value == null ? '' : '%', name);
+        sub, value == null ? '' : band.pct(Number(value), 98), value == null ? '' : '%', name, icon);
     };
-    const count = (name, label, sub) => {
+    const count = (name, label, sub, icon) => {
       const value = read(name);
-      return cell(label, value ?? '—', sub, value == null ? '' : band.count(Number(value)), '', name);
+      return cell(label, value ?? '—', sub, value == null ? '' : band.count(Number(value)), '', name, icon);
     };
     return `<div class="strip">
       ${cell('Jobs shipped', read('jobs_shipped') == null ? '—' : num(read('jobs_shipped')),
-        read('jobs_on_time') == null ? 'today' : `${read('jobs_on_time')} on time`, 'info', '', 'jobs_shipped')}
-      ${cell('Cartons', read('cartons') == null ? '—' : num(read('cartons')), 'shipped today', 'info', '', 'cartons')}
-      ${count('late', 'Late', 'shipments')}
-      ${count('shorts', 'Shorts', 'shipments')}
-      ${pct('otd', 'OTD', 'Target ≥ 98%')}
-      ${pct('otif', 'OTIF', 'Target ≥ 98%')}
-      ${pct('mtd_otif', 'MTD OTIF', 'Month to date')}
-      ${pct('ytd_otif', 'YTD OTIF', 'Year to date')}
+        read('jobs_on_time') == null ? 'today' : `${read('jobs_on_time')} on time`, 'info', '', 'jobs_shipped', '🚚')}
+      ${cell('Cartons', read('cartons') == null ? '—' : num(read('cartons')), 'shipped today', 'info', '', 'cartons', '📦')}
+      ${count('late', 'Late', 'shipments', '⏰')}
+      ${count('shorts', 'Shorts', 'shipments', '🚫')}
+      ${pct('otd', 'OTD', 'Target ≥ 98%', '🎯')}
+      ${pct('otif', 'OTIF', 'Target ≥ 98%', '🎯')}
+      ${pct('mtd_otif', 'MTD OTIF', 'Month to date', '📅')}
+      ${pct('ytd_otif', 'YTD OTIF', 'Year to date', '📅')}
     </div>
     <div class="panel edit-only"><div class="panel__body"><div class="grid g4">
       ${[['Jobs shipped','jobs_shipped'],['On time','jobs_on_time'],['Cartons','cartons'],
@@ -398,19 +400,21 @@ const SECTIONS = {
       : `<tr><td colspan="5" style="color:var(--ink-faint)">Nothing scheduled for today.</td></tr>`;
     return `<div class="grid" style="grid-template-columns:1.6fr 1fr">
       <div class="panel">
-        <div class="panel__head"><h3 class="panel__title">Maintenance schedule</h3>
+        <div class="panel__head"><span class="card__ico" aria-hidden="true">🔧</span>
+          <h3 class="panel__title">Maintenance schedule</h3>
           <div class="panel__actions">
             <span class="pill pill--${overdue ? 'stop' : 'ok'}">${overdue} overdue</span>
             <span class="pill pill--info">${open} open</span></div></div>
         <div class="panel__body"><table class="tbl"><thead><tr><th>Department</th><th>Type</th>
           <th>Frequency</th><th>Scheduled</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div>
       </div>
-      <div class="panel"><div class="panel__head"><h3 class="panel__title">Notes</h3></div>
+      <div class="panel"><div class="panel__head"><span class="card__ico" aria-hidden="true">📝</span>
+        <h3 class="panel__title">Notes</h3></div>
         <div class="panel__body" data-pkey="notes">
-          <div class="rev__dept">Maintenance</div>
+          <div class="rev__dept"><span class="card__ico" aria-hidden="true">🔧</span> Maintenance</div>
           <div class="rev__note${metric('maintenance_note') ? '' : ' rev__note--none'}"
             style="margin-bottom:var(--s4)">${esc(metric('maintenance_note') || 'No notes entered.')}</div>
-          <div class="rev__dept">Staffing</div>
+          <div class="rev__dept"><span class="card__ico" aria-hidden="true">👷</span> Staffing</div>
           <div class="rev__note${metric('staffing_note') ? '' : ' rev__note--none'}">${
             esc(metric('staffing_note') || 'No notes entered.')}</div>
           <div class="ez">
@@ -444,24 +448,39 @@ const SECTIONS = {
     const toneMtd = band.money(percentMtd), toneYtd = band.money(percentYtd);
     const worst = band.worst([toneMtd, toneYtd]);
 
-    const pane = (title, actual, rows, tone) => `<div><div class="fin__t">${title}</div>
-      <div class="fin__v" style="color:var(--${tone})">${money(actual)}</div>
-      <div>${rows.map(([label, value, colour]) => `<div class="fin__row"><span>${label}</span>
-        <strong${colour ? ` style="color:var(--${colour})"` : ''}>${value}</strong></div>`).join('')}</div></div>`;
+    // The chart choice reaches the financials too. Sales against plan is a reading like
+    // any other, and a page where five cards are rings and the money is a bar reads as
+    // two designs rather than one.
+    const pane = (title, actual, plan, rows, tone) => {
+      const pacePercent = plan ? Math.min(140, actual / plan * 100) : 0;
+      const drawn = drawReading(state.chart, {
+        percent: pacePercent / 1.4, markPercent: 100 / 1.4, markLabel: 'plan',
+        value: `${Math.round(pacePercent)}%`, unit: '',
+      });
+      return `<div class="fin__pane"><div class="fin__t">${title}</div>
+        ${showsHeroNumber(state.chart)
+          ? `<div class="fin__v" style="color:var(--${tone})">${money(actual)}</div>${drawn}`
+          : `${drawn}<div class="fin__v fin__v--under" style="color:var(--${tone})">${money(actual)}</div>`}
+        <div>${rows.map(([label, value, colour]) => `<div class="fin__row"><span>${label}</span>
+          <strong${colour ? ` style="color:var(--${colour})"` : ''}>${value}</strong></div>`).join('')}</div></div>`;
+    };
 
     const monthSeries = (state.history?.metrics || [])
       .map(r => Number(r.fin_actual_mtd)).filter(v => Number.isFinite(v) && v > 0);
     const pace = planMtd ? actualMtd / planMtd * 100 : 0;
     return `<div class="card card--${worst}" data-pkey="financials" style="padding:var(--s5)">
-      <div class="card__label">Sales against budget · reporting through ${
-        shortDate(reportDate.toISOString().slice(0, 10))}</div>
+      <div class="card__head">
+        <span class="card__ico" aria-hidden="true">💰</span>
+        <span class="card__label">Sales against budget · through ${
+          shortDate(reportDate.toISOString().slice(0, 10))}</span>
+      </div>
       <div class="fin">
-        ${pane('Month to date', actualMtd, [
-          ['Monthly budget', money(monthBudget)],
+        ${pane('Month to date', actualMtd, planMtd, [
+          [`${MONTHS[month]} budget`, money(monthBudget)],
           ['Expected by today', money(planMtd)],
           ['Variance', `${varianceMtd >= 0 ? '▲' : '▼'} ${money(Math.abs(varianceMtd))} (${Math.abs(percentMtd).toFixed(1)}%)`, toneMtd],
         ], toneMtd)}
-        ${pane('Year to date', actualYtd, [
+        ${pane('Year to date', actualYtd, planYtd, [
           ['Full-year budget', money(yearBudget)],
           ['Expected by today', money(planYtd)],
           ['Variance', `${varianceYtd >= 0 ? '▲' : '▼'} ${money(Math.abs(varianceYtd))} (${Math.abs(percentYtd).toFixed(1)}%)`, toneYtd],
@@ -604,7 +623,7 @@ function renderWall() {
     </div>
     <div class="wall__hero">
       <div>
-        <div class="wall__l">${esc(r.title)}</div>
+        <div class="wall__l"><span class="wall__ico" aria-hidden="true">${iconFor(r.key)}</span>${esc(r.title)}</div>
         <div class="wall__n tone--${r.tone || 'none'}">${esc(r.value)}<small> ${esc(r.unit || '')}</small></div>
         ${r.note ? `<p class="wall__say">${esc(r.note)}</p>`
           : r.targetLabel ? `<p class="wall__say">${esc(r.targetLabel)}</p>` : ''}
