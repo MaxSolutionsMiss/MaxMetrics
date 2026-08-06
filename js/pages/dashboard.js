@@ -9,13 +9,13 @@ import {
   currentSession, signOut, myProfile, myLocations, savePreference,
   openDay, loadDay, loadHistory, loadBudgets, saveField, saveDepartment, saveReview,
   saveBudget, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
-} from '../db.js?v=2f9567fb7e3a';
-import { assess, attention, settled } from '../assess.js?v=2f9567fb7e3a';
+} from '../db.js?v=3e6cf4c4af85';
+import { assess, attention, settled } from '../assess.js?v=3e6cf4c4af85';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, footStat, drawReading, showsHeroNumber, CHART_ICONS, CHART_NAMES, iconFor,
   spark, bullet, chip,
-} from '../readings.js?v=2f9567fb7e3a';
+} from '../readings.js?v=3e6cf4c4af85';
 
 const $ = selector => document.querySelector(selector);
 
@@ -590,10 +590,11 @@ function paintPresence() {
   }
 }
 
+const one = key => `<section class="sec"><div class="sec__head">
+  <h2 class="sec__title">${TITLES[key]}</h2><div class="sec__rule"></div></div>${SECTIONS[key]()}</section>`;
+
 function renderContent() {
   if (document.body.classList.contains('tv')) return renderWall();
-  const one = key => `<section class="sec"><div class="sec__head">
-    <h2 class="sec__title">${TITLES[key]}</h2><div class="sec__rule"></div></div>${SECTIONS[key]()}</section>`;
   if (VIEWS.includes(state.active)) {
     $('#content').className = 'content content--view';
     $('#content').innerHTML = `<section class="sec">${SECTIONS[state.active]()}</section>`;
@@ -612,41 +613,31 @@ function render() {
 }
 
 // ── The wall ──
-// One idea per screen at the size a 48" needs, with the sentence that says what it means.
-// It shows the exceptions first and then the rest, because a plant walking past the screen
-// should learn what is wrong before it learns what is fine.
+//
+// Present mode walks the meeting: Safety & Quality, Production, Shipping, Financials,
+// Maintenance, in that order, one section per screen, and back to the top.
+//
+// It used to choose by alarm level — the worst reading first, then the rest — which meant
+// the screen showed a different thing every morning and nobody could tell where they were
+// in the round. A plant walking past a screen learns nothing from a card it cannot place.
+// A fixed order is learnable: after a week you know Shipping follows Production, and you
+// look up at the right moment for the number you came for.
+//
+// The sections are the ones already on the page, rendered by the same code, so the wall
+// cannot drift from what the room saw on the laptop five minutes earlier.
 function renderWall() {
-  const flags = attention(state.findings), fine = settled(state.findings);
-  const cards = flags.concat(fine.filter(r => !r.quiet)).slice(0, 6);
-  if (!cards.length) {
-    $('#content').className = 'content wall';
-    $('#content').innerHTML = `<div class="wall__empty">Nothing entered for this morning yet.</div>`;
-    return;
-  }
-  const r = cards[state.wallStep % cards.length];
-  const others = cards.filter(x => x.key !== r.key).slice(0, 3);
-  $('#content').className = 'content wall';
-  $('#content').innerHTML = `
+  const key = ORDER[state.wallStep % ORDER.length];
+  const content = $('#content');
+  content.className = 'content wall';
+  content.innerHTML = `
     <div class="wall__top">
-      <h2>${esc(r.area)} · ${esc(state.locations.find(l => l.id === state.location)?.name || '')}</h2>
+      <h2>${esc(TITLES[key])} · ${esc(state.locations.find(l => l.id === state.location)?.name || '')}</h2>
       <span class="wall__date">${$('#date-long').textContent}</span>
     </div>
-    <div class="wall__hero">
-      <div>
-        <div class="wall__l"><span class="wall__ico" aria-hidden="true">${iconFor(r.key)}</span>${esc(r.title)}</div>
-        <div class="wall__n tone--${r.tone || 'none'}">${esc(r.value)}<small> ${esc(r.unit || '')}</small></div>
-        ${r.note ? `<p class="wall__say">${esc(r.note)}</p>`
-          : r.targetLabel ? `<p class="wall__say">${esc(r.targetLabel)}</p>` : ''}
-        ${r.series?.length > 1
-          ? `<div class="wall__trend">${spark(r.series, r.tone)}
-             <span class="wall__trendl">last seven mornings</span></div>` : ''}
-      </div>
-      <div class="wall__side">${others.map(o => `<div class="wall__row">
-        <span class="wall__rl">${esc(o.title)}</span>
-        <span class="wall__rn tone--${o.tone || 'none'}">${esc(o.value)}</span></div>`).join('')}</div>
-    </div>
-    <div class="wall__dots">${cards.map((_, i) =>
-      `<span class="wall__dot${i === state.wallStep % cards.length ? ' wall__dot--on' : ''}"></span>`).join('')}</div>`;
+    ${one(key)}
+    <div class="wall__dots">${ORDER.map((k, i) =>
+      `<span class="wall__dot${i === state.wallStep % ORDER.length ? ' wall__dot--on' : ''}"
+             title="${esc(TITLES[k])}"></span>`).join('')}</div>`;
 }
 
 // ── Saving ──────────────────────────────────────────────────────────────────────
@@ -864,22 +855,26 @@ function toast(message) {
 let rotation = null;
 const stopRotation = () => { clearInterval(rotation); rotation = null; $('#tv-play').textContent = 'Auto'; };
 const step = direction => {
-  const count = Math.max(1, attention(state.findings).length
-    + settled(state.findings).filter(r => !r.quiet).length);
-  state.wallStep = (state.wallStep + direction + count) % count;
+  // The round is the five sections, always, whatever the morning holds. A step count that
+  // depended on how many readings were alarming is what made the wall unpredictable.
+  state.wallStep = (state.wallStep + direction + ORDER.length) % ORDER.length;
   renderWall();
 };
 $('#tv-btn').addEventListener('click', () => {
   document.body.classList.add('tv');
   state.wallStep = 0;
   render();
+  if (!rotation) {
+    rotation = setInterval(() => step(1), 12000);
+    $('#tv-play').textContent = 'Stop';
+  }
 });
 $('#tv-exit').addEventListener('click', () => { stopRotation(); document.body.classList.remove('tv'); render(); });
 $('#tv-next').addEventListener('click', () => step(1));
 $('#tv-prev').addEventListener('click', () => step(-1));
 $('#tv-play').addEventListener('click', () => {
   if (rotation) return stopRotation();
-  rotation = setInterval(() => step(1), 9000);
+  rotation = setInterval(() => step(1), 12000);
   $('#tv-play').textContent = 'Stop';
 });
 document.addEventListener('keydown', event => {
@@ -1104,3 +1099,70 @@ $('#import-btn')?.addEventListener('click', () => {
   drawImport();
   $('#import-sheet').showModal();
 });
+
+// ── Export and print ────────────────────────────────────────────────────────────
+
+// A morning leaves the building in two ways: as a row somebody opens in Excel, and as a
+// sheet somebody carries into a meeting. Both take what is on screen — the same numbers
+// the room just read — rather than re-querying, so an export can never disagree with the
+// dashboard it came from.
+
+const csvCell = value => `"${String(value ?? '').replaceAll('"', '""')}"`;
+const toCsv = rows => rows.map(r => r.map(csvCell).join(',')).join('\r\n');
+
+function downloadFile(name, text, type = 'text/csv;charset=utf-8') {
+  const link = document.createElement('a');
+  // The BOM is what makes Excel open a UTF-8 CSV as UTF-8 rather than as the system code
+  // page — the difference between "Mississauga" and mojibake.
+  link.href = URL.createObjectURL(new Blob([type.startsWith('text/csv') ? '﻿' : '', text], { type }));
+  link.download = name;
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
+function exportMorning() {
+  const plant = state.locations.find(l => l.id === state.location)?.name || state.location;
+  const rows = [['MaxMetrics', plant, state.date], []];
+
+  rows.push(['Safety & Quality', 'Value', 'Target / record']);
+  const injury = metric('injury_last'), miss = metric('near_miss_last');
+  rows.push(['Days since last injury', injury ? daysBetween(injury, state.date) : '',
+             `record ${metric('injury_record') || ''} (last ${injury || ''})`]);
+  rows.push(['Days since near-miss', miss ? daysBetween(miss, state.date) : '',
+             `record ${metric('near_miss_record') || ''} (last ${miss || ''})`]);
+  rows.push(['Shortage count', metric('shortages') ?? '', 'target 0']);
+  rows.push(['COQ month', metric('coq') ?? '', `target ${metric('coq_target') ?? 0.85}`]);
+  rows.push(['COQ year to date', metric('coq_ytd') ?? '', '']);
+  rows.push([]);
+
+  rows.push(['Production', 'Output', 'Crew hrs', 'Per hr', 'Target / hr', 'Uptime', 'Make-ready']);
+  for (const c of configured()) {
+    const row = dept(c.key), rate = rateOf(row);
+    rows.push([c.name, row.qty ?? '', row.hours ?? '', rate ? Math.round(rate) : '',
+               Math.round(Number(c.target) || 0),
+               row.uptime == null ? '' : `${(Number(row.uptime) * 100).toFixed(1)}%`,
+               row.make_ready == null ? '' : Number(row.make_ready).toFixed(2)]);
+  }
+  rows.push([]);
+
+  rows.push(['Shipping', 'Value']);
+  for (const [label, name] of [['Jobs shipped', 'jobs_shipped'], ['Late', 'late'],
+                               ['Short', 'shorts'], ['OTD %', 'otd'], ['OTIF %', 'otif']]) {
+    rows.push([label, metric(name) ?? '']);
+  }
+  rows.push([]);
+
+  rows.push(['Financials', 'Actual', 'Budget']);
+  rows.push(['Month to date', metric('fin_actual_mtd') ?? '', budgetFor(dateOf(state.date).getMonth())]);
+  rows.push(['Year to date', metric('fin_actual_ytd') ?? '',
+             state.budgets.reduce((sum, b) => sum + Number(b.amount || 0), 0)]);
+
+  downloadFile(`maxmetrics-${state.location}-${state.date}.csv`, toCsv(rows));
+  toast('Exported.');
+}
+
+$('#export-btn')?.addEventListener('click', exportMorning);
+// Print and Save-as-PDF are the same browser dialogue, so one button serves both — the
+// print stylesheet drops the rail, the top bar and every control, and lays the sections
+// out down the page.
+$('#print-btn')?.addEventListener('click', () => window.print());
