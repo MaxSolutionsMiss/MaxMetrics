@@ -18,11 +18,11 @@
      Barlow Condensed. The condensed face is not decoration — it is what lets a card title
      read as a title at twenty pixels without wrapping, and a rate hold six digits at
      fifty-six. The fallbacks are the ones the plant's file already named. */
-  --font:'Barlow',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,'Helvetica Neue',Arial,sans-serif;
-  --font-condensed:'Barlow Condensed','Oswald','Arial Narrow',var(--font);
+  --font:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,'Helvetica Neue',Arial,sans-serif;
+  --font-condensed:'IBM Plex Sans Condensed','IBM Plex Sans',var(--font);
   --scale:1;
-  --t-micro:calc(11.5px*var(--scale)); --t-small:calc(13px*var(--scale)); --t-base:calc(14.5px*var(--scale));
-  --t-lead:calc(17px*var(--scale)); --t-title:calc(21px*var(--scale)); --t-metric:calc(27px*var(--scale));
+  --t-micro:calc(13px*var(--scale)); --t-small:calc(14.5px*var(--scale)); --t-base:calc(16px*var(--scale));
+  --t-lead:calc(19px*var(--scale)); --t-title:calc(23px*var(--scale)); --t-metric:calc(29px*var(--scale));
   --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px;
   --radius:6px; --radius-lg:14px; --rail-w:220px; --topbar-h:56px; --ctl-h:36px;
   --shadow:0 1px 8px rgba(15,23,42,.07);
@@ -263,7 +263,7 @@ html[data-rail="mini"]{--rail-w:62px}
 /* Labels reserve the same height whether or not they wrap, so the two values in a pair
    always start at the same line. Without it "Last near-miss" wraps, "Record" does not, and
    the two numbers underneath sit at different heights on the same row. */
-.fstat__l{font-family:var(--font-condensed);font-size:calc(11px*var(--scale));text-transform:uppercase;
+.fstat__l{font-family:var(--font-condensed);font-size:calc(12.5px*var(--scale));text-transform:uppercase;
   letter-spacing:.07em;font-weight:700;color:var(--ink-faint);line-height:1.25;
   min-height:1.25em;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* No nowrap. A card narrow enough that "Nov 20, 2025" does not fit beside "136 days"
@@ -313,7 +313,7 @@ html[data-rail="mini"]{--rail-w:62px}
 .cell--warn{background:var(--warn-wash);border-top-color:var(--warn)}
 .cell--stop{background:var(--stop-wash);border-top-color:var(--stop)}
 .cell--info{background:var(--brand-wash);border-top-color:var(--brand)}
-.cell__l{font-family:var(--font-condensed);font-size:calc(13px*var(--scale));text-transform:uppercase;
+.cell__l{font-family:var(--font-condensed);font-size:calc(14px*var(--scale));text-transform:uppercase;
   letter-spacing:.07em;font-weight:700;color:var(--ink-muted);display:flex;align-items:center;
   justify-content:center;gap:5px}
 .cell__ico{font-family:var(--font);font-size:1.25em;line-height:1}
@@ -777,3 +777,25 @@ body.tv .content.wall{display:flex;flex-direction:column;gap:var(--s4);
 .drop .btn{cursor:pointer}
 
 .tbl .soft{opacity:.5}
+
+/* ── Print / Save as PDF ──
+   The controls are not part of the morning, so none of them print. Sections run down the
+   page and are kept off page breaks, because a card split across two sheets is a card
+   nobody reads. Washes are forced through: a red card printed white says nothing. */
+@media print{
+  @page{margin:12mm;size:landscape}
+  /* Specific enough to win on its own, which is why no override keyword appears here. */
+  body .rail,body .top,body .tvbar,body .conn,body .toast,body .sheet,body .no-tv{display:none}
+  body .shell{grid-template-columns:1fr;min-height:0}
+  body{background:#fff}
+  .content{padding:0;gap:14mm}
+  .sec{break-inside:avoid}
+  .card,.strip,.panel{break-inside:avoid;box-shadow:none}
+  .card,.cell,.fin__pane{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .grid{gap:6mm}
+}
+
+/* A section is as tall as what it holds. Only the wall stretches cards to fill a screen,
+   because a 48" showing one section has height to spend and a laptop does not. */
+.content{align-content:start}
+.sec{flex:0 0 auto}
