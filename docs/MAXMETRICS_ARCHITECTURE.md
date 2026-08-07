@@ -137,8 +137,79 @@ number on a wall may not do.
 - The edit trail is append-only. A record of who typed what is worth nothing if it can be
   edited afterwards.
 
+## Reading against a target, on the card
+
+Every card carries a bar showing the reading against its target and a line showing its last
+seven mornings. Before that, only Today and the Board answered the two questions the room
+asks after "what is it" — "against what" and "which way is it going" — and the sections
+themselves printed a figure, a caption and a row of foot stats over two thirds of an empty
+page.
+
+Three things fell out of putting the drawings on the cards, and all three were bugs the
+page had been carrying quietly because nothing drew them side by side:
+
+- The bullet's bands were stacked from the left, which is right for make-ready and exactly
+  backwards for everything else. A department beating its target sat on an amber field and
+  one missing it sat on a green one.
+- A percentage was scaled to a third above its target, so OTIF's marker sat a fifth of the
+  way along a bar whose remaining four fifths nobody can ever reach. Percentages now carry a
+  ceiling as well as a floor.
+- The trend chip coloured up green and down red, which put a green ▲ 51% beside a cost of
+  quality climbing away from target on a card the same page had painted red. The arrow says
+  which way; the colour says whether that was good.
+
+The bar is dropped when the reader has chosen the bar chart style, because the drawing
+already is a bar against a target and the same card must not answer the same question
+twice.
+
+## One line per section
+
+Under each section heading is a sentence saying what the section comes to, so the meeting
+can take a section without reading it.
+
+It states, it does not judge. Every word comes from a reading `assess()` has already decided
+about, and the clause naming what is wrong is written beside the reading in `assess.js` —
+that is the only place that knows a shortfall is measured in sheets and a streak in days.
+
+The tone it carries is the same tone the dot beside the section in the rail carries, because
+the rail now asks `verdicts()` for it instead of working it out again from its own copy of
+the thresholds. That was the last place two parts of MaxMetrics could form separate opinions
+about the same morning, and putting the two renderings next to each other found it
+immediately: the financials card is washed by the worse of month and year to date, but the
+assessment only produced a reading for the month, so a month ahead of plan inside a year
+behind it printed a red card over a section reporting everything on target.
+
+## A plant's own shape
+
+`location_departments` was three seeded rows and a migration, which meant the second plant
+to open MaxMetrics would have waited on this repository to see its own floor. Configure
+Departments makes those rows editable, and adds the labels that make a department its own:
+windowing counts panes and is crewed in machine hours, and a plant reading "sheets/hr" over
+it is being shown a dashboard built for somebody else.
+
+- The labels default to empty and every reader falls back to what it printed before, so a
+  plant that never opens the screen sees no change at all.
+- A department is never deleted, only taken out of use. The mornings it appeared on are
+  still in `daily_departments` keyed by it, and a key with no name behind it turns a
+  recorded reading into an orphan.
+- A key is generated, never typed, and the table refuses one that is not a slug. It is
+  permanent, it is what three tables carry, and it is what the dashboard's
+  `dept:key:field` routing splits on — a colon in it would send a save to the wrong table.
+- Adding a department mid-morning calls `ensure_day` again, and the daily writes became
+  upserts. An `UPDATE` matching no row reports success while losing the number somebody just
+  typed.
+
 ## Deployment
 
-GitHub Pages from `main`, public URL, protected by sign-in. Assets are stamped with the
-commit on deploy, including import specifiers — versioning the `<script>` tag alone would
-leave every module it imports cached, and a reload would show the previous release.
+Netlify, from the `gh-pages` branch, public URL, protected by sign-in. `scripts/publish.sh`
+runs the conformance rules and a parse check, builds `_site/`, and pushes it.
+
+Assets are stamped with the commit at build time, including import specifiers — versioning
+the `<script>` tag alone would leave every module it imports cached, and a reload would show
+the previous release. The stamping is applied to the copy, never to the source, so the paths
+in the repository stay clean.
+
+It was a GitHub Actions workflow. The organisation has no runners, so the workflow never
+ran, which meant the checks in it never ran either and a deploy depended on nobody noticing
+that a queued job was queued forever. A script on the machine of whoever is publishing is
+slower to type and honest about when it happened.

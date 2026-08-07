@@ -16,12 +16,16 @@ Signed-in, multi-user, live.
 - a plant's numbers visible only to people granted that plant
 - all five sections: Safety & Quality, Production, Shipping, Maintenance & Staffing, Financials
 - four chart styles — number, bar, ring, gauge — chosen by the reader and applied to every card
+- every card drawn against its target and its last seven mornings, and a one-line verdict
+  at the top of each section saying what the section comes to
+- a Configure Departments screen, so a plant adds windowing or foil stamping itself, with
+  its own words for volume, rate and hours
 - presence: who else is on this morning, and which reading they are in
 - Present mode, fitted to a 16:9 screen at 1920×1080
 - collapsible menu, light and dark
 
-Still to come: hot-folder import from the daily Excel exports, plant-configurable
-departments and review cards through the interface, a user admin screen, and history.
+Still to come: hot-folder import from the daily Excel exports, a user admin screen, and
+history beyond the seven days behind today.
 
 ## The rule the whole thing is built on
 
@@ -42,7 +46,7 @@ problem being solved, not a step toward solving it.
 - judgement lives only in `band()` in `js/readings.js`, so a card and the status dot
   beside its section can never disagree about the same number
 - database policies are authoritative; the client cannot grant itself anything
-- deployed to GitHub Pages from `main`
+- built by `scripts/publish.sh` and served by Netlify from the `gh-pages` branch
 
 Structure and spacing come from MaxDock so the two products feel like one system. The
 identity colour does not: MaxDock owns the corporate blue and status owns green, amber and
@@ -54,12 +58,14 @@ verdict on the number beside it.
 ```
 index.html              sign in
 app/dashboard.html      the dashboard
+app/departments.html    the departments a plant runs
 assets/maxmetrics.css   the one stylesheet
 js/db.js                the one network module
-js/readings.js          judgement and the four drawings
+js/readings.js          judgement, the four drawings, the target bar and the trend line
+js/assess.js            one verdict per reading, and one line per section
 js/pages/               one file per page
 supabase/migrations/    the database, rebuildable from here
-scripts/                architecture rules, checked in CI
+scripts/                the architecture rules, the build, and publishing
 ```
 
 ## Database
@@ -82,6 +88,23 @@ python3 -m http.server 8000
 
 Then open `http://localhost:8000`. The Supabase library loads from a CDN, so the machine
 needs internet access.
+
+## Publishing
+
+There is no build step in the ordinary sense — the file in the repository is the file the
+browser runs. Publishing copies the tree to `_site/`, stamps every asset URL with the
+commit so a reload cannot serve last week's stylesheet, and pushes the result to
+`gh-pages`, which is the branch Netlify deploys from.
+
+```
+scripts/publish.sh --dry-run    build and check, push nothing
+scripts/publish.sh              publish
+```
+
+It refuses to publish anything that fails `scripts/verify-maxmetrics.mjs` or that does not
+parse. This used to be a GitHub Actions workflow; the organisation has no runners, so the
+workflow never ran and neither did the checks inside it. A script that runs on the machine
+of whoever is publishing is honest about when it happened.
 
 ## Before anyone can sign in
 

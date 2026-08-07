@@ -167,9 +167,28 @@ html[data-rail="mini"]{--rail-w:62px}
 .sec__title{font-family:var(--font-condensed);font-size:calc(14px*var(--scale));font-weight:600;
   text-transform:uppercase;letter-spacing:.16em;color:var(--ink-muted);margin:0;white-space:nowrap}
 .sec__rule{flex:1;height:1.5px;background:var(--rule)}
+/* ── The verdict ──
+   One line under the heading saying what the whole section comes to, so the meeting can
+   take a section without reading it. It carries the section's own colour as a bar down its
+   left edge rather than as a wash: a coloured block the width of the page would outweigh
+   the cards it is summarising, and the cards are where the numbers are. */
+.verdict{margin:0;padding:var(--s2) var(--s4);border-radius:var(--radius);
+  background:var(--surface);border:1px solid var(--rule);border-left:4px solid var(--ink-faint);
+  font-size:var(--t-base);line-height:1.5;color:var(--ink);box-shadow:var(--shadow)}
+.verdict--ok{border-left-color:var(--ok)}
+.verdict--warn{border-left-color:var(--warn);background:var(--warn-wash);border-color:var(--warn-rule)}
+.verdict--stop{border-left-color:var(--stop);background:var(--stop-wash);border-color:var(--stop-rule)}
+.verdict--none{color:var(--ink-muted);font-style:italic}
+.content--solo .verdict{font-size:var(--t-lead);padding:var(--s3) var(--s5)}
+body.tv .verdict{font-size:var(--t-lead)}
 
 .grid{display:grid;gap:var(--s3);min-width:0}
 .g5{grid-template-columns:repeat(5,minmax(0,1fr))}
+/* Departments used to be counted into a fixed track list, which worked while there were
+   three and could not survive a plant adding its own. A card needs room for a rate, the
+   bar under it and a week of history; below about 250px the bar's label starts wrapping,
+   so that is the floor and the row wraps rather than squeezing past it. */
+.grid--depts{grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
 .g4{grid-template-columns:repeat(4,minmax(0,1fr))}
 .g3{grid-template-columns:repeat(3,minmax(0,1fr))}
 .g2{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -256,6 +275,32 @@ html[data-rail="mini"]{--rail-w:62px}
 .card--ok .viz-v{fill:var(--ok)}.card--warn .viz-v{fill:var(--warn)}.card--stop .viz-v{fill:var(--stop)}
 .viz-s{fill:var(--ink-muted);font-weight:600;text-anchor:middle;font-family:var(--font)}
 
+/* ── The two questions under every number ──
+   "Against what" and "which way is it going". Before this the sections printed a figure
+   and a caption and left two thirds of the page empty; the bar and the line are the
+   answers the room asks for next, and the height they take is height the page had spare.
+   The label row is small and quiet on purpose — the drawing under it is the content, and
+   a heavy caption on each of five cards reads as five headings. */
+.ctrack{width:100%;align-self:stretch;margin-top:var(--s3);padding-top:var(--s3);
+  border-top:1px solid var(--rule);display:flex;flex-direction:column;gap:1px}
+.card--ok .ctrack{border-top-color:var(--ok-rule)}
+.card--warn .ctrack{border-top-color:var(--warn-rule)}
+.card--stop .ctrack{border-top-color:var(--stop-rule)}
+.ctrack__row{display:flex;align-items:baseline;justify-content:space-between;gap:var(--s2);
+  min-height:14px}
+.ctrack__row:not(:first-child){margin-top:var(--s2)}
+.ctrack__l{font-family:var(--font-condensed);font-size:calc(11px*var(--scale));
+  text-transform:uppercase;letter-spacing:.08em;font-weight:700;color:var(--ink-faint);
+  text-align:left;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ctrack__d{font-family:var(--font-condensed);font-size:calc(13px*var(--scale));font-weight:700;
+  letter-spacing:0;white-space:nowrap;flex:none}
+.ctrack .bullet{height:16px;margin:0}
+.ctrack .spark{height:26px}
+/* In the strip a cell is centred and narrow, so the block that hangs under it has to say
+   so or it collapses to nothing between the two centred lines above it. */
+.cell .ctrack{margin-top:var(--s3);text-align:left}
+.cell .ctrack .spark{height:22px}
+
 /* Two to a line, facing each other, all one size.
    The foot used to be a flex row that wrapped: five readings of two different sizes fell
    into three uneven rows, nothing lined up with anything below it, and neighbours ran
@@ -294,7 +339,8 @@ html[data-rail="mini"]{--rail-w:62px}
 .flag--ok{background:var(--ok);color:#fff}.flag--warn{background:var(--warn);color:#fff}
 .flag--stop{background:var(--stop);color:#fff}
 .trend{font-size:var(--t-small);font-weight:700;white-space:nowrap}
-.trend--up{color:var(--ok)}.trend--dn{color:var(--stop)}.trend--flat{color:var(--ink-faint)}
+/* Good and bad, not up and down. A cost of quality that rose points ▲ and is red. */
+.trend--good{color:var(--ok)}.trend--bad{color:var(--stop)}.trend--flat{color:var(--ink-faint)}
 
 /* ── TABLE ── */
 .tbl{width:100%;border-collapse:collapse;font-size:var(--t-small)}
@@ -454,6 +500,13 @@ body.tv .card__mid{justify-content:center;gap:var(--s2)}
 body.tv .hero{font-size:min(calc(var(--t-metric)*3.4),36cqi)}
 body.tv .hero--md{font-size:min(calc(var(--t-metric)*2.6),26cqi)}
 body.tv .fstat__v{font-size:min(calc(var(--t-metric)*1),11cqi)}
+/* The track's captions are captions, not readings. Scaled with everything else at 2.15×
+   they ran out of card and truncated to "LAST 7 MORNI…", which is a label that has
+   stopped being a label. They grow more slowly than the numbers they sit under. */
+body.tv .ctrack__l{font-size:calc(9px*var(--scale))}
+body.tv .ctrack__d{font-size:calc(10px*var(--scale))}
+body.tv .ctrack .bullet{height:calc(10px*var(--scale))}
+body.tv .ctrack .spark{height:calc(16px*var(--scale))}
 .unit--under{text-align:center}
 .tvbar{display:none;position:fixed;bottom:16px;right:16px;z-index:60;gap:4px;background:var(--surface);
   border:1px solid var(--rule-strong);border-radius:99px;padding:5px;box-shadow:0 6px 24px rgba(0,0,0,.2);
@@ -671,7 +724,7 @@ body[data-view="line"] .chartpick,body[data-view="board"] .chartpick{display:non
   overflow:hidden;background:var(--sunk);
   margin:var(--s1) 0;color:var(--ink-faint)}
 .bullet--ok{color:var(--ok)}.bullet--warn{color:var(--warn)}.bullet--stop{color:var(--stop)}
-.bullet__band{position:absolute;inset:0 auto 0 0;height:100%;width:100%}
+.bullet__band{position:absolute;top:0;bottom:0}
 .bullet__band--bad{background:var(--stop-wash)}
 .bullet__band--mid{background:var(--warn-wash)}
 .bullet__band--good{background:var(--ok-wash)}
@@ -835,3 +888,81 @@ body.tv .util{display:none}
 /* A section is exactly as tall as it needs. Stretching one to the foot of the screen only
    moves the empty space inside the cards, which reads worse than empty space below them. */
 .content--solo{min-height:0}
+
+/* ══ CONFIGURE DEPARTMENTS ══
+   The one screen where the plant describes itself rather than reads itself. Every
+   department is a pair: the fields on the left, and on the right the card those fields
+   will produce tomorrow morning, drawn by the same function the dashboard draws it with.
+   Typing "panes" and watching "panes/hr" appear under a rate is the entire explanation of
+   what the labels are for, and it costs no prose. */
+.cfgs{display:grid;gap:var(--s3)}
+.cfg{background:var(--surface);border:1px solid var(--rule);border-radius:var(--radius-lg);
+  box-shadow:var(--shadow);overflow:hidden}
+.cfg--new{border:none;box-shadow:none;background:none}
+.cfg__head{display:flex;align-items:center;gap:var(--s2);padding:var(--s2) var(--s4);
+  border-bottom:1px solid var(--rule);background:var(--sunk);min-height:44px}
+.cfg__head .card__ico{font-size:22px}
+.cfg__name{margin:0;font-family:var(--font-condensed);font-size:calc(20px*var(--scale));
+  font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-muted)}
+.cfg__key{margin-left:auto;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:var(--t-micro);color:var(--ink-faint);background:var(--ground);
+  border:1px solid var(--rule);border-radius:4px;padding:2px 7px;white-space:nowrap}
+/* The fields take the width they need to hold a label and a value on one line; the
+   preview takes a card's worth and no more, because a preview twice the size of the card
+   it previews is a lie about what the room will see. */
+.cfg__body{display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,320px);
+  gap:var(--s5);padding:var(--s4)}
+@media(max-width:900px){.cfg__body{grid-template-columns:1fr}}
+/* Label above value, two to a row. The dashboard's edit rows put the label beside the
+   field because they are squeezed into a card; here there is a whole page, and eight
+   stacked full-width rows made configuring one department a scroll of its own. */
+.cfg__fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+  gap:var(--s2) var(--s3);align-content:start;min-width:0}
+.cfg__fields .er{flex-direction:column;align-items:stretch;gap:3px;min-width:0}
+.cfg__fields .er label{min-width:0}
+.er__hint{font-size:var(--t-micro);color:var(--ink-faint);line-height:1.4}
+/* The things that are about the whole department rather than one field run the full
+   width of the form, whatever it wrapped to. */
+.cfg__fields .icons,.cfg__fields .cfg__togs,.cfg__fields .cfg__add,
+.cfg__fields .btn--quiet{grid-column:1/-1}
+.cfg__fields .btn--quiet{justify-self:start}
+.cfg__preview{display:flex;flex-direction:column;gap:var(--s2);min-width:0}
+.cfg__none{margin:0;color:var(--ink-faint);font-size:var(--t-small);line-height:1.55;font-style:italic}
+.cfg__togs{display:flex;flex-wrap:wrap;gap:var(--s2) var(--s4);padding:var(--s2) 0;
+  border-top:1px dashed var(--rule-strong);margin-top:var(--s1)}
+.tog{display:flex;align-items:center;gap:7px;font-size:var(--t-small);color:var(--ink);cursor:pointer}
+.tog input{width:16px;height:16px;accent-color:var(--brand);cursor:pointer}
+.cfg__add{display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap;margin-top:var(--s2)}
+.cfg__note{font-size:var(--t-small);color:var(--ink-faint)}
+.cfg__note code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.92em;color:var(--ink-muted)}
+.btn--quiet{align-self:flex-start;border-color:var(--rule);color:var(--ink-muted);font-weight:600}
+.btn--quiet:hover{border-color:var(--stop-rule);color:var(--stop);background:var(--stop-wash)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:disabled:hover{background:var(--surface)}
+
+/* The pictogram is chosen, not derived — it is the first thing the eye finds on a card,
+   and a department the plant named itself deserves better than a fallback. */
+.icons{display:flex;flex-wrap:wrap;gap:3px;padding:var(--s1) 0}
+.icons__b{width:34px;height:34px;font-size:19px;line-height:1;display:grid;place-items:center;
+  border:1px solid transparent;border-radius:var(--radius);background:var(--sunk);cursor:pointer;
+  padding:0;font-family:var(--font)}
+.icons__b:hover{border-color:var(--rule-strong)}
+.icons__b[aria-pressed="true"]{background:var(--brand-wash);border-color:var(--brand)}
+
+.presets{display:flex;flex-wrap:wrap;gap:var(--s2);padding:var(--s2) 0 var(--s3);
+  border-bottom:1px dashed var(--rule-strong);margin-bottom:var(--s3)}
+.preset{display:flex;align-items:center;gap:7px;padding:7px 13px;border-radius:99px;
+  border:1px solid var(--rule-strong);background:var(--surface);cursor:pointer;
+  font-family:inherit;font-size:var(--t-small);font-weight:600;color:var(--ink)}
+.preset:hover{border-color:var(--brand);background:var(--brand-wash);color:var(--brand-deep)}
+.preset__i{font-size:17px;line-height:1}
+
+.retired{display:flex;flex-direction:column;gap:var(--s1)}
+.retired__r{display:flex;align-items:center;gap:var(--s3);padding:var(--s2) 0;
+  border-bottom:1px solid var(--rule)}
+.retired__r:last-child{border-bottom:none}
+.retired__r .card__ico{font-size:19px}
+.retired__r b{font-family:var(--font-condensed);font-size:calc(18px*var(--scale));font-weight:700;
+  text-transform:uppercase;letter-spacing:.04em;color:var(--ink-muted)}
+.retired__r .btn{margin-left:auto}
+.retired__r .cfg__key{margin-left:0}

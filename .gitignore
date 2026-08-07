@@ -1,3 +1,4 @@
 _site/
+.gh-pages/
 node_modules/
 .DS_Store

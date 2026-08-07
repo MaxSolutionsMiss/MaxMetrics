@@ -10,9 +10,15 @@ import { join, extname } from 'node:path';
 const failures = [];
 const fail = (rule, detail) => failures.push(`${rule}\n    ${detail}`);
 
+// The build output is a copy of the source with the commit stamped into its URLs. Walking
+// into it finds a second stylesheet and a second network module and fails every rule the
+// source passes, so the rules are checked where they are written rather than where they
+// are published.
+const NOT_SOURCE = new Set(['.git', 'node_modules', '_site', '.gh-pages']);
+
 function walk(dir, out = []) {
   for (const entry of readdirSync(dir)) {
-    if (entry === '.git' || entry === 'node_modules') continue;
+    if (NOT_SOURCE.has(entry)) continue;
     const path = join(dir, entry);
     if (statSync(path).isDirectory()) walk(path, out);
     else out.push(path);
