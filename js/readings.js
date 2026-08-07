@@ -57,6 +57,11 @@ export const volumeLabel = config => config?.unit || 'volume';
 export const rateLabel   = config => config?.rate_label || `${volumeLabel(config)}/hr`;
 export const hoursLabel  = config => config?.hours_label || 'Hours';
 
+// The plant's on-time target, in one place. `band.pct` is told what to compare against
+// rather than knowing it, so the number belongs beside the bands that read it — and the
+// conformance check exists to stop a copy of it appearing on a card.
+export const SHIPPING_TARGET = 98;
+
 export const MONTHS = ['January','February','March','April','May','June',
                        'July','August','September','October','November','December'];
 export const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
@@ -360,7 +365,7 @@ export function metricCard({ chart, pkey, icon, label, tone, value, unit, percen
       <span class="card__ico" aria-hidden="true">${icon || iconFor(pkey)}</span>
       <span class="card__label">${esc(label)}</span>
     </div>
-    ${flag || ''}
+    <div class="card__flag">${flag || ''}</div>
     <div class="card__mid">
       ${hero ? `<div class="hero${medium ? ' hero--md' : ''}">${esc(value)}${
         unit ? `<i>${esc(unit)}</i>` : ''}</div>${caption}${drawn}` : `${drawn}${caption}`}

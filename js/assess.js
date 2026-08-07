@@ -12,7 +12,7 @@
 // green on the Wall would destroy trust in both, and the only way to guarantee that
 // cannot happen is for the verdict to be reached once, here, before any view sees it.
 
-import { band, daysBetween, num, money, readingOf, rateLabel, MONTHS } from './readings.js';
+import { band, daysBetween, num, money, readingOf, rateLabel, MONTHS, SHIPPING_TARGET } from './readings.js';
 
 // The meeting runs two to three minutes, so a reading earns its place by being either
 // off target or genuinely load-bearing. Everything else is a tick in a strip.
@@ -147,18 +147,18 @@ export function assess({ date, metrics, departments, review, maintenance, labour
   if (has(m('otd'))) {
     const value = Number(m('otd'));
     out.push({ key:'otd', section:'shipping', area:'Shipping', owner:'CS', title:'OTD today',
-      tone: band.pct(value, 98), value: value.toFixed(2), unit:'%',
-      target: 98, targetLabel:'target ≥ 98%', floor: 90, ceiling: 100, percent: value,
-      series: metricSeries('otd'),
-      say: `on-time delivery is ${value.toFixed(2)}% against 98%` });
+      tone: band.pct(value, SHIPPING_TARGET), value: value.toFixed(2), unit:'%',
+      target: SHIPPING_TARGET, targetLabel:`target \u2265 ${SHIPPING_TARGET}%`,
+      floor: 90, ceiling: 100, percent: value, series: metricSeries('otd'),
+      say: `on-time delivery is ${value.toFixed(2)}% against ${SHIPPING_TARGET}%` });
   }
   if (has(m('otif'))) {
     const value = Number(m('otif'));
     out.push({ key:'otif', section:'shipping', area:'Shipping', owner:'CS', title:'OTIF today',
-      tone: band.pct(value, 98), value: value.toFixed(2), unit:'%',
-      target: 98, targetLabel:'target ≥ 98%', floor: 90, ceiling: 100, percent: value,
-      series: metricSeries('otif'),
-      say: `OTIF is ${value.toFixed(2)}% against 98%`,
+      tone: band.pct(value, SHIPPING_TARGET), value: value.toFixed(2), unit:'%',
+      target: SHIPPING_TARGET, targetLabel:`target \u2265 ${SHIPPING_TARGET}%`,
+      floor: 90, ceiling: 100, percent: value, series: metricSeries('otif'),
+      say: `OTIF is ${value.toFixed(2)}% against ${SHIPPING_TARGET}%`,
       note: has(m('mtd_otif')) ? `Month to date ${Number(m('mtd_otif')).toFixed(2)}%.` : null });
   }
   if (has(m('jobs_shipped'))) {

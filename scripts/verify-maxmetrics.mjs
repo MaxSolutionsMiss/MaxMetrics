@@ -78,6 +78,105 @@ for (const path of byExtension('.js')) {
   }
 }
 
+// Nothing may call a function its module never declares and never imports.
+//
+// `drawImport()` was lost in a refactor and stayed lost through a release: every caller
+// threw on its first line, a throw inside a click handler is silent, and Import and Export
+// simply stopped doing anything. `node --check` cannot catch it — the file parses — so the
+// rule that would have caught it lives here.
+//
+// The naive version of this check reads `minmax(`, `repeat(` and `coalesce(` out of CSS
+// and SQL held in strings and fails on all of them, so the source is reduced to code
+// first: comments and string bodies are blanked, and the `${...}` holes inside template
+// literals are kept, because those are code and are exactly where this app writes most of
+// its calls.
+function codeOnly(source) {
+  let out = '', i = 0;
+  const stack = [];                       // 'tpl' for template text, {depth} for a ${ } hole
+  const inTemplate = () => stack[stack.length - 1] === 'tpl';
+  // A slash starts a regular expression rather than a division when the last thing that
+  // mattered was an operator or an opening bracket. Without this, the `"` inside /[&<>"]/
+  // opens a string that swallows the rest of the file.
+  const startsRegex = () => {
+    const before = out.replace(/\s+$/, '');
+    return before === '' || /[(,=:[!&|?{};+\-*%<>~^]$/.test(before) || /\breturn$/.test(before);
+  };
+  while (i < source.length) {
+    const c = source[i], n = source[i + 1];
+    if (inTemplate()) {
+      if (c === '\\') { i += 2; continue; }
+      if (c === '`') { stack.pop(); i++; continue; }
+      if (c === '$' && n === '{') { stack.push({ depth: 0 }); out += ' '; i += 2; continue; }
+      i++; continue;                      // template text is not code
+    }
+    if (c === '/' && n === '/') { while (i < source.length && source[i] !== '\n') i++; continue; }
+    if (c === '/' && n === '*') { i += 2; while (i < source.length && !(source[i] === '*' && source[i + 1] === '/')) i++; i += 2; continue; }
+    if (c === '/' && startsRegex()) {
+      i++;
+      let inClass = false;
+      while (i < source.length) {
+        if (source[i] === '\\') { i += 2; continue; }
+        if (source[i] === '[') inClass = true;
+        else if (source[i] === ']') inClass = false;
+        else if (source[i] === '/' && !inClass) break;
+        else if (source[i] === '\n') break;
+        i++;
+      }
+      i++; while (/[a-z]/.test(source[i] || '')) i++;
+      out += ' '; continue;
+    }
+    if (c === "'" || c === '"') {
+      const quote = c; i++;
+      while (i < source.length && source[i] !== quote) { if (source[i] === '\\') i++; i++; }
+      i++; out += '""'; continue;
+    }
+    if (c === '`') { stack.push('tpl'); i++; continue; }
+    const top = stack[stack.length - 1];
+    if (top && typeof top === 'object') {
+      if (c === '{') { top.depth++; out += c; i++; continue; }
+      if (c === '}') {
+        if (top.depth === 0) { stack.pop(); out += ' '; i++; continue; }
+        top.depth--; out += c; i++; continue;
+      }
+    }
+    out += c; i++;
+  }
+  return out;
+}
+
+const GLOBALS = new Set(['Number','String','Boolean','Array','Object','Math','JSON','Date',
+  'Promise','Map','Set','RegExp','Error','parseInt','parseFloat','isNaN','isFinite',
+  'setTimeout','clearTimeout','setInterval','clearInterval','fetch','structuredClone',
+  'encodeURIComponent','decodeURIComponent','addEventListener','removeEventListener',
+  'requestAnimationFrame','queueMicrotask','scrollTo','alert','confirm','print','atob','btoa',
+  'if','for','while','switch','catch','return','typeof','function','await','super','class','of',
+  'async','import','yield','new','delete','void','in','instanceof','do','else','try']);
+
+for (const path of byExtension('.js')) {
+  if (path.includes('verify-maxmetrics')) continue;
+  const source = codeOnly(read(path));
+  const known = new Set(GLOBALS);
+  for (const re of [/(?:function|class)\s+([A-Za-z_$][\w$]*)/g,
+                    /(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g,
+                    /import\s*{([^}]*)}/g,
+                    /import\s+([A-Za-z_$][\w$]*)/g,
+                    /(?:\(|,)\s*\.{0,3}([A-Za-z_$][\w$]*)\s*(?:=[^,)]*)?(?=[,)])/g,
+                    /{([^}]*)}\s*=/g,
+                    /([A-Za-z_$][\w$]*)\s*=>/g]) {
+    for (const match of source.matchAll(re)) {
+      for (const name of String(match[1]).split(/[,\s]+/)) {
+        const bare = name.replace(/^\.{3}/, '').split(' as ').pop().trim();
+        if (/^[A-Za-z_$][\w$]*$/.test(bare)) known.add(bare);
+      }
+    }
+  }
+  const called = new Set();
+  for (const match of source.matchAll(/(^|[^.\w$])([a-z_$][\w$]*)\s*\(/g)) called.add(match[2]);
+  for (const name of called) {
+    if (!known.has(name)) fail('Calls a function that is never declared', `${path}  ${name}()`);
+  }
+}
+
 // The service-role key must never reach a browser. The publishable key is meant to ship;
 // the other one bypasses every policy in the database.
 for (const path of files) {

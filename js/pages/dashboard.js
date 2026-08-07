@@ -15,7 +15,7 @@ import { assess, attention, settled, verdicts } from '../assess.js';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, footLine, drawReading, showsHeroNumber, CHART_ICONS, CHART_NAMES, iconFor,
-  spark, bullet, chip, cardTrack, readingOf, derivedShipping,
+  spark, bullet, chip, cardTrack, readingOf, derivedShipping, SHIPPING_TARGET,
   volumeLabel, rateLabel, hoursLabel,
 } from '../readings.js';
 
@@ -25,6 +25,16 @@ const session = await currentSession();
 if (!session) location.replace('../index.html');
 
 const today = () => new Date().toISOString().slice(0, 10);
+
+// A date, n days off. This was being called here and only ever declared inside import.js,
+// where it is not exported — so every file drop and every history write threw a
+// ReferenceError before it reached the network. Both callers are in click handlers, where a
+// throw is silent, which is why it went unnoticed through a release.
+const addDays = (value, n) => {
+  const d = dateOf(value);
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+};
 
 const state = {
   me: null, locations: [], canEdit: true,
@@ -62,6 +72,7 @@ const deptSeries = (key, field) => (state.history?.departments || [])
 const ICONS = {
   overview:    'M4 4h7v7H4zM13 4h7v4h-7zM13 10h7v10h-7zM4 13h7v7H4z',
   safety:      'M12 3l7 3v6c0 4.2-2.9 7.6-7 9-4.1-1.4-7-4.8-7-9V6z',
+  quality:     'M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.9-5.2-2.8-5.2 2.8 1-5.9-4.3-4.1 5.9-.9z',
   production:  'M4 20V9l5 3V9l5 3V4l6 4v12z',
   shipping:    'M3 7h11v9H3zM14 10h4l3 3v3h-7zM7 19a1.6 1.6 0 100-3.2A1.6 1.6 0 007 19zM17.5 19a1.6 1.6 0 100-3.2 1.6 1.6 0 000 3.2z',
   maintenance: 'M14.5 6.5a3.5 3.5 0 01-4.6 4.6L5 16l3 3 4.9-4.9a3.5 3.5 0 004.6-4.6l-2.4 2.4-2.1-2.1z',
@@ -75,12 +86,15 @@ const ICONS = {
 const VIEWS = ['line', 'board'];
 // The order the meeting actually walks: what happened to people, what the plant made,
 // what left the building, what it earned, and what needs fixing.
-const ORDER = ['safety', 'production', 'shipping', 'financials', 'maintenance', 'labour'];
+// Safety and quality were one section because the old dashboard drew them in one row.
+// They are two subjects with two owners, and on a wall each deserves its own screen — six
+// quality readings do not fit under two safety ones.
+const ORDER = ['safety', 'quality', 'production', 'shipping', 'financials', 'maintenance', 'labour'];
 const TITLES = {
-  safety: 'Safety & Quality', production: 'Production', shipping: 'Shipping',
+  safety: 'Safety', quality: 'Quality', production: 'Production', shipping: 'Shipping',
   maintenance: 'Maintenance', labour: 'Labour & Overtime', financials: 'Financials',
 };
-const NAV = { safety: 'Safety', labour: 'Labour', line: 'Today', board: 'Board' };
+const NAV = { labour: 'Labour', line: 'Today', board: 'Board' };
 Object.assign(TITLES, { line: 'Today', board: 'The board' });
 Object.assign(ICONS, {
   line:  'M4 6h16M4 12h10M4 18h6',
@@ -237,24 +251,44 @@ const SECTIONS = {
     }).join('')}</div>`;
   },
 
-  safety: () => {
-    const shortages = metric('shortages');
-    const shortTone = shortages == null ? '' : band.shortage(Number(shortages));
-    return `<div class="grid g5">
+  safety: () => `<div class="grid g2">
       ${streakCard('injury', 'Days since last injury', 'injury_last', 'injury_record', 'injury')}
       ${streakCard('nearmiss', 'Days since near-miss', 'near_miss_last', 'near_miss_record', 'near-miss')}
+    </div>`,
+
+  // Six readings, which is what fills a screen at three across and two down. The three
+  // added here are the ones a quality manager is asked for and the dashboard never held:
+  // NCRs for the year, and complaints split by who raised them — internal is the floor
+  // catching its own work, external has already reached a customer, and one number over
+  // both hides the only distinction that matters.
+  quality: () => {
+    const shortages = metric('shortages');
+    const shortTone = shortages == null ? '' : band.shortage(Number(shortages));
+    // `name`, not `field` — the parameter was called `field` and shadowed the helper of
+    // the same name two scopes up, so every quality card threw on its edit row.
+    const counter = (key, label, icon, name, sub) => {
+      const value = metric(name);
+      return metricCard({
+        chart: 'number', pkey: key, label, icon, tone: '',
+        value: value == null ? '\u2014' : num(value), sub,
+        // No foot. The only thing worth saying about a year-to-date count is the count,
+        // and it is already the largest thing on the card — repeating it under a rule
+        // labelled "year to date" says it three times.
+        edit: field(label, name, `type="number" min="0" value="${value ?? ''}"`),
+      });
+    };
+    return `<div class="grid g3">
       ${metricCard({
-        // A target of nought has no shape either. Same reason as the streaks.
         chart: 'number', pkey: 'shortages', label: 'Shortage count', tone: shortTone,
         value: shortages ?? '\u2014', sub: 'jobs short today',
-        percent: Number(shortages) ? 100 : 0, markPercent: null,
-        // Nothing drawn. The target is nought, which cannot be a bar, and a week of
-        // nought is a flat rule that says only that the axis is working.
         foot: footLine([['Target', '0']]),
         edit: field('Count', 'shortages', `type="number" min="0" value="${shortages ?? ''}"`),
       })}
-      ${coqCard('coq', `COQ — ${MONTHS[dateOf(state.date).getMonth()]}`, 'coq', 'coq_target')}
-      ${coqCard('coqytd', 'COQ — year to date', 'coq_ytd', 'coq_ytd_target')}
+      ${coqCard('coq', `COQ \u2014 ${MONTHS[dateOf(state.date).getMonth()]}`, 'coq', 'coq_target')}
+      ${coqCard('coqytd', 'COQ \u2014 year to date', 'coq_ytd', 'coq_ytd_target')}
+      ${counter('ncr', 'NCRs received', '\u{1F4CB}', 'ncr_ytd', 'year to date')}
+      ${counter('cint', 'Internal complaints', '\u{1F3ED}', 'complaints_internal', 'year to date')}
+      ${counter('cext', 'Customer complaints', '\u{1F4E3}', 'complaints_external', 'year to date')}
     </div>`;
   },
 
@@ -394,47 +428,64 @@ const SECTIONS = {
 
   shipping: () => {
     const read = name => metric(name);
-    // Shipping is a strip rather than a row of cards, and it was the thinnest thing on the
-    // page — eight figures and nothing else, over an empty half-screen. The strip keeps its
-    // shape; each cell gains the same two answers every card now gives.
-    const cell = (label, value, sub, tone, unit, pkey, icon = '🚚', track = '') => {
-      const size = String(value).length > 6 ? ' cell__v--xl' : String(value).length > 4 ? ' cell__v--lg' : '';
-      return `<div class="cell cell--${tone}" data-pkey="${esc(pkey)}">
-        <div class="cell__l"><span class="cell__ico" aria-hidden="true">${icon}</span>${esc(label)}</div>
-        <div class="cell__v${size}">${value}${unit ? `<i>${unit}</i>` : ''}</div>
-        <div class="cell__s">${sub}</div>${track}</div>`;
-    };
-    const pct = (name, label, sub, icon) => {
+    // Eight cards in two rows of four, drawn by the same function every other section uses.
+    // This was a joined strip with the cells sharing borders and two of them washed violet,
+    // which made shipping look like a different product bolted to the page. Nothing about
+    // these readings is special enough to earn its own component.
+    const ship = (name, label, icon, { value, unit = '', sub = '', tone = '', target = 0,
+                                       floor = 0, ceiling = 0, series = null,
+                                       lowerIsBetter = false, foot = [] }) => metricCard({
+      chart: target ? state.chart : 'number', pkey: name, label, icon, tone,
+      value, unit, sub,
+      percent: target ? Number(value || 0) / target * 100 : 0,
+      markPercent: target ? 100 : null, markLabel: 'target',
+      track: series ? cardTrack({
+        chart: target ? state.chart : 'number',
+        actual: Number(value || 0), target, tone, floor, ceiling, lowerIsBetter,
+        targetText: target ? `Against ${target}%` : '', seriesLabel: 'Last 7 mornings', series,
+      }) : '',
+      foot: footLine(foot),
+    });
+
+    const pct = (name, label, icon, sub) => {
       const value = read(name);
-      const tone = value == null ? '' : band.pct(Number(value), 98);
-      return cell(label, value == null ? '—' : Number(value).toFixed(name === 'otd' ? 1 : 2),
-        sub, tone, value == null ? '' : '%', name, icon,
-        // Percentages that live in the high nineties are floored at ninety, so the bar
-        // shows the part of the range the room actually argues about.
-        cardTrack({ actual: Number(value || 0), target: 98, tone, floor: 90, ceiling: 100,
-                    targetText: 'Against 98%', seriesLabel: 'Last 7', series: metricSeries(name) }));
+      const tone = value == null ? '' : band.pct(Number(value), SHIPPING_TARGET);
+      return ship(name, label, icon, {
+        value: value == null ? '\u2014' : Number(value).toFixed(2), unit: value == null ? '' : '%',
+        sub, tone, target: SHIPPING_TARGET, floor: 90, ceiling: 100, series: metricSeries(name),
+        foot: [['Target', `\u2265 ${SHIPPING_TARGET}%`],
+               ['Variance', value == null ? null : (() => {
+                 const off = Number(value) - SHIPPING_TARGET;
+                 return `${off >= 0 ? '+' : '\u2212'}${Math.abs(off).toFixed(2)} pts`;
+               })()]],
+      });
     };
-    const count = (name, label, sub, icon) => {
+    const count = (name, label, icon, sub) => {
       const value = read(name);
       const tone = value == null ? '' : band.count(Number(value));
-      // Late and short are nought on a good week, so their line is a flat rule at the
-      // bottom of the cell. The number is the whole reading.
-      return cell(label, value ?? '—', sub, tone, '', name, icon);
+      return ship(name, label, icon, {
+        value: value ?? '\u2014', sub, tone,
+        foot: [['Target', '0']],
+      });
     };
-    return `<div class="strip">
-      ${cell('Jobs shipped', read('jobs_shipped') == null ? '—' : num(read('jobs_shipped')),
-        read('jobs_on_time') == null ? 'today' : `${read('jobs_on_time')} on time`, 'info', '',
-        'jobs_shipped', '🚚')}
-      ${cell('Cartons', read('cartons') == null ? '—' : num(read('cartons')), 'shipped today',
-        'info', '', 'cartons', '📦')}
-      ${count('late', 'Late', 'shipments', '⏰')}
-      ${count('shorts', 'Shorts', 'shipments', '🚫')}
-      ${pct('otd', 'OTD', 'Target ≥ 98%', '🎯')}
-      ${pct('otif', 'OTIF', 'Target ≥ 98%', '🎯')}
-      ${pct('mtd_otif', 'MTD OTIF', 'Month to date', '📅')}
-      ${pct('ytd_otif', 'YTD OTIF', 'Year to date', '📅')}
+
+    return `<div class="grid g4">
+      ${ship('jobs_shipped', 'Jobs shipped', '\u{1F69A}', {
+        value: read('jobs_shipped') == null ? '\u2014' : num(read('jobs_shipped')), sub: 'today',
+        foot: [['On time', read('jobs_on_time') ?? null],
+               ['Of', read('jobs_shipped') ?? null]] })}
+      ${ship('cartons', 'Cartons', '\u{1F4E6}', {
+        value: read('cartons') == null ? '\u2014' : num(read('cartons')), sub: 'shipped today',
+        foot: [['Per job', read('cartons') && read('jobs_shipped')
+          ? num(Math.round(read('cartons') / read('jobs_shipped'))) : null]] })}
+      ${count('late', 'Late', '\u23F0', 'shipments')}
+      ${count('shorts', 'Shorts', '\u{1F6AB}', 'shipments')}
+      ${pct('otd', 'OTD', '\u{1F3AF}', 'on-time delivery')}
+      ${pct('otif', 'OTIF', '\u{1F3AF}', 'on time, in full')}
+      ${pct('mtd_otif', 'MTD OTIF', '\u{1F4C5}', 'month to date')}
+      ${pct('ytd_otif', 'YTD OTIF', '\u{1F4C5}', 'year to date')}
     </div>
-    <div class="panel edit-only"><div class="panel__body"><div class="grid g4">
+    <div class="panel edit-only" style="margin-top:var(--s3)"><div class="panel__body"><div class="grid g4">
       ${[['Jobs shipped','jobs_shipped'],['On time','jobs_on_time'],['Cartons','cartons'],
          ['Late','late'],['Shorts','shorts'],['MTD OTIF %','mtd_otif'],['YTD OTIF %','ytd_otif']]
         .map(([label, name]) => field(label, name, `type="number" step="0.01" value="${state.metrics?.[name] ?? ''}"`)).join('')}
@@ -1006,11 +1057,13 @@ function toast(message) {
   toastTimer = setTimeout(() => element.classList.remove('on'), 2400);
 }
 
-let rotation = null;
-const stopRotation = () => { clearInterval(rotation); rotation = null; $('#tv-play').textContent = 'Auto'; };
+// Present mode is driven by whoever is presenting, and by nobody else.
+//
+// It used to rotate on a nine-second timer with a play button. A timer moves the screen
+// while somebody is mid-sentence about the thing that was on it, and the room spends the
+// meeting waiting for the page to come back round. Arrows, space and the two buttons —
+// that is the whole control surface.
 const step = direction => {
-  // The round is the five sections, always, whatever the morning holds. A step count that
-  // depended on how many readings were alarming is what made the wall unpredictable.
   state.wallStep = (state.wallStep + direction + ORDER.length) % ORDER.length;
   renderWall();
 };
@@ -1018,24 +1071,16 @@ $('#tv-btn').addEventListener('click', () => {
   document.body.classList.add('tv');
   state.wallStep = 0;
   render();
-  if (!rotation) {
-    rotation = setInterval(() => step(1), 12000);
-    $('#tv-play').textContent = 'Stop';
-  }
 });
-$('#tv-exit').addEventListener('click', () => { stopRotation(); document.body.classList.remove('tv'); render(); });
+$('#tv-exit').addEventListener('click', () => { document.body.classList.remove('tv'); render(); });
 $('#tv-next').addEventListener('click', () => step(1));
 $('#tv-prev').addEventListener('click', () => step(-1));
-$('#tv-play').addEventListener('click', () => {
-  if (rotation) return stopRotation();
-  rotation = setInterval(() => step(1), 12000);
-  $('#tv-play').textContent = 'Stop';
-});
+
 document.addEventListener('keydown', event => {
   if (!document.body.classList.contains('tv')) return;
-  if (event.key === 'ArrowRight') step(1);
-  if (event.key === 'ArrowLeft') step(-1);
-  if (event.key === 'Escape') { stopRotation(); document.body.classList.remove('tv'); render(); }
+  if (event.key === 'ArrowRight' || event.key === ' ' || event.key === 'PageDown') { event.preventDefault(); step(1); }
+  if (event.key === 'ArrowLeft' || event.key === 'PageUp') { event.preventDefault(); step(-1); }
+  if (event.key === 'Escape') { document.body.classList.remove('tv'); render(); }
 });
 
 addEventListener('maxmetrics:connection', event => {
@@ -1264,6 +1309,30 @@ async function readDropped(files) {
 // count only overwrite when the files actually carry them: a blank in the workbook means
 // nothing was recorded, and writing null over a figure somebody typed would be the import
 // deciding it knows better.
+// Draw the sheet's body and re-bind it. The panel is rebuilt from scratch on every state
+// change, so the listeners have to be attached to whatever it just produced.
+//
+// This function went missing in a refactor and took Import and Export with it: every
+// caller threw on the first line, and a throw inside a click handler is silent. That is the
+// argument for the conformance check growing a rule about calling something that is never
+// declared — a page that half-loads tells nobody.
+function drawImport() {
+  $('#import-body').innerHTML = importPanel();
+  const zone = $('#drop');
+  if (zone) {
+    $('#drop-input')?.addEventListener('change', e => readDropped(e.target.files));
+    for (const type of ['dragenter', 'dragover']) {
+      zone.addEventListener(type, e => { e.preventDefault(); zone.classList.add('drop--over'); });
+    }
+    for (const type of ['dragleave', 'drop']) {
+      zone.addEventListener(type, () => zone.classList.remove('drop--over'));
+    }
+    zone.addEventListener('drop', e => { e.preventDefault(); readDropped(e.dataTransfer?.files); });
+  }
+  $('#import-again')?.addEventListener('click', () => { importState.preview = null; drawImport(); });
+  $('#import-apply')?.addEventListener('click', applyImport);
+}
+
 async function applyImport() {
   const p = importState.preview;
   if (!p) return;

@@ -284,6 +284,41 @@ column is `coalesce(existing, incoming)` — an import fills gaps and can never 
 a person typed. Running the same file twice therefore changes nothing the second time,
 which is what makes it safe to run again when it half-worked the first time.
 
+## Every number on one line
+
+The rule the card layout is built around, and the one that survived none of the earlier
+drafts: **every reading in a row starts at the same height.** A card with a flag pushed its
+number down, a two-line title pushed it further, and a row of five put five readings at
+five heights — which turns reading a row into five separate hunts rather than one sweep.
+
+So the head is a fixed height, the flag occupies its row whether or not there is a flag in
+it, and the reading sits directly under both. Cards in a row already shared a height; now
+they share the line that matters.
+
+## One surface, one coloured thing
+
+Every card is white. Five washed green, one amber and one red is a page that reads as a
+colour chart before it reads as a set of readings, and it made the identity violet on the
+shipping cells look like a third verdict.
+
+The verdict lives in the one place it cannot be mistaken for decoration: the number. The
+border keeps a whisper of it so a card is still findable across a room, and the flag under
+the title is solid with the text knocked out white — that is the one thing on a card which
+is news rather than a reading, and outlined it disappeared.
+
+## Present mode is driven by a person
+
+No timer. It rotated every nine seconds with a play button, and a timer moves the screen
+while somebody is mid-sentence about what was on it. Arrows, space, and two buttons.
+
+**Only cards reach the wall.** The overlap this replaced was not a sizing bug: the wall was
+rendering the whole section — cards, the week table, the review notes, the edit fields —
+into a box with `overflow:hidden`, so on Production the table printed on top of the cards.
+A wall is not a smaller version of the page. It is the cards, at the size a room reads.
+
+Safety and Quality are two pages because they are two subjects with two owners, and six
+quality readings do not fit under two safety ones.
+
 ## Deployment
 
 Netlify, from the `gh-pages` branch, public URL, protected by sign-in. `scripts/publish.sh`
