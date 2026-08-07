@@ -277,20 +277,20 @@ const SECTIONS = {
         value: rate ? num(Math.round(rate)) : '—', sub: `${config.unit} / hr`,
         percent: target ? rate / (target * 1.25) * 100 : 0,
         markPercent: 100 / 1.25, markLabel: 'target',
-        // Three lines, two readings each, paired so the eye can run down a column:
-        // what was made against the hours it took, the target against how far off it was,
-        // then the two that explain the gap. Uptime and make-ready share a line because
-        // they are the same question — where the hours went — asked two ways.
-        foot: footStat(config.unit, row.qty ? num(row.qty) : '—')
-            + footStat('Crew hrs', row.hours ? `${row.hours}<em> h</em>` : '—')
-            + footStat('Target / hr', num(Math.round(target)))
+        // Four readings, in the order the room asks for them: what the target was, what was
+        // actually produced, how far off that landed, and the hours it took. The rate per
+        // crew hour is the hero above, so the foot answers "against what" rather than
+        // repeating it.
+        //
+        // Uptime and make-ready are deliberately not here. They are not among the four, they
+        // are blank for every imported day because the DOR's own columns do not reproduce
+        // the plant's stored figures, and two permanent dashes in a four-square grid read as
+        // a broken card rather than as an honest absence. They stay on the Everything view,
+        // where a blank is plainly a blank.
+        foot: footStat('Target', num(Math.round(target)))
+            + footStat(config.unit, row.qty ? num(row.qty) : '—')
             + footStat('vs target', rate && target ? trend(rate, target) : '—')
-            + footStat('Uptime', row.uptime == null ? '—'
-                : `<span class="tone--${band.rate(Number(row.uptime) * 100, Number(config.uptime_target || 0) * 100) || 'none'}">${
-                  (Number(row.uptime) * 100).toFixed(1)}%</span>`)
-            + footStat('Make-ready', row.make_ready == null ? '—'
-                : `<span class="tone--${band.lower(Number(row.make_ready), Number(config.mr_target || 0)) || 'none'}">${
-                  Number(row.make_ready).toFixed(2)}<em> h</em></span>`),
+            + footStat('Crew hrs', row.hours ? `${row.hours}<em> h</em>` : '—'),
         edit: field(config.unit, `dept:${config.key}:qty`, `type="number" value="${row.qty ?? ''}"`)
             + field('Hours', `dept:${config.key}:hours`, `type="number" step="0.1" value="${row.hours ?? ''}"`)
             + field('Target', `dept:${config.key}:target`, `type="number" value="${row.target ?? config.target}"`)
@@ -486,14 +486,16 @@ const SECTIONS = {
       </div>
       <div class="fin">
         ${pane('Month to date', actualMtd, planMtd, [
-          [`${MONTHS[month]} budget`, money(monthBudget)],
-          ['Expected by today', money(planMtd)],
+          ['Actual', money(actualMtd)],
+          ['Target', money(planMtd)],
           ['Variance', `${varianceMtd >= 0 ? '▲' : '▼'} ${money(Math.abs(varianceMtd))} (${Math.abs(percentMtd).toFixed(1)}%)`, toneMtd],
+          [`${MONTHS[month]} budget`, money(monthBudget)],
         ], toneMtd)}
         ${pane('Year to date', actualYtd, planYtd, [
-          ['Full-year budget', money(yearBudget)],
-          ['Expected by today', money(planYtd)],
+          ['Actual', money(actualYtd)],
+          ['Target', money(planYtd)],
           ['Variance', `${varianceYtd >= 0 ? '▲' : '▼'} ${money(Math.abs(varianceYtd))} (${Math.abs(percentYtd).toFixed(1)}%)`, toneYtd],
+          ['Full-year budget', money(yearBudget)],
         ], toneYtd)}
       </div>
       <div class="finbars">
