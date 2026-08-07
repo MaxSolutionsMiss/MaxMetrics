@@ -8,15 +8,14 @@
 import {
   currentSession, signOut, myProfile, myLocations, savePreference,
   openDay, loadDay, loadHistory, loadBudgets, saveField, saveDepartment, saveReview,
-  saveBudget, publish, recordEdit, joinDay,
-} from '../db.js?v=e727b8a5d82f';
-import { assess, attention, settled, verdicts } from '../assess.js?v=e727b8a5d82f';
+  saveBudget, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
+} from '../db.js?v=45c35250cf51';
+import { assess, attention, settled } from '../assess.js?v=45c35250cf51';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, footStat, drawReading, showsHeroNumber, CHART_ICONS, CHART_NAMES, iconFor,
-  spark, bullet, chip, cardTrack, readingOf, derivedShipping,
-  volumeLabel, rateLabel, hoursLabel,
-} from '../readings.js?v=e727b8a5d82f';
+  spark, bullet, chip,
+} from '../readings.js?v=45c35250cf51';
 
 const $ = selector => document.querySelector(selector);
 
@@ -29,32 +28,61 @@ const state = {
   me: null, locations: [], canEdit: true,
   location: null, date: today(), active: 'overview',
   metrics: null, departments: [], review: [], maintenance: [], config: [], budgets: [],
-  history: { metrics: [], departments: [] }, findings: [], verdicts: {},
+  history: { metrics: [], departments: [] }, findings: [],
   chart: 'bar', team: [], live: null, wallStep: 0,
 };
 
 // ── Reading the loaded morning ──────────────────────────────────────────────────
 
-const metric = field => readingOf(state.metrics, field);
+// OTD and OTIF are not opinions, they are arithmetic on three counts the plant already
+// enters. Deriving them removes two fields from the morning and removes any chance of the
+// percentages disagreeing with the shipment counts printed beside them. Checked against
+// 149 rows of the plant's own OTD sheet: 148 agree exactly, and the one that does not is a
+// row recording 100% against 5 jobs with 1 late — an error this would have caught.
+function derivedShipping(m) {
+  const jobs = Number(m?.jobs_shipped);
+  if (!jobs) return null;
+  const late = Number(m?.late || 0), short = Number(m?.shorts || 0);
+  const round = v => Math.round(v * 10000) / 100;
+  return { otd: round((jobs - late) / jobs), otif: round((jobs - late - short) / jobs) };
+}
+
+const metric = field => {
+  if (field === 'otd' || field === 'otif') {
+    const derived = derivedShipping(state.metrics);
+    if (derived) return derived[field];
+  }
+  return state.metrics?.[field];
+};
 const dept = key => state.departments.find(d => d.dept_key === key) || {};
 const rateOf = row => Number(row?.hours) ? Number(row.qty) / Number(row.hours) : 0;
 const configured = () => state.config.filter(c => c.on_metrics);
 const budgetFor = month => Number(state.budgets.find(b => b.month === month + 1)?.amount || 0);
 
-// The dot beside a section in the rail and the line at the top of that section are the
-// same verdict, printed twice. It used to be worked out twice as well, from two different
-// sets of thresholds, which is precisely the disagreement `band()` exists to prevent.
-const sectionTone = key => state.verdicts[key]?.tone || 'ok';
-
-// The seven days behind a metric, for the trend line under its card.
-const metricSeries = field => (state.history?.metrics || [])
-  .map(row => readingOf(row, field))
-  .filter(value => value !== null && value !== undefined && value !== '')
-  .map(Number);
-const deptSeries = (key, field) => (state.history?.departments || [])
-  .filter(row => row.dept_key === key)
-  .map(row => field ? Number(row[field]) : (Number(row.hours) ? Number(row.qty) / Number(row.hours) : null))
-  .filter(value => Number.isFinite(value));
+function sectionTone(key) {
+  if (key === 'safety') {
+    const tones = [band.shortage(Number(metric('shortages') || 0))];
+    if (metric('injury_last')) tones.push(band.streak(daysBetween(metric('injury_last'), state.date)));
+    if (metric('near_miss_last')) tones.push(band.streak(daysBetween(metric('near_miss_last'), state.date)));
+    if (metric('coq') != null) tones.push(band.coq(Number(metric('coq')), Number(metric('coq_target') || 0.85)));
+    return band.worst(tones);
+  }
+  if (key === 'production') {
+    return band.worst(configured().map(c => band.rate(rateOf(dept(c.key)), Number(c.target)))
+      .filter(Boolean).concat(state.review.map(r => r.status)));
+  }
+  if (key === 'shipping') {
+    return band.worst([band.count(Number(metric('late') || 0)), band.count(Number(metric('shorts') || 0)),
+      metric('otif') != null ? band.pct(Number(metric('otif')), 98) : 'ok',
+      metric('otd') != null ? band.pct(Number(metric('otd')), 98) : 'ok']);
+  }
+  if (key === 'maintenance') {
+    return band.worst(state.maintenance.map(m => {
+      const tone = band.maint(m.status); return tone === 'info' ? 'ok' : tone;
+    }));
+  }
+  return 'ok';
+}
 
 // ── Sections ────────────────────────────────────────────────────────────────────
 
@@ -65,7 +93,6 @@ const ICONS = {
   shipping:    'M3 7h11v9H3zM14 10h4l3 3v3h-7zM7 19a1.6 1.6 0 100-3.2A1.6 1.6 0 007 19zM17.5 19a1.6 1.6 0 100-3.2 1.6 1.6 0 000 3.2z',
   maintenance: 'M14.5 6.5a3.5 3.5 0 01-4.6 4.6L5 16l3 3 4.9-4.9a3.5 3.5 0 004.6-4.6l-2.4 2.4-2.1-2.1z',
   financials:  'M12 3v18M8.5 7.5h6M8.5 7.5a2.6 2.6 0 000 5.2h3a2.6 2.6 0 010 5.2h-6',
-  configure:   'M12 15.2a3.2 3.2 0 100-6.4 3.2 3.2 0 000 6.4M19.4 15a1.6 1.6 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.6 1.6 0 00-2.7 1.1v.3a2 2 0 11-4 0v-.2a1.6 1.6 0 00-2.8-1.1l-.1.1a2 2 0 11-2.8-2.8l.1-.1A1.6 1.6 0 004 15H3.7a2 2 0 110-4h.2A1.6 1.6 0 005 8.6L4.9 8.5a2 2 0 112.8-2.8l.1.1A1.6 1.6 0 0010.6 4.7V4.4a2 2 0 114 0v.2a1.6 1.6 0 002.7 1.2l.1-.1a2 2 0 112.8 2.8l-.1.1a1.6 1.6 0 001.1 2.7h.3a2 2 0 110 4h-.2a1.6 1.6 0 00-1.4 1z',
 };
 // Two views over the whole morning, then the five sections for when someone asks a
 // question the views do not answer. Today is first because the meeting is two minutes
@@ -91,42 +118,31 @@ function readingBody(r, { showSpark = true } = {}) {
   const line = showSpark && r.series?.length > 1 ? spark(r.series, r.tone) : '';
   const bar = r.target
     ? bullet({ actual: Number(String(r.value).replace(/[^0-9.-]/g, '')) || r.raw || 0,
-               target: r.target, tone: r.tone, floor: r.floor || 0, ceiling: r.ceiling || 0,
+               target: r.target, tone: r.tone, floor: r.floor || 0,
                lowerIsBetter: !!r.lowerIsBetter })
     : '';
   return { line, bar };
 }
-
-const capitalised = text => text ? text[0].toUpperCase() + text.slice(1) : '';
 
 const field = (label, name, attrs = '') =>
   `<div class="er"><label>${esc(label)}</label>
    <input class="inp" data-field="${name}" ${attrs}></div>`;
 
 function streakCard(kind, label, lastField, recordField, word) {
+  const footLabel = word[0].toUpperCase() + word.slice(1);
   const last = metric(lastField), record = Number(metric(recordField) || 0);
   const days = last ? daysBetween(last, state.date) : null;
   const beaten = days != null && record > 0 && days >= record;
-  const tone = days == null ? '' : band.streak(days);
   return metricCard({
-    chart: state.chart, pkey: kind, label, tone,
+    chart: state.chart, pkey: kind, label,
+    tone: days == null ? '' : band.streak(days),
     value: days == null ? '—' : days, unit: 'days',
     percent: record ? (days || 0) / record * 100 : 0,
     markPercent: beaten || !record ? null : 100, markLabel: 'record',
     sub: beaten || !record ? null : `record ${record} days`,
     flag: beaten ? `<div class="flag flag--ok">Record broken · +${days - record} days</div>` : '',
-    // A streak is chased rather than met, so the bar it is drawn against is the record.
-    track: cardTrack({
-      chart: state.chart, actual: days || 0, target: record, tone,
-      targetText: record ? `Against the record of ${record}` : 'No record set',
-      deltaText: record && days != null
-        ? `${days >= record ? '+' : '−'}${Math.abs(days - record)} days` : '',
-      deltaTone: tone,
-      series: (state.history?.metrics || []).filter(r => r[lastField])
-        .map(r => daysBetween(r[lastField], r.metric_date)),
-    }),
     foot: footStat('Record', record ? `${record}<em> days</em>` : '—')
-        + footStat(`Last ${word}`, shortDate(last), true),
+        + footStat(footLabel, shortDate(last)),
     edit: field('Last', lastField, `type="date" value="${last || ''}"`)
         + field('Record', recordField, `type="number" value="${record || ''}"`),
   });
@@ -135,18 +151,12 @@ function streakCard(kind, label, lastField, recordField, word) {
 function coqCard(kind, label, valueField, targetField) {
   const value = metric(valueField), target = Number(metric(targetField) || 0.85);
   const has = value != null && value !== '';
-  const tone = has ? band.coq(Number(value), target) : '';
   return metricCard({
-    chart: state.chart, pkey: kind, label, tone,
+    chart: state.chart, pkey: kind, label,
+    tone: has ? band.coq(Number(value), target) : '',
     value: has ? Number(value).toFixed(2) : '—', unit: '%', sub: 'of sales',
     percent: has ? Number(value) / (target * 1.6) * 100 : 0,
     markPercent: 100 / 1.6, markLabel: 'target',
-    track: cardTrack({
-      chart: state.chart, actual: has ? Number(value) : 0, target, tone, lowerIsBetter: true,
-      targetText: `Against ≤ ${target.toFixed(2)}%`,
-      deltaText: has ? `${Number(value) <= target ? '−' : '+'}${Math.abs(Number(value) - target).toFixed(2)} pts` : '',
-      deltaTone: tone, series: metricSeries(valueField),
-    }),
     foot: footStat('Target', `≤ ${target.toFixed(2)}%`)
         + footStat('Variance', has ? `${Number(value) <= target ? '−' : '+'}${Math.abs(Number(value) - target).toFixed(2)} pts` : '—', true),
     edit: field('Actual %', valueField, `type="number" step="0.01" value="${value ?? ''}"`)
@@ -236,19 +246,14 @@ const SECTIONS = {
 
   safety: () => {
     const shortages = metric('shortages');
-    const shortTone = shortages == null ? '' : band.shortage(Number(shortages));
     return `<div class="grid g5">
       ${streakCard('injury', 'Days since last injury', 'injury_last', 'injury_record', 'injury')}
       ${streakCard('nearmiss', 'Days since near-miss', 'near_miss_last', 'near_miss_record', 'near-miss')}
       ${metricCard({
-        chart: state.chart, pkey: 'shortages', label: 'Shortage count', tone: shortTone,
+        chart: state.chart, pkey: 'shortages', label: 'Shortage count',
+        tone: shortages == null ? '' : band.shortage(Number(shortages)),
         value: shortages ?? '—', sub: 'jobs short today',
         percent: Number(shortages) ? 100 : 0, markPercent: null,
-        // A target of nought cannot be drawn as a bar — there is no distance to fill —
-        // so this card answers "which way is it going" and leaves the other question to
-        // the number, which is already the whole answer at nought or one.
-        track: cardTrack({ chart: state.chart, series: metricSeries('shortages'), tone: shortTone,
-                           lowerIsBetter: true }),
         foot: footStat('Target', '0'),
         edit: field('Count', 'shortages', `type="number" min="0" value="${shortages ?? ''}"`),
       })}
@@ -264,32 +269,30 @@ const SECTIONS = {
 
     const cards = list.map(config => {
       const row = dept(config.key), rate = rateOf(row);
+      const previous = Number(row.pw_hours) ? Number(row.pw_qty) / Number(row.pw_hours) : 0;
       const target = Number(row.target ?? config.target);
-      const tone = band.rate(rate, target);
       return metricCard({
         chart: state.chart, pkey: config.key, label: config.name, medium: true,
-        icon: config.icon || iconFor(config.key), tone,
-        value: rate ? num(Math.round(rate)) : '—', sub: rateLabel(config),
+        tone: band.rate(rate, target),
+        value: rate ? num(Math.round(rate)) : '—', sub: `${config.unit} / hr`,
         percent: target ? rate / (target * 1.25) * 100 : 0,
         markPercent: 100 / 1.25, markLabel: 'target',
-        track: cardTrack({
-          chart: state.chart, actual: rate, target, tone,
-          targetText: `Against ${num(target)} ${rateLabel(config)}`,
-          deltaText: rate && target
-            ? `${rate >= target ? '+' : '−'}${num(Math.round(Math.abs(rate - target)))}` : '',
-          deltaTone: tone, series: deptSeries(config.key),
-        }),
-        foot: footStat(`Target ${rateLabel(config)}`, num(target))
-            + footStat('Total', row.qty ? `${num(row.qty)} · ${row.hours || 0}h` : '—', true)
-            + footStat('vs target', rate && target ? trend(rate, target) : '—', true)
-            + (row.uptime != null ? footStat('Uptime',
-                `<span class="tone--${band.rate(Number(row.uptime) * 100, Number(config.uptime_target || 0) * 100) || 'none'}">${
-                  (Number(row.uptime) * 100).toFixed(1)}%</span>`, true) : '')
-            + (row.make_ready != null ? footStat('Make-ready',
-                `<span class="tone--${band.lower(Number(row.make_ready), Number(config.mr_target || 0)) || 'none'}">${
-                  Number(row.make_ready).toFixed(2)} h</span>`, true) : ''),
-        edit: field(volumeLabel(config), `dept:${config.key}:qty`, `type="number" value="${row.qty ?? ''}"`)
-            + field(hoursLabel(config), `dept:${config.key}:hours`, `type="number" step="0.1" value="${row.hours ?? ''}"`)
+        // Four readings, in the order the room asks for them: what the target was, what was
+        // actually produced, how far off that landed, and the hours it took. The rate per
+        // crew hour is the hero above, so the foot answers "against what" rather than
+        // repeating it.
+        //
+        // Uptime and make-ready are deliberately not here. They are not among the four, they
+        // are blank for every imported day because the DOR's own columns do not reproduce
+        // the plant's stored figures, and two permanent dashes in a four-square grid read as
+        // a broken card rather than as an honest absence. They stay on the Everything view,
+        // where a blank is plainly a blank.
+        foot: footStat('Target', num(Math.round(target)))
+            + footStat(config.unit, row.qty ? num(row.qty) : '—')
+            + footStat('vs target', rate && target ? trend(rate, target) : '—')
+            + footStat('Crew hrs', row.hours ? `${row.hours}<em> h</em>` : '—'),
+        edit: field(config.unit, `dept:${config.key}:qty`, `type="number" value="${row.qty ?? ''}"`)
+            + field('Hours', `dept:${config.key}:hours`, `type="number" step="0.1" value="${row.hours ?? ''}"`)
             + field('Target', `dept:${config.key}:target`, `type="number" value="${row.target ?? config.target}"`)
             + field('Uptime', `dept:${config.key}:uptime`, `type="number" step="0.001" placeholder="0.88" value="${row.uptime ?? ''}"`)
             + field('Make-ready', `dept:${config.key}:make_ready`, `type="number" step="0.01" placeholder="hours" value="${row.make_ready ?? ''}"`),
@@ -306,7 +309,6 @@ const SECTIONS = {
         <td class="num big">${rate ? num(Math.round(rate)) : '—'}</td>
         <td class="num">${previous ? trend(previous, Number(row.target ?? config.target)) : '—'}</td></tr>`;
     }).join('');
-    const unitsInPlay = [...new Set(list.map(c => volumeLabel(c)))];
 
     const weekEdit = list.map(config => {
       const row = dept(config.key);
@@ -317,23 +319,20 @@ const SECTIONS = {
           value="${row.pw_hours ?? ''}" aria-label="${esc(config.name)} previous week hours"></div>`;
     }).join('');
 
-    // The cards used to share a row with the Previous Week table, sized by counting the
-    // departments. That worked while there were three of them and stopped working the
-    // moment a plant could add its own: six departments and a six-column table cannot
-    // share a row on any screen. The cards wrap on their own now, at a width that holds a
-    // rate, its target bar and its week; the table gets the full width underneath, which
-    // is the width it always needed.
-    return `<div class="grid grid--depts">${cards}</div>
-    <div class="panel" style="margin-top:var(--s3)">
-      <div class="panel__head"><span class="card__ico" aria-hidden="true">📅</span>
-        <h3 class="panel__title">Previous week</h3>
-        <span class="panel__actions chip">Same weekday</span></div>
-      <div class="panel__body">
-        <table class="tbl"><thead><tr><th>Department</th>
-          <th class="num">${esc(unitsInPlay.length === 1 ? capitalised(unitsInPlay[0]) : 'Volume')}</th>
-          <th class="num">Hours</th><th class="num">Per hr</th><th class="num">Today</th>
-          <th class="num">vs target</th></tr></thead><tbody>${rows}</tbody></table>
-        <div class="ez">${weekEdit}</div>
+    // Narrow department cards, wide Previous Week. The rates are short numbers and read
+    // fine in a tight column; the week table has six and is what breaks when starved.
+    return `<div class="grid" style="grid-template-columns:repeat(${list.length},minmax(160px,.68fr)) minmax(500px,1.9fr)">
+      ${cards}
+      <div class="panel">
+        <div class="panel__head"><span class="card__ico" aria-hidden="true">📅</span>
+          <h3 class="panel__title">Previous week</h3>
+          <span class="panel__actions chip">Same weekday</span></div>
+        <div class="panel__body">
+          <table class="tbl"><thead><tr><th>Department</th><th class="num">Volume</th>
+            <th class="num">Crew hrs</th><th class="num">Per hr</th><th class="num">Today</th>
+            <th class="num">vs target</th></tr></thead><tbody>${rows}</tbody></table>
+          <div class="ez">${weekEdit}</div>
+        </div>
       </div>
     </div>
     <div class="sec__head" style="margin-top:var(--s3)">
@@ -341,11 +340,10 @@ const SECTIONS = {
       <div class="sec__rule"></div></div>
     <div class="grid g4">
       ${state.review.map(row => {
-        const config = state.config.find(c => c.key === row.dept_key);
-        const name = config?.name || row.dept_key;
+        const name = state.config.find(c => c.key === row.dept_key)?.name || row.dept_key;
         return `<div class="revcard revcard--${row.status}" data-pkey="rev-${esc(row.dept_key)}">
           <div class="revcard__head"><span class="rev__dot rev__dot--${row.status}"></span>
-            <span class="card__ico" aria-hidden="true">${config?.icon || iconFor(row.dept_key)}</span>
+            <span class="card__ico" aria-hidden="true">${iconFor(row.dept_key)}</span>
             <h4>${esc(name)}</h4></div>
           <div class="rev__note${row.note ? '' : ' rev__note--none'}">${esc(row.note || 'No issues reported.')}</div>
           <div class="ez">
@@ -363,38 +361,26 @@ const SECTIONS = {
 
   shipping: () => {
     const read = name => metric(name);
-    // Shipping is a strip rather than a row of cards, and it was the thinnest thing on the
-    // page — eight figures and nothing else, over an empty half-screen. The strip keeps its
-    // shape; each cell gains the same two answers every card now gives.
-    const cell = (label, value, sub, tone, unit, pkey, icon = '🚚', track = '') => {
+    const cell = (label, value, sub, tone, unit, pkey, icon = '🚚') => {
       const size = String(value).length > 6 ? ' cell__v--xl' : String(value).length > 4 ? ' cell__v--lg' : '';
       return `<div class="cell cell--${tone}" data-pkey="${esc(pkey)}">
         <div class="cell__l"><span class="cell__ico" aria-hidden="true">${icon}</span>${esc(label)}</div>
         <div class="cell__v${size}">${value}${unit ? `<i>${unit}</i>` : ''}</div>
-        <div class="cell__s">${sub}</div>${track}</div>`;
+        <div class="cell__s">${sub}</div></div>`;
     };
     const pct = (name, label, sub, icon) => {
       const value = read(name);
-      const tone = value == null ? '' : band.pct(Number(value), 98);
       return cell(label, value == null ? '—' : Number(value).toFixed(name === 'otd' ? 1 : 2),
-        sub, tone, value == null ? '' : '%', name, icon,
-        // Percentages that live in the high nineties are floored at ninety, so the bar
-        // shows the part of the range the room actually argues about.
-        cardTrack({ actual: Number(value || 0), target: 98, tone, floor: 90, ceiling: 100,
-                    targetText: 'Against 98%', seriesLabel: 'Last 7', series: metricSeries(name) }));
+        sub, value == null ? '' : band.pct(Number(value), 98), value == null ? '' : '%', name, icon);
     };
     const count = (name, label, sub, icon) => {
       const value = read(name);
-      const tone = value == null ? '' : band.count(Number(value));
-      return cell(label, value ?? '—', sub, tone, '', name, icon,
-        cardTrack({ tone, seriesLabel: 'Last 7', lowerIsBetter: true, series: metricSeries(name) }));
+      return cell(label, value ?? '—', sub, value == null ? '' : band.count(Number(value)), '', name, icon);
     };
     return `<div class="strip">
       ${cell('Jobs shipped', read('jobs_shipped') == null ? '—' : num(read('jobs_shipped')),
-        read('jobs_on_time') == null ? 'today' : `${read('jobs_on_time')} on time`, 'info', '',
-        'jobs_shipped', '🚚', cardTrack({ seriesLabel: 'Last 7', series: metricSeries('jobs_shipped') }))}
-      ${cell('Cartons', read('cartons') == null ? '—' : num(read('cartons')), 'shipped today',
-        'info', '', 'cartons', '📦', cardTrack({ seriesLabel: 'Last 7', series: metricSeries('cartons') }))}
+        read('jobs_on_time') == null ? 'today' : `${read('jobs_on_time')} on time`, 'info', '', 'jobs_shipped', '🚚')}
+      ${cell('Cartons', read('cartons') == null ? '—' : num(read('cartons')), 'shipped today', 'info', '', 'cartons', '📦')}
       ${count('late', 'Late', 'shipments', '⏰')}
       ${count('shorts', 'Shorts', 'shipments', '🚫')}
       ${pct('otd', 'OTD', 'Target ≥ 98%', '🎯')}
@@ -466,7 +452,6 @@ const SECTIONS = {
     const varianceYtd = actualYtd - planYtd;
     const percentYtd = planYtd ? varianceYtd / planYtd * 100 : 0;
     const toneMtd = band.money(percentMtd), toneYtd = band.money(percentYtd);
-    const worst = band.worst([toneMtd, toneYtd]);
 
     // The chart choice reaches the financials too. Sales against plan is a reading like
     // any other, and a page where five cards are rings and the money is a bar reads as
@@ -477,10 +462,15 @@ const SECTIONS = {
         percent: pacePercent / 1.4, markPercent: 100 / 1.4, markLabel: 'plan',
         value: `${Math.round(pacePercent)}%`, unit: '',
       });
-      return `<div class="fin__pane"><div class="fin__t">${title}</div>
+      // The pane is the thing being judged, not the card. Month to date and year to date
+      // are two different questions — one about the last few days, one about the year —
+      // and a card washed by the worse of them tells the room the year is in trouble
+      // because the month is five days old. Each pane now carries its own verdict.
+      return `<div class="fin__pane fin__pane--${tone}"><div class="fin__t">${title}</div>
+        <div class="fin__pace">${Math.round(pacePercent)}<i>% of plan</i></div>
         ${showsHeroNumber(state.chart)
-          ? `<div class="fin__v" style="color:var(--${tone})">${money(actual)}</div>${drawn}`
-          : `${drawn}<div class="fin__v fin__v--under" style="color:var(--${tone})">${money(actual)}</div>`}
+          ? `<div class="fin__v">${money(actual)}</div>${drawn}`
+          : `${drawn}<div class="fin__v fin__v--under">${money(actual)}</div>`}
         <div>${rows.map(([label, value, colour]) => `<div class="fin__row"><span>${label}</span>
           <strong${colour ? ` style="color:var(--${colour})"` : ''}>${value}</strong></div>`).join('')}</div></div>`;
     };
@@ -488,7 +478,7 @@ const SECTIONS = {
     const monthSeries = (state.history?.metrics || [])
       .map(r => Number(r.fin_actual_mtd)).filter(v => Number.isFinite(v) && v > 0);
     const pace = planMtd ? actualMtd / planMtd * 100 : 0;
-    return `<div class="card card--${worst}" data-pkey="financials" style="padding:var(--s5)">
+    return `<div class="card" data-pkey="financials" style="padding:var(--s5)">
       <div class="card__head">
         <span class="card__ico" aria-hidden="true">💰</span>
         <span class="card__label">Sales against budget · through ${
@@ -496,14 +486,16 @@ const SECTIONS = {
       </div>
       <div class="fin">
         ${pane('Month to date', actualMtd, planMtd, [
-          [`${MONTHS[month]} budget`, money(monthBudget)],
-          ['Expected by today', money(planMtd)],
+          ['Actual', money(actualMtd)],
+          ['Target', money(planMtd)],
           ['Variance', `${varianceMtd >= 0 ? '▲' : '▼'} ${money(Math.abs(varianceMtd))} (${Math.abs(percentMtd).toFixed(1)}%)`, toneMtd],
+          [`${MONTHS[month]} budget`, money(monthBudget)],
         ], toneMtd)}
         ${pane('Year to date', actualYtd, planYtd, [
-          ['Full-year budget', money(yearBudget)],
-          ['Expected by today', money(planYtd)],
+          ['Actual', money(actualYtd)],
+          ['Target', money(planYtd)],
           ['Variance', `${varianceYtd >= 0 ? '▲' : '▼'} ${money(Math.abs(varianceYtd))} (${Math.abs(percentYtd).toFixed(1)}%)`, toneYtd],
+          ['Full-year budget', money(yearBudget)],
         ], toneYtd)}
       </div>
       <div class="finbars">
@@ -523,11 +515,6 @@ const SECTIONS = {
           <div class="finmonth"><span style="width:${(elapsed / inMonth * 100).toFixed(1)}%"></span></div>
         </div>
       </div>
-      ${monthSeries.length > 1 ? `<div class="finbar" style="margin-top:var(--s4)">
-        <div class="finbar__l">Month to date, over the last seven mornings
-          <b class="tone--${toneMtd}">${money(monthSeries[monthSeries.length - 1] - monthSeries[0])} booked</b></div>
-        ${spark(monthSeries, toneMtd)}
-      </div>` : ''}
       <div class="ez">
         ${field('Actual MTD', 'fin_actual_mtd', `type="number" value="${metric('fin_actual_mtd') ?? ''}"`)}
         ${field('Actual YTD', 'fin_actual_ytd', `type="number" value="${metric('fin_actual_ytd') ?? ''}"`)}
@@ -555,17 +542,7 @@ function renderNav() {
       key === 'line' ? (attention(state.findings).length ? worstOfAll : 'ok') : 'none')).join('')
     + `<div class="rail__split"></div>`
     + link('overview', 'Everything', ICONS.overview, 'none')
-    + ORDER.map(key => link(key, NAV[key] || TITLES[key], ICONS[key], sectionTone(key))).join('')
-    // Configure is a different page, not a section of this one — the plant's shape is not
-    // a reading of a morning. Only somebody who can edit the plant is offered it; the
-    // policies would refuse anyone else, and offering a door that does not open is worse
-    // than not offering it.
-    + (state.canEdit ? `<div class="rail__split"></div>
-      <a class="rail__link" href="departments.html?loc=${encodeURIComponent(state.location || '')}"
-         title="Configure departments">
-        <svg class="rail__ico" viewBox="0 0 24 24"><path d="${ICONS.configure}"/></svg>
-        <span class="rail__txt">Configure</span>
-        <span class="rail__dot rail__dot--none"></span></a>` : '');
+    + ORDER.map(key => link(key, NAV[key] || TITLES[key], ICONS[key], sectionTone(key))).join('');
 }
 
 function renderChartPicker() {
@@ -615,20 +592,11 @@ function paintPresence() {
   }
 }
 
-// One line under the heading saying what the section comes to. It is the same verdict the
-// dot in the rail carries — assess.js reached it once — so a person can take the section
-// from the line and read the cards only if the line gives them a reason to.
-function verdictLine(key) {
-  const said = state.verdicts[key];
-  if (!said) return '';
-  return `<p class="verdict verdict--${said.tone || 'none'}">${esc(said.line)}</p>`;
-}
+const one = key => `<section class="sec"><div class="sec__head">
+  <h2 class="sec__title">${TITLES[key]}</h2><div class="sec__rule"></div></div>${SECTIONS[key]()}</section>`;
 
 function renderContent() {
   if (document.body.classList.contains('tv')) return renderWall();
-  const one = key => `<section class="sec"><div class="sec__head">
-    <h2 class="sec__title">${TITLES[key]}</h2><div class="sec__rule"></div></div>
-    ${verdictLine(key)}${SECTIONS[key]()}</section>`;
   if (VIEWS.includes(state.active)) {
     $('#content').className = 'content content--view';
     $('#content').innerHTML = `<section class="sec">${SECTIONS[state.active]()}</section>`;
@@ -642,47 +610,36 @@ function renderContent() {
 
 function render() {
   state.findings = assess(state);
-  state.verdicts = verdicts(state, state.findings);
   document.body.dataset.view = state.active;
   renderHeader(); renderChartPicker(); renderNav(); renderContent(); renderWho(); paintPresence();
 }
 
 // ── The wall ──
-// One idea per screen at the size a 48" needs, with the sentence that says what it means.
-// It shows the exceptions first and then the rest, because a plant walking past the screen
-// should learn what is wrong before it learns what is fine.
+//
+// Present mode walks the meeting: Safety & Quality, Production, Shipping, Financials,
+// Maintenance, in that order, one section per screen, and back to the top.
+//
+// It used to choose by alarm level — the worst reading first, then the rest — which meant
+// the screen showed a different thing every morning and nobody could tell where they were
+// in the round. A plant walking past a screen learns nothing from a card it cannot place.
+// A fixed order is learnable: after a week you know Shipping follows Production, and you
+// look up at the right moment for the number you came for.
+//
+// The sections are the ones already on the page, rendered by the same code, so the wall
+// cannot drift from what the room saw on the laptop five minutes earlier.
 function renderWall() {
-  const flags = attention(state.findings), fine = settled(state.findings);
-  const cards = flags.concat(fine.filter(r => !r.quiet)).slice(0, 6);
-  if (!cards.length) {
-    $('#content').className = 'content wall';
-    $('#content').innerHTML = `<div class="wall__empty">Nothing entered for this morning yet.</div>`;
-    return;
-  }
-  const r = cards[state.wallStep % cards.length];
-  const others = cards.filter(x => x.key !== r.key).slice(0, 3);
-  $('#content').className = 'content wall';
-  $('#content').innerHTML = `
+  const key = ORDER[state.wallStep % ORDER.length];
+  const content = $('#content');
+  content.className = 'content wall';
+  content.innerHTML = `
     <div class="wall__top">
-      <h2>${esc(r.area)} · ${esc(state.locations.find(l => l.id === state.location)?.name || '')}</h2>
+      <h2>${esc(TITLES[key])} · ${esc(state.locations.find(l => l.id === state.location)?.name || '')}</h2>
       <span class="wall__date">${$('#date-long').textContent}</span>
     </div>
-    <div class="wall__hero">
-      <div>
-        <div class="wall__l"><span class="wall__ico" aria-hidden="true">${iconFor(r.key)}</span>${esc(r.title)}</div>
-        <div class="wall__n tone--${r.tone || 'none'}">${esc(r.value)}<small> ${esc(r.unit || '')}</small></div>
-        ${r.note ? `<p class="wall__say">${esc(r.note)}</p>`
-          : r.targetLabel ? `<p class="wall__say">${esc(r.targetLabel)}</p>` : ''}
-        ${r.series?.length > 1
-          ? `<div class="wall__trend">${spark(r.series, r.tone)}
-             <span class="wall__trendl">last seven mornings</span></div>` : ''}
-      </div>
-      <div class="wall__side">${others.map(o => `<div class="wall__row">
-        <span class="wall__rl">${esc(o.title)}</span>
-        <span class="wall__rn tone--${o.tone || 'none'}">${esc(o.value)}</span></div>`).join('')}</div>
-    </div>
-    <div class="wall__dots">${cards.map((_, i) =>
-      `<span class="wall__dot${i === state.wallStep % cards.length ? ' wall__dot--on' : ''}"></span>`).join('')}</div>`;
+    ${one(key)}
+    <div class="wall__dots">${ORDER.map((k, i) =>
+      `<span class="wall__dot${i === state.wallStep % ORDER.length ? ' wall__dot--on' : ''}"
+             title="${esc(TITLES[k])}"></span>`).join('')}</div>`;
 }
 
 // ── Saving ──────────────────────────────────────────────────────────────────────
@@ -787,10 +744,6 @@ document.addEventListener('focusout', event => {
 async function open(location, date) {
   state.live?.leave();
   state.location = location; state.date = date;
-  // A grant is per plant. Somebody who may edit Mississauga and only read Guelph must not
-  // be offered Configure on Guelph, and switching plants used to leave the first plant's
-  // answer standing.
-  state.canEdit = state.locations.find(l => l.id === location)?.canEdit ?? false;
   $('#content').innerHTML = '<div class="loading">Loading the morning…</div>';
   try {
     if (state.canEdit) await openDay(location, date);
@@ -904,22 +857,26 @@ function toast(message) {
 let rotation = null;
 const stopRotation = () => { clearInterval(rotation); rotation = null; $('#tv-play').textContent = 'Auto'; };
 const step = direction => {
-  const count = Math.max(1, attention(state.findings).length
-    + settled(state.findings).filter(r => !r.quiet).length);
-  state.wallStep = (state.wallStep + direction + count) % count;
+  // The round is the five sections, always, whatever the morning holds. A step count that
+  // depended on how many readings were alarming is what made the wall unpredictable.
+  state.wallStep = (state.wallStep + direction + ORDER.length) % ORDER.length;
   renderWall();
 };
 $('#tv-btn').addEventListener('click', () => {
   document.body.classList.add('tv');
   state.wallStep = 0;
   render();
+  if (!rotation) {
+    rotation = setInterval(() => step(1), 12000);
+    $('#tv-play').textContent = 'Stop';
+  }
 });
 $('#tv-exit').addEventListener('click', () => { stopRotation(); document.body.classList.remove('tv'); render(); });
 $('#tv-next').addEventListener('click', () => step(1));
 $('#tv-prev').addEventListener('click', () => step(-1));
 $('#tv-play').addEventListener('click', () => {
   if (rotation) return stopRotation();
-  rotation = setInterval(() => step(1), 9000);
+  rotation = setInterval(() => step(1), 12000);
   $('#tv-play').textContent = 'Stop';
 });
 document.addEventListener('keydown', event => {
@@ -972,5 +929,242 @@ if (!state.locations.length) {
 } else {
   $('#loc').innerHTML = state.locations.map(l =>
     `<option value="${esc(l.id)}">${esc(l.name)}</option>`).join('');
+  state.canEdit = state.locations[0].canEdit;
   await open(state.locations[0].id, state.date);
 }
+
+// ── Import ──────────────────────────────────────────────────────────────────────
+//
+// The plant collects its numbers in spreadsheets kept in several places, and someone
+// retypes them into the dashboard every morning. This reads them instead — but it reads
+// them into a preview, not into the day. Nothing is written until a person has looked at
+// what the files say and pressed the button, because an importer that writes on drop is
+// one nobody can safely try.
+//
+// What it does write, it writes through `persist`, the same path a typed field takes. So
+// an imported figure gets the same one-column update, the same attribution in the edit
+// trail, and the same broadcast to the other two people working the morning.
+
+const importState = { reading: false, preview: null, error: null };
+
+function importPanel() {
+  const p = importState.preview;
+  if (importState.reading) return `<p class="drop__wait">Reading the files…</p>`;
+
+  const drop = `<div class="drop" id="drop">
+    <p class="drop__lead">Drop the morning's workbooks here</p>
+    <p class="drop__note">DOR_V9.xlsx, OTDOTIF.xlsx — or pick them.
+      Files are read in this browser and nothing leaves it until you accept.</p>
+    <label class="btn btn--primary">Choose files
+      <input type="file" id="drop-input" multiple accept=".xlsx" hidden></label>
+  </div>`;
+
+  if (importState.error) {
+    return drop + `<p class="drop__bad">${esc(importState.error)}</p>`;
+  }
+  if (!p) return drop;
+
+  const covering = p.covering.length === 1
+    ? shortDate(p.covering[0])
+    : `${shortDate(p.covering[0])} – ${shortDate(p.covering[p.covering.length - 1])}`;
+
+  const rows = p.departments.map(d => {
+    const config = state.config.find(c => c.key === d.dept_key);
+    const current = dept(d.dept_key);
+    const changed = Number(current.qty) !== d.qty || Number(current.hours) !== d.hours;
+    return `<tr>
+      <td class="dept">${esc(config?.name || d.dept_key)}</td>
+      <td class="num big">${num(d.qty)}</td>
+      <td class="num">${d.hours}<em> h</em></td>
+      <td class="num big">${d.rate ? num(Math.round(d.rate)) : '—'}</td>
+      <td class="num soft">${d.uptime == null ? '—' : (d.uptime * 100).toFixed(1) + '%'}</td>
+      <td class="num soft">${d.make_ready == null ? '—' : d.make_ready.toFixed(2) + ' h'}</td>
+      <td>${esc(d.machines.join(', '))} · ${d.shifts} shift${d.shifts === 1 ? '' : 's'}</td>
+      <td>${changed ? '<span class="pill pill--warn">changes</span>'
+                    : '<span class="pill pill--ok">same</span>'}</td></tr>`;
+  }).join('');
+
+  const ship = p.shipping ? `<table class="tbl"><thead><tr>
+      <th>Jobs shipped</th><th class="num">Late</th><th class="num">Short</th>
+      <th class="num">OTD</th><th class="num">OTIF</th></tr></thead>
+    <tbody><tr><td class="big">${p.shipping.jobs_shipped}</td>
+      <td class="num">${p.shipping.late}</td><td class="num">${p.shipping.shorts}</td>
+      <td class="num">${p.shipping.otd.toFixed(1)}%</td>
+      <td class="num">${p.shipping.otif.toFixed(2)}%</td></tr></tbody></table>`
+    : `<p class="drop__note">No shipping row for ${shortDate(p.span.to)}.</p>`;
+
+  return `
+    <p class="drop__lead">This morning covers <b>${esc(covering)}</b> — ${p.shiftCount}
+      shift${p.shiftCount === 1 ? '' : 's'} across ${p.departments.length} department${
+      p.departments.length === 1 ? '' : 's'}.</p>
+    <p class="drop__note">A morning reports the production since the last one. On Tuesday to
+      Friday that is yesterday; on Monday it is Friday, Saturday and Sunday together.</p>
+    <table class="tbl"><thead><tr><th>Department</th><th class="num">Output</th>
+      <th class="num">Crew hrs</th><th class="num">Per hr</th><th class="num soft">Uptime*</th>
+      <th class="num soft">Make-ready*</th><th>From</th><th></th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="8">Nothing found for these dates.</td></tr>'}</tbody></table>
+    <p class="drop__note">* Uptime and make-ready are shown from the DOR's own columns but
+      are <b>not imported</b>. Rolled the same way, 4 August gives printing 68.2% and 1.03 h
+      where the plant's own figures for that day are 100% and 0.95 h — so these two come
+      from a definition this cannot see. Output and crewed hours reproduce that day exactly.
+      Keep entering uptime and make-ready by hand until the definition is confirmed.</p>
+    <h3 class="sheet__sub">Shipping</h3>
+    ${ship}
+    ${p.unknownNames.length ? `<h3 class="sheet__sub">Names not on the operator list</h3>
+      <p class="drop__note">Imported as typed. Nothing is dropped and nothing is invented —
+      add them to the operator list if they belong there.</p>
+      <p class="drop__names">${p.unknownNames.slice(0, 12).map(n =>
+        `<span class="pill pill--info">${esc(n.name)} · ${n.count}</span>`).join(' ')}</p>` : ''}
+    ${p.notes.length ? `<h3 class="sheet__sub">Notes</h3>
+      <ul class="drop__notes">${p.notes.map(n => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
+    <div class="sheet__foot">
+      <span class="drop__note">${p.sources.map(s => `${esc(s.file)} · ${num(s.rows)} rows`).join(' · ')}</span>
+      <button class="btn" id="import-again">Choose different files</button>
+      <button class="btn btn--go" id="import-apply"${p.departments.length ? '' : ' disabled'}>
+        Apply to ${esc(shortDate(state.date))}</button>
+    </div>`;
+}
+
+async function readDropped(files) {
+  if (!files?.length) return;
+  importState.reading = true; importState.error = null;
+  drawImport();
+  try {
+    const { readFiles } = await import('../import.js');
+    const [operators, reported] = await Promise.all([
+      loadOperators(state.location).catch(() => []),
+      loadReportedDates(state.location, addDays(state.date, -21), state.date).catch(() => []),
+    ]);
+    importState.preview = await readFiles([...files], {
+      date: state.date, reported: reported.filter(d => d < state.date), operators: operators || [],
+    });
+  } catch (error) {
+    importState.error = error.message || 'Those files could not be read.';
+    importState.preview = null;
+  } finally {
+    importState.reading = false;
+    drawImport();
+  }
+}
+
+// Applying is a batch of ordinary field writes. Uptime, make-ready and the make-ready
+// count only overwrite when the files actually carry them: a blank in the workbook means
+// nothing was recorded, and writing null over a figure somebody typed would be the import
+// deciding it knows better.
+async function applyImport() {
+  const p = importState.preview;
+  if (!p) return;
+  const writes = [];
+  for (const d of p.departments) {
+    // Output and crewed hours only. See rollup() for why the other three are not written.
+    writes.push([`dept:${d.dept_key}:qty`, d.qty], [`dept:${d.dept_key}:hours`, d.hours]);
+  }
+  if (p.shipping) {
+    writes.push(['jobs_shipped', p.shipping.jobs_shipped], ['jobs_on_time', p.shipping.jobs_on_time],
+                ['late', p.shipping.late], ['shorts', p.shipping.shorts]);
+  }
+  for (const [name, value] of writes) {
+    applyLocally(name, value);
+    await persist(name, value);
+  }
+  importState.preview = null;
+  $('#import-sheet').close();
+  render();
+  toast(`${writes.length} readings imported.`);
+}
+
+const addDays = (value, n) => {
+  const d = dateOf(value);
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+};
+
+function drawImport() {
+  $('#import-body').innerHTML = importPanel();
+  const zone = $('#drop');
+  if (zone) {
+    $('#drop-input')?.addEventListener('change', e => readDropped(e.target.files));
+    for (const type of ['dragenter', 'dragover']) {
+      zone.addEventListener(type, e => { e.preventDefault(); zone.classList.add('drop--over'); });
+    }
+    for (const type of ['dragleave', 'drop']) {
+      zone.addEventListener(type, () => zone.classList.remove('drop--over'));
+    }
+    zone.addEventListener('drop', e => { e.preventDefault(); readDropped(e.dataTransfer?.files); });
+  }
+  $('#import-again')?.addEventListener('click', () => { importState.preview = null; drawImport(); });
+  $('#import-apply')?.addEventListener('click', applyImport);
+}
+
+$('#import-btn')?.addEventListener('click', () => {
+  if (!state.canEdit) return toast('Your account cannot change this plant.');
+  drawImport();
+  $('#import-sheet').showModal();
+});
+
+// ── Export and print ────────────────────────────────────────────────────────────
+
+// A morning leaves the building in two ways: as a row somebody opens in Excel, and as a
+// sheet somebody carries into a meeting. Both take what is on screen — the same numbers
+// the room just read — rather than re-querying, so an export can never disagree with the
+// dashboard it came from.
+
+const csvCell = value => `"${String(value ?? '').replaceAll('"', '""')}"`;
+const toCsv = rows => rows.map(r => r.map(csvCell).join(',')).join('\r\n');
+
+function downloadFile(name, text, type = 'text/csv;charset=utf-8') {
+  const link = document.createElement('a');
+  // The BOM is what makes Excel open a UTF-8 CSV as UTF-8 rather than as the system code
+  // page — the difference between "Mississauga" and mojibake.
+  link.href = URL.createObjectURL(new Blob([type.startsWith('text/csv') ? '﻿' : '', text], { type }));
+  link.download = name;
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
+function exportMorning() {
+  const plant = state.locations.find(l => l.id === state.location)?.name || state.location;
+  const rows = [['MaxMetrics', plant, state.date], []];
+
+  rows.push(['Safety & Quality', 'Value', 'Target / record']);
+  const injury = metric('injury_last'), miss = metric('near_miss_last');
+  rows.push(['Days since last injury', injury ? daysBetween(injury, state.date) : '',
+             `record ${metric('injury_record') || ''} (last ${injury || ''})`]);
+  rows.push(['Days since near-miss', miss ? daysBetween(miss, state.date) : '',
+             `record ${metric('near_miss_record') || ''} (last ${miss || ''})`]);
+  rows.push(['Shortage count', metric('shortages') ?? '', 'target 0']);
+  rows.push(['COQ month', metric('coq') ?? '', `target ${metric('coq_target') ?? 0.85}`]);
+  rows.push(['COQ year to date', metric('coq_ytd') ?? '', '']);
+  rows.push([]);
+
+  rows.push(['Production', 'Output', 'Crew hrs', 'Per hr', 'Target / hr', 'Uptime', 'Make-ready']);
+  for (const c of configured()) {
+    const row = dept(c.key), rate = rateOf(row);
+    rows.push([c.name, row.qty ?? '', row.hours ?? '', rate ? Math.round(rate) : '',
+               Math.round(Number(c.target) || 0),
+               row.uptime == null ? '' : `${(Number(row.uptime) * 100).toFixed(1)}%`,
+               row.make_ready == null ? '' : Number(row.make_ready).toFixed(2)]);
+  }
+  rows.push([]);
+
+  rows.push(['Shipping', 'Value']);
+  for (const [label, name] of [['Jobs shipped', 'jobs_shipped'], ['Late', 'late'],
+                               ['Short', 'shorts'], ['OTD %', 'otd'], ['OTIF %', 'otif']]) {
+    rows.push([label, metric(name) ?? '']);
+  }
+  rows.push([]);
+
+  rows.push(['Financials', 'Actual', 'Budget']);
+  rows.push(['Month to date', metric('fin_actual_mtd') ?? '', budgetFor(dateOf(state.date).getMonth())]);
+  rows.push(['Year to date', metric('fin_actual_ytd') ?? '',
+             state.budgets.reduce((sum, b) => sum + Number(b.amount || 0), 0)]);
+
+  downloadFile(`maxmetrics-${state.location}-${state.date}.csv`, toCsv(rows));
+  toast('Exported.');
+}
+
+$('#export-btn')?.addEventListener('click', exportMorning);
+// Print and Save-as-PDF are the same browser dialogue, so one button serves both — the
+// print stylesheet drops the rail, the top bar and every control, and lays the sections
+// out down the page.
+$('#print-btn')?.addEventListener('click', () => window.print());

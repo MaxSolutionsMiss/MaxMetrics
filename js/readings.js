@@ -46,17 +46,6 @@ export const band = {
   worst: list => list.includes('stop') ? 'stop' : list.includes('warn') ? 'warn' : 'ok',
 };
 
-// What a department calls its own numbers.
-//
-// Windowing counts panes and foil stamping counts impressions. A plant reading "sheets"
-// over both is being shown a dashboard built for somebody else's floor, and the labels are
-// the cheapest possible way for it to be theirs. Every fall-back is exactly what the
-// department displayed before there was anywhere to set them, so a plant that never opens
-// Configure sees no change at all.
-export const volumeLabel = config => config?.unit || 'volume';
-export const rateLabel   = config => config?.rate_label || `${volumeLabel(config)}/hr`;
-export const hoursLabel  = config => config?.hours_label || 'Hours';
-
 export const MONTHS = ['January','February','March','April','May','June',
                        'July','August','September','October','November','December'];
 export const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
@@ -78,45 +67,11 @@ export function money(value) {
   return `${sign}$${Math.round(abs).toLocaleString()}`;
 }
 
-// The arrow says which way it went; the colour says whether that was good. They are not
-// the same question, and treating them as one printed a green ▲ 51% over a cost of quality
-// climbing away from its target — the number's own card red, and the movement beside it
-// congratulating the plant on it.
-export function trend(current, previous, lowerIsBetter = false) {
+export function trend(current, previous) {
   if (!current || !previous) return '<span class="trend trend--flat">—</span>';
   const percent = (current - previous) / previous * 100, up = current >= previous;
-  const good = lowerIsBetter ? !up : up;
-  return `<span class="trend trend--${good ? 'good' : 'bad'}">${
-    up ? '▲' : '▼'} ${Math.abs(percent).toFixed(1)}%</span>`;
+  return `<span class="trend trend--${up ? 'up' : 'dn'}">${up ? '▲' : '▼'} ${Math.abs(percent).toFixed(1)}%</span>`;
 }
-
-// OTD and OTIF are not opinions, they are arithmetic on three counts the plant already
-// enters. Deriving them removes two fields from the morning and removes any chance of the
-// percentages disagreeing with the shipment counts printed beside them. Checked against
-// 149 rows of the plant's own OTD sheet: 148 agree exactly, and the one that does not is a
-// row recording 100% against 5 jobs with 1 late — an error this would have caught.
-//
-// It lives here, next to band(), for the same reason band() does. The page derived these
-// and the assessment did not, so for the few seconds between a keystroke and the write
-// landing, a card could print one OTIF and the section beside it judge another.
-export function derivedShipping(metrics) {
-  const jobs = Number(metrics?.jobs_shipped);
-  if (!jobs) return null;
-  const late = Number(metrics?.late || 0), short = Number(metrics?.shorts || 0);
-  const round = value => Math.round(value * 10000) / 100;
-  return { otd: round((jobs - late) / jobs), otif: round((jobs - late - short) / jobs) };
-}
-
-// A reading of the day, with derived shipping folded in. Every part of MaxMetrics that
-// asks a morning for a field goes through this, so nothing has to remember which two of
-// them are worked out rather than typed.
-export const readingOf = (metrics, field) => {
-  if (field === 'otd' || field === 'otif') {
-    const derived = derivedShipping(metrics);
-    if (derived) return derived[field];
-  }
-  return metrics?.[field];
-};
 
 // ── The four drawings ───────────────────────────────────────────────────────────
 //
@@ -181,11 +136,7 @@ export function spark(values, tone = '') {
   const xy = points.map((v, i) => [i / (points.length - 1) * w, h - ((v - min) / span) * (h - 7) - 3.5]);
   const line = xy.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ');
   const [ex, ey] = xy[xy.length - 1];
-  // No modifier at all when there is no verdict. `spark--` is still a class matching
-  // `[class*="spark--"]`, so writing it out defeated the neutral-colour fallback and left
-  // an unjudged line inheriting whatever colour it happened to land in.
-  return `<svg class="spark${tone ? ` spark--${tone}` : ''}" viewBox="0 0 ${w} ${h}"
-    preserveAspectRatio="none" aria-hidden="true">
+  return `<svg class="spark spark--${tone}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">
     <path class="spark__area" d="${line} L${w} ${h} L0 ${h} Z"/>
     <path class="spark__line" d="${line}"/>
     <circle class="spark__end" cx="${ex.toFixed(1)}" cy="${ey.toFixed(1)}" r="3"/>
@@ -198,70 +149,22 @@ export function spark(values, tone = '') {
 // from zero, is a bar 99% full and coloured red — which reads as catastrophe for a miss
 // of 0.13 of a point. Readings that live in the high nineties get a floor, so the bar
 // shows the part of the range anyone actually argues about.
-// `ceiling` is the other half of `floor`. A rate can run to a third above target and the
-// bar has to leave room for it, but a percentage cannot pass a hundred — and scaling OTIF
-// to 132 put its target marker a fifth of the way along and gave the room a wide green
-// field nobody can ever reach. Between a floor of ninety and a ceiling of a hundred the
-// bar shows the ten points that are actually in play.
-export function bullet({ actual, target, tone = '', floor = 0, ceiling = 0, lowerIsBetter = false }) {
+export function bullet({ actual, target, tone = '', floor = 0, lowerIsBetter = false }) {
   if (!Number.isFinite(Number(actual)) || !Number.isFinite(Number(target)) || !target) return '';
-  const top = ceiling || target * (lowerIsBetter ? 2 : 1.35);
+  const top = target * (lowerIsBetter ? 2 : 1.35);
   const at = v => Math.max(0, Math.min(100, (v - floor) / (top - floor) * 100));
-  // Each band is placed rather than stacked. Stacking them left-anchored got make-ready
-  // right and put the higher-is-better case exactly backwards — green washed the ground
-  // from nought up to target and amber everything past it, so a department beating its
-  // target sat on an amber field and one missing it by half sat on a green one. On a
-  // dashboard where colour is the verdict, that is the worst thing a drawing can do.
-  //
-  // The edges are band()'s thresholds: below nine tenths of target is a miss, the last
-  // tenth is the warning, target and over is clear — mirrored for the readings where less
-  // is better. Shipping percentages turn amber at ninety rather than at nine tenths of
-  // ninety-eight, which is 88.2 — close enough that the ground under the bar is right to
-  // within a fifth of a point, and the bar's own colour is the verdict either way.
-  const edges = lowerIsBetter
-    ? [['good', 0, at(target)], ['mid', at(target), at(target * 1.18)], ['bad', at(target * 1.18), 100]]
-    : [['bad', 0, at(target * 0.9)], ['mid', at(target * 0.9), at(target)], ['good', at(target), 100]];
+  const good = lowerIsBetter ? at(target) : 100;
+  const mid = lowerIsBetter ? at(target * 1.18) : at(target);
   return `<div class="bullet bullet--${tone}">
-    ${edges.map(([kind, from, to]) => `<span class="bullet__band bullet__band--${kind}"
-      style="left:${from.toFixed(1)}%;width:${Math.max(0, to - from).toFixed(1)}%"></span>`).join('')}
+    <span class="bullet__band bullet__band--bad"></span>
+    <span class="bullet__band bullet__band--mid" style="width:${(lowerIsBetter ? mid : 100).toFixed(1)}%"></span>
+    <span class="bullet__band bullet__band--good" style="width:${(lowerIsBetter ? good : mid).toFixed(1)}%"></span>
     <span class="bullet__fill" style="width:${at(Number(actual)).toFixed(1)}%"></span>
     <span class="bullet__target" style="left:${at(target).toFixed(1)}%"></span>
   </div>`;
 }
 
 export const chip = (tone, text) => `<span class="delta delta--${tone}">${esc(text)}</span>`;
-
-// ── What every card carries under its number ────────────────────────────────────
-//
-// A figure on its own answers "what is it" and nothing else. The two questions the room
-// actually asks next are "against what" and "which way is it going", and until now only
-// Today and the Board answered them — the sections themselves printed a number, a caption
-// and a row of foot stats, and left two thirds of the page empty underneath.
-//
-// So the bar and the line are not decoration to fill height. They are the two follow-up
-// questions, answered on the card where the number is, which is also what gives a section
-// enough to say to fill the page it is given.
-//
-// The bar is dropped when the reader has chosen the bar chart style: the drawing already
-// is a bar against a target, and printing a second one under it would have the same card
-// answer the same question twice.
-export function cardTrack({ chart, actual, target, tone = '', floor = 0, ceiling = 0,
-                           lowerIsBetter = false, targetText, deltaText, deltaTone,
-                           series, seriesLabel = 'Last 7 mornings' }) {
-  const bar = chart === 'bar' ? ''
-    : bullet({ actual, target, tone, floor, ceiling, lowerIsBetter });
-  const points = (series || []).filter(v => Number.isFinite(Number(v))).map(Number);
-  const line = points.length > 1 ? spark(points, tone) : '';
-  if (!bar && !line) return '';
-  const row = (label, right) => `<div class="ctrack__row"><span class="ctrack__l">${esc(label)}</span>
-    ${right || ''}</div>`;
-  return `<div class="ctrack">
-    ${bar ? row(targetText || 'Against target',
-        deltaText ? `<span class="ctrack__d tone--${deltaTone || tone || 'none'}">${esc(deltaText)}</span>` : '')
-      + bar : ''}
-    ${line ? row(seriesLabel, trend(points[points.length - 1], points[0], lowerIsBetter)) + line : ''}
-  </div>`;
-}
 
 export const CHART_NAMES = { number: 'Number only', bar: 'Bar', donut: 'Ring', gauge: 'Gauge' };
 
@@ -316,7 +219,7 @@ export const iconFor = key => {
 // give the reading its context. Everything that varies between cards arrives as an
 // argument.
 export function metricCard({ chart, pkey, icon, label, tone, value, unit, percent, markPercent,
-                             markLabel, sub, flag, foot, edit, medium, track }) {
+                             markLabel, sub, flag, foot, edit, medium }) {
   const hero = showsHeroNumber(chart);
   const drawn = drawReading(chart, { percent, markPercent, markLabel, value, unit });
   const caption = hero
@@ -334,7 +237,6 @@ export function metricCard({ chart, pkey, icon, label, tone, value, unit, percen
     <div class="card__mid">
       ${hero ? `<div class="hero${medium ? ' hero--md' : ''}">${esc(value)}${
         unit ? `<i>${esc(unit)}</i>` : ''}</div>${caption}${drawn}` : `${drawn}${caption}`}
-      ${track || ''}
     </div>
     <div class="foot">${foot}</div>
     ${edit ? `<div class="ez">${edit}</div>` : ''}

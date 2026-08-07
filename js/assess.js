@@ -12,72 +12,55 @@
 // green on the Wall would destroy trust in both, and the only way to guarantee that
 // cannot happen is for the verdict to be reached once, here, before any view sees it.
 
-import { band, daysBetween, num, money, readingOf, rateLabel, MONTHS } from './readings.js?v=e727b8a5d82f';
+import { band, daysBetween, num, money } from './readings.js?v=45c35250cf51';
 
 // The meeting runs two to three minutes, so a reading earns its place by being either
 // off target or genuinely load-bearing. Everything else is a tick in a strip.
-//
-// `section` and `say` are carried by every reading for the benefit of the section
-// verdicts below. `section` is where the reading is drawn; `say` is the clause that names
-// what is wrong with it, written here beside the number rather than in the view, because
-// this is the only place that knows a shortfall is measured in sheets and a streak in
-// days.
 export function assess({ date, metrics, departments, review, maintenance, config, budgets, history }) {
   const out = [];
-  const m = field => readingOf(metrics, field);
+  const m = field => metrics?.[field];
   const has = value => value !== null && value !== undefined && value !== '';
 
-  const seriesFor = (key, field = null) => (history?.departments || [])
-    .filter(r => r.dept_key === key && (field ? has(r[field]) : Number(r.hours)))
-    .map(r => field ? Number(r[field]) : Number(r.qty) / Number(r.hours));
+  const seriesFor = key => (history?.departments || [])
+    .filter(r => r.dept_key === key && Number(r.hours))
+    .map(r => Number(r.qty) / Number(r.hours));
   const metricSeries = field => (history?.metrics || [])
-    .map(r => readingOf(r, field)).filter(v => v !== null && v !== undefined).map(Number);
-  // How long the streak stood on each of the mornings behind this one. A counter that only
-  // goes up draws a staircase, and the step down is the day something happened.
-  const streakSeries = field => (history?.metrics || [])
-    .filter(r => r[field]).map(r => daysBetween(r[field], r.metric_date));
+    .map(r => r[field]).filter(v => v !== null && v !== undefined).map(Number);
 
   // ── Safety ──
   if (has(m('injury_last'))) {
     const days = daysBetween(m('injury_last'), date), record = Number(m('injury_record') || 0);
-    out.push({ key:'injury', section:'safety', area:'Safety', owner:'JR',
-      title:'Days since last injury',
+    out.push({ key:'injury', area:'Safety', owner:'JR', title:'Days since last injury',
       tone: band.streak(days), value: days, unit:'days',
       // Only an incident today belongs in the exception list. Every other day the
       // counter is context the room wants to see, not a problem it has to solve.
       quiet: days !== 0,
       target: record, targetLabel: record ? `record ${record}` : null,
-      percent: record ? days / record * 100 : 0, series: streakSeries('injury_last'),
-      say: 'an injury was recorded today',
+      percent: record ? days / record * 100 : 0,
       note: days === 0 ? 'Injury recorded today.'
           : record && days >= record ? `Record broken by ${days - record} days.` : null });
   }
   if (has(m('near_miss_last'))) {
     const days = daysBetween(m('near_miss_last'), date), record = Number(m('near_miss_record') || 0);
-    out.push({ key:'nearmiss', section:'safety', area:'Safety', owner:'JR',
-      title:'Days since near-miss',
+    out.push({ key:'nearmiss', area:'Safety', owner:'JR', title:'Days since near-miss',
       tone: band.streak(days), value: days, unit:'days', quiet: days !== 0,
       target: record, targetLabel: record ? `record ${record}` : null,
-      percent: record ? days / record * 100 : 0, series: streakSeries('near_miss_last'),
-      say: 'a near-miss was recorded today',
+      percent: record ? days / record * 100 : 0,
       note: days === 0 ? 'Near-miss recorded today.'
           : record && days >= record ? `Record broken by ${days - record} days.` : null });
   }
   if (has(m('shortages'))) {
     const count = Number(m('shortages'));
-    out.push({ key:'shortages', section:'safety', area:'Quality', owner:'QA', title:'Shortages',
+    out.push({ key:'shortages', area:'Quality', owner:'QA', title:'Shortages',
       tone: band.shortage(count), value: count, unit: count === 1 ? 'job short' : 'jobs short',
-      target: 0, targetLabel:'target 0', percent: count ? 100 : 0,
-      series: metricSeries('shortages'),
-      say: count === 1 ? 'one job is short' : `${count} jobs are short` });
+      target: 0, targetLabel:'target 0', percent: count ? 100 : 0 });
   }
   if (has(m('coq'))) {
     const value = Number(m('coq')), target = Number(m('coq_target') || 0.85);
-    out.push({ key:'coq', section:'safety', area:'Quality', owner:'QA', title:'Cost of quality',
+    out.push({ key:'coq', area:'Quality', owner:'QA', title:'Cost of quality',
       tone: band.coq(value, target), value: value.toFixed(2), unit:'%',
       target, targetLabel:`target ≤ ${target}%`, lowerIsBetter: true,
       percent: value / (target * 1.6) * 100, series: metricSeries('coq'),
-      say: `cost of quality is ${value.toFixed(2)}% against a target of ${target}%`,
       note: `Year to date ${has(m('coq_ytd')) ? Number(m('coq_ytd')).toFixed(2) + '%' : 'not entered'}.` });
   }
 
@@ -89,35 +72,27 @@ export function assess({ date, metrics, departments, review, maintenance, config
     const target = Number(row.target ?? c.target);
     const previous = Number(row.pw_hours) ? Number(row.pw_qty) / Number(row.pw_hours) : 0;
     const said = (review || []).find(r => r.dept_key === c.key);
-    out.push({ key:c.key, section:'production', area:c.name, owner:'ML', title:c.name,
-      tone: band.rate(rate, target) || '', value: num(Math.round(rate)), unit: rateLabel(c),
+    out.push({ key:c.key, area:c.name, owner:'ML', title:c.name,
+      tone: band.rate(rate, target) || '', value: num(Math.round(rate)), unit:`${c.unit}/hr`,
       target, targetLabel:`target ${num(target)}`, percent: target ? rate / (target * 1.25) * 100 : 0,
-      series: seriesFor(c.key), raw: rate, previous, department: true,
+      series: seriesFor(c.key), raw: rate, previous,
       shortfall: rate < target ? Math.round((target - rate) * Number(row.hours)) : 0,
-      unitWord: c.unit,
-      say: `${c.name} is running ${num(Math.round(Math.abs(target - rate)))} ${rateLabel(c)} under target`,
-      note: said?.note || null });
+      unitWord: c.unit, note: said?.note || null });
 
     // Uptime and make-ready ride with the department they belong to, so a press running
     // at rate but losing an hour a shift to setup still shows up.
     if (row.uptime != null && c.uptime_target) {
       const up = Number(row.uptime) * 100, target = Number(c.uptime_target) * 100;
-      out.push({ key:`${c.key}-uptime`, section:'production', area:c.name, owner:'ML',
-        title:`${c.name} uptime`,
+      out.push({ key:`${c.key}-uptime`, area:c.name, owner:'ML', title:`${c.name} uptime`,
         tone: band.rate(up, target), value: up.toFixed(1), unit:'%',
-        target, targetLabel:`target ${target.toFixed(0)}%`, floor: 50, ceiling: 100, percent: up,
-        series: seriesFor(c.key, 'uptime').map(v => v * 100),
-        say: `${c.name} ran ${up.toFixed(1)}% of its crewed hours against ${target.toFixed(0)}%` });
+        target, targetLabel:`target ${target.toFixed(0)}%`, floor: 50, percent: up });
     }
     if (row.make_ready != null && c.mr_target) {
       const mr = Number(row.make_ready), target = Number(c.mr_target);
-      out.push({ key:`${c.key}-mr`, section:'production', area:c.name, owner:'ML',
-        title:`${c.name} make-ready`,
+      out.push({ key:`${c.key}-mr`, area:c.name, owner:'ML', title:`${c.name} make-ready`,
         tone: band.lower(mr, target), value: mr.toFixed(2), unit:'hrs',
         target, targetLabel:`target ${target.toFixed(2)} hrs`, lowerIsBetter: true,
         percent: target ? mr / (target * 2) * 100 : 0,
-        series: seriesFor(c.key, 'make_ready'),
-        say: `${c.name} make-ready averaged ${mr.toFixed(2)} hours against ${target.toFixed(2)}`,
         note: row.mr_count ? `${row.mr_count} make-${row.mr_count === 1 ? 'ready' : 'readies'}.` : null });
     }
   }
@@ -126,45 +101,21 @@ export function assess({ date, metrics, departments, review, maintenance, config
   if (has(m('late'))) {
     const late = Number(m('late'));
     const said = (review || []).find(r => r.dept_key === 'shipping');
-    out.push({ key:'late', section:'shipping', area:'Shipping', owner:'CS',
-      title:'Late shipments',
+    out.push({ key:'late', area:'Shipping', owner:'CS', title:'Late shipments',
       tone: band.count(late), value: late, unit: late === 1 ? 'late shipment' : 'late shipments',
-      target: 0, targetLabel:'target 0', percent: late ? 100 : 0,
-      series: metricSeries('late'),
-      say: `${late} shipment${late === 1 ? '' : 's'} went late`,
-      note: said?.note || null });
-  }
-  if (has(m('shorts'))) {
-    const short = Number(m('shorts'));
-    out.push({ key:'shorts', section:'shipping', area:'Shipping', owner:'CS',
-      title:'Short shipments',
-      tone: band.count(short), value: short,
-      unit: short === 1 ? 'short shipment' : 'short shipments',
-      target: 0, targetLabel:'target 0', percent: short ? 100 : 0,
-      series: metricSeries('shorts'),
-      say: `${short} shipment${short === 1 ? '' : 's'} went short` });
-  }
-  if (has(m('otd'))) {
-    const value = Number(m('otd'));
-    out.push({ key:'otd', section:'shipping', area:'Shipping', owner:'CS', title:'OTD today',
-      tone: band.pct(value, 98), value: value.toFixed(2), unit:'%',
-      target: 98, targetLabel:'target ≥ 98%', floor: 90, ceiling: 100, percent: value,
-      series: metricSeries('otd'),
-      say: `on-time delivery is ${value.toFixed(2)}% against 98%` });
+      target: 0, targetLabel:'target 0', percent: late ? 100 : 0, note: said?.note || null });
   }
   if (has(m('otif'))) {
     const value = Number(m('otif'));
-    out.push({ key:'otif', section:'shipping', area:'Shipping', owner:'CS', title:'OTIF today',
+    out.push({ key:'otif', area:'Shipping', owner:'CS', title:'OTIF today',
       tone: band.pct(value, 98), value: value.toFixed(2), unit:'%',
-      target: 98, targetLabel:'target ≥ 98%', floor: 90, ceiling: 100, percent: value,
+      target: 98, targetLabel:'target ≥ 98%', floor: 90, percent: value,
       series: metricSeries('otif'),
-      say: `OTIF is ${value.toFixed(2)}% against 98%`,
       note: has(m('mtd_otif')) ? `Month to date ${Number(m('mtd_otif')).toFixed(2)}%.` : null });
   }
   if (has(m('jobs_shipped'))) {
-    out.push({ key:'jobs', section:'shipping', area:'Shipping', owner:'CS', title:'Jobs shipped',
+    out.push({ key:'jobs', area:'Shipping', owner:'CS', title:'Jobs shipped',
       tone:'ok', value: num(m('jobs_shipped')), unit:'jobs', quiet: true,
-      series: metricSeries('jobs_shipped'),
       targetLabel: has(m('jobs_on_time')) ? `${m('jobs_on_time')} on time` : null });
   }
 
@@ -172,14 +123,10 @@ export function assess({ date, metrics, departments, review, maintenance, config
   const overdue = (maintenance || []).filter(x => x.status === 'Overdue');
   if ((maintenance || []).length) {
     const open = maintenance.filter(x => x.status !== 'Complete').length;
-    out.push({ key:'maint', section:'maintenance', area:'Maintenance', owner:'MT',
-      title:'Maintenance',
+    out.push({ key:'maint', area:'Maintenance', owner:'MT', title:'Maintenance',
       tone: overdue.length ? 'stop' : 'ok',
       value: overdue.length || open, unit: overdue.length ? 'overdue' : 'open',
       targetLabel: `${open} open`, percent: overdue.length ? 100 : 0,
-      say: overdue.length
-        ? `${overdue.map(x => x.dept || x.item_type).join(', ')} ${overdue.length === 1 ? 'is' : 'are'} overdue`
-        : null,
       note: overdue.length
         ? `${overdue.map(x => x.dept || x.item_type).join(', ')} overdue.`
         : null });
@@ -196,36 +143,11 @@ export function assess({ date, metrics, departments, review, maintenance, config
     const plan = budget * (Math.max(1, report.getDate()) / inMonth);
     const actual = Number(m('fin_actual_mtd'));
     const variance = actual - plan, percent = plan ? variance / plan * 100 : 0;
-    out.push({ key:'fin', section:'financials', area:'Financial', owner:'FN',
-      title:'Sales month to date',
+    out.push({ key:'fin', area:'Financial', owner:'FN', title:'Sales month to date',
       tone: band.money(percent), value: money(actual), unit:'MTD',
-      target: plan, targetLabel:`plan ${money(plan)}`,
-      percent: plan ? actual / (plan * 1.3) * 100 : 0,
-      series: metricSeries('fin_actual_mtd'),
-      say: `sales are ${money(Math.abs(variance))} behind plan for ${MONTHS[month]}`,
+      targetLabel:`plan ${money(plan)}`, percent: plan ? actual / (plan * 1.3) * 100 : 0,
       delta: `${variance >= 0 ? '▲' : '▼'} ${money(Math.abs(variance))} (${Math.abs(percent).toFixed(1)}%)`,
       deltaTone: band.money(percent) });
-
-    // The year to date is a reading in its own right, and leaving it out was a real
-    // disagreement rather than an omission: the financials card is washed by the worse of
-    // the two, so a month running ahead of plan inside a year running behind it printed a
-    // red card over a section reporting everything on target. A section may summarise a
-    // reading or omit a card, but it may never summarise a card it cannot see.
-    if (has(m('fin_actual_ytd'))) {
-      const planYtd = Array.from({ length: month }, (_, i) =>
-        Number(budgets.find(b => b.month === i + 1)?.amount || 0)).reduce((a, b) => a + b, 0) + plan;
-      const actualYtd = Number(m('fin_actual_ytd'));
-      const varianceYtd = actualYtd - planYtd;
-      const percentYtd = planYtd ? varianceYtd / planYtd * 100 : 0;
-      out.push({ key:'fin-ytd', section:'financials', area:'Financial', owner:'FN',
-        title:'Sales year to date',
-        tone: band.money(percentYtd), value: money(actualYtd), unit:'YTD',
-        target: planYtd, targetLabel:`plan ${money(planYtd)}`,
-        percent: planYtd ? actualYtd / (planYtd * 1.3) * 100 : 0,
-        say: `the year is ${money(Math.abs(varianceYtd))} behind plan`,
-        delta: `${varianceYtd >= 0 ? '▲' : '▼'} ${money(Math.abs(varianceYtd))} (${Math.abs(percentYtd).toFixed(1)}%)`,
-        deltaTone: band.money(percentYtd) });
-    }
   }
 
   return out;
@@ -257,90 +179,3 @@ export function attention(list) {
   return [...byArea.values()].sort((a, b) => severity(b.tone) - severity(a.tone));
 }
 export const settled  = list => list.filter(r => r.quiet || !r.tone || r.tone === 'ok');
-
-// ── What a section amounts to, in one line ──────────────────────────────────────
-//
-// A section is five cards and a table, and reading it takes a moment the meeting does not
-// have. The line at the top of it says what the whole section comes to, so a person can
-// take the section without reading it and read it only if the line gives them a reason to.
-//
-// It states, it does not judge. Every word in it comes from a reading that assess() has
-// already decided about, and the tone it carries is the same tone the dot beside the
-// section in the rail carries — because the rail now asks this function for it rather than
-// working it out again. That was the last place two parts of MaxMetrics could have formed
-// separate opinions about the same morning.
-const capitalise = text => text ? text[0].toUpperCase() + text.slice(1) : '';
-const plural = (count, one, many) => `${count} ${count === 1 ? one : many}`;
-
-const EMPTY = {
-  safety:      'Nothing entered for safety or quality yet.',
-  production:  'No department has reported volume and hours yet.',
-  shipping:    'Nothing shipped has been entered yet.',
-  maintenance: 'Nothing scheduled for today.',
-  financials:  'No sales figure has been entered yet.',
-};
-
-// What "everything is fine" sounds like where the plant is standing. A count of readings
-// is the honest general answer; production and shipping have a better one because the room
-// is already counting departments and shipments.
-function allClear(section, readings) {
-  if (section === 'production') {
-    const departments = readings.filter(r => r.department).length;
-    if (departments) return `${plural(departments, 'department is', 'departments are')} at or above target.`;
-  }
-  if (section === 'safety') {
-    const streak = readings.find(r => r.key === 'injury');
-    if (streak) {
-      return `No injury today — ${plural(Number(streak.value), 'day', 'days')} clear, and everything else on target.`;
-    }
-  }
-  if (section === 'financials') return 'Sales are on or ahead of plan, month and year to date.';
-  return readings.length === 1
-    ? 'The one reading entered is on target.'
-    : `All ${readings.length} readings on target.`;
-}
-
-export function verdictFor(section, readings, extraTones = []) {
-  const mine = (readings || []).filter(r => r.section === section);
-  const tones = mine.filter(r => r.tone).map(r => r.tone).concat(extraTones.filter(Boolean));
-  const tone = tones.length ? band.worst(tones) : '';
-  // A section can be judged before it has a single reading of its own: a department gets
-  // flagged in the 24-hour review before anyone has typed its volume. The dot reports
-  // that; the line still says the readings are missing, because they are.
-  if (!mine.length) return { tone, line: EMPTY[section] || 'Nothing entered for this morning yet.' };
-
-  const off = mine.filter(r => !r.quiet && r.tone && r.tone !== 'ok')
-                  .sort((a, b) => severity(b.tone) - severity(a.tone));
-  const on = mine.length - off.length;
-  if (!off.length) return { tone, line: allClear(section, mine) };
-
-  // The worst thing leads, because it is the thing the room is about to talk about. The
-  // rest are counted rather than listed: a line that names four problems is a paragraph,
-  // and the cards underneath are already naming them.
-  const lead = off[0], rest = off.length - 1;
-  const said = lead.say || `${lead.title} is ${lead.value} against ${lead.targetLabel || 'target'}`;
-  const tail = rest && on ? ` ${plural(rest, 'other reading is', 'other readings are')} also off target, ${on} on target.`
-             : rest      ? ` ${plural(rest, 'other reading is', 'other readings are')} also off target.`
-             : on        ? ` ${plural(on, 'other reading is', 'other readings are')} on target.`
-             : '';
-  return { tone, line: `${capitalise(said)}.${tail}` };
-}
-
-// Every section's verdict in one pass, including the tones the readings themselves do not
-// carry: a department can be flagged in the 24-hour review without its rate being off, and
-// a section whose dot went green while somebody had written "Bobst down since 3am" under
-// it would be lying.
-export function verdicts(state, readings) {
-  const reviewTones = (state.review || []).map(r => r.status);
-  const maintTones = (state.maintenance || []).map(r => {
-    const tone = band.maint(r.status);
-    return tone === 'info' ? 'ok' : tone;
-  });
-  return {
-    safety:      verdictFor('safety', readings),
-    production:  verdictFor('production', readings, reviewTones),
-    shipping:    verdictFor('shipping', readings),
-    financials:  verdictFor('financials', readings),
-    maintenance: verdictFor('maintenance', readings, maintTones),
-  };
-}

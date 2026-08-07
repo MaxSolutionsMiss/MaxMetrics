@@ -18,11 +18,21 @@
      Barlow Condensed. The condensed face is not decoration — it is what lets a card title
      read as a title at twenty pixels without wrapping, and a rate hold six digits at
      fifty-six. The fallbacks are the ones the plant's file already named. */
-  --font:'Barlow',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,'Helvetica Neue',Arial,sans-serif;
-  --font-condensed:'Barlow Condensed','Oswald','Arial Narrow',var(--font);
+  /* Public Sans. Drawn for public-sector screens read by everyone, which is the same
+     problem as a plant screen read at eight feet by people who are not looking for long:
+     plain, even, unmistakable digits. One face — the condensed variable stays an alias so
+     the rules that ask for it keep working and the decision lives on one line. */
+  --font:'Public Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,'Helvetica Neue',Arial,sans-serif;
+  /* One typeface, which is what MaxDock does: its --font-data is deliberately an alias of
+     --font-ui rather than a second face. MaxMetrics was setting titles, labels and every
+     big number in a condensed width, so the family matched but the page did not — the
+     condensed face is narrower at every size and reads as a different product. Kept as a
+     variable rather than deleted so the 29 rules that ask for it keep working and the
+     decision lives in one line. */
+  --font-condensed:var(--font);
   --scale:1;
-  --t-micro:calc(11.5px*var(--scale)); --t-small:calc(13px*var(--scale)); --t-base:calc(14.5px*var(--scale));
-  --t-lead:calc(17px*var(--scale)); --t-title:calc(21px*var(--scale)); --t-metric:calc(27px*var(--scale));
+  --t-micro:calc(12.5px*var(--scale)); --t-small:calc(14px*var(--scale)); --t-base:calc(15px*var(--scale));
+  --t-lead:calc(18px*var(--scale)); --t-title:calc(22px*var(--scale)); --t-metric:calc(28px*var(--scale));
   --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px;
   --radius:6px; --radius-lg:14px; --rail-w:220px; --topbar-h:56px; --ctl-h:36px;
   --shadow:0 1px 8px rgba(15,23,42,.07);
@@ -157,28 +167,9 @@ html[data-rail="mini"]{--rail-w:62px}
 .sec__title{font-family:var(--font-condensed);font-size:calc(14px*var(--scale));font-weight:600;
   text-transform:uppercase;letter-spacing:.16em;color:var(--ink-muted);margin:0;white-space:nowrap}
 .sec__rule{flex:1;height:1.5px;background:var(--rule)}
-/* ── The verdict ──
-   One line under the heading saying what the whole section comes to, so the meeting can
-   take a section without reading it. It carries the section's own colour as a bar down its
-   left edge rather than as a wash: a coloured block the width of the page would outweigh
-   the cards it is summarising, and the cards are where the numbers are. */
-.verdict{margin:0;padding:var(--s2) var(--s4);border-radius:var(--radius);
-  background:var(--surface);border:1px solid var(--rule);border-left:4px solid var(--ink-faint);
-  font-size:var(--t-base);line-height:1.5;color:var(--ink);box-shadow:var(--shadow)}
-.verdict--ok{border-left-color:var(--ok)}
-.verdict--warn{border-left-color:var(--warn);background:var(--warn-wash);border-color:var(--warn-rule)}
-.verdict--stop{border-left-color:var(--stop);background:var(--stop-wash);border-color:var(--stop-rule)}
-.verdict--none{color:var(--ink-muted);font-style:italic}
-.content--solo .verdict{font-size:var(--t-lead);padding:var(--s3) var(--s5)}
-body.tv .verdict{font-size:var(--t-lead)}
 
 .grid{display:grid;gap:var(--s3);min-width:0}
 .g5{grid-template-columns:repeat(5,minmax(0,1fr))}
-/* Departments used to be counted into a fixed track list, which worked while there were
-   three and could not survive a plant adding its own. A card needs room for a rate, the
-   bar under it and a week of history; below about 250px the bar's label starts wrapping,
-   so that is the floor and the row wraps rather than squeezing past it. */
-.grid--depts{grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
 .g4{grid-template-columns:repeat(4,minmax(0,1fr))}
 .g3{grid-template-columns:repeat(3,minmax(0,1fr))}
 .g2{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -265,45 +256,37 @@ body.tv .verdict{font-size:var(--t-lead)}
 .card--ok .viz-v{fill:var(--ok)}.card--warn .viz-v{fill:var(--warn)}.card--stop .viz-v{fill:var(--stop)}
 .viz-s{fill:var(--ink-muted);font-weight:600;text-anchor:middle;font-family:var(--font)}
 
-/* ── The two questions under every number ──
-   "Against what" and "which way is it going". Before this the sections printed a figure
-   and a caption and left two thirds of the page empty; the bar and the line are the
-   answers the room asks for next, and the height they take is height the page had spare.
-   The label row is small and quiet on purpose — the drawing under it is the content, and
-   a heavy caption on each of five cards reads as five headings. */
-.ctrack{width:100%;align-self:stretch;margin-top:var(--s3);padding-top:var(--s3);
-  border-top:1px solid var(--rule);display:flex;flex-direction:column;gap:1px}
-.card--ok .ctrack{border-top-color:var(--ok-rule)}
-.card--warn .ctrack{border-top-color:var(--warn-rule)}
-.card--stop .ctrack{border-top-color:var(--stop-rule)}
-.ctrack__row{display:flex;align-items:baseline;justify-content:space-between;gap:var(--s2);
-  min-height:14px}
-.ctrack__row:not(:first-child){margin-top:var(--s2)}
-.ctrack__l{font-family:var(--font-condensed);font-size:calc(11px*var(--scale));
-  text-transform:uppercase;letter-spacing:.08em;font-weight:700;color:var(--ink-faint);
-  text-align:left;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ctrack__d{font-family:var(--font-condensed);font-size:calc(13px*var(--scale));font-weight:700;
-  letter-spacing:0;white-space:nowrap;flex:none}
-.ctrack .bullet{height:16px;margin:0}
-.ctrack .spark{height:26px}
-/* In the strip a cell is centred and narrow, so the block that hangs under it has to say
-   so or it collapses to nothing between the two centred lines above it. */
-.cell .ctrack{margin-top:var(--s3);text-align:left}
-.cell .ctrack .spark{height:22px}
-
-.foot{margin-top:auto;width:100%;align-self:stretch;padding-top:var(--s2);
-  border-top:1px solid var(--rule);display:flex;
-  gap:var(--s4);flex-wrap:wrap}
+/* Two to a line, facing each other, all one size.
+   The foot used to be a flex row that wrapped: five readings of two different sizes fell
+   into three uneven rows, nothing lined up with anything below it, and neighbours ran
+   together. A fixed pair per line fixes both — the eye gets a left column and a right
+   column instead of a paragraph of numbers, and every value carries the same weight
+   because none of them is less true than the others. */
+.foot{margin-top:auto;width:100%;align-self:stretch;padding-top:var(--s3);
+  border-top:1px solid var(--rule);display:grid;grid-template-columns:1fr 1fr;
+  gap:var(--s3) var(--s4);text-align:left}
 .card--ok .foot{border-top-color:var(--ok-rule)}.card--warn .foot{border-top-color:var(--warn-rule)}
 .card--stop .foot{border-top-color:var(--stop-rule)}
-.fstat{display:flex;flex-direction:column;gap:0;min-width:0}
-.fstat__l{font-family:var(--font-condensed);font-size:calc(11px*var(--scale));text-transform:uppercase;
-  letter-spacing:.08em;font-weight:700;color:var(--ink-faint)}
-.fstat__v{font-family:var(--font-condensed);font-size:min(calc(var(--t-metric)*.95),10cqi);
-  font-weight:600;line-height:1.15;
-  letter-spacing:-.02em;color:var(--ink);white-space:nowrap}
+.fstat{display:flex;flex-direction:column;gap:1px;min-width:0}
+/* The right of each pair turns to face the left of it across the card. */
+.foot .fstat:nth-child(even){text-align:right;align-items:flex-end}
+/* Labels reserve the same height whether or not they wrap, so the two values in a pair
+   always start at the same line. Without it "Last near-miss" wraps, "Record" does not, and
+   the two numbers underneath sit at different heights on the same row. */
+/* Tracking is what made these clip: .07em across "VS TARGET" is most of a character's
+   width, and the ellipsis then ate the word it was meant to protect. Tighter tracking and
+   a hair smaller fits every label the dashboard uses, custom departments included. */
+.fstat__l{font-family:var(--font-condensed);font-size:calc(11.5px*var(--scale));text-transform:uppercase;
+  letter-spacing:.04em;font-weight:700;color:var(--ink-faint);line-height:1.25;
+  min-height:1.25em;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* No nowrap. A card narrow enough that "Nov 20, 2025" does not fit beside "136 days"
+   should break the date over two lines, not run it through its neighbour. Sized against
+   the card's own width so the same rule holds on a laptop and on the TV. */
+.fstat__v{font-family:var(--font-condensed);font-size:min(calc(var(--t-metric)*.8),8.6cqi);
+  font-weight:600;line-height:1.15;letter-spacing:-.01em;color:var(--ink);
+  overflow-wrap:anywhere}
 .fstat__v em{font-style:normal;font-size:.55em;font-weight:600;opacity:.75}
-.fstat__v--sm{font-size:var(--t-base);font-weight:600;color:var(--ink-muted);letter-spacing:0}
+.fstat__v--sm{font-weight:600}
 .card--ok .fstat__v{color:var(--ok)}.card--warn .fstat__v{color:var(--warn)}.card--stop .fstat__v{color:var(--stop)}
 .card--ok .fstat__v--sm,.card--warn .fstat__v--sm,.card--stop .fstat__v--sm{opacity:.85}
 .flag{align-self:center;font-size:var(--t-micro);font-weight:700;text-transform:uppercase;
@@ -311,8 +294,7 @@ body.tv .verdict{font-size:var(--t-lead)}
 .flag--ok{background:var(--ok);color:#fff}.flag--warn{background:var(--warn);color:#fff}
 .flag--stop{background:var(--stop);color:#fff}
 .trend{font-size:var(--t-small);font-weight:700;white-space:nowrap}
-/* Good and bad, not up and down. A cost of quality that rose points ▲ and is red. */
-.trend--good{color:var(--ok)}.trend--bad{color:var(--stop)}.trend--flat{color:var(--ink-faint)}
+.trend--up{color:var(--ok)}.trend--dn{color:var(--stop)}.trend--flat{color:var(--ink-faint)}
 
 /* ── TABLE ── */
 .tbl{width:100%;border-collapse:collapse;font-size:var(--t-small)}
@@ -333,18 +315,23 @@ body.tv .verdict{font-size:var(--t-lead)}
 .pill--info{background:var(--brand-wash);color:var(--brand-deep);border:1px solid var(--rule)}
 
 /* ── STRIP ── */
-.strip{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));background:var(--surface);
-  border:1px solid var(--rule);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow)}
-@media(max-width:1400px){.strip{grid-template-columns:repeat(4,minmax(0,1fr))}}
-@media(max-width:780px){.strip{grid-template-columns:repeat(2,minmax(0,1fr))}}
-.cell{padding:var(--s4) var(--s3);border-right:1px solid var(--rule);border-bottom:1px solid var(--rule);
+/* Four across, two down — not eight across, one down. The single row left five sixths of
+   the page empty and squeezed every reading into a column too narrow for its own label,
+   which is why "jobs shipped today" had to be shortened to "today". Two rows give each
+   reading room to say what it is and fill the frame it is drawn in. */
+.strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));background:var(--surface);
+  border:1px solid var(--rule);border-radius:var(--radius-lg);overflow:hidden;
+  box-shadow:var(--shadow)}
+@media(max-width:1100px){.strip{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:620px){.strip{grid-template-columns:1fr}}
+.cell{padding:var(--s5) var(--s4);border-right:1px solid var(--rule);border-bottom:1px solid var(--rule);
   display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:3px;
   border-top:3px solid transparent;container-type:inline-size;min-width:0}
 .cell--ok{background:var(--ok-wash);border-top-color:var(--ok)}
 .cell--warn{background:var(--warn-wash);border-top-color:var(--warn)}
 .cell--stop{background:var(--stop-wash);border-top-color:var(--stop)}
 .cell--info{background:var(--brand-wash);border-top-color:var(--brand)}
-.cell__l{font-family:var(--font-condensed);font-size:calc(13px*var(--scale));text-transform:uppercase;
+.cell__l{font-family:var(--font-condensed);font-size:calc(14px*var(--scale));text-transform:uppercase;
   letter-spacing:.07em;font-weight:700;color:var(--ink-muted);display:flex;align-items:center;
   justify-content:center;gap:5px}
 .cell__ico{font-family:var(--font);font-size:1.25em;line-height:1}
@@ -382,7 +369,27 @@ body.tv .verdict{font-size:var(--t-lead)}
 
 .fin{display:grid;grid-template-columns:1fr 1fr;gap:var(--s5)}
 @media(max-width:880px){.fin{grid-template-columns:1fr}}
-.fin__pane{min-width:0;container-type:inline-size;text-align:center}
+/* A pane is a card in its own right: its own wash, its own rule, its own verdict.
+   Two panes side by side, one green and one red, is the honest picture of a year that is
+   ahead and a month that is five days old. */
+.fin__pane{min-width:0;container-type:inline-size;text-align:center;
+  padding:var(--s4);border-radius:var(--radius-lg);border:1px solid var(--rule);
+  background:var(--surface)}
+.fin__pane--ok{background:var(--ok-wash);border-color:var(--ok-rule)}
+.fin__pane--warn{background:var(--warn-wash);border-color:var(--warn-rule)}
+.fin__pane--stop{background:var(--stop-wash);border-color:var(--stop-rule)}
+.fin__pane--ok .fin__v,.fin__pane--ok .fin__pace{color:var(--ok)}
+.fin__pane--warn .fin__v,.fin__pane--warn .fin__pace{color:var(--warn)}
+.fin__pane--stop .fin__v,.fin__pane--stop .fin__pace{color:var(--stop)}
+.fin__pane--ok .fin__t{color:var(--ok)}.fin__pane--warn .fin__t{color:var(--warn)}
+.fin__pane--stop .fin__t{color:var(--stop)}
+/* Per cent of plan, said plainly. The plant reads this number as "am I at a hundred or
+   not", so it leads the pane and the money sits under it as the amount behind the claim. */
+.fin__pace{font-family:var(--font-condensed);font-size:min(calc(var(--t-metric)*2.1),22cqi);
+  font-weight:500;line-height:1;letter-spacing:-.01em;color:var(--ink)}
+.fin__pace i{font-family:var(--font);font-style:normal;font-size:.22em;font-weight:400;
+  opacity:.75;letter-spacing:0}
+.fin__v{font-size:min(calc(var(--t-metric)*1.1),12cqi);margin-bottom:var(--s3)}
 .fin__v--under{margin-top:var(--s2)}
 .fin__t{font-family:var(--font-condensed);font-size:calc(14px*var(--scale));text-transform:uppercase;
   letter-spacing:.08em;font-weight:700;color:var(--ink-muted);margin-bottom:var(--s2)}
@@ -664,7 +671,7 @@ body[data-view="line"] .chartpick,body[data-view="board"] .chartpick{display:non
   overflow:hidden;background:var(--sunk);
   margin:var(--s1) 0;color:var(--ink-faint)}
 .bullet--ok{color:var(--ok)}.bullet--warn{color:var(--warn)}.bullet--stop{color:var(--stop)}
-.bullet__band{position:absolute;top:0;bottom:0}
+.bullet__band{position:absolute;inset:0 auto 0 0;height:100%;width:100%}
 .bullet__band--bad{background:var(--stop-wash)}
 .bullet__band--mid{background:var(--warn-wash)}
 .bullet__band--good{background:var(--ok-wash)}
@@ -757,80 +764,74 @@ body.tv .content.wall{display:flex;flex-direction:column;gap:var(--s4);
 .finmonth span{display:block;height:100%;background:var(--brand);opacity:.55}
 .note-derived{grid-column:1/-1;margin:var(--s2) 0 0;font-size:var(--t-small);color:var(--ink-faint)}
 
-/* ══ CONFIGURE DEPARTMENTS ══
-   The one screen where the plant describes itself rather than reads itself. Every
-   department is a pair: the fields on the left, and on the right the card those fields
-   will produce tomorrow morning, drawn by the same function the dashboard draws it with.
-   Typing "panes" and watching "panes/hr" appear under a rate is the entire explanation of
-   what the labels are for, and it costs no prose. */
-.cfgs{display:grid;gap:var(--s3)}
-.cfg{background:var(--surface);border:1px solid var(--rule);border-radius:var(--radius-lg);
-  box-shadow:var(--shadow);overflow:hidden}
-.cfg--new{border:none;box-shadow:none;background:none}
-.cfg__head{display:flex;align-items:center;gap:var(--s2);padding:var(--s2) var(--s4);
-  border-bottom:1px solid var(--rule);background:var(--sunk);min-height:44px}
-.cfg__head .card__ico{font-size:22px}
-.cfg__name{margin:0;font-family:var(--font-condensed);font-size:calc(20px*var(--scale));
+/* ── Import ──
+   A sheet rather than a page. Importing is something you do *to* the morning you are
+   looking at, so the morning stays behind it and the numbers you are about to replace are
+   still on screen when you decide. */
+.sheet{border:none;border-radius:var(--radius-lg);padding:0;width:min(1100px,94vw);
+  max-height:88vh;background:var(--surface);color:var(--ink);box-shadow:0 24px 70px rgba(0,0,0,.3)}
+.sheet::backdrop{background:rgba(15,23,42,.55)}
+.sheet__head{display:flex;align-items:center;gap:var(--s3);padding:var(--s4) var(--s5);
+  border-bottom:1px solid var(--rule);position:sticky;top:0;background:var(--surface);z-index:2}
+.sheet__title{flex:1;margin:0;font-family:var(--font-condensed);font-size:calc(24px*var(--scale));
   font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-muted)}
-.cfg__key{margin-left:auto;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
-  font-size:var(--t-micro);color:var(--ink-faint);background:var(--ground);
-  border:1px solid var(--rule);border-radius:4px;padding:2px 7px;white-space:nowrap}
-/* The fields take the width they need to hold a label and a value on one line; the
-   preview takes a card's worth and no more, because a preview twice the size of the card
-   it previews is a lie about what the room will see. */
-.cfg__body{display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,320px);
-  gap:var(--s5);padding:var(--s4)}
-@media(max-width:900px){.cfg__body{grid-template-columns:1fr}}
-/* Label above value, two to a row. The dashboard's edit rows put the label beside the
-   field because they are squeezed into a card; here there is a whole page, and eight
-   stacked full-width rows made configuring one department a scroll of its own. */
-.cfg__fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
-  gap:var(--s2) var(--s3);align-content:start;min-width:0}
-.cfg__fields .er{flex-direction:column;align-items:stretch;gap:3px;min-width:0}
-.cfg__fields .er label{min-width:0}
-.er__hint{font-size:var(--t-micro);color:var(--ink-faint);line-height:1.4}
-/* The things that are about the whole department rather than one field run the full
-   width of the form, whatever it wrapped to. */
-.cfg__fields .icons,.cfg__fields .cfg__togs,.cfg__fields .cfg__add,
-.cfg__fields .btn--quiet{grid-column:1/-1}
-.cfg__fields .btn--quiet{justify-self:start}
-.cfg__preview{display:flex;flex-direction:column;gap:var(--s2);min-width:0}
-.cfg__none{margin:0;color:var(--ink-faint);font-size:var(--t-small);line-height:1.55;font-style:italic}
-.cfg__togs{display:flex;flex-wrap:wrap;gap:var(--s2) var(--s4);padding:var(--s2) 0;
-  border-top:1px dashed var(--rule-strong);margin-top:var(--s1)}
-.tog{display:flex;align-items:center;gap:7px;font-size:var(--t-small);color:var(--ink);cursor:pointer}
-.tog input{width:16px;height:16px;accent-color:var(--brand);cursor:pointer}
-.cfg__add{display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap;margin-top:var(--s2)}
-.cfg__note{font-size:var(--t-small);color:var(--ink-faint)}
-.cfg__note code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.92em;color:var(--ink-muted)}
-.btn--quiet{align-self:flex-start;border-color:var(--rule);color:var(--ink-muted);font-weight:600}
-.btn--quiet:hover{border-color:var(--stop-rule);color:var(--stop);background:var(--stop-wash)}
-.btn:disabled{opacity:.45;cursor:not-allowed}
-.btn:disabled:hover{background:var(--surface)}
+.sheet__body{padding:var(--s4) var(--s5) var(--s5);overflow:auto;max-height:calc(88vh - 70px)}
+.sheet__sub{font-family:var(--font-condensed);font-size:calc(17px*var(--scale));font-weight:700;
+  text-transform:uppercase;letter-spacing:.06em;color:var(--ink-muted);margin:var(--s5) 0 var(--s2)}
+.sheet__foot{display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap;
+  margin-top:var(--s5);padding-top:var(--s4);border-top:1px solid var(--rule)}
+.sheet__foot .btn--go{margin-left:auto}
 
-/* The pictogram is chosen, not derived — it is the first thing the eye finds on a card,
-   and a department the plant named itself deserves better than a fallback. */
-.icons{display:flex;flex-wrap:wrap;gap:3px;padding:var(--s1) 0}
-.icons__b{width:34px;height:34px;font-size:19px;line-height:1;display:grid;place-items:center;
-  border:1px solid transparent;border-radius:var(--radius);background:var(--sunk);cursor:pointer;
-  padding:0;font-family:var(--font)}
-.icons__b:hover{border-color:var(--rule-strong)}
-.icons__b[aria-pressed="true"]{background:var(--brand-wash);border-color:var(--brand)}
+.drop{border:2px dashed var(--rule-strong);border-radius:var(--radius-lg);padding:var(--s6);
+  text-align:center;background:var(--sunk);transition:border-color .15s,background .15s}
+.drop--over{border-color:var(--brand);background:var(--brand-wash)}
+.drop__lead{margin:0 0 var(--s2);font-size:var(--t-lead);font-weight:600}
+.drop__note{margin:0 0 var(--s3);font-size:var(--t-small);color:var(--ink-muted);line-height:1.5}
+.drop__bad{margin-top:var(--s3);padding:var(--s3);border-radius:var(--radius);
+  background:var(--stop-wash);border:1px solid var(--stop-rule);color:var(--stop);font-weight:600}
+.drop__wait{padding:var(--s6);text-align:center;color:var(--ink-muted);font-size:var(--t-lead)}
+.drop__names{display:flex;flex-wrap:wrap;gap:var(--s2);margin:0}
+.drop__notes{margin:0;padding-left:var(--s4);font-size:var(--t-small);color:var(--ink-muted);line-height:1.6}
+.drop .btn{cursor:pointer}
 
-.presets{display:flex;flex-wrap:wrap;gap:var(--s2);padding:var(--s2) 0 var(--s3);
-  border-bottom:1px dashed var(--rule-strong);margin-bottom:var(--s3)}
-.preset{display:flex;align-items:center;gap:7px;padding:7px 13px;border-radius:99px;
-  border:1px solid var(--rule-strong);background:var(--surface);cursor:pointer;
-  font-family:inherit;font-size:var(--t-small);font-weight:600;color:var(--ink)}
-.preset:hover{border-color:var(--brand);background:var(--brand-wash);color:var(--brand-deep)}
-.preset__i{font-size:17px;line-height:1}
+.tbl .soft{opacity:.5}
 
-.retired{display:flex;flex-direction:column;gap:var(--s1)}
-.retired__r{display:flex;align-items:center;gap:var(--s3);padding:var(--s2) 0;
-  border-bottom:1px solid var(--rule)}
-.retired__r:last-child{border-bottom:none}
-.retired__r .card__ico{font-size:19px}
-.retired__r b{font-family:var(--font-condensed);font-size:calc(18px*var(--scale));font-weight:700;
-  text-transform:uppercase;letter-spacing:.04em;color:var(--ink-muted)}
-.retired__r .btn{margin-left:auto}
-.retired__r .cfg__key{margin-left:0}
+/* ── Print / Save as PDF ──
+   The controls are not part of the morning, so none of them print. Sections run down the
+   page and are kept off page breaks, because a card split across two sheets is a card
+   nobody reads. Washes are forced through: a red card printed white says nothing. */
+@media print{
+  @page{margin:12mm;size:landscape}
+  /* Specific enough to win on its own, which is why no override keyword appears here. */
+  body .rail,body .top,body .tvbar,body .conn,body .toast,body .sheet,body .no-tv{display:none}
+  body .shell{grid-template-columns:1fr;min-height:0}
+  body{background:#fff}
+  .content{padding:0;gap:14mm}
+  .sec{break-inside:avoid}
+  .card,.strip,.panel{break-inside:avoid;box-shadow:none}
+  .card,.cell,.fin__pane{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .grid{gap:6mm}
+}
+
+/* A section is as tall as what it holds. Only the wall stretches cards to fill a screen,
+   because a 48" showing one section has height to spend and a laptop does not. */
+.content{align-content:start}
+.sec{flex:0 0 auto}
+
+/* ── The utility bar ──
+   Import, export, print, theme, chart style and sign-out live at the foot of the page.
+   They are done once a month, not once a morning; across the top they made a settings
+   screen out of a dashboard. Quiet by default, full strength when you go looking. */
+.util{display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap;
+  margin:var(--s5) var(--s5) var(--s5);padding-top:var(--s4);
+  border-top:1px solid var(--rule);opacity:.62;transition:opacity .15s}
+.util:hover,.util:focus-within{opacity:1}
+.util__l{font-size:var(--t-micro);font-weight:700;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--ink-faint)}
+.util__spacer{flex:1}
+.btn--sm{padding:5px 11px;font-size:var(--t-small)}
+body.tv .util{display:none}
+
+/* A section is exactly as tall as it needs. Stretching one to the foot of the screen only
+   moves the empty space inside the cards, which reads worse than empty space below them. */
+.content--solo{min-height:0}
