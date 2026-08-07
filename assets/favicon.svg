@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="MaxMetrics">
+  <!-- The rail mark, squared off for a tab. Two strokes, the second lighter, the same
+       double chevron the sign-in card and the sidebar already carry. -->
+  <rect width="64" height="64" rx="14" fill="#5B46D9"/>
+  <g fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="miter">
+    <path d="M11 48 L24 15 L37 48"/>
+    <path d="M27 48 L40 15 L53 48" opacity=".62"/>
+  </g>
+</svg>
