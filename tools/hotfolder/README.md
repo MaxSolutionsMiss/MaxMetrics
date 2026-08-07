@@ -60,8 +60,12 @@ source will report as unreachable.
 |---|---|
 | `… is not reachable from this account` | the drive is not mapped, or the task is running as the wrong user |
 | `… is locked and could not be copied` | somebody has the workbook open *and* the copy failed — rare; usually the copy gets through |
-| `… → 0 morning(s)` | the file was read but held nothing recognisable — the tab names probably changed |
+| `… — nothing recognisable, sheets are …` | the file was read but held nothing this understands. Almost always a renamed tab |
+| `… — Not authorised.` | `MAXMETRICS_INGEST_KEY` is wrong, or is set for a different account than the task runs as |
 | `operators not on file: …` | a name in the timesheet is not in the operator list, so those hours were not counted |
 
-A file is only marked done once the endpoint accepts it, so a bad morning retries by
-itself the next day. To resend everything regardless, run with `-All`.
+A file that yielded no morning is a red line and an error, not a quiet success — that is
+the point. A number that silently stops updating is the failure this whole thing exists to
+prevent, so the endpoint refuses the file, the watcher does not mark it done, and it
+complains again tomorrow until somebody fixes it. Only an accepted file is recorded, so a
+bad morning retries by itself. To resend everything regardless, run with `-All`.

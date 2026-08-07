@@ -64,7 +64,7 @@ if ((Test-Path $StateFile) -and -not $All) {
 # morning. Copying to a temporary file gets past it; if the copy also fails the file is
 # genuinely unreadable and the source is skipped rather than the run abandoned.
 function Copy-Readable([string] $path) {
-  $temp = Join-Path $env:TEMP ('mm-' + [Guid]::NewGuid().ToString('N') + [IO.Path]::GetExtension($path))
+  $temp = Join-Path ([IO.Path]::GetTempPath()) ('mm-' + [Guid]::NewGuid().ToString('N') + [IO.Path]::GetExtension($path))
   try { Copy-Item -LiteralPath $path -Destination $temp -Force; return $temp }
   catch { return $null }
 }
@@ -157,7 +157,29 @@ foreach ($source in $settings.sources) {
       $sent++
     }
     catch {
-      Write-Line "$($source.name): $($file.Name) — $($_.Exception.Message)" 'Red'
+      # The endpoint says *why* in the body — "no ZIP directory", "sheets are …", a tab
+      # that got renamed. PowerShell throws away everything but the status line unless you
+      # go and read the stream, and the status line alone is no use at 7am.
+      # Windows PowerShell 5.1 leaves the body on the response stream; PowerShell 7 has
+      # already read it into ErrorDetails. Both are tried, because which one is installed
+      # depends on the PC.
+      $detail = $_.Exception.Message
+      $raw = $_.ErrorDetails.Message
+      if (-not $raw) {
+        try {
+          $stream = $_.Exception.Response.GetResponseStream()
+          $stream.Position = 0
+          $raw = (New-Object IO.StreamReader($stream)).ReadToEnd()
+        } catch { }
+      }
+      if ($raw) {
+        try {
+          $body = $raw | ConvertFrom-Json
+          if ($body.notes)     { $detail = $body.notes -join '; ' }
+          elseif ($body.error) { $detail = $body.error }
+        } catch { }
+      }
+      Write-Line "$($source.name): $($file.Name) — $detail" 'Red'
       $problems++
     }
     finally {
