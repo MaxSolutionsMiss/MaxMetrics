@@ -199,6 +199,12 @@ body.tv .verdict{font-size:var(--t-lead)}
    bar under it and a week of history; below about 250px the bar's label starts wrapping,
    so that is the floor and the row wraps rather than squeezing past it. */
 .grid--depts{grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
+/* A card is a card whatever section it is in. Safety has two readings, and left to a
+   two-column grid it drew them a full half-page wide each — which made the title the
+   biggest thing on the card and the number look incidental, the opposite of every other
+   section. The cards keep the width they have everywhere else and the row centres. */
+.grid--pair{grid-template-columns:repeat(2,minmax(0,340px));justify-content:center}
+@media(max-width:760px){.grid--pair{grid-template-columns:minmax(0,340px)}}
 .g4{grid-template-columns:repeat(4,minmax(0,1fr))}
 .g3{grid-template-columns:repeat(3,minmax(0,1fr))}
 .g2{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -233,7 +239,7 @@ body.tv .verdict{font-size:var(--t-lead)}
 /* One line, always — and the size the plant's own dashboard gives it. It was dropped to a
    caption while the number grew, which left a row of cards you had to hunt to identify.
    The title is how you find the card; it is allowed to be the second loudest thing on it. */
-.card__label{font-family:var(--font-condensed);font-size:min(calc(22px*var(--scale)),8cqi);
+.card__label{font-family:var(--font-condensed);font-size:min(calc(19px*var(--scale)),5.2cqi);
   font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-muted);
   line-height:1.15;text-align:center;min-width:0;white-space:nowrap;overflow:hidden;
   text-overflow:ellipsis}
@@ -254,15 +260,16 @@ body.tv .verdict{font-size:var(--t-lead)}
 /* Numbers are the reason the page exists, so they get the condensed face and the room to
    be large. Weight 500 rather than 700: at fifty pixels a condensed bold closes its own
    counters and a 6 starts to read as an 8. */
-.hero{font-family:var(--font-condensed);font-size:min(calc(var(--t-metric)*2.3),28cqi);
+.hero{font-family:var(--font-condensed);font-size:min(calc(var(--t-metric)*3),30cqi);
   font-weight:500;line-height:.95;letter-spacing:-.01em;color:var(--ink);
   display:flex;align-items:baseline;justify-content:center;gap:5px;white-space:nowrap}
 .hero i{font-family:var(--font);font-style:normal;font-size:.3em;font-weight:400;
   color:var(--ink-muted);letter-spacing:0}
 .card--ok .hero{color:var(--ok)}.card--warn .hero{color:var(--warn)}.card--stop .hero{color:var(--stop)}
 .card--ok .hero i,.card--warn .hero i,.card--stop .hero i{color:inherit;opacity:.75}
-.hero--md{font-size:min(calc(var(--t-metric)*1.7),21cqi)}
-.unit{font-size:var(--t-small);color:var(--ink-muted);margin-top:3px;text-align:center}
+.hero--md{font-size:min(calc(var(--t-metric)*2.4),24cqi)}
+.unit{font-size:var(--t-small);color:var(--ink-muted);margin-top:1px;text-align:center;
+  line-height:1.25}
 /* The caption under the number stays muted — one coloured thing per card. */
 
 /* ── VIZ: bar / donut / gauge. One judgement, four ways of drawing it. ── */
@@ -325,11 +332,12 @@ body.tv .verdict{font-size:var(--t-lead)}
 /* The right of each pair turns to face the left of it across the card. */
 .foot .fs:nth-child(even){text-align:right;align-items:flex-end}
 .fs{display:flex;flex-direction:column;gap:0;min-width:0}
-.fs__l{font-family:var(--font-condensed);font-size:calc(11px*var(--scale));
-  text-transform:uppercase;letter-spacing:.08em;font-weight:700;color:var(--ink-faint);
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.fs__v{font-family:var(--font-condensed);font-size:calc(17px*var(--scale));font-weight:600;
-  line-height:1.2;letter-spacing:-.01em;color:var(--ink)}
+.fs__l{font-family:var(--font-condensed);font-size:min(calc(11px*var(--scale)),3.4cqi);
+  text-transform:uppercase;letter-spacing:.06em;font-weight:700;color:var(--ink-faint);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.fs__v{font-family:var(--font-condensed);font-size:min(calc(17px*var(--scale)),5.6cqi);
+  font-weight:600;line-height:1.2;letter-spacing:-.01em;color:var(--ink);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 /* A single fact centres rather than hugging the left edge with a hole beside it. */
 .foot .fs:only-child{grid-column:1/-1;align-items:center;text-align:center}
 /* The rule is a rule, not a verdict. */
@@ -493,12 +501,30 @@ body.tv .rail,body.tv .top,body.tv .no-tv{display:none}
 body.tv .shell{grid-template-columns:1fr;height:100vh}
 body.tv .main{height:100vh;overflow:hidden}
 body.tv .content{flex:1;min-height:0;overflow:hidden;padding:var(--s4) var(--s5) var(--s5);gap:var(--s4)}
+/* The row takes the height it needs and centres in what is left, rather than being
+   stretched to the screen and having its cards overflow their own borders. Stretching was
+   the bug behind the trend lines drawing below the card edge: the grid row was as tall as
+   the section, the card was as tall as the row, and the content inside it was taller
+   than both. */
 body.tv .sec{flex:1;min-height:0;display:flex;flex-direction:column}
 /* Only cards reach the wall. */
 body.tv .panel,body.tv .ez,body.tv .edit-only,body.tv .revcard,body.tv .sec__head,
 body.tv .tbl,body.tv .today,body.tv .settled{display:none}
-body.tv .grid{flex:1;min-height:0;align-content:center;gap:var(--s4)}
+body.tv .grid{flex:0 1 auto;min-height:0;align-content:center;gap:var(--s4);margin:auto 0}
 body.tv .card{padding:var(--s5);min-height:0}
+/* Belt and braces: if a card ever does run out of room, it clips at its own border rather
+   than printing over the card beside it. */
+body.tv .card{overflow:hidden}
+/* The financials card carries three progress bars and a seven-day line under its two
+   panes. On a laptop that is the detail somebody leans in for; on a wall it is the part
+   that ran out of card. The two figures against plan are the whole story at that size. */
+body.tv .finbars{display:none}
+/* A wall has vertical room a laptop does not, so cards there take a share of it rather
+   than sitting as small boxes in the middle of a 48". This is a floor, not a stretch: the
+   content still sizes itself and the card still clips at its own border. */
+body.tv .card{min-height:42vh}
+/* Two readings on a screen this wide would otherwise be two 340px cards adrift in it. */
+body.tv .grid--pair{grid-template-columns:repeat(2,minmax(0,26vw))}
 body.tv .viz{max-height:min(30vh,380px)}
 body.tv .card__mid{justify-content:center;gap:var(--s2)}
 /* Across a meeting room the reading has to carry, so the cap on a hero comes off
@@ -506,8 +532,7 @@ body.tv .card__mid{justify-content:center;gap:var(--s2)}
 body.tv .hero{font-size:min(calc(var(--t-metric)*3.4),36cqi)}
 body.tv .hero--md{font-size:min(calc(var(--t-metric)*2.6),26cqi)}
 body.tv .card__label{font-size:min(calc(24px*var(--scale)),5.6cqi)}
-body.tv .fs__v{font-size:calc(15px*var(--scale))}
-body.tv .fs__l{font-size:calc(10px*var(--scale))}
+
 /* The track's captions are captions, not readings. Scaled with everything else at 2.15×
    they ran out of card and truncated to "LAST 7 MORNI…", which is a label that has
    stopped being a label. They grow more slowly than the numbers they sit under. */
@@ -532,9 +557,9 @@ body.tv .tvbar{display:flex}
    inflated. The TV is the one place height is the point, and that is handled in body.tv
    by centring the row rather than by stretching the cards inside it. */
 .content--solo .card{padding:var(--s5)}
-.content--solo .hero{font-size:min(calc(var(--t-metric)*3),30cqi)}
-.content--solo .hero--md{font-size:min(calc(var(--t-metric)*2.3),23cqi)}
-.content--solo .card__label{font-size:min(calc(19px*var(--scale)),5.8cqi)}
+.content--solo .hero{font-size:min(calc(var(--t-metric)*3.4),32cqi)}
+.content--solo .hero--md{font-size:min(calc(var(--t-metric)*2.7),26cqi)}
+.content--solo .card__label{font-size:min(calc(21px*var(--scale)),5.2cqi)}
 .content--solo .card__ico{font-size:30px}
 .content--solo .viz{max-height:min(56cqi,300px)}
 

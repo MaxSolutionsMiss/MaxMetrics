@@ -10,14 +10,14 @@ import {
   openDay, loadDay, loadHistory, loadBudgets, saveField, saveDepartment, saveReview,
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   importHistory,
-} from '../db.js?v=54624b3818f6';
-import { assess, attention, settled, verdicts } from '../assess.js?v=54624b3818f6';
+} from '../db.js?v=5875f96d112d';
+import { assess, attention, settled, verdicts } from '../assess.js?v=5875f96d112d';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, footLine, drawReading, showsHeroNumber, CHART_ICONS, CHART_NAMES, iconFor,
   spark, bullet, chip, cardTrack, readingOf, derivedShipping, SHIPPING_TARGET,
   volumeLabel, rateLabel, hoursLabel,
-} from '../readings.js?v=54624b3818f6';
+} from '../readings.js?v=5875f96d112d';
 
 const $ = selector => document.querySelector(selector);
 
@@ -130,7 +130,10 @@ function streakCard(kind, label, lastField, recordField, word) {
     // nothing — the record is a target to beat, not a denominator. Drawn as a bar it
     // filled a little further every morning and said the same thing every morning.
     chart: 'number', pkey: kind, label, tone,
-    value: days == null ? '\u2014' : days, unit: 'days',
+    // The unit goes under the number rather than beside it, the way a rate sets
+    // "sheets / hr" under its figure. Inline, it competed with the reading for the same
+    // line and made a two-character number look like part of a phrase.
+    value: days == null ? '\u2014' : days, sub: 'days',
     flag: beaten ? `<div class="flag flag--ok">Record broken · +${days - record} days</div>` : '',
     // No bar and no line. A streak is chased, not met, so a bar against the record fills a
     // little further every morning and tells the room nothing it did not know yesterday —
@@ -251,7 +254,7 @@ const SECTIONS = {
     }).join('')}</div>`;
   },
 
-  safety: () => `<div class="grid g2">
+  safety: () => `<div class="grid grid--pair">
       ${streakCard('injury', 'Days since last injury', 'injury_last', 'injury_record', 'injury')}
       ${streakCard('nearmiss', 'Days since near-miss', 'near_miss_last', 'near_miss_record', 'near-miss')}
     </div>`,
@@ -552,8 +555,8 @@ const SECTIONS = {
         <div class="card__head"><span class="card__ico" aria-hidden="true">⏱️</span>
           <span class="card__label">Overtime shifts</span></div>
         <div class="card__mid">
-          <div class="hero">${esc(headline[0])}<i>shifts</i></div>
-          <div class="unit">${esc(headline[1])}</div>
+          <div class="hero">${esc(headline[0])}</div>
+          <div class="unit">shifts \u00b7 ${esc(headline[1])}</div>
         </div>
         ${footLine([
           ['Departments', entered ? `${running.length} of ${list.length}` : null],
@@ -1147,7 +1150,6 @@ if (!state.locations.length) {
   $('#loc').innerHTML = state.locations.map(l =>
     `<option value="${esc(l.id)}">${esc(l.name)}</option>`).join('');
   await open(state.locations[0].id, state.date);
-  runRequestedAction();
 }
 
 // ── Import ──────────────────────────────────────────────────────────────────────
@@ -1453,3 +1455,13 @@ $('#export-btn')?.addEventListener('click', exportMorning);
 // print stylesheet drops the rail, the top bar and every control, and lays the sections
 // out down the page.
 $('#print-btn')?.addEventListener('click', () => window.print());
+
+// Last line on purpose.
+//
+// Configure's Data pane arrives here as `?do=import`, and the action needs two things that
+// are declared in different halves of this file: a loaded morning, which the Start block
+// above awaits, and the import sheet's state, which is a `const` below it. Calling it from
+// Start satisfied the first and broke the second — the module body pauses at that `await`,
+// so `importState` had not been created yet and every arrival threw a dead-zone error
+// before the sheet could open. At the foot of the file both are true.
+runRequestedAction();
