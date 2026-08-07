@@ -85,6 +85,9 @@ export function money(value) {
 export function trend(current, previous, lowerIsBetter = false) {
   if (!current || !previous) return '<span class="trend trend--flat">—</span>';
   const percent = (current - previous) / previous * 100, up = current >= previous;
+  // A change that rounds to nothing is not a direction, and "▲ 0.0%" in red over a
+  // make-ready that did not move is the drawing inventing news.
+  if (Math.abs(percent) < 0.05) return '<span class="trend trend--flat">—</span>';
   const good = lowerIsBetter ? !up : up;
   return `<span class="trend trend--${good ? 'good' : 'bad'}">${
     up ? '▲' : '▼'} ${Math.abs(percent).toFixed(1)}%</span>`;
@@ -290,6 +293,21 @@ export const footStat = (label, value, small) =>
   `<div class="fstat"><span class="fstat__l">${esc(label)}</span>
    <span class="fstat__v${small ? ' fstat__v--sm' : ''}">${value}</span></div>`;
 
+// One line under the rule, not a grid of them.
+//
+// The grid was four readings in two rows of two, each with its own uppercase label, and on
+// five cards across that is forty separate things competing for a glance that lasts two
+// seconds. A card carries one number; everything else is the sentence that qualifies it,
+// and a sentence belongs on a line. Pairs are dropped rather than printed as dashes —
+// "Record —" tells nobody anything and still costs a slot.
+export const footLine = pairs => {
+  const shown = (pairs || []).filter(([, value]) => value != null && value !== '' && value !== '—');
+  if (!shown.length) return '';
+  return `<div class="foot foot--line">${shown.map(([label, value]) =>
+    `<span class="fs"><span class="fs__l">${esc(label)}</span><span class="fs__v">${value}</span></span>`
+  ).join('')}</div>`;
+};
+
 // Every reading carries a pictogram, and they are the plant's own — the ones printed on
 // the dashboard the room has been reading since January. Keeping them costs nothing and
 // means nobody has to learn where anything moved to.
@@ -315,6 +333,18 @@ export const iconFor = key => {
 // A card is an icon, a label, a verdict, a reading drawn some way, and the numbers that
 // give the reading its context. Everything that varies between cards arrives as an
 // argument.
+// A card is read in about two seconds from across a room, and everything on it is
+// competing for those two seconds. So it is four things in a fixed order and nothing else:
+//
+//   the title, on one line, never wrapped
+//   the flag, when there is something to announce
+//   the number
+//   a fine rule, and under it one line of what qualifies the number
+//
+// The bar and the trend sit between the number and the rule, and both are optional per
+// card. A safety streak has no trend worth drawing — a counter that goes up by one a day
+// is a diagonal line — and printing one on every card taught the eye to ignore all of
+// them, including the ones that meant something.
 export function metricCard({ chart, pkey, icon, label, tone, value, unit, percent, markPercent,
                              markLabel, sub, flag, foot, edit, medium, track }) {
   const hero = showsHeroNumber(chart);
@@ -336,7 +366,7 @@ export function metricCard({ chart, pkey, icon, label, tone, value, unit, percen
         unit ? `<i>${esc(unit)}</i>` : ''}</div>${caption}${drawn}` : `${drawn}${caption}`}
       ${track || ''}
     </div>
-    <div class="foot">${foot}</div>
+    ${foot || ''}
     ${edit ? `<div class="ez">${edit}</div>` : ''}
   </div>`;
 }

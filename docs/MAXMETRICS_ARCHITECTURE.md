@@ -199,6 +199,91 @@ it is being shown a dashboard built for somebody else.
   upserts. An `UPDATE` matching no row reports success while losing the number somebody just
   typed.
 
+## Two seconds
+
+A card is read from across a room in about two seconds, and everything on it competes for
+those two seconds. That is the whole design brief, and most of what has been removed from
+a card was removed against it:
+
+- **Titles are one line, always.** Two lines' worth of room was reserved for every title so
+  the numbers underneath would align, which bought the alignment with a band of empty space
+  on top of every short-titled card. The title shrinks to fit instead, and it is set at 600
+  rather than 700 because at the old weight it was competing with the reading.
+- **The foot is one line, not a grid.** Four labelled readings in two rows meant twenty
+  labels across a row of five cards, and a two-second glance cannot enter a table. What
+  qualifies a number is a sentence — record 136 days, last injury 20 November — so it is
+  set as one. Pairs with nothing in them are dropped rather than printed as dashes.
+- **No coloured cap.** Three pixels of saturated status colour across the top of every card
+  made the page a set of bars before it was a set of readings. The wash and the border
+  carry the verdict quietly enough that the number stays the loudest thing.
+- **The flag is outlined, not filled.** A solid block of status colour under the title was
+  the second loudest thing on the card, and it is a footnote.
+- **The bar and the line are optional.** A safety streak has no trend worth drawing — a
+  counter that goes up by one a day is a diagonal — and a target of nought has no bar.
+  Drawing both on every card taught the eye to ignore all of them, including the ones that
+  meant something.
+
+Two typefaces, again. One was the tidier rule and it cost the titles: a condensed face
+carries "DAYS SINCE LAST INJURY" across a narrow card and a normal-width one truncates it.
+Public Sans still sets everything that is a sentence.
+
+## Two buttons
+
+Edit mode and Publish. There was an Enter data, a Publish and a save indicator, and the
+save indicator was describing writes that had already happened — every field saves itself
+as it is typed. Publish is the only thing that changes state, and it means "this is the
+version for the meeting".
+
+The theme is gone. Light is the design, and a dashboard half the plant reads dark is two
+dashboards; the one on the wall has to be the one on the desk.
+
+Import, export and print left the foot of the dashboard for Configure. They are not part of
+a morning, they are things done to one a few times a month, and a bar of them along the
+bottom made a settings screen out of a dashboard. Import still *runs* on the dashboard,
+because it writes into the morning being looked at and Configure has no morning — the Data
+pane is the door to it rather than a second copy of it.
+
+## Configure is four screens
+
+The shape of the floor, the year's budget, what shipping is judged against, and getting
+data in and out. Those are separate subjects with separate audiences, and a single
+scrolling page of all four is the settings screen this exists to avoid — so Configure's
+rail carries panes the same way the dashboard's carries sections.
+
+## Maintenance is not labour
+
+They were one section in the sense that both were a note. Maintenance is a schedule with a
+status. Overtime is a cost the plant is choosing to spend this morning, and the meeting's
+question about it is always the same two-part one: which departments, and how many shifts.
+
+That question has no source. `Overtime` in Mississauga_KPIs is per pay period with no
+department and no shift breakdown — it answers how much was spent two weeks ago, not what
+is running today. So it is typed, one row per department per morning, in **shifts** rather
+than hours: shifts are the unit the floor talks in and the one a supervisor can answer
+without a timesheet, and the hours turn up in the pay period anyway.
+
+Any overtime at all is amber. Not because overtime is a failure — a plant running Saturday
+to hold a delivery is doing the right thing — but because the room has agreed to spend
+money and the meeting should say so out loud rather than let it pass in a table.
+
+## Reading the old dashboard's own files
+
+`Daily_Morning_Dashboard_Vr 22.html` can write a day out as JSON, and those files are the
+only record of the mornings before MaxMetrics existed. The importer takes them.
+
+It is deliberately loose about shape and strict about reporting. The blob may be one day or
+many, keyed by date or dated inside each record; field names are whatever that file called
+them. So it flattens whatever arrives, matches each key against every spelling worth
+guessing, and — the part that matters — **lists every key it did not recognise**. An
+importer that silently drops what it does not understand is one nobody can trust with a
+year of history; the preview names the gaps so they can be closed from what it reports
+rather than by diffing two screens.
+
+`import_morning` writes to the date on the record, never to the open morning, and every
+column is `coalesce(existing, incoming)` — an import fills gaps and can never take a number
+a person typed. Running the same file twice therefore changes nothing the second time,
+which is what makes it safe to run again when it half-worked the first time.
+
 ## Deployment
 
 Netlify, from the `gh-pages` branch, public URL, protected by sign-in. `scripts/publish.sh`

@@ -277,12 +277,186 @@ const looksLikeShipping = names => names.some(n => /otd/i.test(n));
 // Every file dropped at once, sorted out by what is inside it rather than by its name —
 // people rename these. Nothing is written: this returns what *would* be written, for a
 // person to look at first.
+// ── The old dashboard's own JSON ────────────────────────────────────────────────
+//
+// `Daily_Morning_Dashboard_Vr 22.html` kept a day in one localStorage blob and could write
+// it out as JSON. Those files are the plant's own history and there is no reason they
+// should stop being readable, so this takes them.
+//
+// It is deliberately loose about shape and strict about reporting. The blob may be one day
+// or many, the day may be at the top level or under a date key, and the field names are
+// whatever that file happened to call them. So: flatten whatever arrives into date-keyed
+// objects, match each key against every spelling worth guessing, and — this is the part
+// that matters — hand back the list of keys that matched *and* the list that did not.
+//
+// An importer that silently drops what it does not understand is one nobody can trust with
+// a year of history. The preview names every unrecognised key, so a file that half-works
+// says exactly which spellings to add rather than leaving somebody to diff two screens.
+
+// Every daily_metrics column, with the spellings the old file is likely to have used.
+// Nothing here is confirmed against a real export — there was none to read — so the list
+// is a starting point that the preview's "not recognised" column is designed to correct.
+export const JSON_FIELDS = {
+  injury_last:      ['injurylast', 'lastinjury', 'lastinjurydate', 'injurydate', 'daysinceinjurydate'],
+  injury_record:    ['injuryrecord', 'recordinjury', 'injurybest', 'bestinjury', 'recorddays'],
+  near_miss_last:   ['nearmisslast', 'lastnearmiss', 'nearmissdate', 'lastnearmissdate'],
+  near_miss_record: ['nearmissrecord', 'recordnearmiss', 'nearmissbest'],
+  shortages:        ['shortages', 'shortagecount', 'shortage', 'jobsshort'],
+  coq:              ['coq', 'costofquality', 'coqmonth', 'coqpercent', 'cop'],
+  coq_target:       ['coqtarget', 'costofqualitytarget'],
+  coq_ytd:          ['coqytd', 'costofqualityytd', 'coqyeartodate'],
+  coq_ytd_target:   ['coqytdtarget'],
+  jobs_shipped:     ['jobsshipped', 'shippedjobs', 'ofshippedjobs', 'jobs', 'totaljobs'],
+  jobs_on_time:     ['jobsontime', 'ontime', 'ontimejobs'],
+  cartons:          ['cartons', 'cartonsshipped', 'totalcartons'],
+  late:             ['late', 'lateshipments', 'latejobs'],
+  shorts:           ['shorts', 'short', 'shortshipments', 'shortjobs'],
+  otd:              ['otd', 'ontimedelivery', 'otdpercent'],
+  otif:             ['otif', 'ontimeinfull', 'otifpercent'],
+  mtd_otif:         ['mtdotif', 'otifmtd', 'monthtodateotif'],
+  ytd_otif:         ['ytdotif', 'otifytd', 'yeartodateotif'],
+  maintenance_note: ['maintenancenote', 'maintenancenotes', 'maintnote', 'maintenance'],
+  staffing_note:    ['staffingnote', 'staffingnotes', 'staffing', 'labournote'],
+  fin_actual_mtd:   ['finactualmtd', 'actualmtd', 'salesmtd', 'mtdsales', 'monthtodatesales'],
+  fin_actual_ytd:   ['finactualytd', 'actualytd', 'salesytd', 'ytdsales', 'yeartodatesales'],
+};
+
+// Department volume and hours, per department key. The old file named its three by hand.
+const JSON_DEPT_FIELDS = {
+  qty:        ['qty', 'volume', 'output', 'netimps', 'netcartons', 'sheets', 'cartons', 'impressions'],
+  hours:      ['hours', 'crewhours', 'crewedhours', 'crewhrs', 'hrs'],
+  target:     ['target', 'targetperhour', 'targethr'],
+  pw_qty:     ['pwqty', 'previousweekqty', 'lastweekqty', 'previousvolume'],
+  pw_hours:   ['pwhours', 'previousweekhours', 'lastweekhours'],
+  uptime:     ['uptime'],
+  make_ready: ['makeready', 'mr', 'mrtime', 'avgmrtime', 'makereadytime'],
+};
+
+const DEPT_NAMES = {
+  printing:   ['printing', 'print', 'press'],
+  diecutting: ['diecutting', 'diecut', 'cutting'],
+  gluing:     ['gluing', 'glue', 'folder', 'foldergluer'],
+  windowing:  ['windowing', 'window'],
+  shipping:   ['shipping', 'ship'],
+};
+
+const matchField = (key, table) => {
+  const want = normalise(key);
+  for (const [field, spellings] of Object.entries(table)) {
+    if (spellings.includes(want)) return field;
+  }
+  return null;
+};
+
+const looksLikeDate = value => /^\d{4}-\d{2}-\d{2}$/.test(String(value ?? '').slice(0, 10))
+  && !Number.isNaN(Date.parse(String(value).slice(0, 10)));
+
+const asDate = value => String(value).slice(0, 10);
+
+// The blob may be a day, a list of days, or an object keyed by date — and the old file
+// nested things under `days`, `data` or `dashboard` depending on which version wrote it.
+// Anything that turns out to carry a date is a day.
+function daysIn(parsed) {
+  const out = [];
+  const consider = (value, keyedDate) => {
+    if (!value || typeof value !== 'object') return;
+    if (Array.isArray(value)) { value.forEach(v => consider(v)); return; }
+    const own = Object.entries(value).find(([k]) => matchField(k, { date: ['date', 'metricdate', 'day', 'reportdate'] }));
+    const date = keyedDate || (own && looksLikeDate(own[1]) ? asDate(own[1]) : null);
+    if (date) { out.push({ date, body: value }); return; }
+    for (const [k, v] of Object.entries(value)) {
+      if (looksLikeDate(k)) consider(v, asDate(k));
+      else if (v && typeof v === 'object') consider(v);
+    }
+  };
+  consider(parsed);
+  return out;
+}
+
+export function readDashboardJson(text, fileName = 'file.json') {
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch (cause) {
+    return { days: [], recognised: [], unknown: [], notes: [`${fileName}: not valid JSON — ${cause.message}`] };
+  }
+
+  const days = [], recognised = new Set(), unknown = new Set(), notes = [];
+
+  for (const { date, body } of daysIn(parsed)) {
+    const metrics = {}, departments = {};
+    const walk = (object, path = '') => {
+      for (const [key, value] of Object.entries(object || {})) {
+        if (value && typeof value === 'object' && !Array.isArray(value)) {
+          // A nested object named after a department is that department's numbers.
+          const dept = matchField(key, DEPT_NAMES);
+          if (dept) {
+            for (const [inner, innerValue] of Object.entries(value)) {
+              const field = matchField(inner, JSON_DEPT_FIELDS);
+              if (field) {
+                (departments[dept] ??= {})[field] = innerValue;
+                recognised.add(`${key}.${inner}`);
+              } else unknown.add(`${key}.${inner}`);
+            }
+            continue;
+          }
+          walk(value, path ? `${path}.${key}` : key);
+          continue;
+        }
+        const field = matchField(key, JSON_FIELDS);
+        if (field) { metrics[field] = value; recognised.add(key); continue; }
+        // `printingQty` and `gluing_hours` are the flat form of the same thing.
+        const flat = Object.entries(DEPT_NAMES).find(([, spellings]) =>
+          spellings.some(s => normalise(key).startsWith(s) && normalise(key) !== s));
+        if (flat) {
+          const rest = normalise(key).slice(flat[1].find(s => normalise(key).startsWith(s)).length);
+          const field2 = matchField(rest, JSON_DEPT_FIELDS);
+          if (field2) { (departments[flat[0]] ??= {})[field2] = value; recognised.add(key); continue; }
+        }
+        if (!looksLikeDate(value) || !/date/i.test(key)) unknown.add(path ? `${path}.${key}` : key);
+      }
+    };
+    walk(body);
+    if (Object.keys(metrics).length || Object.keys(departments).length) {
+      days.push({ date, metrics, departments });
+    }
+  }
+
+  if (!days.length) {
+    notes.push(`${fileName}: no dated readings found. The importer looks for a date on each `
+      + `record, or an object keyed by date.`);
+  }
+  return {
+    days: days.sort((a, b) => a.date.localeCompare(b.date)),
+    recognised: [...recognised].sort(),
+    unknown: [...unknown].sort(),
+    notes,
+  };
+}
+
 export async function readFiles(files, { date, reported = [], operators = [] } = {}) {
   const matchName = nameMatcher(operators);
   const notes = [];
   let shifts = [], shipping = null, sources = [];
 
+  let json = null;
+
   for (const file of files) {
+    // The old dashboard's exports are JSON, not a workbook, and handing one to the XLSX
+    // reader produced "nothing recognisable" — which is true and useless.
+    if (/\.json$/i.test(file.name)) {
+      const read = readDashboardJson(await file.text(), file.name);
+      notes.push(...read.notes);
+      if (read.days.length) {
+        json = json
+          ? { days: json.days.concat(read.days),
+              recognised: [...new Set(json.recognised.concat(read.recognised))].sort(),
+              unknown: [...new Set(json.unknown.concat(read.unknown))].sort() }
+          : read;
+        sources.push({ file: file.name, kind: 'history', rows: read.days.length });
+      }
+      continue;
+    }
     let workbook;
     try {
       workbook = await openWorkbook(await file.arrayBuffer());
@@ -313,7 +487,7 @@ export async function readFiles(files, { date, reported = [], operators = [] } =
   const ship = (shipping || []).find(d => d.date === span.to) ?? null;
 
   return {
-    date, span, sources, departments, shipping: ship,
+    date, span, sources, departments, shipping: ship, json,
     covering: daysBetweenInclusive(span.from, span.to),
     unknownNames: unknownNamesIn(shifts, span.from, span.to),
     notes,

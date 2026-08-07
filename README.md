@@ -18,8 +18,11 @@ Signed-in, multi-user, live.
 - four chart styles — number, bar, ring, gauge — chosen by the reader and applied to every card
 - every card drawn against its target and its last seven mornings, and a one-line verdict
   at the top of each section saying what the section comes to
-- a Configure Departments screen, so a plant adds windowing or foil stamping itself, with
-  its own words for volume, rate and hours
+- a Configure screen in four panes — departments, financials, shipping, data — so a plant
+  adds windowing or foil stamping itself, with its own words for volume, rate and hours
+- Labour & Overtime as its own section: which departments are running overtime, and how
+  many shifts
+- import from the plant's workbooks, and from the old dashboard's own JSON exports
 - presence: who else is on this morning, and which reading they are in
 - Present mode, fitted to a 16:9 screen at 1920×1080
 - collapsible menu, light and dark
@@ -58,7 +61,7 @@ verdict on the number beside it.
 ```
 index.html              sign in
 app/dashboard.html      the dashboard
-app/departments.html    the departments a plant runs
+app/departments.html    configure — departments, financials, shipping, data
 assets/maxmetrics.css   the one stylesheet
 js/db.js                the one network module
 js/readings.js          judgement, the four drawings, the target bar and the trend line

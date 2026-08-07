@@ -29,7 +29,12 @@
      condensed face is narrower at every size and reads as a different product. Kept as a
      variable rather than deleted so the 29 rules that ask for it keep working and the
      decision lives in one line. */
-  --font-condensed:var(--font);
+  /* Two faces again, and the reason is the plant's own dashboard: "DAYS SINCE LAST INJURY"
+     fits on one line there and truncates here, because a condensed face carries a title
+     across a narrow card and a normal-width one does not. One typeface was the tidier
+     rule; it cost the titles, and a title that reads "DAYS SINCE LAS…" is worse than two
+     families. Public Sans still sets everything that is a sentence. */
+  --font-condensed:'Barlow Condensed','Oswald','Arial Narrow',var(--font);
   --scale:1;
   --t-micro:calc(12.5px*var(--scale)); --t-small:calc(14px*var(--scale)); --t-base:calc(15px*var(--scale));
   --t-lead:calc(18px*var(--scale)); --t-title:calc(22px*var(--scale)); --t-metric:calc(28px*var(--scale));
@@ -108,6 +113,11 @@ html[data-rail="mini"]{--rail-w:62px}
 .rail__foot{margin-top:auto;padding:var(--s3) var(--s4);border-top:1px solid var(--rail-rule);
   font-size:var(--t-small);color:var(--rail-label);white-space:nowrap;overflow:hidden}
 .rail__foot strong{color:#fff;font-weight:600;display:block}
+.rail__out{margin-top:var(--s2);background:none;border:1px solid var(--rail-rule);
+  color:var(--rail-ink);font-family:inherit;font-size:var(--t-micro);font-weight:600;
+  padding:5px 10px;border-radius:var(--radius);cursor:pointer;width:100%}
+.rail__out:hover{background:rgba(255,255,255,.09);color:#fff}
+@container rail (max-width:110px){.rail__out{display:none}}
 /* Collapsed: marks only, same places, same spacing — the muscle memory survives.
    The status dot rides the corner of the icon so a closed rail still reports health. */
 @container rail (max-width:110px){
@@ -198,31 +208,37 @@ body.tv .verdict{font-size:var(--t-lead)}
   .grid{grid-template-columns:1fr!important}}
 
 /* ── CARD ── */
+/* No coloured cap across the top. Three pixels of saturated green or red over every card
+   made the page a set of bars before it was a set of readings, and with five of them in a
+   row the caps read as the content. The wash and the border already carry the verdict, and
+   they carry it quietly enough that the number stays the loudest thing on the card. */
 .card{background:var(--surface);border:1px solid var(--rule);border-radius:var(--radius-lg);
-  padding:var(--s4) var(--s4) var(--s3);display:flex;flex-direction:column;box-shadow:var(--shadow);
-  border-top:3px solid var(--rule-strong);transition:border-color .2s,background .2s;
+  padding:var(--s4);display:flex;flex-direction:column;box-shadow:var(--shadow);
+  transition:border-color .2s,background .2s;
   min-width:0;container-type:inline-size;position:relative}
-.card--ok{background:var(--ok-wash);border-color:var(--ok-rule);border-top-color:var(--ok)}
-.card--warn{background:var(--warn-wash);border-color:var(--warn-rule);border-top-color:var(--warn)}
-.card--stop{background:var(--stop-wash);border-color:var(--stop-rule);border-top-color:var(--stop)}
+.card--ok{background:var(--ok-wash);border-color:var(--ok-rule)}
+.card--warn{background:var(--warn-wash);border-color:var(--warn-rule)}
+.card--stop{background:var(--stop-wash);border-color:var(--stop-rule)}
 /* A card announces itself with an icon and a title big enough to read from across a
    room. The plant's own dashboard does this and it is the single thing that made its
    cards legible at a glance: the eye finds the pictogram, then the word, then the number.
    A ten-pixel grey caption in the corner asks the reader to hunt for what they are
    looking at, which is a poor use of a three-minute meeting. */
-.card__head{display:flex;align-items:center;justify-content:center;gap:9px;margin-bottom:var(--s3);
-  min-width:0}
-.card__ico{font-size:26px;line-height:1;flex:none;font-family:var(--font)}
+.card__head{display:flex;align-items:center;justify-content:center;gap:8px;
+  margin-bottom:var(--s2);min-width:0}
+.card__ico{font-size:21px;line-height:1;flex:none;font-family:var(--font)}
 .card__ico svg{width:1.05em;height:1.05em;display:block;stroke:currentColor;fill:none;stroke-width:4.5;
   stroke-linecap:round;stroke-linejoin:round}
-/* Two lines' worth of room whether the title needs it or not. "Die Cutting" wraps and
-   "Gluing" does not, and without this the numbers in a row start at different heights —
-   which the eye reads as the cards being different sizes rather than the titles being
-   different lengths. */
-.card__label{font-family:var(--font-condensed);font-size:calc(20px*var(--scale));font-weight:700;
-  text-transform:uppercase;letter-spacing:.04em;color:var(--ink-muted);line-height:1.1;
-  text-align:center;min-width:0;min-height:2.2em;display:flex;align-items:center;
-  justify-content:center}
+/* One line, always. "Days since last injury" over two lines and "Gluing" over one put the
+   numbers underneath at two different heights, and the fix used to be reserving two lines
+   for every title — which bought the alignment with a band of empty space on top of every
+   short-titled card. The title shrinks to fit its card instead. It is a label; it does not
+   need to be the same size as the reading, and at 700 in condensed capitals it was
+   competing with it. */
+.card__label{font-family:var(--font-condensed);font-size:min(calc(16px*var(--scale)),5.8cqi);
+  font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-muted);
+  line-height:1.2;text-align:center;min-width:0;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis}
 .card--ok .card__head{color:var(--ok)}.card--warn .card__head{color:var(--warn)}
 .card--stop .card__head{color:var(--stop)}
 .card--ok .card__label{color:var(--ok)}.card--warn .card__label{color:var(--warn)}
@@ -281,35 +297,42 @@ body.tv .verdict{font-size:var(--t-lead)}
    answers the room asks for next, and the height they take is height the page had spare.
    The label row is small and quiet on purpose — the drawing under it is the content, and
    a heavy caption on each of five cards reads as five headings. */
-.ctrack{width:100%;align-self:stretch;margin-top:var(--s3);padding-top:var(--s3);
-  border-top:1px solid var(--rule);display:flex;flex-direction:column;gap:1px}
-.card--ok .ctrack{border-top-color:var(--ok-rule)}
-.card--warn .ctrack{border-top-color:var(--warn-rule)}
-.card--stop .ctrack{border-top-color:var(--stop-rule)}
+.ctrack{width:100%;align-self:stretch;margin-top:var(--s3);display:flex;
+  flex-direction:column;gap:1px}
 .ctrack__row{display:flex;align-items:baseline;justify-content:space-between;gap:var(--s2);
   min-height:14px}
 .ctrack__row:not(:first-child){margin-top:var(--s2)}
-.ctrack__l{font-family:var(--font-condensed);font-size:calc(11px*var(--scale));
-  text-transform:uppercase;letter-spacing:.08em;font-weight:700;color:var(--ink-faint);
+.ctrack__l{font-family:var(--font-condensed);font-size:calc(10.5px*var(--scale));
+  text-transform:uppercase;letter-spacing:.07em;font-weight:600;color:var(--ink-faint);
   text-align:left;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ctrack__d{font-family:var(--font-condensed);font-size:calc(13px*var(--scale));font-weight:700;
+.ctrack__d{font-family:var(--font-condensed);font-size:calc(12px*var(--scale));font-weight:700;
   letter-spacing:0;white-space:nowrap;flex:none}
-.ctrack .bullet{height:16px;margin:0}
-.ctrack .spark{height:26px}
+.ctrack .bullet{height:12px;margin:0}
+.ctrack .spark{height:24px}
 /* In the strip a cell is centred and narrow, so the block that hangs under it has to say
    so or it collapses to nothing between the two centred lines above it. */
 .cell .ctrack{margin-top:var(--s3);text-align:left}
 .cell .ctrack .spark{height:22px}
 
-/* Two to a line, facing each other, all one size.
-   The foot used to be a flex row that wrapped: five readings of two different sizes fell
-   into three uneven rows, nothing lined up with anything below it, and neighbours ran
-   together. A fixed pair per line fixes both — the eye gets a left column and a right
-   column instead of a paragraph of numbers, and every value carries the same weight
-   because none of them is less true than the others. */
-.foot{margin-top:auto;width:100%;align-self:stretch;padding-top:var(--s3);
+/* A fine rule, and one line under it.
+   The foot was a two-by-two grid of labelled readings. Five cards across meant twenty
+   labels and twenty values arranged in quadrants, and a glance that lasts two seconds
+   cannot enter a table. What qualifies a number is a sentence — record 136 days, last
+   injury 20 November — so it is set as one, on one line, and any pair with nothing in it
+   is dropped rather than printed as a dash. */
+.foot{margin-top:auto;width:100%;align-self:stretch;padding-top:var(--s2);
   border-top:1px solid var(--rule);display:grid;grid-template-columns:1fr 1fr;
   gap:var(--s3) var(--s4);text-align:left}
+.foot--line{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:center;
+  gap:0 var(--s2);text-align:center}
+.fs{display:inline-flex;align-items:baseline;gap:5px;white-space:nowrap;min-width:0}
+.fs:not(:last-child)::after{content:"·";color:var(--ink-faint);opacity:.55;margin-left:var(--s2)}
+.fs__l{font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.07em;
+  font-weight:600;color:var(--ink-faint)}
+.fs__v{font-size:var(--t-small);font-weight:600;color:var(--ink)}
+.card--ok .fs__v{color:var(--ok)}.card--warn .fs__v{color:var(--warn)}.card--stop .fs__v{color:var(--stop)}
+.card--ok .fs__l,.card--warn .fs__l,.card--stop .fs__l{color:inherit;opacity:.65}
+.card--ok .foot--line,.card--warn .foot--line,.card--stop .foot--line{color:inherit}
 .card--ok .foot{border-top-color:var(--ok-rule)}.card--warn .foot{border-top-color:var(--warn-rule)}
 .card--stop .foot{border-top-color:var(--stop-rule)}
 .fstat{display:flex;flex-direction:column;gap:1px;min-width:0}
@@ -334,10 +357,14 @@ body.tv .verdict{font-size:var(--t-lead)}
 .fstat__v--sm{font-weight:600}
 .card--ok .fstat__v{color:var(--ok)}.card--warn .fstat__v{color:var(--warn)}.card--stop .fstat__v{color:var(--stop)}
 .card--ok .fstat__v--sm,.card--warn .fstat__v--sm,.card--stop .fstat__v--sm{opacity:.85}
+/* Announced, not shouted. A solid block of status colour under the title was the second
+   loudest thing on the card after the number, and it is a footnote — the number is the
+   news. Outlined in the card's own colour it still catches the eye and stops taking the
+   card over. */
 .flag{align-self:center;font-size:var(--t-micro);font-weight:700;text-transform:uppercase;
-  letter-spacing:.07em;padding:3px 8px;border-radius:4px;margin-bottom:var(--s2);white-space:nowrap}
-.flag--ok{background:var(--ok);color:#fff}.flag--warn{background:var(--warn);color:#fff}
-.flag--stop{background:var(--stop);color:#fff}
+  letter-spacing:.07em;padding:2px 10px;border-radius:99px;margin-bottom:var(--s2);
+  white-space:nowrap;background:transparent;border:1px solid currentColor;color:var(--ink-faint)}
+.flag--ok{color:var(--ok)}.flag--warn{color:var(--warn)}.flag--stop{color:var(--stop)}
 .trend{font-size:var(--t-small);font-weight:700;white-space:nowrap}
 /* Good and bad, not up and down. A cost of quality that rose points ▲ and is red. */
 .trend--good{color:var(--ok)}.trend--bad{color:var(--stop)}.trend--flat{color:var(--ink-faint)}
@@ -353,6 +380,13 @@ body.tv .verdict{font-size:var(--t-lead)}
 .tbl .dept{font-family:var(--font-condensed);font-size:calc(16px*var(--scale));font-weight:700;
   text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;color:var(--ink-muted)}
 .tbl .big{font-family:var(--font-condensed);font-size:calc(19px*var(--scale));font-weight:700;letter-spacing:-.01em}
+/* The week table answers three questions per department, so a target sits under the
+   reading it belongs to rather than in a column of its own. */
+.tbl--week th[colspan]{text-align:right;border-bottom:none;padding-bottom:2px;
+  color:var(--ink-muted)}
+.tbl--week thead tr:first-child th{border-bottom:1px solid var(--rule)}
+.wk{display:block;font-family:var(--font);font-size:var(--t-micro);font-weight:600;
+  color:var(--ink-faint);letter-spacing:0;text-transform:none;line-height:1.3;margin-top:1px}
 .pill{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;
   text-transform:uppercase;letter-spacing:.05em}
 .pill--ok{background:var(--ok-wash);color:var(--ok);border:1px solid var(--ok-rule)}
@@ -526,7 +560,7 @@ body.tv .tvbar{display:flex}
 .content--solo .card{padding:var(--s5)}
 .content--solo .hero{font-size:min(calc(var(--t-metric)*3),30cqi)}
 .content--solo .hero--md{font-size:min(calc(var(--t-metric)*2.3),23cqi)}
-.content--solo .card__label{font-size:calc(23px*var(--scale))}
+.content--solo .card__label{font-size:min(calc(19px*var(--scale)),5.8cqi)}
 .content--solo .card__ico{font-size:30px}
 .content--solo .viz{max-height:min(56cqi,300px)}
 
