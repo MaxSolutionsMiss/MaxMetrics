@@ -308,7 +308,9 @@ export const footStat = (label, value, small) =>
 export const footLine = pairs => {
   const shown = (pairs || []).filter(([, value]) => value != null && value !== '' && value !== '—');
   if (!shown.length) return '';
-  return `<div class="foot foot--line">${shown.map(([label, value]) =>
+  // The row divides by what it holds, so three facts sit on one line rather than spilling
+  // onto a second, and one reads as a sentence rather than as a lonely column.
+  return `<div class="foot foot--${shown.length}">${shown.map(([label, value]) =>
     `<span class="fs"><span class="fs__l">${esc(label)}</span><span class="fs__v">${value}</span></span>`
   ).join('')}</div>`;
 };

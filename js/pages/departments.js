@@ -21,7 +21,7 @@
 import {
   currentSession, signOut, myProfile, myLocations,
   loadDepartmentConfig, saveDepartmentConfig, addDepartmentConfig, ensureDepartmentRows,
-  loadBudgets, saveBudget,
+  loadBudgets, saveBudget, loadPlant, savePlant,
 } from '../db.js';
 import {
   esc, num, money, MONTHS, metricCard, footLine, iconFor, cardTrack,
@@ -35,7 +35,7 @@ if (!session) location.replace('../index.html');
 
 const today = () => new Date().toISOString().slice(0, 10);
 
-const state = { me: null, locations: [], location: null, config: [], draft: null,
+const state = { me: null, locations: [], location: null, config: [], draft: null, plant: null,
                 pane: 'departments', budgets: [], year: new Date().getFullYear() };
 
 // ── The panes ───────────────────────────────────────────────────────────────────
@@ -50,6 +50,8 @@ const PANES = [
     icon: 'M4 20V9l5 3V9l5 3V4l6 4v12z' },
   { key: 'financials',  name: 'Financials',  sub: 'The budget the month is read against',
     icon: 'M12 3v18M8.5 7.5h6M8.5 7.5a2.6 2.6 0 000 5.2h3a2.6 2.6 0 010 5.2h-6' },
+  { key: 'quality',     name: 'Quality',     sub: 'Which quality readings this plant keeps',
+    icon: 'M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.9-5.2-2.8-5.2 2.8 1-5.9-4.3-4.1 5.9-.9z' },
   { key: 'shipping',    name: 'Shipping',    sub: 'What on-time is measured against',
     icon: 'M3 7h11v9H3zM14 10h4l3 3v3h-7zM7 19a1.6 1.6 0 100-3.2A1.6 1.6 0 007 19zM17.5 19a1.6 1.6 0 100-3.2 1.6 1.6 0 000 3.2z' },
   { key: 'data',        name: 'Data',        sub: 'Getting a morning in and out',
@@ -375,6 +377,45 @@ function shippingPane() {
   </section>`;
 }
 
+// ── Quality ──
+// Cost of quality and the shortage count are on every plant's morning. The other three are
+// not: a plant that does not raise NCRs would carry a card that reads a permanent dash,
+// which teaches the room that a blank is normal.
+function qualityPane() {
+  const on = key => state.plant?.[key] !== false;
+  const card = (key, name, body) => `<div class="panel">
+    <div class="panel__head"><span class="card__ico" aria-hidden="true">${
+      key === 'show_ncr' ? '\u{1F4CB}' : key === 'show_internal' ? '\u{1F3ED}' : '\u{1F4E3}'}</span>
+      <h3 class="panel__title">${esc(name)}</h3>
+      <div class="panel__actions"><span class="pill pill--${on(key) ? 'ok' : 'info'}">${
+        on(key) ? 'shown' : 'hidden'}</span></div></div>
+    <div class="panel__body">
+      <p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">${esc(body)}</p>
+      <label class="tog" style="margin-top:var(--s3)">
+        <input type="checkbox" data-plant="${key}"${on(key) ? ' checked' : ''}
+          ${canEdit() ? '' : 'disabled'}>
+        <span>Show this card in Quality</span></label>
+    </div></div>`;
+  return `<section class="sec">
+    <div class="sec__head"><h2 class="sec__title">Quality</h2><div class="sec__rule"></div></div>
+    <div class="panel"><div class="panel__head">
+      <span class="card__ico" aria-hidden="true">\u{1F3AF}</span>
+      <h3 class="panel__title">Always on</h3></div>
+      <div class="panel__body"><p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">
+        The shortage count and cost of quality month-to-date and year-to-date are on every
+        plant's morning. Their targets are set beside the reading, on the card itself, in
+        Edit mode.</p></div></div>
+    <div class="grid g3" style="margin-top:var(--s3)">
+      ${card('show_ncr', 'NCRs received',
+        'Non-conformance reports raised this year to date. Carried forward morning to morning, so it is typed when it changes and not before.')}
+      ${card('show_internal', 'Internal complaints',
+        'Complaints raised inside the plant — the floor catching its own work — year to date.')}
+      ${card('show_external', 'Customer complaints',
+        'Complaints raised by a customer, year to date. Kept apart from internal on purpose: this kind has already left the building.')}
+    </div>
+  </section>`;
+}
+
 // ── Data ──
 // Import, export and print used to sit in a bar along the foot of the dashboard. They are
 // not part of a morning; they are things done to one, a few times a month. The import
@@ -418,7 +459,7 @@ function dataPane() {
 }
 
 const PANE_BODY = {
-  departments: departmentsPane, financials: financialsPane,
+  departments: departmentsPane, financials: financialsPane, quality: qualityPane,
   shipping: shippingPane, data: dataPane,
 };
 
@@ -532,7 +573,16 @@ document.addEventListener('input', event => {
   redrawSoon();
 });
 
-document.addEventListener('change', event => {
+document.addEventListener('change', async event => {
+  const plantKey = event.target.dataset?.plant;
+  if (plantKey) {
+    const value = event.target.checked;
+    state.plant = { ...(state.plant || {}), [plantKey]: value };
+    render();
+    try { await savePlant(state.location, { [plantKey]: value }); noteSaved(); }
+    catch (error) { toast(error.message); }
+    return;
+  }
   const name = event.target.dataset?.field;
   if (!name || event.target.type !== 'checkbox') return;
   const [, id, column] = name.split(':');
@@ -546,6 +596,7 @@ document.addEventListener('click', async event => {
   if (pane) {
     state.pane = pane.dataset.pane;
     if (state.pane === 'financials' && !state.budgets.length) await loadYear();
+    if (state.pane === 'quality' && !state.plant) state.plant = await loadPlant(state.location).catch(() => null);
     render();
     scrollTo({ top: 0, behavior: 'smooth' });
     return;
@@ -652,6 +703,7 @@ async function openPlant(location) {
   state.location = location;
   state.draft = blankDraft();
   state.budgets = [];
+  state.plant = null;
   $('#content').innerHTML = '<div class="loading">Loading this plant…</div>';
   try {
     state.config = (await loadDepartmentConfig(location)) || [];
@@ -660,6 +712,7 @@ async function openPlant(location) {
     return;
   }
   if (state.pane === 'financials') await loadYear();
+  if (state.pane === 'quality') state.plant = await loadPlant(location).catch(() => null);
   saved('All changes saved');
   render();
 }

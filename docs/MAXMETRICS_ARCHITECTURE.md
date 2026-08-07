@@ -162,10 +162,14 @@ The bar is dropped when the reader has chosen the bar chart style, because the d
 already is a bar against a target and the same card must not answer the same question
 twice.
 
-## One line per section
+## The section verdict, and why it is gone
 
-Under each section heading is a sentence saying what the section comes to, so the meeting
-can take a section without reading it.
+There used to be a sentence under each section heading saying what the section came to.
+It is gone: the room reads the cards, and on a wall it put body copy above numbers set at
+two hundred pixels. `verdicts()` still runs, because the rail's status dots are its tones,
+and a dot is the right size for a summary.
+
+What follows is why it was built the way it was, and is still true of the dots.
 
 It states, it does not judge. Every word comes from a reading `assess()` has already decided
 about, and the clause naming what is wrong is written beside the reading in `assess.js` —
@@ -353,6 +357,32 @@ selector that silently killed half the stylesheet. Those need a browser: load bo
 click the paths, and assert on what the page actually did. That check lives outside this
 repository because it needs Playwright and this repository has no dependencies — which is
 a real gap, and the reason it is written down here.
+
+## One size, one shape
+
+Two rules that took several drafts to find, and both are about a page being one page:
+
+**Every card title is the same size.** It was derived from the card's width in `cqi`, so a
+narrow safety card and a wide production card drew their titles differently and the eye
+read two kinds of card. It is a fixed size now, and the grids are sized to fit it.
+
+**A card is the same width in every section.** Safety has two readings and Quality has six;
+a two-column grid gave safety's three times the width. Safety's row is six tracks with each
+card spanning two, starting one track in — the cards come out exactly a three-across width
+and the row sits centred. Shipping is the deliberate exception at four across, because eight
+readings in two rows of four is what the plant asked for.
+
+**The foot is one row, however many facts are in it.** Two meant two columns and three meant
+a second row, so a production card spent a whole line on "HOURS 8.5 h". It divides by what
+it holds; one fact reads as a sentence — "Target 0" — rather than as a lonely column.
+
+## What the week table is for
+
+It reports **last week's productivity against the standing targets**, and nothing else. It
+used to run today's rate, today's uptime and today's make-ready beside the previous week's,
+each with a seven-day movement — four comparisons per department, three of which are on the
+card directly above it. What is left is the one thing the card cannot say: what the same
+weekday produced, and how that sat against target.
 
 ## Deployment
 

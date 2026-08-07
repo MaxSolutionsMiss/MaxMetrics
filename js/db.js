@@ -105,7 +105,7 @@ export const openDay = async (location, date) => {
 };
 
 export function loadDay(location, date) {
-  // Seven reads, issued together. They do not depend on each other, so waiting for them
+  // Eight reads, issued together. They do not depend on each other, so waiting for them
   // in turn would only make the morning slower.
   const year = Number(date.slice(0, 4));
   return Promise.all([
@@ -123,8 +123,11 @@ export function loadDay(location, date) {
       .eq('location_id', location).eq('active', true).order('sort_order')),
     run(() => client.from('department_targets').select('*')
       .eq('location_id', location).eq('year', year)),
-  ]).then(([metrics, departments, review, maintenance, labour, config, targets]) => ({
+    run(() => client.from('locations').select('*').eq('id', location).limit(1)),
+  ]).then(([metrics, departments, review, maintenance, labour, config, targets, plant]) => ({
     metrics: metrics?.[0] ?? null, departments, review, maintenance, labour,
+    // The plant's own row: which optional cards it carries.
+    plant: plant?.[0] ?? null,
     // A target belongs to a year. Reading the morning of 2 January 2027 has to compare
     // against 2027's number, and reopening a day in 2026 has to keep comparing against
     // 2026's — which only works if the year is part of the lookup rather than a column
@@ -173,6 +176,14 @@ export const saveMachineTarget = (machineId, year, patch) =>
 // Configure Departments reads and writes these. It asks for inactive rows too — a
 // department taken out of use is not deleted, because the mornings it appeared on are
 // still in `daily_departments` and would lose their name.
+// The plant row itself — its name, and the three switches for the optional quality cards.
+export const loadPlant = location =>
+  run(() => client.from('locations').select('*').eq('id', location).limit(1))
+    .then(rows => rows?.[0] ?? null);
+
+export const savePlant = (location, patch) =>
+  run(() => client.from('locations').update(patch).eq('id', location), { retry: 0 });
+
 export const loadDepartmentConfig = location =>
   run(() => client.from('location_departments').select('*')
     .eq('location_id', location).order('sort_order').order('name'));
