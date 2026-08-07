@@ -208,17 +208,18 @@ body.tv .verdict{font-size:var(--t-lead)}
   .grid{grid-template-columns:1fr!important}}
 
 /* ── CARD ── */
-/* No coloured cap across the top. Three pixels of saturated green or red over every card
-   made the page a set of bars before it was a set of readings, and with five of them in a
-   row the caps read as the content. The wash and the border already carry the verdict, and
-   they carry it quietly enough that the number stays the loudest thing on the card. */
+/* Every card is white.
+   Five cards washed green, one amber and one red is a page that reads as a colour chart
+   before it reads as a set of readings, and it makes the identity violet on the shipping
+   strip look like a third verdict. One surface for everything, and the verdict lives in
+   the one place it cannot be confused with decoration: the number itself.
+   The border keeps a whisper of it so a card is still findable at a glance across a room. */
 .card{background:var(--surface);border:1px solid var(--rule);border-radius:var(--radius-lg);
   padding:var(--s4);display:flex;flex-direction:column;box-shadow:var(--shadow);
-  transition:border-color .2s,background .2s;
-  min-width:0;container-type:inline-size;position:relative}
-.card--ok{background:var(--ok-wash);border-color:var(--ok-rule)}
-.card--warn{background:var(--warn-wash);border-color:var(--warn-rule)}
-.card--stop{background:var(--stop-wash);border-color:var(--stop-rule)}
+  transition:border-color .2s;min-width:0;container-type:inline-size;position:relative}
+.card--ok{border-color:var(--ok-rule)}
+.card--warn{border-color:var(--warn-rule)}
+.card--stop{border-color:var(--stop-rule)}
 /* A card announces itself with an icon and a title big enough to read from across a
    room. The plant's own dashboard does this and it is the single thing that made its
    cards legible at a glance: the eye finds the pictogram, then the word, then the number.
@@ -226,29 +227,29 @@ body.tv .verdict{font-size:var(--t-lead)}
    looking at, which is a poor use of a three-minute meeting. */
 .card__head{display:flex;align-items:center;justify-content:center;gap:8px;
   margin-bottom:var(--s2);min-width:0}
-.card__ico{font-size:21px;line-height:1;flex:none;font-family:var(--font)}
+.card__ico{font-size:25px;line-height:1;flex:none;font-family:var(--font)}
 .card__ico svg{width:1.05em;height:1.05em;display:block;stroke:currentColor;fill:none;stroke-width:4.5;
   stroke-linecap:round;stroke-linejoin:round}
-/* One line, always. "Days since last injury" over two lines and "Gluing" over one put the
-   numbers underneath at two different heights, and the fix used to be reserving two lines
-   for every title — which bought the alignment with a band of empty space on top of every
-   short-titled card. The title shrinks to fit its card instead. It is a label; it does not
-   need to be the same size as the reading, and at 700 in condensed capitals it was
-   competing with it. */
-.card__label{font-family:var(--font-condensed);font-size:min(calc(16px*var(--scale)),5.8cqi);
-  font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-muted);
-  line-height:1.2;text-align:center;min-width:0;white-space:nowrap;overflow:hidden;
+/* One line, always — and the size the plant's own dashboard gives it. It was dropped to a
+   caption while the number grew, which left a row of cards you had to hunt to identify.
+   The title is how you find the card; it is allowed to be the second loudest thing on it. */
+.card__label{font-family:var(--font-condensed);font-size:min(calc(22px*var(--scale)),8cqi);
+  font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-muted);
+  line-height:1.15;text-align:center;min-width:0;white-space:nowrap;overflow:hidden;
   text-overflow:ellipsis}
-.card--ok .card__head{color:var(--ok)}.card--warn .card__head{color:var(--warn)}
-.card--stop .card__head{color:var(--stop)}
-.card--ok .card__label{color:var(--ok)}.card--warn .card__label{color:var(--warn)}
-.card--stop .card__label{color:var(--stop)}
-/* Top-aligned, not centred. Cards in a row are the same height, but their feet are not
-   the same depth — printing carries five foot stats and gluing four — and centring the
-   middle made each number float to a different height. Reading three departments then
-   means three separate hunts for the figure. Anchored under the heading, they line up. */
-.card__mid{display:flex;flex-direction:column;justify-content:flex-start;align-items:center;
-  text-align:center;flex:1;min-height:0;width:100%}
+/* The heading stays ink whatever the verdict. A red title over a red number says the same
+   thing twice and leaves the reader nothing quieter to land on. */
+/* Every number on the page starts at the same height.
+   This is the rule the layout is built around, and it survived none of the earlier drafts:
+   a card with a flag pushed its number down, a two-line title pushed it further, and a row
+   of five cards put five readings at five heights — which turns reading a row into five
+   separate hunts rather than one sweep.
+   So the head is a fixed height whether or not it holds a flag, and the reading sits
+   directly under it. Cards in a row already share a height; now they share the line their
+   numbers sit on, which is the one that matters. */
+.card__head{min-height:calc(30px*var(--scale));align-items:center}
+.card__flag{min-height:calc(24px*var(--scale));display:flex;align-items:center;
+  justify-content:center;width:100%;margin-bottom:var(--s2)}
 
 /* Numbers are the reason the page exists, so they get the condensed face and the room to
    be large. Weight 500 rather than 700: at fifty pixels a condensed bold closes its own
@@ -262,7 +263,7 @@ body.tv .verdict{font-size:var(--t-lead)}
 .card--ok .hero i,.card--warn .hero i,.card--stop .hero i{color:inherit;opacity:.75}
 .hero--md{font-size:min(calc(var(--t-metric)*1.7),21cqi)}
 .unit{font-size:var(--t-small);color:var(--ink-muted);margin-top:3px;text-align:center}
-.card--ok .unit,.card--warn .unit,.card--stop .unit{color:inherit;opacity:.85}
+/* The caption under the number stays muted — one coloured thing per card. */
 
 /* ── VIZ: bar / donut / gauge. One judgement, four ways of drawing it. ── */
 /* The card centres its contents, and a centred flex child shrinks to fit — which for a
@@ -314,27 +315,24 @@ body.tv .verdict{font-size:var(--t-lead)}
 .cell .ctrack{margin-top:var(--s3);text-align:left}
 .cell .ctrack .spark{height:22px}
 
-/* A fine rule, and one line under it.
-   The foot was a two-by-two grid of labelled readings. Five cards across meant twenty
-   labels and twenty values arranged in quadrants, and a glance that lasts two seconds
-   cannot enter a table. What qualifies a number is a sentence — record 136 days, last
-   injury 20 November — so it is set as one, on one line, and any pair with nothing in it
-   is dropped rather than printed as a dash. */
+/* A fine rule, and under it the context in two columns — record on the left, last injury
+   on the right, each a small label over its value. One centred line was tried and it reads
+   as a caption; two columns read as a pair of facts, which is what they are, and the label
+   above the value keeps both to two short lines instead of one long one. */
 .foot{margin-top:auto;width:100%;align-self:stretch;padding-top:var(--s2);
   border-top:1px solid var(--rule);display:grid;grid-template-columns:1fr 1fr;
-  gap:var(--s3) var(--s4);text-align:left}
-.foot--line{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:center;
-  gap:0 var(--s2);text-align:center}
-.fs{display:inline-flex;align-items:baseline;gap:5px;white-space:nowrap;min-width:0}
-.fs:not(:last-child)::after{content:"·";color:var(--ink-faint);opacity:.55;margin-left:var(--s2)}
-.fs__l{font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.07em;
-  font-weight:600;color:var(--ink-faint)}
-.fs__v{font-size:var(--t-small);font-weight:600;color:var(--ink)}
-.card--ok .fs__v{color:var(--ok)}.card--warn .fs__v{color:var(--warn)}.card--stop .fs__v{color:var(--stop)}
-.card--ok .fs__l,.card--warn .fs__l,.card--stop .fs__l{color:inherit;opacity:.65}
-.card--ok .foot--line,.card--warn .foot--line,.card--stop .foot--line{color:inherit}
-.card--ok .foot{border-top-color:var(--ok-rule)}.card--warn .foot{border-top-color:var(--warn-rule)}
-.card--stop .foot{border-top-color:var(--stop-rule)}
+  gap:var(--s2) var(--s4);text-align:left}
+/* The right of each pair turns to face the left of it across the card. */
+.foot .fs:nth-child(even){text-align:right;align-items:flex-end}
+.fs{display:flex;flex-direction:column;gap:0;min-width:0}
+.fs__l{font-family:var(--font-condensed);font-size:calc(11px*var(--scale));
+  text-transform:uppercase;letter-spacing:.08em;font-weight:700;color:var(--ink-faint);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fs__v{font-family:var(--font-condensed);font-size:calc(17px*var(--scale));font-weight:600;
+  line-height:1.2;letter-spacing:-.01em;color:var(--ink)}
+/* A single fact centres rather than hugging the left edge with a hole beside it. */
+.foot .fs:only-child{grid-column:1/-1;align-items:center;text-align:center}
+/* The rule is a rule, not a verdict. */
 .fstat{display:flex;flex-direction:column;gap:1px;min-width:0}
 /* The right of each pair turns to face the left of it across the card. */
 .foot .fstat:nth-child(even){text-align:right;align-items:flex-end}
@@ -357,16 +355,14 @@ body.tv .verdict{font-size:var(--t-lead)}
 .fstat__v--sm{font-weight:600}
 .card--ok .fstat__v{color:var(--ok)}.card--warn .fstat__v{color:var(--warn)}.card--stop .fstat__v{color:var(--stop)}
 .card--ok .fstat__v--sm,.card--warn .fstat__v--sm,.card--stop .fstat__v--sm{opacity:.85}
-/* Announced, not shouted. A solid block of status colour under the title was the second
-   loudest thing on the card after the number, and it is a footnote — the number is the
-   news. Outlined in the card's own colour it still catches the eye and stops taking the
-   card over. */
+/* Solid, with the text knocked out white. This was outlined for a draft on the argument
+   that a filled block was shouting; it was not — it is the one thing on the card that is
+   news rather than a reading, and on a white card it is also the only colour above the
+   number. Outlined, it disappeared. */
 .flag{align-self:center;font-size:var(--t-micro);font-weight:700;text-transform:uppercase;
-  letter-spacing:.07em;padding:2px 10px;border-radius:99px;margin-bottom:var(--s2);
-  white-space:nowrap;background:transparent;border:1px solid currentColor;color:var(--ink-faint)}
-.flag--ok{color:var(--ok)}.flag--warn{color:var(--warn)}.flag--stop{color:var(--stop)}
-.trend{font-size:var(--t-small);font-weight:700;white-space:nowrap}
-/* Good and bad, not up and down. A cost of quality that rose points ▲ and is red. */
+  letter-spacing:.07em;padding:3px 10px;border-radius:4px;
+  white-space:nowrap;background:var(--ink-faint);color:#fff;border:none}
+.flag--ok{background:var(--ok)}.flag--warn{background:var(--warn)}.flag--stop{background:var(--stop)}
 .trend--good{color:var(--ok)}.trend--bad{color:var(--stop)}.trend--flat{color:var(--ink-faint)}
 
 /* ── TABLE ── */
@@ -394,37 +390,10 @@ body.tv .verdict{font-size:var(--t-lead)}
 .pill--stop{background:var(--stop-wash);color:var(--stop);border:1px solid var(--stop-rule)}
 .pill--info{background:var(--brand-wash);color:var(--brand-deep);border:1px solid var(--rule)}
 
-/* ── STRIP ── */
-/* Four across, two down — not eight across, one down. The single row left five sixths of
-   the page empty and squeezed every reading into a column too narrow for its own label,
-   which is why "jobs shipped today" had to be shortened to "today". Two rows give each
-   reading room to say what it is and fill the frame it is drawn in. */
-.strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));background:var(--surface);
-  border:1px solid var(--rule);border-radius:var(--radius-lg);overflow:hidden;
-  box-shadow:var(--shadow)}
-@media(max-width:1100px){.strip{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:620px){.strip{grid-template-columns:1fr}}
-.cell{padding:var(--s5) var(--s4);border-right:1px solid var(--rule);border-bottom:1px solid var(--rule);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:3px;
-  border-top:3px solid transparent;container-type:inline-size;min-width:0}
-.cell--ok{background:var(--ok-wash);border-top-color:var(--ok)}
-.cell--warn{background:var(--warn-wash);border-top-color:var(--warn)}
-.cell--stop{background:var(--stop-wash);border-top-color:var(--stop)}
-.cell--info{background:var(--brand-wash);border-top-color:var(--brand)}
-.cell__l{font-family:var(--font-condensed);font-size:calc(14px*var(--scale));text-transform:uppercase;
-  letter-spacing:.07em;font-weight:700;color:var(--ink-muted);display:flex;align-items:center;
-  justify-content:center;gap:5px}
-.cell__ico{font-family:var(--font);font-size:1.25em;line-height:1}
-.cell--ok .cell__l{color:var(--ok)}.cell--warn .cell__l{color:var(--warn)}
-.cell--stop .cell__l{color:var(--stop)}.cell--info .cell__l{color:var(--brand-deep)}
-.cell__v{font-family:var(--font-condensed);font-size:min(calc(var(--t-metric)*1.6),32cqi);
-  font-weight:500;line-height:1;letter-spacing:-.01em;color:var(--ink);white-space:nowrap}
-.cell__v i{font-family:var(--font);font-style:normal;font-size:.34em;font-weight:400;opacity:.65}
-.cell--ok .cell__v{color:var(--ok)}.cell--warn .cell__v{color:var(--warn)}
-.cell--stop .cell__v{color:var(--stop)}.cell--info .cell__v{color:var(--brand-deep)}
-.cell__v--lg{font-size:min(calc(var(--t-metric)*1.2),21cqi)}
-.cell__v--xl{font-size:min(calc(var(--t-metric)*1),15cqi)}
-.cell__s{font-size:var(--t-micro);color:var(--ink-faint);line-height:1.3}
+/* The shipping strip that used to live here is gone. It was a joined grid of cells with
+   their own type ramp and their own violet "info" wash, which made shipping look like a
+   different product bolted onto the page — and it is eight readings, which is a row of
+   cards. Its rules went with it rather than sitting here selecting nothing. */
 
 /* ── PANEL ── */
 .panel{background:var(--surface);border:1px solid var(--rule);border-radius:var(--radius-lg);
@@ -510,8 +479,13 @@ body:not(.editing) .ez,body:not(.editing) .edit-only{display:none!important}
 .chartpick button[aria-pressed="true"] svg text{fill:#fff}
 
 /* ── PRESENT / 16:9 BROADCAST ──
-   A 48" screen at 1920×1080 shows one section, whole, with no scrollbar. Type is
-   pegged to the viewport so the same page fills a laptop and the meeting-room TV. */
+   One section per screen at 1920×1080, driven by whoever is presenting.
+
+   The overlap this replaces was not a sizing bug. The wall was rendering the whole section
+   — cards, the week table, the review notes, the edit fields — into a box with
+   `overflow:hidden`, so on Production the table simply printed on top of the cards. A wall
+   is not a smaller version of the page: it is the cards, at the size a room reads, and
+   nothing else. Everything that is a table, a note or a field is a thing you lean in for. */
 body.tv{overflow:hidden;--scale:1.45}
 @media(min-width:1500px){body.tv{--scale:1.8}}
 @media(min-width:1800px){body.tv{--scale:2.15}}
@@ -519,21 +493,21 @@ body.tv .rail,body.tv .top,body.tv .no-tv{display:none}
 body.tv .shell{grid-template-columns:1fr;height:100vh}
 body.tv .main{height:100vh;overflow:hidden}
 body.tv .content{flex:1;min-height:0;overflow:hidden;padding:var(--s4) var(--s5) var(--s5);gap:var(--s4)}
-body.tv .sec{flex:1;min-height:0}
-/* Cards keep their natural height and the row centres in the space under the heading.
-   Stretching five cards to 900px against a 350px width gives each one a canyon of
-   empty ground below the number — which is what the room ends up looking at. */
-body.tv .grid{flex:1;min-height:0;align-content:center}
-body.tv .card{padding:var(--s5)}
-body.tv .panel{min-height:0}
-body.tv .top{padding:var(--s3) var(--s5)}
-body.tv .viz{max-height:min(38vh,460px)}
+body.tv .sec{flex:1;min-height:0;display:flex;flex-direction:column}
+/* Only cards reach the wall. */
+body.tv .panel,body.tv .ez,body.tv .edit-only,body.tv .revcard,body.tv .sec__head,
+body.tv .tbl,body.tv .today,body.tv .settled{display:none}
+body.tv .grid{flex:1;min-height:0;align-content:center;gap:var(--s4)}
+body.tv .card{padding:var(--s5);min-height:0}
+body.tv .viz{max-height:min(30vh,380px)}
 body.tv .card__mid{justify-content:center;gap:var(--s2)}
 /* Across a meeting room the reading has to carry, so the cap on a hero comes off
    proportionally — a card twice as wide gets a number twice as tall. */
 body.tv .hero{font-size:min(calc(var(--t-metric)*3.4),36cqi)}
 body.tv .hero--md{font-size:min(calc(var(--t-metric)*2.6),26cqi)}
-body.tv .fstat__v{font-size:min(calc(var(--t-metric)*1),11cqi)}
+body.tv .card__label{font-size:min(calc(24px*var(--scale)),5.6cqi)}
+body.tv .fs__v{font-size:calc(15px*var(--scale))}
+body.tv .fs__l{font-size:calc(10px*var(--scale))}
 /* The track's captions are captions, not readings. Scaled with everything else at 2.15×
    they ran out of card and truncated to "LAST 7 MORNI…", which is a label that has
    stopped being a label. They grow more slowly than the numbers they sit under. */
