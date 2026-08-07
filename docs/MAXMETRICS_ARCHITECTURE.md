@@ -384,6 +384,39 @@ each with a seven-day movement — four comparisons per department, three of whi
 card directly above it. What is left is the one thing the card cannot say: what the same
 weekday produced, and how that sat against target.
 
+## A wall is rows, not a page scaled up
+
+Two levers got this wrong before it got it right, and both are worth writing down.
+
+`min-height` on the card was the wrong one. It made a two-card page fill the screen and
+broke every page with two rows: quality's six and shipping's eight do not fit two rows of
+42vh plus a heading in 1080, so the rows compressed and the cards clipped their own feet
+under `overflow:hidden` — silently, which is the worst way for a wall to be wrong.
+
+`grid-auto-rows: minmax(min-content, 1fr)` is the right one, and it says the opposite per
+row: never shorter than what is in it, and share whatever is left. One row of two fills the
+screen; two rows of four take half each. The densest page — eight cards — is what sets the
+padding, and it is checked by measuring the lowest card's bottom against the viewport
+rather than by looking.
+
+On a page a card's foot is pinned to the bottom so a row lines up whatever each card
+carries. On a wall the card is a thousand pixels tall and that leaves a hole between the
+number and its context, so there the contents travel together and centre.
+
+## Importing a year
+
+The old dashboard writes one JSON file per morning, and a plant has a folder per month of
+them. So the importer takes any number of files at once, a folder, or a folder of folders —
+a dropped directory arrives as an entry rather than as its files and is walked to any
+depth, because asking somebody to open twelve monthly folders is asking them not to bother.
+
+Anything that is not `.xlsx` or `.json` is ignored rather than reported: a year of folders
+contains other things, and a list of every one of them is not a useful error.
+
+Each morning still goes to the date on its own record through `import_morning`, and still
+never replaces a reading somebody entered. Thirty files across two folders, verified end to
+end: thirty mornings, thirty distinct dates, nothing else touched.
+
 ## Deployment
 
 Netlify, from the `gh-pages` branch, public URL, protected by sign-in. `scripts/publish.sh`

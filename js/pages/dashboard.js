@@ -1148,12 +1148,17 @@ function importPanel() {
   if (importState.reading) return `<p class="drop__wait">Reading the files…</p>`;
 
   const drop = `<div class="drop" id="drop">
-    <p class="drop__lead">Drop the morning's workbooks here</p>
-    <p class="drop__note">DOR_V9.xlsx and OTDOTIF.xlsx for this morning, or a
-      <b>.json</b> export from the old dashboard for its history — or pick them.
-      Files are read in this browser and nothing leaves it until you accept.</p>
-    <label class="btn btn--primary">Choose files
-      <input type="file" id="drop-input" multiple accept=".xlsx,.json" hidden></label>
+    <p class="drop__lead">Drop this morning\'s workbooks, or a year of exports</p>
+    <p class="drop__note">DOR_V9.xlsx and OTDOTIF.xlsx for the open morning, or any number of
+      <b>.json</b> files from the old dashboard for their own dates. Whole folders are
+      accepted, and folders inside them. Files are read in this browser and nothing leaves
+      it until you accept.</p>
+    <div class="drop__pick">
+      <label class="btn btn--primary">Choose files
+        <input type="file" id="drop-input" multiple accept=".xlsx,.json" hidden></label>
+      <label class="btn">Choose a folder
+        <input type="file" id="drop-dir" webkitdirectory directory multiple hidden></label>
+    </div>
   </div>`;
 
   if (importState.error) {
@@ -1262,6 +1267,26 @@ function importPanel() {
     </div>`;
 }
 
+// A folder dropped on the zone arrives as a directory entry rather than as its files, so
+// it is walked. Depth is not limited on purpose: the plant keeps a year of exports in a
+// folder per month, and asking somebody to open twelve of them is asking them not to.
+async function filesUnder(entries, out = []) {
+  for (const entry of entries) {
+    if (entry.isFile) {
+      if (!/\.(xlsx|json)$/i.test(entry.name)) continue;
+      out.push(await new Promise((resolve, reject) => entry.file(resolve, reject)));
+    } else if (entry.isDirectory) {
+      const reader = entry.createReader();
+      for (;;) {
+        const batch = await new Promise((resolve, reject) => reader.readEntries(resolve, reject));
+        if (!batch.length) break;
+        await filesUnder(batch, out);
+      }
+    }
+  }
+  return out;
+}
+
 async function readDropped(files) {
   if (!files?.length) return;
   importState.reading = true; importState.error = null;
@@ -1300,13 +1325,23 @@ function drawImport() {
   const zone = $('#drop');
   if (zone) {
     $('#drop-input')?.addEventListener('change', e => readDropped(e.target.files));
+    // A folder picker hands over everything under it, including whatever else lives there,
+    // so the ones this can read are kept and the rest are ignored rather than reported as
+    // failures — nobody wants a list of every .png in a year of folders.
+    $('#drop-dir')?.addEventListener('change', e => readDropped(
+      [...e.target.files].filter(f => /\.(xlsx|json)$/i.test(f.name))));
     for (const type of ['dragenter', 'dragover']) {
       zone.addEventListener(type, e => { e.preventDefault(); zone.classList.add('drop--over'); });
     }
     for (const type of ['dragleave', 'drop']) {
       zone.addEventListener(type, () => zone.classList.remove('drop--over'));
     }
-    zone.addEventListener('drop', e => { e.preventDefault(); readDropped(e.dataTransfer?.files); });
+    zone.addEventListener('drop', async e => {
+      e.preventDefault();
+      const items = [...(e.dataTransfer?.items || [])]
+        .map(i => i.webkitGetAsEntry?.()).filter(Boolean);
+      readDropped(items.length ? await filesUnder(items) : e.dataTransfer?.files);
+    });
   }
   $('#import-again')?.addEventListener('click', () => { importState.preview = null; drawImport(); });
   $('#import-apply')?.addEventListener('click', applyImport);

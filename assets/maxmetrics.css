@@ -529,8 +529,10 @@ body.tv .sec{flex:1;min-height:0;display:flex;flex-direction:column}
 /* Only cards reach the wall. */
 body.tv .panel,body.tv .ez,body.tv .edit-only,body.tv .revcard,body.tv .sec__head,
 body.tv .tbl,body.tv .today,body.tv .settled{display:none}
-body.tv .grid{flex:0 1 auto;min-height:0;align-content:center;gap:var(--s4);margin:auto 0}
-body.tv .card{padding:var(--s5);min-height:0}
+
+/* Eight cards in two rows is the densest page, and at s5 padding the second row ran eight
+   pixels past the screen. The padding is the cheapest thing on a card to give back. */
+body.tv .card{padding:var(--s4) var(--s5);min-height:0}
 /* Belt and braces: if a card ever does run out of room, it clips at its own border rather
    than printing over the card beside it. */
 body.tv .card{overflow:hidden}
@@ -538,14 +540,26 @@ body.tv .card{overflow:hidden}
    panes. On a laptop that is the detail somebody leans in for; on a wall it is the part
    that ran out of card. The two figures against plan are the whole story at that size. */
 body.tv .finbars{display:none}
-/* A wall has vertical room a laptop does not, so cards there take a share of it rather
-   than sitting as small boxes in the middle of a 48". This is a floor, not a stretch: the
-   content still sizes itself and the card still clips at its own border. */
-body.tv .card{min-height:42vh}
-/* Two readings on a screen this wide would otherwise be two 340px cards adrift in it. */
-body.tv .grid--pair{grid-template-columns:repeat(2,minmax(0,26vw))}
-body.tv .viz{max-height:min(30vh,380px)}
-body.tv .card__mid{justify-content:center;gap:var(--s2)}
+
+/* The rows share the screen, and none of them is shorter than what is in it.
+   `min-height` on the card was the wrong lever: on a two-row page — quality's six, or
+   shipping's eight — two rows of 42vh plus the heading do not fit 1080, so the rows
+   compressed and the cards clipped their own feet. `minmax(min-content, 1fr)` says the
+   opposite and says it per row: never smaller than the content, and share whatever is
+   left. One row of two cards fills the screen; two rows of four each take half. */
+body.tv .grid{flex:1 1 auto;align-content:stretch;grid-auto-rows:minmax(min-content,1fr);
+  margin:0}
+/* On a page the reading sits under the heading and the foot is pinned to the bottom, so a
+   row of cards lines up whatever each one carries. On a wall the card is a thousand pixels
+   tall and that leaves a hole between the number and its context. There, the contents
+   travel together and centre. */
+body.tv .card{justify-content:center}
+body.tv .card__mid{flex:0 1 auto}
+body.tv .foot{margin-top:var(--s4)}
+/* A date at 41px is wider than half a card. The context is context. */
+body.tv .fs__v{font-size:calc(14px*var(--scale))}
+body.tv .fs__l{font-size:calc(9.5px*var(--scale))}
+
 /* Across a meeting room the reading has to carry, so the cap on a hero comes off
    proportionally — a card twice as wide gets a number twice as tall. */
 body.tv .hero{font-size:min(calc(var(--t-metric)*3.4),36cqi)}
@@ -558,7 +572,7 @@ body.tv .card__label{font-size:calc(15px*var(--scale))}
 body.tv .ctrack__l{font-size:calc(9px*var(--scale))}
 body.tv .ctrack__d{font-size:calc(10px*var(--scale))}
 body.tv .ctrack .bullet{height:calc(10px*var(--scale))}
-body.tv .ctrack .spark{height:calc(16px*var(--scale))}
+body.tv .ctrack .spark{height:calc(13px*var(--scale))}
 .unit--under{text-align:center}
 .tvbar{display:none;position:fixed;bottom:16px;right:16px;z-index:60;gap:4px;background:var(--surface);
   border:1px solid var(--rule-strong);border-radius:99px;padding:5px;box-shadow:0 6px 24px rgba(0,0,0,.2);
@@ -898,6 +912,7 @@ body.tv .content.wall{display:flex;flex-direction:column;gap:var(--s4);
 .drop__names{display:flex;flex-wrap:wrap;gap:var(--s2);margin:0}
 .drop__notes{margin:0;padding-left:var(--s4);font-size:var(--t-small);color:var(--ink-muted);line-height:1.6}
 .drop .btn{cursor:pointer}
+.drop__pick{display:flex;gap:var(--s2);justify-content:center;flex-wrap:wrap}
 
 .tbl .soft{opacity:.5}
 
