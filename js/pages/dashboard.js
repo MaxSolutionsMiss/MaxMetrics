@@ -10,14 +10,14 @@ import {
   openDay, loadDay, loadHistory, loadBudgets, saveField, saveDepartment, saveReview,
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   importHistory,
-} from '../db.js?v=5875f96d112d';
-import { assess, attention, settled, verdicts } from '../assess.js?v=5875f96d112d';
+} from '../db.js?v=3af14ced0737';
+import { assess, attention, settled, verdicts } from '../assess.js?v=3af14ced0737';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, footLine, drawReading, showsHeroNumber, CHART_ICONS, CHART_NAMES, iconFor,
   spark, bullet, chip, cardTrack, readingOf, derivedShipping, SHIPPING_TARGET,
   volumeLabel, rateLabel, hoursLabel,
-} from '../readings.js?v=5875f96d112d';
+} from '../readings.js?v=3af14ced0737';
 
 const $ = selector => document.querySelector(selector);
 
@@ -40,7 +40,7 @@ const state = {
   me: null, locations: [], canEdit: true,
   location: null, date: today(), active: 'overview',
   metrics: null, departments: [], review: [], maintenance: [], labour: [], config: [], budgets: [],
-  history: { metrics: [], departments: [] }, findings: [], verdicts: {},
+  history: { metrics: [], departments: [] }, findings: [], verdicts: {}, plant: null,
   chart: 'bar', team: [], live: null, wallStep: 0,
 };
 
@@ -158,12 +158,13 @@ function coqCard(kind, label, valueField, targetField) {
     value: has ? Number(value).toFixed(2) : '\u2014', unit: '%', sub: 'of sales',
     percent: has ? Number(value) / (target * 1.6) * 100 : 0,
     markPercent: 100 / 1.6, markLabel: 'target',
-    // Cost of quality is a month climbing or falling, which is exactly what a line is for.
+    // The bar against target, and no line. Cost of quality is a month-long figure — seven
+    // mornings of it is seven readings of the same number, drawn as a slope that means
+    // nothing, and it was the widest thing on the card.
     track: has ? cardTrack({
       chart: state.chart, actual: Number(value), target, tone, lowerIsBetter: true,
       targetText: `Against \u2264 ${target.toFixed(2)}%`, deltaTone: tone,
       deltaText: `${off <= 0 ? '\u2212' : '+'}${Math.abs(off).toFixed(2)} pts`,
-      series: metricSeries(valueField),
     }) : '',
     foot: footLine([
       ['Target', `\u2264 ${target.toFixed(2)}%`],
@@ -267,6 +268,10 @@ const SECTIONS = {
   quality: () => {
     const shortages = metric('shortages');
     const shortTone = shortages == null ? '' : band.shortage(Number(shortages));
+    // Not every plant raises NCRs or splits its complaints, and a card that reads a
+    // permanent dash teaches the room that a blank is normal. Which of the three appear is
+    // a switch on the plant, set in Configure.
+    const on = key => state.plant?.[key] !== false;
     // `name`, not `field` — the parameter was called `field` and shadowed the helper of
     // the same name two scopes up, so every quality card threw on its edit row.
     const counter = (key, label, icon, name, sub) => {
@@ -287,11 +292,11 @@ const SECTIONS = {
         foot: footLine([['Target', '0']]),
         edit: field('Count', 'shortages', `type="number" min="0" value="${shortages ?? ''}"`),
       })}
-      ${coqCard('coq', `COQ \u2014 ${MONTHS[dateOf(state.date).getMonth()]}`, 'coq', 'coq_target')}
+      ${coqCard('coq', 'COQ \u2014 month to date', 'coq', 'coq_target')}
       ${coqCard('coqytd', 'COQ \u2014 year to date', 'coq_ytd', 'coq_ytd_target')}
-      ${counter('ncr', 'NCRs received', '\u{1F4CB}', 'ncr_ytd', 'year to date')}
-      ${counter('cint', 'Internal complaints', '\u{1F3ED}', 'complaints_internal', 'year to date')}
-      ${counter('cext', 'Customer complaints', '\u{1F4E3}', 'complaints_external', 'year to date')}
+      ${on('show_ncr') ? counter('ncr', 'NCRs received', '\u{1F4CB}', 'ncr_ytd', 'year to date') : ''}
+      ${on('show_internal') ? counter('cint', 'Internal complaints', '\u{1F3ED}', 'complaints_internal', 'year to date') : ''}
+      ${on('show_external') ? counter('cext', 'Customer complaints', '\u{1F4E3}', 'complaints_external', 'year to date') : ''}
     </div>`;
   },
 
@@ -323,6 +328,8 @@ const SECTIONS = {
         // rate itself, on one line. "vs target" is not among them any more: the bar above
         // is that number drawn, and printing it twice on the same card was half the reason
         // the card felt crowded.
+        // Three facts, one row: what the target was, what was made against it, and the
+        // hours it took. They were two rows, which spent a whole line on the hours.
         foot: footLine([
           ['Target', num(Math.round(target))],
           [volumeLabel(config), row.qty ? num(row.qty) : null],
@@ -338,34 +345,28 @@ const SECTIONS = {
 
     const unitsInPlay = [...new Set(list.map(c => volumeLabel(c)))];
 
-    // Uptime and make-ready belong beside the rate they qualify: a press at target that
-    // loses an hour a shift to setup is a different morning from one that did not. Each of
-    // the three carries what it did across the week beside it, because one day is weather
-    // and the argument the room has is always about the direction.
+    // Last week's productivity, against the targets the plant set — not against today.
+    //
+    // The table used to run today's rate, today's uptime and today's make-ready beside the
+    // previous week's, each with a seven-day movement. That is four comparisons per
+    // department on a table nobody reads mid-sentence, and three of them are already on
+    // the card above it. What is left is the thing the card cannot say: what the same
+    // weekday produced, and how that sat against target.
     const weekRow = config => {
-      const row = dept(config.key), rate = rateOf(row);
-      const previous = Number(row.pw_hours) ? Number(row.pw_qty) / Number(row.pw_hours) : 0;
+      const row = dept(config.key);
+      const rate = Number(row.pw_hours) ? Number(row.pw_qty) / Number(row.pw_hours) : 0;
+      const target = Number(row.target ?? config.target);
       const upTarget = Number(config.uptime_target || 0) * 100;
-      const up = row.uptime == null ? null : Number(row.uptime) * 100;
       const mrTarget = Number(config.mr_target || 0);
-      const mr = row.make_ready == null ? null : Number(row.make_ready);
-      const over = (list, lower = false) => list.length > 1
-        ? trend(list[list.length - 1], list[0], lower) : '—';
       return `<tr><td class="dept">${esc(config.name)}</td>
         <td class="num">${row.pw_qty ? num(row.pw_qty) : '—'}</td>
-        <td class="num">${row.pw_hours ?? '—'}</td>
-        <td class="num big">${previous ? num(Math.round(previous)) : '—'}</td>
-        <td class="num big tone--${band.rate(rate, Number(row.target ?? config.target)) || 'none'}">${
+        <td class="num">${row.pw_hours ? `${row.pw_hours} h` : '—'}</td>
+        <td class="num big tone--${band.rate(rate, target) || 'none'}">${
           rate ? num(Math.round(rate)) : '—'}</td>
-        <td class="num">${over(deptSeries(config.key))}</td>
-        <td class="num"><span class="tone--${band.rate(up, upTarget) || 'none'}">${
-          up == null ? '—' : `${up.toFixed(1)}%`}</span>${
-          upTarget ? `<span class="wk">target ${upTarget.toFixed(0)}%</span>` : ''}</td>
-        <td class="num">${over(deptSeries(config.key, 'uptime'))}</td>
-        <td class="num"><span class="tone--${band.lower(mr, mrTarget) || 'none'}">${
-          mr == null ? '—' : `${mr.toFixed(2)} h`}</span>${
-          mrTarget ? `<span class="wk">target ${mrTarget.toFixed(2)} h</span>` : ''}</td>
-        <td class="num">${over(deptSeries(config.key, 'make_ready'), true)}</td>
+        <td class="num">${num(Math.round(target))}</td>
+        <td class="num">${rate && target ? trend(rate, target) : '—'}</td>
+        <td class="num">${upTarget ? `${upTarget.toFixed(0)}%` : '—'}</td>
+        <td class="num">${mrTarget ? `${mrTarget.toFixed(2)} h` : '—'}</td>
       </tr>`;
     };
 
@@ -380,27 +381,23 @@ const SECTIONS = {
 
     // The cards used to share a row with this table, sized by counting the departments.
     // That worked while there were three and stopped the moment a plant could add its own.
-    // The cards wrap on their own now and the table takes the full width underneath, which
-    // is the width it always needed — and now needs more of, because it answers three
-    // questions per department rather than one.
+    // The cards wrap on their own now and the table takes the full width underneath.
     return `<div class="grid grid--depts">${cards}</div>
     <div class="panel" style="margin-top:var(--s3)">
       <div class="panel__head"><span class="card__ico" aria-hidden="true">📅</span>
-        <h3 class="panel__title">This morning against the week</h3>
-        <span class="panel__actions chip">Previous week is the same weekday</span></div>
+        <h3 class="panel__title">Last week&rsquo;s productivity</h3>
+        <span class="panel__actions chip">Same weekday</span></div>
       <div class="panel__body">
-        <table class="tbl tbl--week"><thead>
-          <tr><th rowspan="2">Department</th>
-            <th class="num" colspan="3">Previous week</th>
-            <th class="num" colspan="2">Rate</th>
-            <th class="num" colspan="2">Uptime</th>
-            <th class="num" colspan="2">Make-ready</th></tr>
-          <tr><th class="num">${esc(unitsInPlay.length === 1 ? capitalised(unitsInPlay[0]) : 'Volume')}</th>
-            <th class="num">Hours</th><th class="num">Per hr</th>
-            <th class="num">Today</th><th class="num">7 days</th>
-            <th class="num">Today</th><th class="num">7 days</th>
-            <th class="num">Today</th><th class="num">7 days</th></tr>
-        </thead><tbody>${list.map(weekRow).join('')}</tbody></table>
+        <table class="tbl tbl--week"><thead><tr>
+          <th>Department</th>
+          <th class="num">${esc(unitsInPlay.length === 1 ? capitalised(unitsInPlay[0]) : 'Volume')}</th>
+          <th class="num">Hours</th>
+          <th class="num">Per hour</th>
+          <th class="num">Target</th>
+          <th class="num">vs target</th>
+          <th class="num">Uptime target</th>
+          <th class="num">Make-ready target</th>
+        </tr></thead><tbody>${list.map(weekRow).join('')}</tbody></table>
         <div class="ez">${weekEdit}</div>
       </div>
     </div>
@@ -627,27 +624,25 @@ const SECTIONS = {
     // The chart choice reaches the financials too. Sales against plan is a reading like
     // any other, and a page where five cards are rings and the money is a bar reads as
     // two designs rather than one.
-    const pane = (title, actual, plan, rows, tone) => {
-      const pacePercent = plan ? Math.min(140, actual / plan * 100) : 0;
-      const drawn = drawReading(state.chart, {
-        percent: pacePercent / 1.4, markPercent: 100 / 1.4, markLabel: 'plan',
-        value: `${Math.round(pacePercent)}%`, unit: '',
-      });
-      // The pane is the thing being judged, not the card. Month to date and year to date
-      // are two different questions — one about the last few days, one about the year —
-      // and a card washed by the worse of them tells the room the year is in trouble
-      // because the month is five days old. Each pane now carries its own verdict.
-      return `<div class="fin__pane fin__pane--${tone}"><div class="fin__t">${title}</div>
-        <div class="fin__pace">${Math.round(pacePercent)}<i>% of plan</i></div>
-        ${showsHeroNumber(state.chart)
-          ? `<div class="fin__v">${money(actual)}</div>${drawn}`
-          : `${drawn}<div class="fin__v fin__v--under">${money(actual)}</div>`}
+    // One line for the figure and its percentage, then the three numbers that explain it,
+    // set large enough to read from the back of the room. It used to stack the percentage
+    // over the money, which spent a line on a label and left both smaller than they needed
+    // to be.
+    //
+    // "Budget", not "plan". The plant writes a budget; prorating it by elapsed days does
+    // not make it a different thing, and two words for one number is one word too many.
+    const pane = (title, actual, budget, rows, tone) => {
+      const pace = budget ? Math.round(actual / budget * 100) : 0;
+      return `<div class="fin__pane fin__pane--${tone}">
+        <div class="fin__t">${title}</div>
+        <div class="fin__line">
+          <span class="fin__v">${money(actual)}</span>
+          <span class="fin__pct">${pace}<i>% of budget</i></span>
+        </div>
         <div>${rows.map(([label, value, colour]) => `<div class="fin__row"><span>${label}</span>
           <strong${colour ? ` style="color:var(--${colour})"` : ''}>${value}</strong></div>`).join('')}</div></div>`;
     };
 
-    const monthSeries = (state.history?.metrics || [])
-      .map(r => Number(r.fin_actual_mtd)).filter(v => Number.isFinite(v) && v > 0);
     const pace = planMtd ? actualMtd / planMtd * 100 : 0;
     return `<div class="card" data-pkey="financials" style="padding:var(--s5)">
       <div class="card__head">
@@ -657,49 +652,37 @@ const SECTIONS = {
       </div>
       <div class="fin">
         ${pane('Month to date', actualMtd, planMtd, [
-          ['Actual', money(actualMtd)],
-          ['Target', money(planMtd)],
-          ['Variance', `${varianceMtd >= 0 ? '▲' : '▼'} ${money(Math.abs(varianceMtd))} (${Math.abs(percentMtd).toFixed(1)}%)`, toneMtd],
           [`${MONTHS[month]} budget`, money(monthBudget)],
+          ['Expected by today', money(planMtd)],
+          ['Variance', `${varianceMtd >= 0 ? '▲' : '▼'} ${money(Math.abs(varianceMtd))} (${Math.abs(percentMtd).toFixed(1)}%)`, toneMtd],
         ], toneMtd)}
         ${pane('Year to date', actualYtd, planYtd, [
-          ['Actual', money(actualYtd)],
-          ['Target', money(planYtd)],
-          ['Variance', `${varianceYtd >= 0 ? '▲' : '▼'} ${money(Math.abs(varianceYtd))} (${Math.abs(percentYtd).toFixed(1)}%)`, toneYtd],
           ['Full-year budget', money(yearBudget)],
+          ['Expected by today', money(planYtd)],
+          ['Variance', `${varianceYtd >= 0 ? '▲' : '▼'} ${money(Math.abs(varianceYtd))} (${Math.abs(percentYtd).toFixed(1)}%)`, toneYtd],
         ], toneYtd)}
       </div>
       <div class="finbars">
         <div class="finbar">
-          <div class="finbar__l">Month to date against plan
-            <b class="tone--${toneMtd}">${pace.toFixed(0)}% of pace</b></div>
+          <div class="finbar__l">Month to date against budget
+            <b class="tone--${toneMtd}">${pace.toFixed(0)}% of budget</b></div>
           ${bullet({ actual: actualMtd, target: planMtd, tone: toneMtd })}
         </div>
         <div class="finbar">
-          <div class="finbar__l">Year to date against plan
-            <b class="tone--${toneYtd}">${(planYtd ? actualYtd / planYtd * 100 : 0).toFixed(0)}% of pace</b></div>
+          <div class="finbar__l">Year to date against budget
+            <b class="tone--${toneYtd}">${(planYtd ? actualYtd / planYtd * 100 : 0).toFixed(0)}% of budget</b></div>
           ${bullet({ actual: actualYtd, target: planYtd, tone: toneYtd })}
         </div>
         <div class="finbar">
-          <div class="finbar__l">Month so far
-            <b>${MONTHS[month]} · day ${elapsed} of ${inMonth}</b></div>
+          <div class="finbar__l">${MONTHS[month]} so far
+            <b>day ${elapsed} of ${inMonth}</b></div>
           <div class="finmonth"><span style="width:${(elapsed / inMonth * 100).toFixed(1)}%"></span></div>
         </div>
       </div>
-      ${monthSeries.length > 1 ? `<div class="finbar" style="margin-top:var(--s4)">
-        <div class="finbar__l">Month to date, over the last seven mornings
-          <b class="tone--${toneMtd}">${money(monthSeries[monthSeries.length - 1] - monthSeries[0])} booked</b></div>
-        ${spark(monthSeries, toneMtd)}
-      </div>` : ''}
       <div class="ez">
         ${field('Actual MTD', 'fin_actual_mtd', `type="number" value="${metric('fin_actual_mtd') ?? ''}"`)}
         ${field('Actual YTD', 'fin_actual_ytd', `type="number" value="${metric('fin_actual_ytd') ?? ''}"`)}
-        <div class="grid" style="grid-template-columns:repeat(6,minmax(0,1fr));gap:var(--s2)">
-          ${Array.from({ length: 12 }, (_, i) => `<div class="er"
-            style="flex-direction:column;align-items:stretch;gap:2px">
-            <label style="min-width:0">${MONTHS[i].slice(0, 3)}</label>
-            <input class="inp" data-field="budget:${i + 1}" type="number" value="${budgetFor(i) || ''}"></div>`).join('')}
-        </div></div>
+      </div>
     </div>`;
   },
 };
@@ -778,22 +761,16 @@ function paintPresence() {
   }
 }
 
-// One line under the heading saying what the section comes to. It is the same verdict the
-// dot in the rail carries — assess.js reached it once — so a person can take the section
-// from the line and read the cards only if the line gives them a reason to.
+// The section verdict is gone.
 //
-// It rides inside `one`, which is also what the wall draws, so the meeting-room screen
-// carries the sentence too. A room walking past a 48" gets the answer without having to
-// read five cards from across the floor.
-function verdictLine(key) {
-  const said = state.verdicts[key];
-  if (!said) return '';
-  return `<p class="verdict verdict--${said.tone || 'none'}">${esc(said.line)}</p>`;
-}
-
+// It summarised the section under its heading, and the room does not want a summary: they
+// read the cards. On a wall it was a sentence in body type above numbers set at two
+// hundred pixels, which is the wrong thing to put at the top of a screen somebody glances
+// at. `verdicts()` still runs — the rail's status dots are its tones, and that is the one
+// place a one-word summary earns its space.
 const one = key => `<section class="sec"><div class="sec__head">
   <h2 class="sec__title">${TITLES[key]}</h2><div class="sec__rule"></div></div>
-  ${verdictLine(key)}${SECTIONS[key]()}</section>`;
+  ${SECTIONS[key]()}</section>`;
 
 function renderContent() {
   if (document.body.classList.contains('tv')) return renderWall();

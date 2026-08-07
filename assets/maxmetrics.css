@@ -199,12 +199,16 @@ body.tv .verdict{font-size:var(--t-lead)}
    bar under it and a week of history; below about 250px the bar's label starts wrapping,
    so that is the floor and the row wraps rather than squeezing past it. */
 .grid--depts{grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
-/* A card is a card whatever section it is in. Safety has two readings, and left to a
-   two-column grid it drew them a full half-page wide each — which made the title the
-   biggest thing on the card and the number look incidental, the opposite of every other
-   section. The cards keep the width they have everywhere else and the row centres. */
-.grid--pair{grid-template-columns:repeat(2,minmax(0,340px));justify-content:center}
-@media(max-width:760px){.grid--pair{grid-template-columns:minmax(0,340px)}}
+/* A card is a card whatever section it is in.
+   Safety has two readings and Quality has six, and a two-column grid drew safety's at
+   three times the width — the same component at two sizes, which the eye reads as two
+   kinds of card. Six tracks, each card spanning two of them, starting one track in: the
+   cards come out exactly the width of a three-across card and the row sits centred. */
+.grid--pair{grid-template-columns:repeat(6,minmax(0,1fr))}
+.grid--pair > *{grid-column:span 2}
+.grid--pair > *:first-child{grid-column:2 / span 2}
+@media(max-width:760px){.grid--pair{grid-template-columns:1fr}
+  .grid--pair > *,.grid--pair > *:first-child{grid-column:auto}}
 .g4{grid-template-columns:repeat(4,minmax(0,1fr))}
 .g3{grid-template-columns:repeat(3,minmax(0,1fr))}
 .g2{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -239,7 +243,12 @@ body.tv .verdict{font-size:var(--t-lead)}
 /* One line, always — and the size the plant's own dashboard gives it. It was dropped to a
    caption while the number grew, which left a row of cards you had to hunt to identify.
    The title is how you find the card; it is allowed to be the second loudest thing on it. */
-.card__label{font-family:var(--font-condensed);font-size:min(calc(19px*var(--scale)),5.2cqi);
+/* A fixed size, not one derived from the card's width.
+   Sizing it in `cqi` meant a narrow safety card and a wide production card drew their
+   titles at different sizes, and the eye reads that as two different kinds of card rather
+   than one kind at two widths. Every title on the page is now the same size and the cards
+   are sized to fit it. */
+.card__label{font-family:var(--font-condensed);font-size:calc(19px*var(--scale));
   font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-muted);
   line-height:1.15;text-align:center;min-width:0;white-space:nowrap;overflow:hidden;
   text-overflow:ellipsis}
@@ -322,24 +331,31 @@ body.tv .verdict{font-size:var(--t-lead)}
 .cell .ctrack{margin-top:var(--s3);text-align:left}
 .cell .ctrack .spark{height:22px}
 
-/* A fine rule, and under it the context in two columns — record on the left, last injury
-   on the right, each a small label over its value. One centred line was tried and it reads
-   as a caption; two columns read as a pair of facts, which is what they are, and the label
-   above the value keeps both to two short lines instead of one long one. */
+/* A fine rule, and under it the context on one row — however many facts there are.
+   Two used to mean two columns and three meant a second row, so a production card spent a
+   whole line on "HOURS 8.5 h" while the two above it sat half empty. The row divides by
+   what it holds: target, what was made, and the hours it took, side by side and bigger for
+   the line it gave back. */
 .foot{margin-top:auto;width:100%;align-self:stretch;padding-top:var(--s2);
-  border-top:1px solid var(--rule);display:grid;grid-template-columns:1fr 1fr;
-  gap:var(--s2) var(--s4);text-align:left}
-/* The right of each pair turns to face the left of it across the card. */
-.foot .fs:nth-child(even){text-align:right;align-items:flex-end}
+  border-top:1px solid var(--rule);display:grid;gap:var(--s2) var(--s3);text-align:left;
+  grid-template-columns:1fr 1fr}
+.foot--1{grid-template-columns:1fr}
+.foot--3{grid-template-columns:repeat(3,1fr)}
+.foot--4{grid-template-columns:repeat(4,1fr)}
+/* The last of a pair or a row turns to face the others across the card. */
+.foot .fs:last-child:not(:only-child){text-align:right;align-items:flex-end}
+.foot--3 .fs:nth-child(2){text-align:center;align-items:center}
 .fs{display:flex;flex-direction:column;gap:0;min-width:0}
-.fs__l{font-family:var(--font-condensed);font-size:min(calc(11px*var(--scale)),3.4cqi);
+.fs__l{font-family:var(--font-condensed);font-size:calc(11.5px*var(--scale));
   text-transform:uppercase;letter-spacing:.06em;font-weight:700;color:var(--ink-faint);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
-.fs__v{font-family:var(--font-condensed);font-size:min(calc(17px*var(--scale)),5.6cqi);
+.fs__v{font-family:var(--font-condensed);font-size:calc(19px*var(--scale));
   font-weight:600;line-height:1.2;letter-spacing:-.01em;color:var(--ink);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
-/* A single fact centres rather than hugging the left edge with a hole beside it. */
-.foot .fs:only-child{grid-column:1/-1;align-items:center;text-align:center}
+/* One fact is a sentence, not a column: "Target 0" reads on one line and costs the card
+   nothing. Two lines for it was the widest thing on a shipping card. */
+.foot--1 .fs{flex-direction:row;align-items:baseline;justify-content:center;gap:var(--s2)}
+.foot--1 .fs__l{font-size:calc(12px*var(--scale))}
 /* The rule is a rule, not a verdict. */
 .fstat{display:flex;flex-direction:column;gap:1px;min-width:0}
 /* The right of each pair turns to face the left of it across the card. */
@@ -430,33 +446,36 @@ body.tv .verdict{font-size:var(--t-lead)}
    Two panes side by side, one green and one red, is the honest picture of a year that is
    ahead and a month that is five days old. */
 .fin__pane{min-width:0;container-type:inline-size;text-align:center;
-  padding:var(--s4);border-radius:var(--radius-lg);border:1px solid var(--rule);
-  background:var(--surface)}
-.fin__pane--ok{background:var(--ok-wash);border-color:var(--ok-rule)}
-.fin__pane--warn{background:var(--warn-wash);border-color:var(--warn-rule)}
-.fin__pane--stop{background:var(--stop-wash);border-color:var(--stop-rule)}
-.fin__pane--ok .fin__v,.fin__pane--ok .fin__pace{color:var(--ok)}
-.fin__pane--warn .fin__v,.fin__pane--warn .fin__pace{color:var(--warn)}
-.fin__pane--stop .fin__v,.fin__pane--stop .fin__pace{color:var(--stop)}
-.fin__pane--ok .fin__t{color:var(--ok)}.fin__pane--warn .fin__t{color:var(--warn)}
+  border-radius:var(--radius-lg);padding:var(--s4);background:var(--surface)}
+.fin__pane--ok{background:var(--ok-wash)}
+.fin__pane--warn{background:var(--warn-wash)}
+.fin__pane--stop{background:var(--stop-wash)}
+/* The title of a pane is a heading, not a caption — it names which of the two questions
+   this half is answering, and at eleven pixels it did not. */
+.fin__t{font-family:var(--font-condensed);font-size:calc(20px*var(--scale));
+  text-transform:uppercase;letter-spacing:.05em;font-weight:700;color:var(--ink-muted);
+  margin-bottom:var(--s2)}
+.fin__pane--ok .fin__t{color:var(--ok)}
+.fin__pane--warn .fin__t{color:var(--warn)}
 .fin__pane--stop .fin__t{color:var(--stop)}
-/* Per cent of plan, said plainly. The plant reads this number as "am I at a hundred or
-   not", so it leads the pane and the money sits under it as the amount behind the claim. */
-.fin__pace{font-family:var(--font-condensed);font-size:min(calc(var(--t-metric)*2.1),22cqi);
-  font-weight:500;line-height:1;letter-spacing:-.01em;color:var(--ink)}
-.fin__pace i{font-family:var(--font);font-style:normal;font-size:.22em;font-weight:400;
-  opacity:.75;letter-spacing:0}
-.fin__v{font-size:min(calc(var(--t-metric)*1.1),12cqi);margin-bottom:var(--s3)}
-.fin__v--under{margin-top:var(--s2)}
-.fin__t{font-family:var(--font-condensed);font-size:calc(14px*var(--scale));text-transform:uppercase;
-  letter-spacing:.08em;font-weight:700;color:var(--ink-muted);margin-bottom:var(--s2)}
-.fin__v{font-family:var(--font-condensed);font-size:min(calc(var(--t-metric)*1.75),18cqi);
-  font-weight:500;line-height:1;letter-spacing:-.01em;margin-bottom:var(--s3);white-space:nowrap}
-.fin__row{display:flex;justify-content:space-between;gap:var(--s3);padding:6px 0;
-  border-bottom:1px solid var(--rule);font-size:var(--t-small)}
+/* The money and its percentage on one line. Stacked, they were two half-sized numbers and
+   a label; side by side each can be the size it deserves. */
+.fin__line{display:flex;align-items:baseline;justify-content:center;gap:var(--s3);
+  flex-wrap:wrap;margin-bottom:var(--s3)}
+.fin__v{font-family:var(--font-condensed);font-size:min(calc(var(--t-metric)*2),20cqi);
+  font-weight:500;line-height:1;letter-spacing:-.01em;white-space:nowrap;color:var(--ink)}
+.fin__pct{font-family:var(--font-condensed);font-size:min(calc(var(--t-metric)*1.2),12cqi);
+  font-weight:600;line-height:1;white-space:nowrap;color:var(--ink-muted)}
+.fin__pct i{font-family:var(--font);font-style:normal;font-size:.34em;font-weight:600;
+  letter-spacing:0;margin-left:2px}
+.fin__pane--ok .fin__v,.fin__pane--ok .fin__pct{color:var(--ok)}
+.fin__pane--warn .fin__v,.fin__pane--warn .fin__pct{color:var(--warn)}
+.fin__pane--stop .fin__v,.fin__pane--stop .fin__pct{color:var(--stop)}
+.fin__row{display:flex;justify-content:space-between;gap:var(--s3);padding:7px 0;
+  border-bottom:1px solid var(--rule);font-size:var(--t-base)}
 .fin__row:last-child{border-bottom:none}
 .fin__row span{color:var(--ink-muted)}
-.fin__row strong{font-family:var(--font-condensed);font-size:calc(16px*var(--scale));font-weight:600;white-space:nowrap}
+.fin__row strong{font-family:var(--font-condensed);font-size:calc(21px*var(--scale));font-weight:700;white-space:nowrap}
 
 /* ── EDIT ── */
 .ez{margin-top:var(--s3);padding-top:var(--s3);border-top:1px dashed var(--rule-strong);
@@ -531,7 +550,7 @@ body.tv .card__mid{justify-content:center;gap:var(--s2)}
    proportionally — a card twice as wide gets a number twice as tall. */
 body.tv .hero{font-size:min(calc(var(--t-metric)*3.4),36cqi)}
 body.tv .hero--md{font-size:min(calc(var(--t-metric)*2.6),26cqi)}
-body.tv .card__label{font-size:min(calc(24px*var(--scale)),5.6cqi)}
+body.tv .card__label{font-size:calc(15px*var(--scale))}
 
 /* The track's captions are captions, not readings. Scaled with everything else at 2.15×
    they ran out of card and truncated to "LAST 7 MORNI…", which is a label that has
@@ -559,7 +578,7 @@ body.tv .tvbar{display:flex}
 .content--solo .card{padding:var(--s5)}
 .content--solo .hero{font-size:min(calc(var(--t-metric)*3.4),32cqi)}
 .content--solo .hero--md{font-size:min(calc(var(--t-metric)*2.7),26cqi)}
-.content--solo .card__label{font-size:min(calc(21px*var(--scale)),5.2cqi)}
+.content--solo .card__label{font-size:calc(21px*var(--scale))}
 .content--solo .card__ico{font-size:30px}
 .content--solo .viz{max-height:min(56cqi,300px)}
 
