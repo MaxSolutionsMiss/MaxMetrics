@@ -319,6 +319,41 @@ A wall is not a smaller version of the page. It is the cards, at the size a room
 Safety and Quality are two pages because they are two subjects with two owners, and six
 quality readings do not fit under two safety ones.
 
+## The number is the reading
+
+The title is how you find a card; the number is why the card exists, so the number is the
+larger of the two. An earlier draft had it the other way round — a 22px condensed title
+over a two-character streak — and the card read as a label with a footnote.
+
+The unit sits directly under the number, close to it and centred, the way the plant's own
+cards set "sheets / hr" under a rate. Inline it competed with the reading for the same line.
+
+A card is the same size whatever section it is in. Safety has two readings, and a
+two-column grid drew them a half-page wide each, which is what made the title dominate.
+They take the width every other card has and the row centres.
+
+## Things that only break in a browser
+
+Three bugs in a row got past `node --check` and past the conformance rules, and all three
+were only visible by driving the pages:
+
+- `drawImport()` deleted in a refactor. Every caller threw on its first line; a throw in a
+  click handler is silent.
+- `addDays()` called from the dashboard and declared, unexported, in `import.js`.
+- `runRequestedAction()` called from the Start block, which sits *above* the import
+  section. The module body pauses at Start's `await`, so `importState` had not been
+  created yet and every `?do=import` arrival died in the temporal dead zone. It is the last
+  line of the file now, which is the only place where both a loaded morning and every
+  declaration are true.
+
+The first two are caught by a conformance rule that reduces each module to code — comments,
+strings and template text stripped, `${...}` holes kept — and refuses a call to a name the
+module never declares. The third is not catchable that way, and neither was the CSS
+selector that silently killed half the stylesheet. Those need a browser: load both pages,
+click the paths, and assert on what the page actually did. That check lives outside this
+repository because it needs Playwright and this repository has no dependencies — which is
+a real gap, and the reason it is written down here.
+
 ## Deployment
 
 Netlify, from the `gh-pages` branch, public URL, protected by sign-in. `scripts/publish.sh`

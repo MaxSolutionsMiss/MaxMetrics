@@ -65,7 +65,7 @@ export function assess({ date, metrics, departments, review, maintenance, labour
   }
   if (has(m('shortages'))) {
     const count = Number(m('shortages'));
-    out.push({ key:'shortages', section:'safety', area:'Quality', owner:'QA', title:'Shortages',
+    out.push({ key:'shortages', section:'quality', area:'Quality', owner:'QA', title:'Shortages',
       tone: band.shortage(count), value: count, unit: count === 1 ? 'job short' : 'jobs short',
       target: 0, targetLabel:'target 0', percent: count ? 100 : 0,
       series: metricSeries('shortages'),
@@ -73,7 +73,7 @@ export function assess({ date, metrics, departments, review, maintenance, labour
   }
   if (has(m('coq'))) {
     const value = Number(m('coq')), target = Number(m('coq_target') || 0.85);
-    out.push({ key:'coq', section:'safety', area:'Quality', owner:'QA', title:'Cost of quality',
+    out.push({ key:'coq', section:'quality', area:'Quality', owner:'QA', title:'Cost of quality',
       tone: band.coq(value, target), value: value.toFixed(2), unit:'%',
       target, targetLabel:`target ≤ ${target}%`, lowerIsBetter: true,
       percent: value / (target * 1.6) * 100, series: metricSeries('coq'),
@@ -293,7 +293,8 @@ const capitalise = text => text ? text[0].toUpperCase() + text.slice(1) : '';
 const plural = (count, one, many) => `${count} ${count === 1 ? one : many}`;
 
 const EMPTY = {
-  safety:      'Nothing entered for safety or quality yet.',
+  safety:      'No injury or near-miss dates entered yet.',
+  quality:     'Nothing entered for quality yet.',
   production:  'No department has reported volume and hours yet.',
   shipping:    'Nothing shipped has been entered yet.',
   maintenance: 'Nothing scheduled for today.',
@@ -314,6 +315,12 @@ function allClear(section, readings) {
     if (streak) {
       return `No injury today — ${plural(Number(streak.value), 'day', 'days')} clear, and everything else on target.`;
     }
+  }
+  if (section === 'quality') {
+    const short = readings.find(r => r.key === 'shortages');
+    return short && Number(short.value) === 0
+      ? 'Nothing short, and cost of quality inside target.'
+      : `All ${readings.length} readings on target.`;
   }
   if (section === 'financials') return 'Sales are on or ahead of plan, month and year to date.';
   if (section === 'labour') return 'No overtime running this morning.';
@@ -360,6 +367,7 @@ export function verdicts(state, readings) {
   });
   return {
     safety:      verdictFor('safety', readings),
+    quality:     verdictFor('quality', readings),
     production:  verdictFor('production', readings, reviewTones),
     shipping:    verdictFor('shipping', readings),
     financials:  verdictFor('financials', readings),
