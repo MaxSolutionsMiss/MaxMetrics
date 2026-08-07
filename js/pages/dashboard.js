@@ -255,7 +255,7 @@ const SECTIONS = {
     }).join('')}</div>`;
   },
 
-  safety: () => `<div class="grid grid--pair">
+  safety: () => `<div class="grid grid--cards">
       ${streakCard('injury', 'Days since last injury', 'injury_last', 'injury_record', 'injury')}
       ${streakCard('nearmiss', 'Days since near-miss', 'near_miss_last', 'near_miss_record', 'near-miss')}
     </div>`,
@@ -285,7 +285,7 @@ const SECTIONS = {
         edit: field(label, name, `type="number" min="0" value="${value ?? ''}"`),
       });
     };
-    return `<div class="grid g3">
+    return `<div class="grid grid--cards">
       ${metricCard({
         chart: 'number', pkey: 'shortages', label: 'Shortage count', tone: shortTone,
         value: shortages ?? '\u2014', sub: 'jobs short today',
@@ -382,7 +382,7 @@ const SECTIONS = {
     // The cards used to share a row with this table, sized by counting the departments.
     // That worked while there were three and stopped the moment a plant could add its own.
     // The cards wrap on their own now and the table takes the full width underneath.
-    return `<div class="grid grid--depts">${cards}</div>
+    return `<div class="grid grid--cards">${cards}</div>
     <div class="panel" style="margin-top:var(--s3)">
       <div class="panel__head"><span class="card__ico" aria-hidden="true">📅</span>
         <h3 class="panel__title">Last week&rsquo;s productivity</h3>
@@ -404,7 +404,7 @@ const SECTIONS = {
     <div class="sec__head" style="margin-top:var(--s3)">
       <h3 class="sec__title" style="font-size:var(--t-lead)">Review — last 24 hours</h3>
       <div class="sec__rule"></div></div>
-    <div class="grid g4">
+    <div class="grid grid--cards">
       ${state.review.map(row => {
         const config = state.config.find(c => c.key === row.dept_key);
         const name = config?.name || row.dept_key;
@@ -469,7 +469,7 @@ const SECTIONS = {
       });
     };
 
-    return `<div class="grid g4">
+    return `<div class="grid grid--cards">
       ${ship('jobs_shipped', 'Jobs shipped', '\u{1F69A}', {
         value: read('jobs_shipped') == null ? '\u2014' : num(read('jobs_shipped')), sub: 'today',
         foot: [['On time', read('jobs_on_time') ?? null],

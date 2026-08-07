@@ -40,6 +40,9 @@
   --t-lead:calc(18px*var(--scale)); --t-title:calc(22px*var(--scale)); --t-metric:calc(28px*var(--scale));
   --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px;
   --radius:6px; --radius-lg:14px; --rail-w:220px; --topbar-h:56px; --ctl-h:36px;
+  /* One card width for the whole page. The columns fall out of it rather than the other
+     way round, which is what keeps a safety card and a shipping card the same object. */
+  --card-w:318px;
   --shadow:0 1px 8px rgba(15,23,42,.07);
 }
 @media (prefers-color-scheme:dark){:root[data-theme="auto"]{
@@ -199,16 +202,16 @@ body.tv .verdict{font-size:var(--t-lead)}
    bar under it and a week of history; below about 250px the bar's label starts wrapping,
    so that is the floor and the row wraps rather than squeezing past it. */
 .grid--depts{grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
-/* A card is a card whatever section it is in.
-   Safety has two readings and Quality has six, and a two-column grid drew safety's at
-   three times the width — the same component at two sizes, which the eye reads as two
-   kinds of card. Six tracks, each card spanning two of them, starting one track in: the
-   cards come out exactly the width of a three-across card and the row sits centred. */
-.grid--pair{grid-template-columns:repeat(6,minmax(0,1fr))}
-.grid--pair > *{grid-column:span 2}
-.grid--pair > *:first-child{grid-column:2 / span 2}
-@media(max-width:760px){.grid--pair{grid-template-columns:1fr}
-  .grid--pair > *,.grid--pair > *:first-child{grid-column:auto}}
+/* One card width, everywhere.
+   Every earlier attempt fixed the columns per section — two for safety, three for quality,
+   four for shipping — and every one produced a different card width per section, which the
+   eye reads as different kinds of card rather than one kind laid out three ways.
+   So the width is the fixed thing and the columns fall out of it: every card row is
+   `auto-fit` against one track size and centres what it fits. Safety's two, quality's six
+   and shipping's eight are then the same card, four to a row, wrapping where they wrap. */
+.grid--cards{grid-template-columns:repeat(auto-fit,minmax(0,var(--card-w)));
+  justify-content:center;align-items:stretch}
+@media(max-width:760px){.grid--cards{grid-template-columns:minmax(0,1fr)}}
 .g4{grid-template-columns:repeat(4,minmax(0,1fr))}
 .g3{grid-template-columns:repeat(3,minmax(0,1fr))}
 .g2{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -513,9 +516,9 @@ body:not(.editing) .ez,body:not(.editing) .edit-only{display:none!important}
    `overflow:hidden`, so on Production the table simply printed on top of the cards. A wall
    is not a smaller version of the page: it is the cards, at the size a room reads, and
    nothing else. Everything that is a table, a note or a field is a thing you lean in for. */
-body.tv{overflow:hidden;--scale:1.45}
-@media(min-width:1500px){body.tv{--scale:1.8}}
-@media(min-width:1800px){body.tv{--scale:2.15}}
+body.tv{overflow:hidden;--scale:1.45;--card-w:440px}
+@media(min-width:1500px){body.tv{--scale:1.8;--card-w:440px}}
+@media(min-width:1800px){body.tv{--scale:2.15;--card-w:452px}}
 body.tv .rail,body.tv .top,body.tv .no-tv{display:none}
 body.tv .shell{grid-template-columns:1fr;height:100vh}
 body.tv .main{height:100vh;overflow:hidden}
