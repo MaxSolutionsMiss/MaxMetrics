@@ -105,7 +105,7 @@ export const openDay = async (location, date) => {
 };
 
 export function loadDay(location, date) {
-  // Six reads, issued together. They do not depend on each other, so waiting for them
+  // Seven reads, issued together. They do not depend on each other, so waiting for them
   // in turn would only make the morning slower.
   const year = Number(date.slice(0, 4));
   return Promise.all([
@@ -117,12 +117,14 @@ export function loadDay(location, date) {
       .eq('location_id', location).eq('metric_date', date)),
     run(() => client.from('maintenance_items').select('*')
       .eq('location_id', location).eq('metric_date', date).order('sort_order')),
+    run(() => client.from('daily_labour').select('*')
+      .eq('location_id', location).eq('metric_date', date)),
     run(() => client.from('location_departments').select('*')
       .eq('location_id', location).eq('active', true).order('sort_order')),
     run(() => client.from('department_targets').select('*')
       .eq('location_id', location).eq('year', year)),
-  ]).then(([metrics, departments, review, maintenance, config, targets]) => ({
-    metrics: metrics?.[0] ?? null, departments, review, maintenance,
+  ]).then(([metrics, departments, review, maintenance, labour, config, targets]) => ({
+    metrics: metrics?.[0] ?? null, departments, review, maintenance, labour,
     // A target belongs to a year. Reading the morning of 2 January 2027 has to compare
     // against 2027's number, and reopening a day in 2026 has to keep comparing against
     // 2026's — which only works if the year is part of the lookup rather than a column
@@ -230,6 +232,13 @@ export const saveDepartment = (location, date, key, patch) =>
     .upsert({ location_id: location, metric_date: date, dept_key: key, ...patch },
             { onConflict: 'location_id,metric_date,dept_key' }), { retry: 0 });
 
+// Same upsert as production and the review, and for the same reason: a department added
+// this morning has no labour row on a day that was opened before it existed.
+export const saveLabour = (location, date, key, patch) =>
+  run(() => client.from('daily_labour')
+    .upsert({ location_id: location, metric_date: date, dept_key: key, ...patch },
+            { onConflict: 'location_id,metric_date,dept_key' }), { retry: 0 });
+
 export const saveReview = (location, date, key, patch) =>
   run(() => client.from('daily_review')
     .upsert({ location_id: location, metric_date: date, dept_key: key, ...patch },
@@ -238,6 +247,27 @@ export const saveReview = (location, date, key, patch) =>
 export const saveBudget = (location, year, month, amount) =>
   run(() => client.from('location_budgets')
     .upsert({ location_id: location, year, month, amount }), { retry: 0 });
+
+// A morning that is not today.
+//
+// The old dashboard's JSON exports are the plant's history, and history is written to the
+// date it happened on rather than to whatever day happens to be open. Two rules make that
+// safe to run over a year of files:
+//
+//   The day is created if it is missing, so a date nobody has ever opened gets a row.
+//   Nothing already entered is replaced. `coalesce(existing, incoming)` on every column
+//   means an import can fill gaps and can never take a number a person typed.
+//
+// It is one call per morning rather than one per column, because a year of history is
+// three hundred mornings and the no-lock argument is about people editing the same day at
+// the same time — not about a bulk load of days nobody is looking at.
+export async function importHistory(location, date, metrics, departments) {
+  return run(() => client.rpc('import_morning', {
+    loc: location, d: date,
+    m: metrics || {},
+    depts: departments || {},
+  }), { retry: 0 });
+}
 
 export async function publish(location, date) {
   const session = await currentSession();
@@ -283,7 +313,8 @@ export function joinDay(location, date, { me, onPresence, onChange }) {
   }
 
   if (onChange) {
-    for (const table of ['daily_metrics', 'daily_departments', 'daily_review', 'maintenance_items']) {
+    for (const table of ['daily_metrics', 'daily_departments', 'daily_review',
+                         'daily_labour', 'maintenance_items']) {
       channel.on('postgres_changes',
         { event: '*', schema: 'public', table, filter: `location_id=eq.${location}` },
         payload => { if (payload.new?.metric_date === date) onChange(table, payload.new); });

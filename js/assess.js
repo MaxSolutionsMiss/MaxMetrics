@@ -12,7 +12,7 @@
 // green on the Wall would destroy trust in both, and the only way to guarantee that
 // cannot happen is for the verdict to be reached once, here, before any view sees it.
 
-import { band, daysBetween, num, money, readingOf, rateLabel, MONTHS } from './readings.js?v=cae52088bd70';
+import { band, daysBetween, num, money, readingOf, rateLabel, MONTHS } from './readings.js?v=e5ce27fed150';
 
 // The meeting runs two to three minutes, so a reading earns its place by being either
 // off target or genuinely load-bearing. Everything else is a tick in a strip.
@@ -22,7 +22,7 @@ import { band, daysBetween, num, money, readingOf, rateLabel, MONTHS } from './r
 // what is wrong with it, written here beside the number rather than in the view, because
 // this is the only place that knows a shortfall is measured in sheets and a streak in
 // days.
-export function assess({ date, metrics, departments, review, maintenance, config, budgets, history }) {
+export function assess({ date, metrics, departments, review, maintenance, labour, config, budgets, history }) {
   const out = [];
   const m = field => readingOf(metrics, field);
   const has = value => value !== null && value !== undefined && value !== '';
@@ -185,6 +185,26 @@ export function assess({ date, metrics, departments, review, maintenance, config
         : null });
   }
 
+  // ── Labour ──
+  //
+  // Overtime is amber the moment there is any of it. That is not a judgement that overtime
+  // is a failure — a plant that has to run Saturday to hold a delivery is doing the right
+  // thing — it is that the room has agreed to spend money and the meeting should say so
+  // out loud rather than let it pass in a table.
+  if ((labour || []).some(r => r.ot_shifts != null)) {
+    const running = (labour || []).filter(r => Number(r.ot_shifts) > 0);
+    const total = (labour || []).reduce((sum, r) => sum + Number(r.ot_shifts || 0), 0);
+    const named = running.map(r => (config || []).find(c => c.key === r.dept_key)?.name || r.dept_key);
+    out.push({ key:'overtime', section:'labour', area:'Labour', owner:'HR',
+      title:'Overtime shifts',
+      tone: total > 0 ? 'warn' : 'ok', value: total, quiet: total === 0,
+      unit: total === 1 ? 'shift' : 'shifts',
+      targetLabel: running.length ? named.join(', ') : 'none today',
+      say: `${total} overtime ${total === 1 ? 'shift is' : 'shifts are'} running in ${
+        named.length < 2 ? (named[0] || 'no department')
+          : `${named.slice(0, -1).join(', ')} and ${named[named.length - 1]}`}` });
+  }
+
   // ── Financial ──
   if (has(m('fin_actual_mtd')) && (budgets || []).length) {
     // Billing is reviewed the next morning, so this reports through the day before.
@@ -277,6 +297,7 @@ const EMPTY = {
   production:  'No department has reported volume and hours yet.',
   shipping:    'Nothing shipped has been entered yet.',
   maintenance: 'Nothing scheduled for today.',
+  labour:      'No overtime entered yet.',
   financials:  'No sales figure has been entered yet.',
 };
 
@@ -295,6 +316,7 @@ function allClear(section, readings) {
     }
   }
   if (section === 'financials') return 'Sales are on or ahead of plan, month and year to date.';
+  if (section === 'labour') return 'No overtime running this morning.';
   return readings.length === 1
     ? 'The one reading entered is on target.'
     : `All ${readings.length} readings on target.`;
@@ -342,5 +364,6 @@ export function verdicts(state, readings) {
     shipping:    verdictFor('shipping', readings),
     financials:  verdictFor('financials', readings),
     maintenance: verdictFor('maintenance', readings, maintTones),
+    labour:      verdictFor('labour', readings),
   };
 }

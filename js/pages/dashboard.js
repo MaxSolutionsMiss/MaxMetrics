@@ -8,15 +8,16 @@
 import {
   currentSession, signOut, myProfile, myLocations, savePreference,
   openDay, loadDay, loadHistory, loadBudgets, saveField, saveDepartment, saveReview,
-  saveBudget, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
-} from '../db.js?v=cae52088bd70';
-import { assess, attention, settled, verdicts } from '../assess.js?v=cae52088bd70';
+  saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
+  importHistory,
+} from '../db.js?v=e5ce27fed150';
+import { assess, attention, settled, verdicts } from '../assess.js?v=e5ce27fed150';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
-  metricCard, footStat, drawReading, showsHeroNumber, CHART_ICONS, CHART_NAMES, iconFor,
+  metricCard, footLine, drawReading, showsHeroNumber, CHART_ICONS, CHART_NAMES, iconFor,
   spark, bullet, chip, cardTrack, readingOf, derivedShipping,
   volumeLabel, rateLabel, hoursLabel,
-} from '../readings.js?v=cae52088bd70';
+} from '../readings.js?v=e5ce27fed150';
 
 const $ = selector => document.querySelector(selector);
 
@@ -28,7 +29,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 const state = {
   me: null, locations: [], canEdit: true,
   location: null, date: today(), active: 'overview',
-  metrics: null, departments: [], review: [], maintenance: [], config: [], budgets: [],
+  metrics: null, departments: [], review: [], maintenance: [], labour: [], config: [], budgets: [],
   history: { metrics: [], departments: [] }, findings: [], verdicts: {},
   chart: 'bar', team: [], live: null, wallStep: 0,
 };
@@ -64,6 +65,7 @@ const ICONS = {
   production:  'M4 20V9l5 3V9l5 3V4l6 4v12z',
   shipping:    'M3 7h11v9H3zM14 10h4l3 3v3h-7zM7 19a1.6 1.6 0 100-3.2A1.6 1.6 0 007 19zM17.5 19a1.6 1.6 0 100-3.2 1.6 1.6 0 000 3.2z',
   maintenance: 'M14.5 6.5a3.5 3.5 0 01-4.6 4.6L5 16l3 3 4.9-4.9a3.5 3.5 0 004.6-4.6l-2.4 2.4-2.1-2.1z',
+  labour:      'M12 12a3.6 3.6 0 100-7.2 3.6 3.6 0 000 7.2M4.5 20a7.5 7.5 0 0115 0',
   financials:  'M12 3v18M8.5 7.5h6M8.5 7.5a2.6 2.6 0 000 5.2h3a2.6 2.6 0 010 5.2h-6',
   configure:   'M12 15.2a3.2 3.2 0 100-6.4 3.2 3.2 0 000 6.4M19.4 15a1.6 1.6 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.6 1.6 0 00-2.7 1.1v.3a2 2 0 11-4 0v-.2a1.6 1.6 0 00-2.8-1.1l-.1.1a2 2 0 11-2.8-2.8l.1-.1A1.6 1.6 0 004 15H3.7a2 2 0 110-4h.2A1.6 1.6 0 005 8.6L4.9 8.5a2 2 0 112.8-2.8l.1.1A1.6 1.6 0 0010.6 4.7V4.4a2 2 0 114 0v.2a1.6 1.6 0 002.7 1.2l.1-.1a2 2 0 112.8 2.8l-.1.1a1.6 1.6 0 001.1 2.7h.3a2 2 0 110 4h-.2a1.6 1.6 0 00-1.4 1z',
 };
@@ -73,12 +75,12 @@ const ICONS = {
 const VIEWS = ['line', 'board'];
 // The order the meeting actually walks: what happened to people, what the plant made,
 // what left the building, what it earned, and what needs fixing.
-const ORDER = ['safety', 'production', 'shipping', 'financials', 'maintenance'];
+const ORDER = ['safety', 'production', 'shipping', 'financials', 'maintenance', 'labour'];
 const TITLES = {
   safety: 'Safety & Quality', production: 'Production', shipping: 'Shipping',
-  maintenance: 'Maintenance & Staffing', financials: 'Financials',
+  maintenance: 'Maintenance', labour: 'Labour & Overtime', financials: 'Financials',
 };
-const NAV = { safety: 'Safety', maintenance: 'Maintenance', line: 'Today', board: 'Board' };
+const NAV = { safety: 'Safety', labour: 'Labour', line: 'Today', board: 'Board' };
 Object.assign(TITLES, { line: 'Today', board: 'The board' });
 Object.assign(ICONS, {
   line:  'M4 6h16M4 12h10M4 18h6',
@@ -104,30 +106,26 @@ const field = (label, name, attrs = '') =>
    <input class="inp" data-field="${name}" ${attrs}></div>`;
 
 function streakCard(kind, label, lastField, recordField, word) {
-  const footLabel = word[0].toUpperCase() + word.slice(1);
   const last = metric(lastField), record = Number(metric(recordField) || 0);
   const days = last ? daysBetween(last, state.date) : null;
   const beaten = days != null && record > 0 && days >= record;
   const tone = days == null ? '' : band.streak(days);
   return metricCard({
-    chart: state.chart, pkey: kind, label, tone,
-    value: days == null ? '—' : days, unit: 'days',
-    percent: record ? (days || 0) / record * 100 : 0,
-    markPercent: beaten || !record ? null : 100, markLabel: 'record',
-    sub: beaten || !record ? null : `record ${record} days`,
+    // Always the number, whatever the reader picked. A bar, a ring and a gauge all draw a
+    // reading against something it is measured by, and a streak is measured against
+    // nothing — the record is a target to beat, not a denominator. Drawn as a bar it
+    // filled a little further every morning and said the same thing every morning.
+    chart: 'number', pkey: kind, label, tone,
+    value: days == null ? '\u2014' : days, unit: 'days',
     flag: beaten ? `<div class="flag flag--ok">Record broken · +${days - record} days</div>` : '',
-    // A streak is chased rather than met, so the bar it is drawn against is the record.
-    track: cardTrack({
-      chart: state.chart, actual: days || 0, target: record, tone,
-      targetText: record ? `Against the record of ${record}` : 'No record set',
-      deltaText: record && days != null
-        ? `${days >= record ? '+' : '−'}${Math.abs(days - record)} days` : '',
-      deltaTone: tone,
-      series: (state.history?.metrics || []).filter(r => r[lastField])
-        .map(r => daysBetween(r[lastField], r.metric_date)),
-    }),
-    foot: footStat('Record', record ? `${record}<em> days</em>` : '—')
-        + footStat(footLabel, shortDate(last)),
+    // No bar and no line. A streak is chased, not met, so a bar against the record fills a
+    // little further every morning and tells the room nothing it did not know yesterday —
+    // and the one morning it does matter, the flag above says so in words. The record and
+    // the date it was set are the context, and they fit on the line under the rule.
+    foot: footLine([
+      ['Record', record ? `${record} days` : null],
+      [`Last ${word}`, shortDate(last)],
+    ]),
     edit: field('Last', lastField, `type="date" value="${last || ''}"`)
         + field('Record', recordField, `type="number" value="${record || ''}"`),
   });
@@ -137,19 +135,23 @@ function coqCard(kind, label, valueField, targetField) {
   const value = metric(valueField), target = Number(metric(targetField) || 0.85);
   const has = value != null && value !== '';
   const tone = has ? band.coq(Number(value), target) : '';
+  const off = has ? Number(value) - target : 0;
   return metricCard({
     chart: state.chart, pkey: kind, label, tone,
-    value: has ? Number(value).toFixed(2) : '—', unit: '%', sub: 'of sales',
+    value: has ? Number(value).toFixed(2) : '\u2014', unit: '%', sub: 'of sales',
     percent: has ? Number(value) / (target * 1.6) * 100 : 0,
     markPercent: 100 / 1.6, markLabel: 'target',
-    track: cardTrack({
-      chart: state.chart, actual: has ? Number(value) : 0, target, tone, lowerIsBetter: true,
-      targetText: `Against ≤ ${target.toFixed(2)}%`,
-      deltaText: has ? `${Number(value) <= target ? '−' : '+'}${Math.abs(Number(value) - target).toFixed(2)} pts` : '',
-      deltaTone: tone, series: metricSeries(valueField),
-    }),
-    foot: footStat('Target', `≤ ${target.toFixed(2)}%`)
-        + footStat('Variance', has ? `${Number(value) <= target ? '−' : '+'}${Math.abs(Number(value) - target).toFixed(2)} pts` : '—', true),
+    // Cost of quality is a month climbing or falling, which is exactly what a line is for.
+    track: has ? cardTrack({
+      chart: state.chart, actual: Number(value), target, tone, lowerIsBetter: true,
+      targetText: `Against \u2264 ${target.toFixed(2)}%`, deltaTone: tone,
+      deltaText: `${off <= 0 ? '\u2212' : '+'}${Math.abs(off).toFixed(2)} pts`,
+      series: metricSeries(valueField),
+    }) : '',
+    foot: footLine([
+      ['Target', `\u2264 ${target.toFixed(2)}%`],
+      ['Variance', has ? `${off <= 0 ? '\u2212' : '+'}${Math.abs(off).toFixed(2)} pts` : null],
+    ]),
     edit: field('Actual %', valueField, `type="number" step="0.01" value="${value ?? ''}"`)
         + field('Target %', targetField, `type="number" step="0.01" value="${target}"`),
   });
@@ -242,15 +244,13 @@ const SECTIONS = {
       ${streakCard('injury', 'Days since last injury', 'injury_last', 'injury_record', 'injury')}
       ${streakCard('nearmiss', 'Days since near-miss', 'near_miss_last', 'near_miss_record', 'near-miss')}
       ${metricCard({
-        chart: state.chart, pkey: 'shortages', label: 'Shortage count', tone: shortTone,
-        value: shortages ?? '—', sub: 'jobs short today',
+        // A target of nought has no shape either. Same reason as the streaks.
+        chart: 'number', pkey: 'shortages', label: 'Shortage count', tone: shortTone,
+        value: shortages ?? '\u2014', sub: 'jobs short today',
         percent: Number(shortages) ? 100 : 0, markPercent: null,
-        // A target of nought cannot be drawn as a bar — there is no distance to fill —
-        // so this card answers "which way is it going" and leaves the other question to
-        // the number, which is already the whole answer at nought or one.
-        track: cardTrack({ chart: state.chart, series: metricSeries('shortages'), tone: shortTone,
-                           lowerIsBetter: true }),
-        foot: footStat('Target', '0'),
+        // Nothing drawn. The target is nought, which cannot be a bar, and a week of
+        // nought is a flat rule that says only that the axis is working.
+        foot: footLine([['Target', '0']]),
         edit: field('Count', 'shortages', `type="number" min="0" value="${shortages ?? ''}"`),
       })}
       ${coqCard('coq', `COQ — ${MONTHS[dateOf(state.date).getMonth()]}`, 'coq', 'coq_target')}
@@ -282,20 +282,15 @@ const SECTIONS = {
             ? `${rate >= target ? '+' : '\u2212'}${num(Math.round(Math.abs(rate - target)))}` : '',
           deltaTone: tone, series: deptSeries(config.key),
         }),
-        // Four readings, in the order the room asks for them: what the target was, what was
-        // actually produced, how far off that landed, and the hours it took. The rate per
-        // crew hour is the hero above, so the foot answers "against what" rather than
-        // repeating it.
-        //
-        // Uptime and make-ready are deliberately not here. They are not among the four, they
-        // are blank for every imported day because the DOR's own columns do not reproduce
-        // the plant's stored figures, and two permanent dashes in a four-square grid read as
-        // a broken card rather than as an honest absence. They stay on the Everything view,
-        // where a blank is plainly a blank.
-        foot: footStat('Target', num(Math.round(target)))
-            + footStat(volumeLabel(config), row.qty ? num(row.qty) : '\u2014')
-            + footStat('vs target', rate && target ? trend(rate, target) : '\u2014')
-            + footStat(hoursLabel(config), row.hours ? `${row.hours}<em> h</em>` : '\u2014'),
+        // Target, what was made, and the hours it took — the three things asked after the
+        // rate itself, on one line. "vs target" is not among them any more: the bar above
+        // is that number drawn, and printing it twice on the same card was half the reason
+        // the card felt crowded.
+        foot: footLine([
+          ['Target', num(Math.round(target))],
+          [volumeLabel(config), row.qty ? num(row.qty) : null],
+          [hoursLabel(config), row.hours ? `${row.hours} h` : null],
+        ]),
         edit: field(volumeLabel(config), `dept:${config.key}:qty`, `type="number" value="${row.qty ?? ''}"`)
             + field(hoursLabel(config), `dept:${config.key}:hours`, `type="number" step="0.1" value="${row.hours ?? ''}"`)
             + field('Target', `dept:${config.key}:target`, `type="number" value="${row.target ?? config.target}"`)
@@ -304,17 +299,38 @@ const SECTIONS = {
       });
     }).join('');
 
-    const rows = list.map(config => {
+    const unitsInPlay = [...new Set(list.map(c => volumeLabel(c)))];
+
+    // Uptime and make-ready belong beside the rate they qualify: a press at target that
+    // loses an hour a shift to setup is a different morning from one that did not. Each of
+    // the three carries what it did across the week beside it, because one day is weather
+    // and the argument the room has is always about the direction.
+    const weekRow = config => {
       const row = dept(config.key), rate = rateOf(row);
       const previous = Number(row.pw_hours) ? Number(row.pw_qty) / Number(row.pw_hours) : 0;
+      const upTarget = Number(config.uptime_target || 0) * 100;
+      const up = row.uptime == null ? null : Number(row.uptime) * 100;
+      const mrTarget = Number(config.mr_target || 0);
+      const mr = row.make_ready == null ? null : Number(row.make_ready);
+      const over = (list, lower = false) => list.length > 1
+        ? trend(list[list.length - 1], list[0], lower) : '—';
       return `<tr><td class="dept">${esc(config.name)}</td>
         <td class="num">${row.pw_qty ? num(row.pw_qty) : '—'}</td>
         <td class="num">${row.pw_hours ?? '—'}</td>
         <td class="num big">${previous ? num(Math.round(previous)) : '—'}</td>
-        <td class="num big">${rate ? num(Math.round(rate)) : '—'}</td>
-        <td class="num">${previous ? trend(previous, Number(row.target ?? config.target)) : '—'}</td></tr>`;
-    }).join('');
-    const unitsInPlay = [...new Set(list.map(c => volumeLabel(c)))];
+        <td class="num big tone--${band.rate(rate, Number(row.target ?? config.target)) || 'none'}">${
+          rate ? num(Math.round(rate)) : '—'}</td>
+        <td class="num">${over(deptSeries(config.key))}</td>
+        <td class="num"><span class="tone--${band.rate(up, upTarget) || 'none'}">${
+          up == null ? '—' : `${up.toFixed(1)}%`}</span>${
+          upTarget ? `<span class="wk">target ${upTarget.toFixed(0)}%</span>` : ''}</td>
+        <td class="num">${over(deptSeries(config.key, 'uptime'))}</td>
+        <td class="num"><span class="tone--${band.lower(mr, mrTarget) || 'none'}">${
+          mr == null ? '—' : `${mr.toFixed(2)} h`}</span>${
+          mrTarget ? `<span class="wk">target ${mrTarget.toFixed(2)} h</span>` : ''}</td>
+        <td class="num">${over(deptSeries(config.key, 'make_ready'), true)}</td>
+      </tr>`;
+    };
 
     const weekEdit = list.map(config => {
       const row = dept(config.key);
@@ -325,22 +341,29 @@ const SECTIONS = {
           value="${row.pw_hours ?? ''}" aria-label="${esc(config.name)} previous week hours"></div>`;
     }).join('');
 
-    // The cards used to share a row with the Previous Week table, sized by counting the
-    // departments. That worked while there were three of them and stopped working the
-    // moment a plant could add its own: six departments and a six-column table cannot
-    // share a row on any screen. The cards wrap on their own now, at a width that holds a
-    // rate, its target bar and its week; the table gets the full width underneath, which
-    // is the width it always needed.
+    // The cards used to share a row with this table, sized by counting the departments.
+    // That worked while there were three and stopped the moment a plant could add its own.
+    // The cards wrap on their own now and the table takes the full width underneath, which
+    // is the width it always needed — and now needs more of, because it answers three
+    // questions per department rather than one.
     return `<div class="grid grid--depts">${cards}</div>
     <div class="panel" style="margin-top:var(--s3)">
       <div class="panel__head"><span class="card__ico" aria-hidden="true">📅</span>
-        <h3 class="panel__title">Previous week</h3>
-        <span class="panel__actions chip">Same weekday</span></div>
+        <h3 class="panel__title">This morning against the week</h3>
+        <span class="panel__actions chip">Previous week is the same weekday</span></div>
       <div class="panel__body">
-        <table class="tbl"><thead><tr><th>Department</th>
-          <th class="num">${esc(unitsInPlay.length === 1 ? capitalised(unitsInPlay[0]) : 'Volume')}</th>
-          <th class="num">Hours</th><th class="num">Per hr</th><th class="num">Today</th>
-          <th class="num">vs target</th></tr></thead><tbody>${rows}</tbody></table>
+        <table class="tbl tbl--week"><thead>
+          <tr><th rowspan="2">Department</th>
+            <th class="num" colspan="3">Previous week</th>
+            <th class="num" colspan="2">Rate</th>
+            <th class="num" colspan="2">Uptime</th>
+            <th class="num" colspan="2">Make-ready</th></tr>
+          <tr><th class="num">${esc(unitsInPlay.length === 1 ? capitalised(unitsInPlay[0]) : 'Volume')}</th>
+            <th class="num">Hours</th><th class="num">Per hr</th>
+            <th class="num">Today</th><th class="num">7 days</th>
+            <th class="num">Today</th><th class="num">7 days</th>
+            <th class="num">Today</th><th class="num">7 days</th></tr>
+        </thead><tbody>${list.map(weekRow).join('')}</tbody></table>
         <div class="ez">${weekEdit}</div>
       </div>
     </div>
@@ -394,15 +417,16 @@ const SECTIONS = {
     const count = (name, label, sub, icon) => {
       const value = read(name);
       const tone = value == null ? '' : band.count(Number(value));
-      return cell(label, value ?? '—', sub, tone, '', name, icon,
-        cardTrack({ tone, seriesLabel: 'Last 7', lowerIsBetter: true, series: metricSeries(name) }));
+      // Late and short are nought on a good week, so their line is a flat rule at the
+      // bottom of the cell. The number is the whole reading.
+      return cell(label, value ?? '—', sub, tone, '', name, icon);
     };
     return `<div class="strip">
       ${cell('Jobs shipped', read('jobs_shipped') == null ? '—' : num(read('jobs_shipped')),
         read('jobs_on_time') == null ? 'today' : `${read('jobs_on_time')} on time`, 'info', '',
-        'jobs_shipped', '🚚', cardTrack({ seriesLabel: 'Last 7', series: metricSeries('jobs_shipped') }))}
+        'jobs_shipped', '🚚')}
       ${cell('Cartons', read('cartons') == null ? '—' : num(read('cartons')), 'shipped today',
-        'info', '', 'cartons', '📦', cardTrack({ seriesLabel: 'Last 7', series: metricSeries('cartons') }))}
+        'info', '', 'cartons', '📦')}
       ${count('late', 'Late', 'shipments', '⏰')}
       ${count('shorts', 'Shorts', 'shipments', '🚫')}
       ${pct('otd', 'OTD', 'Target ≥ 98%', '🎯')}
@@ -426,7 +450,7 @@ const SECTIONS = {
           <td>${esc(m.item_type)}</td><td>${esc(m.frequency)}</td><td>${esc(m.scheduled)}</td>
           <td><span class="pill pill--${band.maint(m.status)}">${esc(m.status)}</span></td></tr>`).join('')
       : `<tr><td colspan="5" style="color:var(--ink-faint)">Nothing scheduled for today.</td></tr>`;
-    return `<div class="grid" style="grid-template-columns:1.6fr 1fr">
+    return `<div class="grid" style="grid-template-columns:1.7fr 1fr">
       <div class="panel">
         <div class="panel__head"><span class="card__ico" aria-hidden="true">🔧</span>
           <h3 class="panel__title">Maintenance schedule</h3>
@@ -437,20 +461,91 @@ const SECTIONS = {
           <th>Frequency</th><th>Scheduled</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div>
       </div>
       <div class="panel"><div class="panel__head"><span class="card__ico" aria-hidden="true">📝</span>
-        <h3 class="panel__title">Notes</h3></div>
+        <h3 class="panel__title">Maintenance notes</h3></div>
         <div class="panel__body" data-pkey="notes">
-          <div class="rev__dept"><span class="card__ico" aria-hidden="true">🔧</span> Maintenance</div>
-          <div class="rev__note${metric('maintenance_note') ? '' : ' rev__note--none'}"
-            style="margin-bottom:var(--s4)">${esc(metric('maintenance_note') || 'No notes entered.')}</div>
-          <div class="rev__dept"><span class="card__ico" aria-hidden="true">👷</span> Staffing</div>
+          <div class="rev__note${metric('maintenance_note') ? '' : ' rev__note--none'}">${
+            esc(metric('maintenance_note') || 'No notes entered.')}</div>
+          <div class="ez">
+            <div class="er"><label>Notes</label><textarea class="inp"
+              data-field="maintenance_note">${esc(metric('maintenance_note') || '')}</textarea></div>
+          </div></div></div>
+    </div>`;
+  },
+
+  // ── Labour & overtime ──
+  //
+  // Split out of Maintenance, because they were one section only in the sense that both
+  // were a note. Maintenance is a schedule with a status. Overtime is a cost the plant is
+  // choosing to spend this morning, and the meeting's question about it is always the same
+  // two-part one: which departments, and how many shifts.
+  //
+  // Shifts rather than hours. It is the unit the floor talks in and the one a supervisor
+  // can answer without a timesheet — the hours turn up in the pay period two weeks later,
+  // and the shift count is the thing nobody writes down.
+  labour: () => {
+    const list = state.config.filter(c => c.active !== false);
+    const shiftsFor = key => Number(state.labour.find(l => l.dept_key === key)?.ot_shifts ?? 0);
+    const noteFor = key => state.labour.find(l => l.dept_key === key)?.note || '';
+    const running = list.filter(c => shiftsFor(c.key) > 0);
+    const total = list.reduce((sum, c) => sum + shiftsFor(c.key), 0);
+    const entered = state.labour.some(l => l.ot_shifts != null);
+
+    const headline = !entered
+      ? ['—', 'Nothing entered yet']
+      : total === 0
+        ? ['0', 'No overtime this morning']
+        : [String(total), `${running.length} department${running.length === 1 ? '' : 's'} on overtime`];
+
+    return `<div class="grid" style="grid-template-columns:minmax(220px,.8fr) 2fr">
+      <div class="card card--${total > 0 ? 'warn' : entered ? 'ok' : ''}" data-pkey="ot-total">
+        <div class="card__head"><span class="card__ico" aria-hidden="true">⏱️</span>
+          <span class="card__label">Overtime shifts</span></div>
+        <div class="card__mid">
+          <div class="hero">${esc(headline[0])}<i>shifts</i></div>
+          <div class="unit">${esc(headline[1])}</div>
+        </div>
+        ${footLine([
+          ['Departments', entered ? `${running.length} of ${list.length}` : null],
+        ])}
+      </div>
+      <div class="panel">
+        <div class="panel__head"><span class="card__ico" aria-hidden="true">👷</span>
+          <h3 class="panel__title">Which departments</h3>
+          <div class="panel__actions">
+            <span class="pill pill--${total > 0 ? 'warn' : 'ok'}">${total} shift${total === 1 ? '' : 's'}</span>
+          </div></div>
+        <div class="panel__body">
+          <table class="tbl"><thead><tr><th>Department</th>
+            <th class="num">OT shifts</th><th>Why</th></tr></thead>
+            <tbody>${list.map(c => {
+              const shifts = shiftsFor(c.key), note = noteFor(c.key);
+              return `<tr data-pkey="ot-${esc(c.key)}">
+                <td class="dept"><span class="card__ico" aria-hidden="true"
+                  style="font-size:1em">${c.icon || iconFor(c.key)}</span> ${esc(c.name)}</td>
+                <td class="num big${shifts > 0 ? ' tone--warn' : ''}">${shifts > 0 ? shifts : '—'}</td>
+                <td>${note ? esc(note) : '<span class="lane__quiet">—</span>'}</td></tr>`;
+            }).join('')}</tbody></table>
+          <div class="ez">${list.map(c => `<div class="er">
+            <label>${esc(c.name)}</label>
+            <input class="inp" data-field="labour:${esc(c.key)}:ot_shifts" type="number"
+              step="0.5" min="0" value="${state.labour.find(l => l.dept_key === c.key)?.ot_shifts ?? ''}"
+              aria-label="${esc(c.name)} overtime shifts">
+            <input class="inp" data-field="labour:${esc(c.key)}:note" type="text"
+              placeholder="why" value="${esc(noteFor(c.key))}"
+              aria-label="${esc(c.name)} overtime reason"></div>`).join('')}
+          </div>
+        </div>
+      </div>
+      <div class="panel" style="grid-column:1/-1">
+        <div class="panel__head"><span class="card__ico" aria-hidden="true">🧑‍🏭</span>
+          <h3 class="panel__title">Staffing notes</h3></div>
+        <div class="panel__body" data-pkey="staffing">
           <div class="rev__note${metric('staffing_note') ? '' : ' rev__note--none'}">${
             esc(metric('staffing_note') || 'No notes entered.')}</div>
-          <div class="ez">
-            <div class="er"><label>Maint.</label><textarea class="inp"
-              data-field="maintenance_note">${esc(metric('maintenance_note') || '')}</textarea></div>
-            <div class="er"><label>Staffing</label><textarea class="inp"
-              data-field="staffing_note">${esc(metric('staffing_note') || '')}</textarea></div>
-          </div></div></div>
+          <div class="ez"><div class="er"><label>Staffing</label><textarea class="inp"
+            data-field="staffing_note">${esc(metric('staffing_note') || '')}</textarea></div></div>
+        </div>
+      </div>
     </div>`;
   },
 
@@ -715,6 +810,7 @@ async function persist(name, value) {
   const [kind, first, second] = name.split(':');
   try {
     if (kind === 'dept') await saveDepartment(state.location, state.date, first, { [second]: value });
+    else if (kind === 'labour') await saveLabour(state.location, state.date, first, { [second]: value });
     else if (kind === 'review') await saveReview(state.location, state.date, first, { [second]: value });
     else if (kind === 'budget') await saveBudget(state.location, dateOf(state.date).getFullYear(), Number(first), value ?? 0);
     else await saveField(state.location, state.date, name, value);
@@ -741,6 +837,10 @@ function applyLocally(name, value) {
   if (kind === 'dept') {
     const row = state.departments.find(d => d.dept_key === first);
     if (row) row[second] = value;
+  } else if (kind === 'labour') {
+    const row = state.labour.find(l => l.dept_key === first);
+    if (row) row[second] = value;
+    else state.labour.push({ dept_key: first, [second]: value });
   } else if (kind === 'review') {
     const row = state.review.find(r => r.dept_key === first);
     if (row) row[second] = value;
@@ -828,6 +928,10 @@ async function open(location, date) {
         const existing = state.departments.find(d => d.dept_key === row.dept_key);
         existing ? Object.assign(existing, row) : state.departments.push(row);
       }
+      if (table === 'daily_labour') {
+        const existing = state.labour.find(l => l.dept_key === row.dept_key);
+        existing ? Object.assign(existing, row) : state.labour.push(row);
+      }
       if (table === 'daily_review') {
         const existing = state.review.find(r => r.dept_key === row.dept_key);
         existing ? Object.assign(existing, row) : state.review.push(row);
@@ -867,7 +971,7 @@ $('#rail-btn').addEventListener('click', () => {
 $('#edit-btn').addEventListener('click', () => {
   // Showing the fields is a personal view. It claims nothing and blocks nobody.
   const on = document.body.classList.toggle('editing');
-  $('#edit-btn').textContent = on ? 'Hide fields' : 'Enter data';
+  $('#edit-btn').textContent = on ? 'Done editing' : 'Edit mode';
   $('#publish-btn').classList.toggle('hide', !on);
   paintPresence();
 });
@@ -877,7 +981,7 @@ $('#publish-btn').addEventListener('click', async () => {
     await publish(state.location, state.date);
     if (state.metrics) state.metrics.status = 'published';
     document.body.classList.remove('editing');
-    $('#edit-btn').textContent = 'Enter data';
+    $('#edit-btn').textContent = 'Edit mode';
     $('#publish-btn').classList.add('hide');
     toast('Published — every screen shows this now');
     render();
@@ -886,14 +990,6 @@ $('#publish-btn').addEventListener('click', async () => {
 
 $('#loc').addEventListener('change', event => open(event.target.value, state.date));
 $('#date').addEventListener('change', event => { if (event.target.value) open(state.location, event.target.value); });
-
-$('#theme-btn').addEventListener('click', () => {
-  // Light is the design and the default. The button is how someone gets dark, not the
-  // operating system, so the wall and the laptop show the same dashboard.
-  const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
-  document.documentElement.dataset.theme = next;
-  savePreference(state.me.id, { theme: next }).catch(() => {});
-});
 
 $('#signout-btn').addEventListener('click', async () => {
   state.live?.leave();
@@ -946,6 +1042,23 @@ addEventListener('maxmetrics:connection', event => {
   document.body.dataset.connection = event.detail.state;
 });
 
+// Configure's Data pane links here rather than carrying a second copy of the importer,
+// because importing writes into the morning being looked at and Configure has no morning.
+// The action runs once the day is loaded and the query is cleared, so a refresh does not
+// re-open the sheet.
+function runRequestedAction() {
+  const action = new URLSearchParams(location.search).get('do');
+  if (!action) return;
+  history.replaceState(null, '', location.pathname);
+  if (action === 'import') {
+    if (!state.canEdit) return toast('Your account cannot change this plant.');
+    drawImport();
+    $('#import-sheet').showModal();
+  }
+  if (action === 'export') exportMorning();
+  if (action === 'print') window.print();
+}
+
 // ── Start ───────────────────────────────────────────────────────────────────────
 
 const [profile, grants] = await Promise.all([myProfile(), myLocations()]);
@@ -953,7 +1066,10 @@ if (!profile) { location.replace('../index.html'); }
 
 state.me = profile;
 state.chart = profile.chart_style || 'bar';
-if (profile.theme === 'dark' || profile.theme === 'light') document.documentElement.dataset.theme = profile.theme;
+// Light, always. The theme was a button in the utility bar and a column on the profile;
+// a dashboard that half the plant reads dark and half reads light is two dashboards, and
+// the one on the wall has to be the one on the desk.
+document.documentElement.dataset.theme = 'light';
 if (profile.rail_collapsed) {
   document.documentElement.dataset.rail = 'mini';
   $('#rail-btn').querySelector('path').setAttribute('d', 'M9 5 L16 12 L9 19');
@@ -986,6 +1102,7 @@ if (!state.locations.length) {
   $('#loc').innerHTML = state.locations.map(l =>
     `<option value="${esc(l.id)}">${esc(l.name)}</option>`).join('');
   await open(state.locations[0].id, state.date);
+  runRequestedAction();
 }
 
 // ── Import ──────────────────────────────────────────────────────────────────────
@@ -1008,16 +1125,41 @@ function importPanel() {
 
   const drop = `<div class="drop" id="drop">
     <p class="drop__lead">Drop the morning's workbooks here</p>
-    <p class="drop__note">DOR_V9.xlsx, OTDOTIF.xlsx — or pick them.
+    <p class="drop__note">DOR_V9.xlsx and OTDOTIF.xlsx for this morning, or a
+      <b>.json</b> export from the old dashboard for its history — or pick them.
       Files are read in this browser and nothing leaves it until you accept.</p>
     <label class="btn btn--primary">Choose files
-      <input type="file" id="drop-input" multiple accept=".xlsx" hidden></label>
+      <input type="file" id="drop-input" multiple accept=".xlsx,.json" hidden></label>
   </div>`;
 
   if (importState.error) {
     return drop + `<p class="drop__bad">${esc(importState.error)}</p>`;
   }
   if (!p) return drop;
+
+  // What a JSON export turned into, and every key it could not place. A file that
+  // half-works has to say which half, or somebody is left diffing two screens.
+  const jsonPanel = !p.json ? '' : `
+    <div class="sheet__sub">From the old dashboard</div>
+    <p class="drop__note">${p.json.days.length} ${p.json.days.length === 1 ? 'morning' : 'mornings'},
+      ${shortDate(p.json.days[0].date)} to ${shortDate(p.json.days[p.json.days.length - 1].date)}.
+      Only mornings this plant has no reading for are written; anything already entered stays.</p>
+    <table class="tbl"><thead><tr><th>Date</th><th class="num">Readings</th>
+      <th class="num">Departments</th></tr></thead><tbody>${
+      p.json.days.slice(0, 12).map(d => `<tr><td>${shortDate(d.date)}</td>
+        <td class="num">${Object.keys(d.metrics).length}</td>
+        <td class="num">${Object.keys(d.departments).length}</td></tr>`).join('')}
+      ${p.json.days.length > 12 ? `<tr><td colspan="3" class="soft">…and ${p.json.days.length - 12} more</td></tr>` : ''}
+    </tbody></table>
+    <div class="keys">
+      <div><div class="keys__l">Recognised</div>
+        <div class="keys__v">${p.json.recognised.length
+          ? p.json.recognised.map(k => `<code>${esc(k)}</code>`).join(' ') : '—'}</div></div>
+      <div><div class="keys__l keys__l--bad">Not recognised — tell me these and I will add them</div>
+        <div class="keys__v">${p.json.unknown.length
+          ? p.json.unknown.map(k => `<code>${esc(k)}</code>`).join(' ')
+          : 'Nothing. Every key in the file was placed.'}</div></div>
+    </div>`;
 
   const covering = p.covering.length === 1
     ? shortDate(p.covering[0])
@@ -1048,6 +1190,21 @@ function importPanel() {
       <td class="num">${p.shipping.otif.toFixed(2)}%</td></tr></tbody></table>`
     : `<p class="drop__note">No shipping row for ${shortDate(p.span.to)}.</p>`;
 
+  // A JSON history export carries no shift rows, so the workbook half of the preview is
+  // omitted rather than printed empty. Either half on its own is a valid import.
+  const hasWorkbook = p.departments.length > 0 || p.shipping;
+  if (!hasWorkbook && p.json) {
+    return `${jsonPanel}
+      ${p.notes.length ? `<h3 class="sheet__sub">Notes</h3>
+        <ul class="drop__notes">${p.notes.map(n => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
+      <div class="sheet__foot">
+        <span class="drop__note">${p.sources.map(x => `${esc(x.file)} · ${num(x.rows)} mornings`).join(' · ')}</span>
+        <button class="btn" id="import-again">Choose different files</button>
+        <button class="btn btn--go" id="import-apply">Write ${p.json.days.length} morning${
+          p.json.days.length === 1 ? '' : 's'}</button>
+      </div>`;
+  }
+
   return `
     <p class="drop__lead">This morning covers <b>${esc(covering)}</b> — ${p.shiftCount}
       shift${p.shiftCount === 1 ? '' : 's'} across ${p.departments.length} department${
@@ -1070,10 +1227,11 @@ function importPanel() {
       add them to the operator list if they belong there.</p>
       <p class="drop__names">${p.unknownNames.slice(0, 12).map(n =>
         `<span class="pill pill--info">${esc(n.name)} · ${n.count}</span>`).join(' ')}</p>` : ''}
+    ${jsonPanel}
     ${p.notes.length ? `<h3 class="sheet__sub">Notes</h3>
       <ul class="drop__notes">${p.notes.map(n => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
     <div class="sheet__foot">
-      <span class="drop__note">${p.sources.map(s => `${esc(s.file)} · ${num(s.rows)} rows`).join(' · ')}</span>
+      <span class="drop__note">${p.sources.map(x => `${esc(x.file)} · ${num(x.rows)} rows`).join(' · ')}</span>
       <button class="btn" id="import-again">Choose different files</button>
       <button class="btn btn--go" id="import-apply"${p.departments.length ? '' : ' disabled'}>
         Apply to ${esc(shortDate(state.date))}</button>
@@ -1122,33 +1280,36 @@ async function applyImport() {
     applyLocally(name, value);
     await persist(name, value);
   }
+
+  // History from the old dashboard goes to the dates it is dated, not to the open morning,
+  // and it never overwrites a reading somebody has already entered. A year of exports
+  // arriving on top of this week's numbers would be the opposite of a favour.
+  let mornings = 0;
+  if (p.json?.days.length) {
+    for (const day of p.json.days) {
+      try {
+        await importHistory(state.location, day.date, day.metrics, day.departments);
+        mornings += 1;
+      } catch (error) {
+        toast(`${shortDate(day.date)}: ${error.message}`);
+        break;
+      }
+    }
+  }
+
   importState.preview = null;
   $('#import-sheet').close();
-  render();
-  toast(`${writes.length} readings imported.`);
-}
-
-const addDays = (value, n) => {
-  const d = dateOf(value);
-  d.setDate(d.getDate() + n);
-  return d.toISOString().slice(0, 10);
-};
-
-function drawImport() {
-  $('#import-body').innerHTML = importPanel();
-  const zone = $('#drop');
-  if (zone) {
-    $('#drop-input')?.addEventListener('change', e => readDropped(e.target.files));
-    for (const type of ['dragenter', 'dragover']) {
-      zone.addEventListener(type, e => { e.preventDefault(); zone.classList.add('drop--over'); });
-    }
-    for (const type of ['dragleave', 'drop']) {
-      zone.addEventListener(type, () => zone.classList.remove('drop--over'));
-    }
-    zone.addEventListener('drop', e => { e.preventDefault(); readDropped(e.dataTransfer?.files); });
+  if (mornings) {
+    const [day, history] = await Promise.all([
+      loadDay(state.location, state.date),
+      loadHistory(state.location, addDays(state.date, -6), state.date),
+    ]);
+    Object.assign(state, day, { history });
   }
-  $('#import-again')?.addEventListener('click', () => { importState.preview = null; drawImport(); });
-  $('#import-apply')?.addEventListener('click', applyImport);
+  render();
+  toast([writes.length ? `${writes.length} readings imported` : '',
+         mornings ? `${mornings} morning${mornings === 1 ? '' : 's'} of history written` : '']
+    .filter(Boolean).join(' · ') + '.');
 }
 
 $('#import-btn')?.addEventListener('click', () => {

@@ -19,13 +19,14 @@
 //   holding a key with no name.
 
 import {
-  currentSession, signOut, myProfile, myLocations, savePreference,
+  currentSession, signOut, myProfile, myLocations,
   loadDepartmentConfig, saveDepartmentConfig, addDepartmentConfig, ensureDepartmentRows,
-} from '../db.js?v=cae52088bd70';
+  loadBudgets, saveBudget,
+} from '../db.js?v=e5ce27fed150';
 import {
-  esc, num, metricCard, footStat, iconFor, cardTrack,
+  esc, num, money, MONTHS, metricCard, footLine, iconFor, cardTrack,
   volumeLabel, rateLabel, hoursLabel,
-} from '../readings.js?v=cae52088bd70';
+} from '../readings.js?v=e5ce27fed150';
 
 const $ = selector => document.querySelector(selector);
 
@@ -34,7 +35,26 @@ if (!session) location.replace('../index.html');
 
 const today = () => new Date().toISOString().slice(0, 10);
 
-const state = { me: null, locations: [], location: null, config: [], draft: null };
+const state = { me: null, locations: [], location: null, config: [], draft: null,
+                pane: 'departments', budgets: [], year: new Date().getFullYear() };
+
+// ── The panes ───────────────────────────────────────────────────────────────────
+//
+// Configure is not one screen. It is everything about a plant that is not a reading of a
+// morning, and those are separate subjects with separate audiences — the shape of the
+// floor, the year's budget, what shipping is judged against, and getting data in and out.
+// A single scrolling page of all four is the settings screen this exists to avoid, so the
+// rail carries them the same way the dashboard's rail carries its sections.
+const PANES = [
+  { key: 'departments', name: 'Departments', sub: 'The shape of this plant',
+    icon: 'M4 20V9l5 3V9l5 3V4l6 4v12z' },
+  { key: 'financials',  name: 'Financials',  sub: 'The budget the month is read against',
+    icon: 'M12 3v18M8.5 7.5h6M8.5 7.5a2.6 2.6 0 000 5.2h3a2.6 2.6 0 010 5.2h-6' },
+  { key: 'shipping',    name: 'Shipping',    sub: 'What on-time is measured against',
+    icon: 'M3 7h11v9H3zM14 10h4l3 3v3h-7zM7 19a1.6 1.6 0 100-3.2A1.6 1.6 0 007 19zM17.5 19a1.6 1.6 0 100-3.2 1.6 1.6 0 000 3.2z' },
+  { key: 'data',        name: 'Data',        sub: 'Getting a morning in and out',
+    icon: 'M4 7c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3zM4 7v10c0 1.7 3.6 3 8 3s8-1.3 8-3V7M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3' },
+];
 
 // ── What a plant is likely to be adding ─────────────────────────────────────────
 //
@@ -134,9 +154,11 @@ function preview(config) {
       series: [0.94, 0.97, 0.95, 1.01, 0.99, 1.03, 1.0].map(f => (Number(config.target) || 1) * f),
       seriesLabel: 'Last 7 mornings',
     }),
-    foot: footStat(`Target ${rateLabel(config)}`, num(Math.round(Number(config.target) || 0)))
-        + footStat(volumeLabel(config), '—', true)
-        + footStat(hoursLabel(config), '—', true),
+    foot: footLine([
+      ['Target', num(Math.round(Number(config.target) || 0))],
+      [volumeLabel(config), '—'],
+      [hoursLabel(config), '—'],
+    ]),
   });
 }
 
@@ -256,31 +278,12 @@ function retiredPanel(retired) {
   </div>`;
 }
 
-function render() {
+function departmentsPane() {
   const plant = state.locations.find(l => l.id === state.location);
-  $('#foot-loc').textContent = plant?.name || '—';
-  $('#foot-user').textContent = [state.me?.full_name, state.me?.job_title].filter(Boolean).join(' · ');
-  $('#loc').value = state.location || '';
-
   const live = state.config.filter(c => c.active);
   const retired = state.config.filter(c => !c.active);
-
-  if (!canEdit()) {
-    $('#content').innerHTML = `<section class="sec">
-      <div class="sec__head"><h2 class="sec__title">Departments</h2><div class="sec__rule"></div></div>
-      <p class="verdict verdict--none">Your account can read ${esc(plant?.name || 'this plant')}
-      but not change it, so its departments are shown and not offered for editing.</p>
-      <div class="retired">${live.map(config => `<div class="retired__r">
-        <span class="card__ico" aria-hidden="true">${config.icon || iconFor(config.key)}</span>
-        <b>${esc(config.name)}</b>
-        <code class="cfg__key">${esc(config.key)}</code>
-        <span class="cfg__note">${esc(rateLabel(config))} · ${esc(hoursLabel(config))}</span>
-      </div>`).join('')}</div>
-    </section>`;
-    return;
-  }
-
-  $('#content').innerHTML = `<section class="sec">
+  if (!canEdit()) return readOnlyList(live, plant);
+  return `<section class="sec">
     <div class="sec__head"><h2 class="sec__title">In use at ${esc(plant?.name || '')}</h2>
       <div class="sec__rule"></div></div>
     <p class="verdict verdict--none">${live.length
@@ -292,6 +295,154 @@ function render() {
   </section>
   <section class="sec">${addPanel()}</section>
   ${retired.length ? `<section class="sec">${retiredPanel(retired)}</section>` : ''}`;
+}
+
+function readOnlyList(live, plant) {
+  return `<section class="sec">
+    <div class="sec__head"><h2 class="sec__title">Departments</h2><div class="sec__rule"></div></div>
+    <p class="verdict verdict--none">Your account can read ${esc(plant?.name || 'this plant')}
+    but not change it, so its departments are shown and not offered for editing.</p>
+    <div class="retired">${live.map(config => `<div class="retired__r">
+      <span class="card__ico" aria-hidden="true">${config.icon || iconFor(config.key)}</span>
+      <b>${esc(config.name)}</b>
+      <code class="cfg__key">${esc(config.key)}</code>
+      <span class="cfg__note">${esc(rateLabel(config))} · ${esc(hoursLabel(config))}</span>
+    </div>`).join('')}</div>
+  </section>`;
+}
+
+// ── Financials ──
+// Twelve numbers a year, entered once. They are what the month is read against every
+// morning, so the pane shows what they add up to rather than only asking for them.
+function financialsPane() {
+  const amount = month => Number(state.budgets.find(b => b.month === month + 1)?.amount || 0);
+  const year = Array.from({ length: 12 }, (_, i) => amount(i)).reduce((a, b) => a + b, 0);
+  const set = Array.from({ length: 12 }, (_, i) => amount(i)).filter(Boolean).length;
+  return `<section class="sec">
+    <div class="sec__head"><h2 class="sec__title">Sales budget · ${state.year}</h2>
+      <div class="sec__rule"></div></div>
+    <p class="verdict verdict--${set === 12 ? 'ok' : 'none'}">${set === 12
+      ? `Twelve months set, ${money(year)} for the year. The morning reads each month
+         prorated by elapsed days, so a budget entered here is the plan every card is measured against.`
+      : `${set} of 12 months set. A month with no budget reports no variance, so the
+         financials card simply says nothing for it.`}</p>
+    <div class="panel"><div class="panel__head">
+      <span class="card__ico" aria-hidden="true">💰</span>
+      <h3 class="panel__title">Monthly budget</h3>
+      <div class="panel__actions">
+        <select class="inp" id="year-pick" style="width:auto">${
+          [state.year - 1, state.year, state.year + 1].map(y =>
+            `<option value="${y}"${y === state.year ? ' selected' : ''}>${y}</option>`).join('')}</select>
+        <span class="pill pill--info">${money(year)}</span></div></div>
+      <div class="panel__body">
+        <div class="cfg__fields">${MONTHS.map((name, i) => `
+          <div class="er"><label>${esc(name)}</label>
+            <input class="inp" data-field="budget:${i + 1}:amount" type="number" step="0.01"
+              value="${amount(i) || ''}" ${canEdit() ? '' : 'disabled'}
+              aria-label="${esc(name)} budget"></div>`).join('')}
+        </div>
+      </div></div>
+  </section>`;
+}
+
+// ── Shipping ──
+// The two thresholds every shipping reading is judged against, and the note that they are
+// the plant's own rather than mine to move.
+function shippingPane() {
+  return `<section class="sec">
+    <div class="sec__head"><h2 class="sec__title">Shipping</h2><div class="sec__rule"></div></div>
+    <p class="verdict verdict--none">OTD and OTIF are worked out from jobs shipped, late and
+      short — they are arithmetic, not typed, so there is nothing here to set them to.
+      What is configurable is what counts as shipping, which is a department like any other.</p>
+    <div class="panel"><div class="panel__head">
+      <span class="card__ico" aria-hidden="true">🚚</span>
+      <h3 class="panel__title">How shipping is judged</h3></div>
+      <div class="panel__body">
+        <table class="tbl"><thead><tr><th>Reading</th><th>Worked out from</th>
+          <th>Green</th><th>Amber</th></tr></thead><tbody>
+          <tr><td class="dept">OTD</td><td>(jobs − late) ÷ jobs</td>
+            <td>98% and over</td><td>90% and over</td></tr>
+          <tr><td class="dept">OTIF</td><td>(jobs − late − short) ÷ jobs</td>
+            <td>98% and over</td><td>90% and over</td></tr>
+          <tr><td class="dept">Late</td><td>typed</td><td>none</td><td>one</td></tr>
+          <tr><td class="dept">Short</td><td>typed</td><td>none</td><td>one</td></tr>
+        </tbody></table>
+        <p class="cfg__none">These four are the plant's own thresholds, carried over from the
+        dashboard it has been running since January. The room already reads a colour and
+        knows what it means, so moving a line here would change what the meeting believes
+        without anyone being told — which is why they are shown and not offered as fields.</p>
+      </div></div>
+  </section>`;
+}
+
+// ── Data ──
+// Import, export and print used to sit in a bar along the foot of the dashboard. They are
+// not part of a morning; they are things done to one, a few times a month. The import
+// itself still runs on the dashboard because it writes into the morning being looked at —
+// so this pane is the door to it rather than a second copy of it.
+function dataPane() {
+  const back = `dashboard.html?do=`;
+  return `<section class="sec">
+    <div class="sec__head"><h2 class="sec__title">Data</h2><div class="sec__rule"></div></div>
+    <p class="verdict verdict--none">Everything that gets a morning in or out. Importing
+      writes into the morning you are looking at, so it opens on the dashboard.</p>
+    <div class="grid g3">
+      ${[
+        ['📥', 'Import', 'import',
+         'The plant\'s workbooks for this morning — DOR_V9.xlsx and OTDOTIF.xlsx — or a .json export from the old dashboard for its history. Nothing is written until you have seen what the files say.'],
+        ['📤', 'Export', 'export',
+         'The morning as a CSV, exactly as it is on screen. It takes what the room just read rather than re-querying, so an export can never disagree with the dashboard it came from.'],
+        ['🖨️', 'Print', 'print',
+         'The morning as paper or a PDF. The rail, the top bar and every control drop out, and the sections run down the page without splitting a card across two sheets.'],
+      ].map(([icon, name, action, body]) => `<div class="panel">
+        <div class="panel__head"><span class="card__ico" aria-hidden="true">${icon}</span>
+          <h3 class="panel__title">${name}</h3></div>
+        <div class="panel__body">
+          <p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">${esc(body)}</p>
+          <a class="btn btn--primary" style="margin-top:var(--s3)"
+             href="${back}${action}">${name} a morning</a>
+        </div></div>`).join('')}
+    </div>
+    <div class="panel" style="margin-top:var(--s3)">
+      <div class="panel__head"><span class="card__ico" aria-hidden="true">🗂️</span>
+        <h3 class="panel__title">The old dashboard's JSON</h3></div>
+      <div class="panel__body">
+        <p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">
+          A <code>.json</code> file written by <code>Daily_Morning_Dashboard_Vr 22.html</code> is
+          read as history: each morning it contains is written to the date it happened on, and
+          a reading somebody has already entered is never replaced. The preview lists every
+          key it recognised <b>and every key it did not</b> — if a field of yours is in the
+          second list, that is the list to send back.</p>
+      </div></div>
+  </section>`;
+}
+
+const PANE_BODY = {
+  departments: departmentsPane, financials: financialsPane,
+  shipping: shippingPane, data: dataPane,
+};
+
+function renderNav() {
+  $('#nav').innerHTML = `<a class="rail__link" href="dashboard.html" title="Daily dashboard">
+      <svg class="rail__ico" viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v4h-7zM13 10h7v10h-7zM4 13h7v7H4z"/></svg>
+      <span class="rail__txt">Daily dashboard</span></a>
+    <div class="rail__split"></div>`
+    + PANES.map(pane => `<button class="rail__link" data-pane="${pane.key}"
+        aria-current="${state.pane === pane.key}" title="${esc(pane.name)}">
+        <svg class="rail__ico" viewBox="0 0 24 24"><path d="${pane.icon}"/></svg>
+        <span class="rail__txt">${esc(pane.name)}</span></button>`).join('');
+}
+
+function render() {
+  const plant = state.locations.find(l => l.id === state.location);
+  const pane = PANES.find(p => p.key === state.pane) || PANES[0];
+  $('#foot-loc').textContent = plant?.name || '—';
+  $('#foot-user').textContent = [state.me?.full_name, state.me?.job_title].filter(Boolean).join(' · ');
+  $('#loc').value = state.location || '';
+  $('#pane-title').textContent = pane.name;
+  $('#pane-sub').textContent = pane.sub;
+  renderNav();
+  $('#content').innerHTML = (PANE_BODY[state.pane] || departmentsPane)();
 }
 
 // ── Saving ──────────────────────────────────────────────────────────────────────
@@ -324,6 +475,27 @@ async function persist(id, column, value) {
   }
 }
 
+async function persistBudget(month, value) {
+  try {
+    await saveBudget(state.location, state.year, Number(month), value ?? 0);
+    const existing = state.budgets.find(b => b.month === Number(month));
+    if (existing) existing.amount = value ?? 0;
+    else state.budgets.push({ month: Number(month), amount: value ?? 0 });
+    noteSaved();
+  } catch (error) {
+    saved(error.message);
+    toast(error.message);
+  }
+}
+
+async function loadYear() {
+  try {
+    state.budgets = (await loadBudgets(state.location, state.year)) || [];
+  } catch {
+    state.budgets = [];
+  }
+}
+
 function redrawSoon() {
   clearTimeout(redrawTimer);
   redrawTimer = setTimeout(() => {
@@ -345,7 +517,14 @@ document.addEventListener('input', event => {
   // A checkbox raises both `input` and `change`. It is answered on `change`, where the
   // page redraws immediately rather than after a typing pause.
   if (!name || event.target.type === 'checkbox') return;
-  const [, id, column] = name.split(':');
+  const [kind, id, column] = name.split(':');
+  if (kind === 'budget') {
+    const value = parse(event.target, event.target.value);
+    clearTimeout(sendTimer);
+    sendTimer = setTimeout(() => persistBudget(id, value), 450);
+    redrawSoon();
+    return;
+  }
   const value = parse(event.target, event.target.value);
   applyLocally(id, column, value);
   clearTimeout(sendTimer);
@@ -363,6 +542,15 @@ document.addEventListener('change', event => {
 });
 
 document.addEventListener('click', async event => {
+  const pane = event.target.closest('[data-pane]');
+  if (pane) {
+    state.pane = pane.dataset.pane;
+    if (state.pane === 'financials' && !state.budgets.length) await loadYear();
+    render();
+    scrollTo({ top: 0, behavior: 'smooth' });
+    return;
+  }
+
   const icon = event.target.closest('[data-icon]');
   if (icon) {
     const [, id] = icon.dataset.icon.split(':');
@@ -442,10 +630,11 @@ const blankDraft = () => ({
 
 $('#loc').addEventListener('change', event => openPlant(event.target.value));
 
-$('#theme-btn').addEventListener('click', () => {
-  const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
-  document.documentElement.dataset.theme = next;
-  savePreference(state.me.id, { theme: next }).catch(() => {});
+document.addEventListener('change', async event => {
+  if (event.target.id !== 'year-pick') return;
+  state.year = Number(event.target.value);
+  await loadYear();
+  render();
 });
 
 $('#signout-btn').addEventListener('click', async () => {
@@ -462,6 +651,7 @@ addEventListener('maxmetrics:connection', event => {
 async function openPlant(location) {
   state.location = location;
   state.draft = blankDraft();
+  state.budgets = [];
   $('#content').innerHTML = '<div class="loading">Loading this plant…</div>';
   try {
     state.config = (await loadDepartmentConfig(location)) || [];
@@ -469,6 +659,7 @@ async function openPlant(location) {
     $('#content').innerHTML = `<div class="loading">${esc(error.message)}</div>`;
     return;
   }
+  if (state.pane === 'financials') await loadYear();
   saved('All changes saved');
   render();
 }
@@ -477,7 +668,8 @@ const [profile, grants] = await Promise.all([myProfile(), myLocations()]);
 if (!profile) location.replace('../index.html');
 
 state.me = profile;
-if (profile.theme === 'dark' || profile.theme === 'light') document.documentElement.dataset.theme = profile.theme;
+// Light, always — the same rule the dashboard follows.
+document.documentElement.dataset.theme = 'light';
 
 state.locations = (grants || []).map(grant => ({
   id: grant.location_id, name: grant.locations?.name || grant.location_id,
@@ -497,7 +689,9 @@ if (!state.locations.length) {
     `<option value="${esc(plant.id)}">${esc(plant.name)}</option>`).join('');
   // The dashboard hands over the plant it was showing, so the person lands on the one they
   // were just reading rather than on the first one they happen to be granted.
-  const asked = new URLSearchParams(location.search).get('loc');
+  const query = new URLSearchParams(location.search);
+  const asked = query.get('loc');
+  if (PANES.some(p => p.key === query.get('pane'))) state.pane = query.get('pane');
   const start = state.locations.find(plant => plant.id === asked) || state.locations[0];
   $('#loc').value = start.id;
   await openPlant(start.id);
