@@ -166,17 +166,44 @@ export const saveMachineTarget = (machineId, year, patch) =>
     .upsert({ machine_id: machineId, year, ...patch }, { onConflict: 'machine_id,year' }),
     { retry: 0 });
 
+// ── The plant's own shape ───────────────────────────────────────────────────────
+//
+// Configure Departments reads and writes these. It asks for inactive rows too — a
+// department taken out of use is not deleted, because the mornings it appeared on are
+// still in `daily_departments` and would lose their name.
+export const loadDepartmentConfig = location =>
+  run(() => client.from('location_departments').select('*')
+    .eq('location_id', location).order('sort_order').order('name'));
+
+export const saveDepartmentConfig = (id, patch) =>
+  run(() => client.from('location_departments').update(patch).eq('id', id), { retry: 0 });
+
+export const addDepartmentConfig = row =>
+  run(() => client.from('location_departments').insert(row).select().limit(1), { retry: 0 })
+    .then(rows => rows?.[0] ?? null);
+
+// A department added mid-morning has no row on today's date. Asking for the day again is
+// idempotent, so it costs nothing and means the new card can be typed into immediately
+// rather than after tomorrow's open.
+export const ensureDepartmentRows = (location, date) =>
+  run(() => client.rpc('ensure_day', { loc: location, d: date }), { retry: 0 });
+
 // Seven days behind today. The old file kept no history at all, so nothing in it could
 // show a direction — a rate was a reading rather than a reading that is falling. Two
 // reads, not one per day, because a week of mornings is a range query.
+// Every reading drawn on a card now carries its own week behind it, so the read widened
+// to match: uptime and make-ready per department, the streak dates the safety cards chase,
+// and the counts shipping is judged on. It is still two queries over a seven-day range —
+// the cost is columns, not round trips.
 export function loadHistory(location, fromDate, toDate) {
   return Promise.all([
     run(() => client.from('daily_metrics')
-      .select('metric_date, otif, otd, coq, shortages, late, jobs_shipped')
+      .select(`metric_date, otif, otd, coq, coq_ytd, shortages, late, shorts, cartons,
+               jobs_shipped, mtd_otif, ytd_otif, injury_last, near_miss_last, fin_actual_mtd`)
       .eq('location_id', location)
       .gte('metric_date', fromDate).lte('metric_date', toDate).order('metric_date')),
     run(() => client.from('daily_departments')
-      .select('metric_date, dept_key, qty, hours')
+      .select('metric_date, dept_key, qty, hours, uptime, make_ready')
       .eq('location_id', location)
       .gte('metric_date', fromDate).lte('metric_date', toDate).order('metric_date')),
   ]).then(([metrics, departments]) => ({ metrics: metrics || [], departments: departments || [] }));
@@ -193,13 +220,20 @@ export const saveField = (location, date, field, value) =>
   run(() => client.from('daily_metrics').update({ [field]: value })
     .eq('location_id', location).eq('metric_date', date), { retry: 0 });
 
+// Upsert rather than update, for one reason: a department added in Configure at 07:10 has
+// no row for a morning that was opened at 06:58, and an UPDATE matching nothing reports
+// success while losing the number somebody just typed. The write is still one column —
+// PostgREST sets only the columns in the payload — so nothing about who-overwrites-whom
+// changes.
 export const saveDepartment = (location, date, key, patch) =>
-  run(() => client.from('daily_departments').update(patch)
-    .eq('location_id', location).eq('metric_date', date).eq('dept_key', key), { retry: 0 });
+  run(() => client.from('daily_departments')
+    .upsert({ location_id: location, metric_date: date, dept_key: key, ...patch },
+            { onConflict: 'location_id,metric_date,dept_key' }), { retry: 0 });
 
 export const saveReview = (location, date, key, patch) =>
-  run(() => client.from('daily_review').update(patch)
-    .eq('location_id', location).eq('metric_date', date).eq('dept_key', key), { retry: 0 });
+  run(() => client.from('daily_review')
+    .upsert({ location_id: location, metric_date: date, dept_key: key, ...patch },
+            { onConflict: 'location_id,metric_date,dept_key' }), { retry: 0 });
 
 export const saveBudget = (location, year, month, amount) =>
   run(() => client.from('location_budgets')
