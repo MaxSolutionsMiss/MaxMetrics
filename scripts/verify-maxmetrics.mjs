@@ -208,6 +208,22 @@ for (const table of ['daily_metrics', 'daily_departments', 'daily_review']) {
   }
 }
 
+// The server reads a workbook with the same code the page does.
+//
+// The ingest function cannot import across the `supabase/` boundary — Deno bundles what
+// sits under the function folder — so the two parser modules are copied there. A copy
+// drifts, and a drifted parser means the number the room accepted on Tuesday and the
+// number the flow wrote on Wednesday came from different code. So the copy is checked
+// rather than trusted: run `node scripts/sync-shared.mjs` after editing either module.
+for (const shared of ['import.js', 'xlsx.js']) {
+  const source = join('js', shared);
+  const copy = join('supabase', 'functions', '_shared', shared);
+  if (!files.includes(copy)) continue;
+  if (read(source) !== read(copy)) {
+    fail('Edge-function copy matches its source', `${copy} differs from ${source} — run scripts/sync-shared.mjs`);
+  }
+}
+
 if (failures.length) {
   console.error(`\nMaxMetrics conformance: ${failures.length} problem(s)\n`);
   for (const failure of failures) console.error(`  ✗ ${failure}\n`);

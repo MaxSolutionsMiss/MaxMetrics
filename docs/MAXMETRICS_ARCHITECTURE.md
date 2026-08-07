@@ -417,6 +417,54 @@ Each morning still goes to the date on its own record through `import_morning`, 
 never replaces a reading somebody entered. Thirty files across two folders, verified end to
 end: thirty mornings, thirty distinct dates, nothing else touched.
 
+## How the files get here
+
+The morning's numbers live in five or six spreadsheets in different places, and somebody
+dropping them into the Import screen every day is a job nobody keeps doing. So there is one
+endpoint, `supabase/functions/ingest`, and the question of *how a file reaches it* is
+deliberately not that endpoint's business. A flow, a scheduled script and a person with
+`curl` all look the same to it.
+
+The endpoint imports `js/import.js` and `js/xlsx.js` **unchanged**. That is the whole point
+of it. A second parser written for the server would drift from the one the preview screen
+shows, and then the number the room accepted on Tuesday and the number the flow wrote on
+Wednesday would have come from different code. Both modules already use nothing but web
+standards — `TextDecoder`, `Blob`, `DecompressionStream`, `Response` — so they run in Deno
+with nothing ported; this was checked by running the browser parser in bare Node against a
+real workbook before any of this was built. Deno bundles from the function folder down and
+cannot reach `js/`, so the two files are copied to `_shared/` by `scripts/sync-shared.mjs`
+and conformance fails if the copy ever stops matching.
+
+Three transports were possible. The scheduled PC won:
+
+| | Reaches | Needs |
+|---|---|---|
+| Power Automate | SharePoint and OneDrive | the HTTP action, which is premium in most tenants |
+| Microsoft Graph on a schedule | SharePoint and OneDrive | an Entra app registration and admin consent for `Files.Read.All` |
+| A scheduled task on a plant PC | **everything that PC can open** | nothing |
+
+The deciding fact is the Z: drive. It is an on-premises file share, and neither Microsoft
+365 option can see it at all without a data gateway — so either way a machine inside the
+building has to be involved. Once one is, it can read the OneDrive folders too, because
+they are synced to that same machine as ordinary files. One mechanism instead of two, and
+no permission to ask anybody for. `tools/hotfolder/` is that mechanism.
+
+It is a pull on a timer rather than a watcher on a change. A watcher fires several times
+while somebody saves a workbook, and fires at 11pm; the numbers are wanted once, before the
+morning meeting. The state file hashes contents rather than trusting timestamps, because
+OneDrive rewrites `LastWriteTime` when a file re-syncs unchanged.
+
+Writes go through `import_morning` like every other import, so the two rules that make a
+bulk load safe hold here too: the day is created if missing, and a reading somebody typed
+is never replaced. A flow that fires twice writes the same morning twice and changes
+nothing the second time.
+
+The endpoint authenticates with a shared secret in `x-maxmetrics-key`, compared in full
+rather than short-circuiting, because the caller is a flow and not a person — there is no
+sign-in to attach it to. Without `MAXMETRICS_INGEST_KEY` set in the project's environment
+the function refuses everything, which is the correct state for it to be deployed in until
+somebody is actually sending files.
+
 ## Deployment
 
 Netlify, from the `gh-pages` branch, public URL, protected by sign-in. `scripts/publish.sh`

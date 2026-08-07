@@ -1,0 +1,54 @@
+{
+  "_comment": [
+    "Copy this to sources.json beside the script and edit the folders. The key is not in",
+    "here on purpose — it lives in the MAXMETRICS_INGEST_KEY environment variable.",
+    "",
+    "location   one of: mississauga, guelph, pickering, owen-sound, markham",
+    "folder     any path this account can already open — a mapped drive, a UNC path, or a",
+    "           synced OneDrive folder under %USERPROFILE%",
+    "match      a wildcard, not a regular expression",
+    "dateFrom   'modified' (the file's own date), 'filename' (a date in the name), or",
+    "           'today' — which morning the numbers are read for",
+    "newestOnly true sends only the most recent match; false sends every match, which is",
+    "           what a folder of daily exports wants",
+    "enabled    set false to leave a source configured but idle"
+  ],
+
+  "endpoint": "https://mlmurglqeqilqutxzawq.supabase.co/functions/v1/ingest",
+
+  "sources": [
+    {
+      "name": "Mississauga DOR",
+      "location": "mississauga",
+      "folder": "Z:\\Production\\Daily Operating Report",
+      "match": "DOR_V*.xlsx",
+      "dateFrom": "modified",
+      "newestOnly": true
+    },
+    {
+      "name": "Mississauga KPI",
+      "location": "mississauga",
+      "folder": "C:\\Users\\%USERNAME%\\OneDrive - Max Solutions\\KPI Reporting\\MIssissauga\\2026",
+      "match": "*KPI*.xls*",
+      "dateFrom": "modified",
+      "newestOnly": true
+    },
+    {
+      "name": "Mississauga OTIF",
+      "location": "mississauga",
+      "folder": "Z:\\Shipping",
+      "match": "OTIF*.xls*",
+      "dateFrom": "modified",
+      "newestOnly": true
+    },
+    {
+      "name": "Guelph DOR",
+      "location": "guelph",
+      "folder": "\\\\maxfs01\\Guelph\\Reports",
+      "match": "DOR*.xlsx",
+      "dateFrom": "modified",
+      "newestOnly": true,
+      "enabled": false
+    }
+  ]
+}
