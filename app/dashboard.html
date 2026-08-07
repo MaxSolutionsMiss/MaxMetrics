@@ -45,29 +45,38 @@
     </nav>
 
     <div class="main">
+      <!-- The top bar says where and when, and offers the two things that change the
+           morning: entering data and publishing it. Everything else — importing, exporting,
+           printing, the chart style, the theme, signing out — moved to the utility bar at
+           the foot of the page. Those are done once a month, not once a morning, and eight
+           buttons across the top made a settings screen out of a dashboard. -->
       <header class="top">
-        <select class="top__loc" id="loc" aria-label="Location"></select>
+        <select class="top__loc" id="loc" aria-label="Plant"></select>
         <div class="top__date"><b id="date-long">—</b><span id="date-rel">—</span></div>
+        <input class="date-inp" type="date" id="date" aria-label="Dashboard date">
         <span class="who" id="who" aria-label="People on this dashboard"></span>
         <span class="saved" id="saved"></span>
         <div class="top__spacer"></div>
         <div class="top__actions">
-          <span class="chartpick" id="chartpick" role="group" aria-label="Chart style"></span>
           <span class="chip" id="status">—</span>
-          <input class="date-inp" type="date" id="date" aria-label="Dashboard date">
-          <button class="btn" id="import-btn">Import</button>
-          <button class="btn" id="export-btn">Export</button>
-          <button class="btn" id="print-btn">Print</button>
           <button class="btn" id="edit-btn">Enter data</button>
           <button class="btn btn--go hide" id="publish-btn">Publish</button>
           <button class="btn btn--primary" id="tv-btn">Present</button>
-          <button class="btn" id="theme-btn">Theme</button>
-          <button class="btn" id="signout-btn">Sign out</button>
         </div>
       </header>
       <div class="content" id="content">
         <div class="loading">Loading the morning…</div>
       </div>
+      <footer class="util no-tv">
+        <span class="util__l">Tools</span>
+        <span class="chartpick" id="chartpick" role="group" aria-label="Chart style"></span>
+        <span class="util__spacer"></span>
+        <button class="btn btn--sm" id="import-btn">Import</button>
+        <button class="btn btn--sm" id="export-btn">Export</button>
+        <button class="btn btn--sm" id="print-btn">Print</button>
+        <button class="btn btn--sm" id="theme-btn">Theme</button>
+        <button class="btn btn--sm" id="signout-btn">Sign out</button>
+      </footer>
     </div>
   </div>
 

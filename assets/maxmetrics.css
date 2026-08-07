@@ -308,11 +308,16 @@ html[data-rail="mini"]{--rail-w:62px}
 .pill--info{background:var(--brand-wash);color:var(--brand-deep);border:1px solid var(--rule)}
 
 /* ── STRIP ── */
-.strip{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));background:var(--surface);
-  border:1px solid var(--rule);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow)}
-@media(max-width:1400px){.strip{grid-template-columns:repeat(4,minmax(0,1fr))}}
-@media(max-width:780px){.strip{grid-template-columns:repeat(2,minmax(0,1fr))}}
-.cell{padding:var(--s4) var(--s3);border-right:1px solid var(--rule);border-bottom:1px solid var(--rule);
+/* Four across, two down — not eight across, one down. The single row left five sixths of
+   the page empty and squeezed every reading into a column too narrow for its own label,
+   which is why "jobs shipped today" had to be shortened to "today". Two rows give each
+   reading room to say what it is and fill the frame it is drawn in. */
+.strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));background:var(--surface);
+  border:1px solid var(--rule);border-radius:var(--radius-lg);overflow:hidden;
+  box-shadow:var(--shadow)}
+@media(max-width:1100px){.strip{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:620px){.strip{grid-template-columns:1fr}}
+.cell{padding:var(--s5) var(--s4);border-right:1px solid var(--rule);border-bottom:1px solid var(--rule);
   display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:3px;
   border-top:3px solid transparent;container-type:inline-size;min-width:0}
 .cell--ok{background:var(--ok-wash);border-top-color:var(--ok)}
@@ -805,3 +810,21 @@ body.tv .content.wall{display:flex;flex-direction:column;gap:var(--s4);
    because a 48" showing one section has height to spend and a laptop does not. */
 .content{align-content:start}
 .sec{flex:0 0 auto}
+
+/* ── The utility bar ──
+   Import, export, print, theme, chart style and sign-out live at the foot of the page.
+   They are done once a month, not once a morning; across the top they made a settings
+   screen out of a dashboard. Quiet by default, full strength when you go looking. */
+.util{display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap;
+  margin:var(--s5) var(--s5) var(--s5);padding-top:var(--s4);
+  border-top:1px solid var(--rule);opacity:.62;transition:opacity .15s}
+.util:hover,.util:focus-within{opacity:1}
+.util__l{font-size:var(--t-micro);font-weight:700;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--ink-faint)}
+.util__spacer{flex:1}
+.btn--sm{padding:5px 11px;font-size:var(--t-small)}
+body.tv .util{display:none}
+
+/* A section is exactly as tall as it needs. Stretching one to the foot of the screen only
+   moves the empty space inside the cards, which reads worse than empty space below them. */
+.content--solo{min-height:0}
