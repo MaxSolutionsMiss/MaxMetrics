@@ -3,13 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="MaxMetrics daily plant dashboard">
-  <title>Daily dashboard · MaxMetrics</title>
-  <!-- Barlow and Barlow Condensed are the faces the plant's own dashboard asks for. It
-       never loaded them — a single file on a network share had nowhere to load them from —
-       so it fell through to Arial Narrow, and the look was an accident of what Windows
-       happened to have. Loading them makes every desk and the meeting-room TV agree, and
-       the stack still falls back to Arial Narrow if the plant is offline. -->
+  <meta name="description" content="MaxMetrics — the departments a plant runs, and what it calls their numbers">
+  <title>Configure departments · MaxMetrics</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700&family=Barlow+Condensed:wght@400;500;600;700&display=swap">
@@ -28,13 +23,19 @@
         <span class="rail__name">Max<b>Metrics</b></span>
       </div>
       <div class="rail__group">
-        <div class="rail__labelrow">
-          <span class="rail__label">Daily dashboard</span>
-          <button class="rail__collapse" id="rail-btn" aria-label="Collapse menu">
-            <svg viewBox="0 0 24 24"><path d="M15 5 L8 12 L15 19"/></svg>
-          </button>
+        <div class="rail__labelrow"><span class="rail__label">Configure</span></div>
+        <div id="nav">
+          <a class="rail__link" href="dashboard.html" title="Daily dashboard">
+            <svg class="rail__ico" viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v4h-7zM13 10h7v10h-7zM4 13h7v7H4z"/></svg>
+            <span class="rail__txt">Daily dashboard</span>
+            <span class="rail__dot rail__dot--none"></span>
+          </a>
+          <a class="rail__link" href="departments.html" aria-current="true" title="Departments">
+            <svg class="rail__ico" viewBox="0 0 24 24"><path d="M4 20V9l5 3V9l5 3V4l6 4v12z"/></svg>
+            <span class="rail__txt">Departments</span>
+            <span class="rail__dot rail__dot--none"></span>
+          </a>
         </div>
-        <div id="nav"></div>
       </div>
       <div class="rail__foot">
         <strong id="foot-loc">—</strong>
@@ -45,37 +46,25 @@
     <div class="main">
       <header class="top">
         <select class="top__loc" id="loc" aria-label="Location"></select>
-        <div class="top__date"><b id="date-long">—</b><span id="date-rel">—</span></div>
-        <span class="who" id="who" aria-label="People on this dashboard"></span>
+        <div class="top__date"><b>Departments</b><span>The shape of this plant</span></div>
         <span class="saved" id="saved"></span>
         <div class="top__spacer"></div>
         <div class="top__actions">
-          <span class="chartpick" id="chartpick" role="group" aria-label="Chart style"></span>
-          <span class="chip" id="status">—</span>
-          <input class="date-inp" type="date" id="date" aria-label="Dashboard date">
-          <button class="btn" id="edit-btn">Enter data</button>
-          <button class="btn btn--go hide" id="publish-btn">Publish</button>
-          <button class="btn btn--primary" id="tv-btn">Present</button>
+          <a class="btn btn--primary" id="back-btn" href="dashboard.html">Back to the dashboard</a>
           <button class="btn" id="theme-btn">Theme</button>
           <button class="btn" id="signout-btn">Sign out</button>
         </div>
       </header>
       <div class="content" id="content">
-        <div class="loading">Loading the morning…</div>
+        <div class="loading">Loading this plant…</div>
       </div>
     </div>
   </div>
 
-  <div class="tvbar">
-    <button class="btn" id="tv-prev" aria-label="Previous section">‹</button>
-    <button class="btn" id="tv-play">Auto</button>
-    <button class="btn" id="tv-next" aria-label="Next section">›</button>
-    <button class="btn" id="tv-exit">Exit</button>
-  </div>
   <div class="conn" id="conn">Reconnecting…</div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.52.1/dist/umd/supabase.min.js"></script>
-  <script type="module" src="../js/pages/dashboard.js?v=e727b8a5d82f"></script>
+  <script type="module" src="../js/pages/departments.js?v=e727b8a5d82f"></script>
 </body>
 </html>
