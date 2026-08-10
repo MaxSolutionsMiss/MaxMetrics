@@ -12,15 +12,15 @@ import {
   saveField, saveDepartment, saveReview,
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   importHistory,
-} from '../db.js?v=fd083d2dfa91';
-import { assess, attention, settled, verdicts } from '../assess.js?v=fd083d2dfa91';
+} from '../db.js?v=95792e4eac11';
+import { assess, attention, settled, verdicts } from '../assess.js?v=95792e4eac11';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
   spark, bullet, chip, cardTrack, readingOf, derivedShipping, SHIPPING_TARGET,
   varianceChip, varianceTone, variancePct,
   volumeLabel, rateLabel, hoursLabel,
-} from '../readings.js?v=fd083d2dfa91';
+} from '../readings.js?v=95792e4eac11';
 
 const $ = selector => document.querySelector(selector);
 
@@ -553,8 +553,11 @@ const SECTIONS = {
       return metricCard({
         chart: 'number', pkey: key, label,
         tone: has ? band.count(Number(today)) : '',
-        value: has ? num(today) : '\u2014',
-        sub: 'in the last 24 hours',
+        value: has ? num(today) : '—',
+        // A blank says which kind of blank it is. "In the last 24 hours" over a dash reads
+        // as a number that failed to arrive; the log simply has not been written that far
+        // yet, and saying so is the difference between a fault and a Tuesday.
+        sub: has ? 'in the last 24 hours' : 'not logged this far yet',
         // A year of months, not seven mornings.
         //
         // These are closed off monthly, and a week of them is four zeroes and a one drawn as
@@ -835,8 +838,10 @@ const SECTIONS = {
   // for most plants, maintenance on the same screen. Four overtime cards and two
   // maintenance ones is a screen; each on its own is half of one. A plant that wants them
   // apart says so once, in Configure.
-  labour: () => labourCards() + (mergedUpkeep() ? maintenanceCards() : '')
-               + labourPanel() + (mergedUpkeep() ? maintenancePanel() : ''),
+  // Maintenance leads. It is the part of this screen the room acts on — somebody has to be
+  // told a machine is down on Friday — and overtime is the part it reports.
+  labour: () => (mergedUpkeep() ? maintenanceCards() : '') + labourCards()
+               + (mergedUpkeep() ? maintenancePanel() : '') + labourPanel(),
 
   financials: () => {
     // Billing is reviewed the next morning, so the financial picture reports through the
@@ -1015,7 +1020,7 @@ function renderContent() {
 function render() {
   hideCards(state.plant?.hidden_cards);
   // One section or two, and the heading says which.
-  TITLES.labour = state.plant?.split_upkeep ? 'Labour & Overtime' : 'Labour & Maintenance';
+  TITLES.labour = state.plant?.split_upkeep ? 'Labour & Overtime' : 'Maintenance & Labour';
   state.findings = assess(state);
   state.verdicts = verdicts(state, state.findings);
   document.body.dataset.view = state.active;

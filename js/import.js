@@ -18,7 +18,7 @@
 // to record. Neither is a warning, and neither holds up an import. An alarm that fires
 // every Monday about a Sunday nobody worked is one people learn to close without reading.
 
-import { openWorkbook, serialToISO } from './xlsx.js?v=fd083d2dfa91';
+import { openWorkbook, serialToISO } from './xlsx.js?v=95792e4eac11';
 
 // ── Matching a column ───────────────────────────────────────────────────────────
 
@@ -385,15 +385,27 @@ export async function readKpi(workbook, { date }) {
     const log = await workbook.rows(raw);
     const dateAt = (log[0] || []).findIndex(h => bare(h).startsWith('date'));
     if (dateAt < 0) { notes.push(`${raw}: no date column, so no daily count.`); continue; }
-    let today = 0, month = 0;
+    let today = 0, month = 0, newest = '';
     for (const row of log.slice(1)) {
       const on = serialToISO(row?.[dateAt]);
       if (!on) continue;
+      if (on > newest) newest = on;
       if (on === date) today += 1;
       if (on.slice(0, 7) === date.slice(0, 7)) month += 1;
     }
-    // Nought is a reading. A morning with no NCR raised is the morning worth showing a
-    // zero on, and leaving the field empty would carry yesterday's count forward instead.
+    // Nought is a reading, but only inside the part of the log that has been written.
+    //
+    // A log whose last row is 27 July, read for a morning in August, counts nothing in
+    // August — and writing that down as nought says "no NCRs were raised", which is a
+    // different statement from "nobody has logged one yet". The plant read a confident zero
+    // for a month-to-date figure and quite reasonably called it broken. Past the end of the
+    // log the count is unknown, the field is left alone, and the note says why.
+    if (!newest) { notes.push(`${raw}: no dated rows, so no daily count.`); continue; }
+    if (newest < date) {
+      notes.push(`${raw}: nothing logged since ${newest}, so ${date} and the month so far `
+               + `are unknown rather than nought. Send a fresher copy to fill them in.`);
+      continue;
+    }
     metrics[fields[0]] = today;
     metrics[fields[1]] = month;
     notes.push(`${raw}: ${today} on ${date}, ${month} this month.`);
