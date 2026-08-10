@@ -352,6 +352,15 @@ export const iconFor = key => {
 // card. A safety streak has no trend worth drawing — a counter that goes up by one a day
 // is a diagonal line — and printing one on every card taught the eye to ignore all of
 // them, including the ones that meant something.
+// How wide the number is about to be, in characters, so the card can cap its own type.
+//
+// The hero was sized purely as a share of the card — 31.5% of its width — which is right
+// for "262" and wrong for "$1.42M": six glyphs at that size are wider than the card, and
+// the money ran under its own border and into the card beside it. Character count is the
+// missing half of the sum. The unit rides at .3em, so it counts for about a third.
+const heroChars = (value, unit) => (String(value ?? '').length
+  + (unit ? String(unit).length * 0.35 : 0)).toFixed(2);
+
 export function metricCard({ chart, pkey, icon, label, tone, value, unit, percent, markPercent,
                              markLabel, sub, flag, foot, edit, medium, track }) {
   const hero = showsHeroNumber(chart);
@@ -369,7 +378,8 @@ export function metricCard({ chart, pkey, icon, label, tone, value, unit, percen
     </div>
     <div class="card__flag">${flag || ''}</div>
     <div class="card__mid">
-      ${hero ? `<div class="hero${medium ? ' hero--md' : ''}">${esc(value)}${
+      ${hero ? `<div class="hero${medium ? ' hero--md' : ''}" style="--chars:${
+        heroChars(value, unit)}">${esc(value)}${
         unit ? `<i>${esc(unit)}</i>` : ''}</div>${caption}${drawn}` : `${drawn}${caption}`}
       ${track || ''}
     </div>

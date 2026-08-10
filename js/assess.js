@@ -12,7 +12,7 @@
 // green on the Wall would destroy trust in both, and the only way to guarantee that
 // cannot happen is for the verdict to be reached once, here, before any view sees it.
 
-import { band, daysBetween, num, money, readingOf, rateLabel, MONTHS, SHIPPING_TARGET } from './readings.js?v=53b742e32516';
+import { band, daysBetween, num, money, readingOf, rateLabel, MONTHS, SHIPPING_TARGET } from './readings.js?v=871ac39d4a9d';
 
 // The meeting runs two to three minutes, so a reading earns its place by being either
 // off target or genuinely load-bearing. Everything else is a tick in a strip.
