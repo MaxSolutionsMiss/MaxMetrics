@@ -379,6 +379,43 @@ a 358: six cards plainly the same design and visibly not the same object. On the
 line and a three-part foot — so nothing is squeezed and the shorter cards spend the
 difference on air. Air reads as deliberate; five different heights do not.
 
+**The contents are grown to fill the card.** A proportion cannot know how much a
+particular card is carrying — Safety holds a number and a foot, Production holds a bar and a
+trend line as well — so sized by proportion alone Safety's contents came to 410px inside a
+930px card and sat marooned in five hundred pixels of nothing, with the title stuck at 30px.
+`fitCards()` measures what is actually in each card and scales the lot until the fullest card
+in the screen has used its room. One factor per screen, never per card: two cards side by
+side at different type sizes would be two designs again.
+
+It climbs in coarse steps then finer ones rather than solving for the answer, because the
+answer is not linear — a title that wraps to a second line at 41px takes less width and more
+height than the same title at 40 — and it never leaves a size that does not fit. A bisection
+on a predicate this lumpy converged a tenth low, which is a tenth of the card thrown away. It
+goes below 1 as well as above: on a 1366×768 laptop a screen of eight came out two pixels
+over, which under `overflow:hidden` is a foot with its descenders shaved off and nothing to
+say so.
+
+Three things it has to be careful about, each of which pinned it silently once:
+
+- **The hero's own overflow test is a lie.** A number is set at .95 line-height on purpose,
+  so its glyphs are always taller than its line box and `scrollHeight` always exceeds
+  `clientHeight`. That read as "this card is full" on every card at every size. The vertical
+  test belongs to the title alone; real height overrun shows up in the card's own total.
+- **A stretched flex box cannot overflow.** `.hero` reported the same `scrollWidth` as
+  `clientWidth` however far its text ran past the border — which is how `$1.42M` got into the
+  card next door. It is `width:max-content;max-width:100%` now, so running out of room is
+  something the measurement can see.
+- **A fact in the foot has a length too.** "Nov 20, 2025" set at the size that suits "39" is
+  wider than half a card, and it was the first thing to run out of room on every card — which
+  is to say it decided how large the whole card was allowed to be drawn. Each fact carries its
+  own character count and is capped by the share of the card its column gets.
+
+**The title takes two lines, and the head reserves both.** One line capped the title at
+whatever "Days since last injury" happened to fit in — twenty-two characters wide, so on a
+653px card it could not grow past 30px however much room was going spare. Reserving both
+lines on every card is what keeps the readings in a row on one line; a card that wraps beside
+a card that does not would start them at different heights.
+
 **Everything on the card is measured in the card.** Titles, feet, bullets, sparks and
 padding are all a multiple of `--u`, one per cent of the card, so a card and its contents
 can only change size together. This is the rule that makes present mode free: the wall is

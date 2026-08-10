@@ -524,25 +524,26 @@ const SECTIONS = {
         foot: footLine([['Completed', any ? `${done} of ${any}` : null]]),
       })}
     </div>
-    <div class="grid" style="grid-template-columns:1.7fr 1fr;margin-top:var(--s3)">
-      <div class="panel">
-        <div class="panel__head"><span class="card__ico" aria-hidden="true">🔧</span>
-          <h3 class="panel__title">Maintenance schedule</h3>
-          <div class="panel__actions">
-            <span class="pill pill--${overdue ? 'stop' : 'ok'}">${overdue} overdue</span>
-            <span class="pill pill--info">${open} open</span></div></div>
-        <div class="panel__body"><table class="tbl"><thead><tr><th>Department</th><th>Type</th>
-          <th>Frequency</th><th>Scheduled</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="panel" style="margin-top:var(--s3)">
+      <div class="panel__head"><span class="card__ico" aria-hidden="true">🔧</span>
+        <h3 class="panel__title">Today&rsquo;s schedule</h3>
+        <div class="panel__actions">
+          <span class="pill pill--${overdue ? 'stop' : 'ok'}">${overdue} overdue</span>
+          <span class="pill pill--info">${open} open</span></div></div>
+      <div class="panel__body"><table class="tbl"><thead><tr><th>Department</th><th>Type</th>
+        <th>Frequency</th><th>Scheduled</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div>
+      <!-- The note belongs to the schedule, so it sits under it rather than in a panel of
+           its own beside it. Two panels at 1.7fr and 1fr put a five-row table next to three
+           words and made the page look like two pages. -->
+      <div class="panel__note" data-pkey="notes">
+        <span class="panel__notel">Notes</span>
+        <span class="rev__note${metric('maintenance_note') ? '' : ' rev__note--none'}">${
+          esc(metric('maintenance_note') || 'No notes entered.')}</span>
       </div>
-      <div class="panel"><div class="panel__head"><span class="card__ico" aria-hidden="true">📝</span>
-        <h3 class="panel__title">Maintenance notes</h3></div>
-        <div class="panel__body" data-pkey="notes">
-          <div class="rev__note${metric('maintenance_note') ? '' : ' rev__note--none'}">${
-            esc(metric('maintenance_note') || 'No notes entered.')}</div>
-          <div class="ez">
-            <div class="er"><label>Notes</label><textarea class="inp"
-              data-field="maintenance_note">${esc(metric('maintenance_note') || '')}</textarea></div>
-          </div></div></div>
+      <div class="ez">
+        <div class="er"><label>Notes</label><textarea class="inp"
+          data-field="maintenance_note">${esc(metric('maintenance_note') || '')}</textarea></div>
+      </div>
     </div>`;
   },
 
@@ -667,7 +668,7 @@ const SECTIONS = {
     //
     // "Budget", not "plan". The plant writes a budget; prorating it by elapsed days does
     // not make it a different thing, and two words for one number is one word too many.
-    const pane = (key, title, icon, actual, budget, tone, variance, percent, budgetRow) => {
+    const pane = (key, title, icon, actual, budget, tone, variance, percent, budgetRow, whenRow) => {
       const pace = budget ? Math.round(actual / budget * 100) : 0;
       return metricCard({
         chart: 'number', pkey: key, label: title, icon, tone,
@@ -687,6 +688,7 @@ const SECTIONS = {
         }),
         foot: footLine([
           budgetRow,
+          whenRow,
           ['Variance', `${variance >= 0 ? '▲' : '▼'} ${Math.abs(percent).toFixed(1)}%`],
         ]),
         edit: field(`Actual ${key === 'fin-mtd' ? 'MTD' : 'YTD'}`,
@@ -697,22 +699,14 @@ const SECTIONS = {
 
     return `<div class="grid grid--cards">
       ${pane('fin-mtd', 'Month to date', '\u{1F4B0}', actualMtd, planMtd, toneMtd,
-        varianceMtd, percentMtd, [`${MONTHS[month]} budget`, money(monthBudget)])}
+        varianceMtd, percentMtd, [`${MONTHS[month]} budget`, money(monthBudget)],
+        // How far into the month the plant is, which is the whole reason the budget is
+        // prorated — and one fact on a foot rather than a full-width panel with a
+        // progress bar the width of the screen saying "day 9 of 31".
+        ['Elapsed', `day ${elapsed} of ${inMonth}`])}
       ${pane('fin-ytd', 'Year to date', '\u{1F4B0}', actualYtd, planYtd, toneYtd,
-        varianceYtd, percentYtd, ['Year budget', money(yearBudget)])}
-    </div>
-    <div class="panel" style="margin-top:var(--s3)">
-      <div class="panel__head"><span class="card__ico" aria-hidden="true">📅</span>
-        <h3 class="panel__title">Where the month stands</h3>
-        <span class="panel__actions chip">Through ${
-          shortDate(reportDate.toISOString().slice(0, 10))}</span></div>
-      <div class="panel__body">
-        <div class="finbar">
-          <div class="finbar__l">${MONTHS[month]} so far
-            <b>day ${elapsed} of ${inMonth}</b></div>
-          <div class="finmonth"><span style="width:${(elapsed / inMonth * 100).toFixed(1)}%"></span></div>
-        </div>
-      </div>
+        varianceYtd, percentYtd, ['Year budget', money(yearBudget)],
+        ['Through', shortDate(reportDate.toISOString().slice(0, 10))])}
     </div>`;
   },
 };
@@ -820,6 +814,95 @@ function render() {
   state.verdicts = verdicts(state, state.findings);
   document.body.dataset.view = state.active;
   renderHeader(); renderChartPicker(); renderNav(); renderContent(); renderWho(); paintPresence();
+  fitCards();
+}
+
+// Fill the card.
+//
+// Every length on a card is a share of the card, which is what keeps a card one object at
+// any size — but a share cannot know how much a particular card is carrying. Safety holds a
+// number and a foot; Production holds a bar and a trend line as well. Sized by width alone,
+// Safety's contents came to 410px inside a 930px card and sat marooned in the middle of five
+// hundred pixels of nothing, with the title stuck at 30px because one line of "Days since
+// last injury" is as wide as it is allowed to get.
+//
+// So the proportions are measured rather than assumed. Everything scales off `--u`, so
+// scaling `--u` scales the card's whole contents together, and the only question is by how
+// much. One factor per screen rather than per card: cards side by side that had grown to
+// different type sizes would be two designs again, which is the thing this has spent three
+// rounds getting rid of.
+//
+// It climbs rather than solving for the answer, because the answer is not linear — a title
+// that wraps to a second line at 41px takes less width and more height than the same title
+// at 40. Coarse steps first, then finer ones, and it never leaves a size that does not fit:
+// a bisection on a predicate this lumpy converged a tenth low, which is a tenth of the card
+// thrown away.
+const FIT_MAX = 2.6;
+const FIT_MIN = 0.7;
+const FIT_STEPS = [0.32, 0.16, 0.08, 0.04, 0.02];
+
+// What a card is actually using, top of its first row to bottom of its last. `scrollHeight`
+// cannot answer this: the contents are centred, so a card with room to spare reports its own
+// height and looks full.
+function usedBy(card) {
+  const rows = [...card.children].filter(row => row.getClientRects().length);
+  if (!rows.length) return 0;
+  return rows[rows.length - 1].getBoundingClientRect().bottom
+       - rows[0].getBoundingClientRect().top;
+}
+
+// Anything that has run out of room: the card itself, a title past its second line, or a
+// number, label or date wider than the space it was given.
+//
+// The vertical test is the title's alone. A hero is set at .95 line-height on purpose, so
+// its glyphs are always a little taller than its line box and `scrollHeight` always exceeds
+// `clientHeight` — which read as "this card is full" on every card at every size and pinned
+// the whole thing at 1. Height that genuinely overruns shows up in the card's own total.
+function overflows(card) {
+  const style = getComputedStyle(card);
+  const room = card.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+  if (usedBy(card) > room + 1) return true;
+  const title = card.querySelector('.card__label');
+  if (title && title.scrollHeight > title.clientHeight + 1) return true;
+  for (const part of card.querySelectorAll('.card__label,.hero,.unit,.fs__l,.fs__v,.ctrack__l,.ctrack__d')) {
+    if (part.scrollWidth > part.clientWidth + 1) return true;
+  }
+  return false;
+}
+
+function fitCards() {
+  for (const grid of document.querySelectorAll('.grid--cards')) {
+    const cards = [...grid.children].filter(card => card.classList.contains('card'));
+    if (!cards.length) continue;
+    grid.style.setProperty('--fit', 1);
+    // The fullest card in the screen sets the ceiling. Reading each card's own headroom
+    // first means one measurement pass rather than one per step of the search.
+    let fit = FIT_MAX;
+    for (const card of cards) {
+      const style = getComputedStyle(card);
+      const room = card.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+      const used = usedBy(card);
+      if (used > 0) fit = Math.min(fit, room / used);
+    }
+    // Below 1 as well as above it. The proportions are set by the fullest card there is, and
+    // on a small laptop a screen of eight came out two pixels over — which under
+    // `overflow:hidden` is a foot with its descenders shaved off, and nothing to say so.
+    const ceiling = fit;
+    fit = Math.min(1, ceiling);
+    grid.style.setProperty('--fit', String(fit));
+    while (fit > FIT_MIN && cards.some(overflows)) {
+      fit -= 0.02;
+      grid.style.setProperty('--fit', String(fit));
+    }
+    for (const step of FIT_STEPS) {
+      while (fit + step <= ceiling) {
+        grid.style.setProperty('--fit', String(fit + step));
+        if (cards.some(overflows)) break;
+        fit += step;
+      }
+      grid.style.setProperty('--fit', String(fit));
+    }
+  }
 }
 
 // ── The wall ──
@@ -930,7 +1013,7 @@ let wallResize;
 addEventListener('resize', () => {
   if (!document.body.classList.contains('tv')) return;
   clearTimeout(wallResize);
-  wallResize = setTimeout(renderWall, 120);
+  wallResize = setTimeout(() => { renderWall(); fitCards(); }, 120);
 });
 
 // ── Saving ──────────────────────────────────────────────────────────────────────
@@ -1160,6 +1243,7 @@ const step = direction => {
   const total = wallPages().length || 1;
   state.wallStep = ((state.wallStep + direction) % total + total) % total;
   renderWall();
+  fitCards();
 };
 $('#tv-btn').addEventListener('click', () => {
   document.body.classList.add('tv');
