@@ -211,7 +211,7 @@ export function spark(values, tone = '') {
 // to 132 put its target marker a fifth of the way along and gave the room a wide green
 // field nobody can ever reach. Between a floor of ninety and a ceiling of a hundred the
 // bar shows the ten points that are actually in play.
-export function bullet({ actual, target, tone = '', floor = 0, ceiling = 0, lowerIsBetter = false }) {
+export function bullet({ actual, target, tone = '', floor = 0, ceiling = 0, lowerIsBetter = false, bands = true }) {
   if (!Number.isFinite(Number(actual)) || !Number.isFinite(Number(target)) || !target) return '';
   const top = ceiling || target * (lowerIsBetter ? 2 : 1.35);
   const at = v => Math.max(0, Math.min(100, (v - floor) / (top - floor) * 100));
@@ -226,7 +226,13 @@ export function bullet({ actual, target, tone = '', floor = 0, ceiling = 0, lowe
   // is better. Shipping percentages turn amber at ninety rather than at nine tenths of
   // ninety-eight, which is 88.2 — close enough that the ground under the bar is right to
   // within a fifth of a point, and the bar's own colour is the verdict either way.
-  const edges = lowerIsBetter
+  // A streak has no bands. The ground is banded because most readings are measured against
+  // a target they are supposed to reach, so short of it is a miss — but a record is a target
+  // to beat, not one to meet, and painting "ten days since the last near-miss" on a red
+  // field says the plant is failing at something it is not failing at. The marker alone is
+  // the story: here is the record, here is where you are.
+  const edges = !bands ? []
+    : lowerIsBetter
     ? [['good', 0, at(target)], ['mid', at(target), at(target * 1.18)], ['bad', at(target * 1.18), 100]]
     : [['bad', 0, at(target * 0.9)], ['mid', at(target * 0.9), at(target)], ['good', at(target), 100]];
   return `<div class="bullet bullet--${tone}">
@@ -254,10 +260,10 @@ export const chip = (tone, text) => `<span class="delta delta--${tone}">${esc(te
 // is a bar against a target, and printing a second one under it would have the same card
 // answer the same question twice.
 export function cardTrack({ chart, actual, target, tone = '', floor = 0, ceiling = 0,
-                           lowerIsBetter = false, targetText, deltaText, deltaTone,
+                           lowerIsBetter = false, bands = true, targetText, deltaText, deltaTone,
                            series, seriesLabel = 'Last 7 mornings' }) {
   const bar = chart === 'bar' ? ''
-    : bullet({ actual, target, tone, floor, ceiling, lowerIsBetter });
+    : bullet({ actual, target, tone, floor, ceiling, lowerIsBetter, bands });
   const points = (series || []).filter(v => Number.isFinite(Number(v))).map(Number);
   const line = points.length > 1 ? spark(points, tone) : '';
   if (!bar && !line) return '';
