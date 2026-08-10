@@ -480,12 +480,23 @@ the same size whatever the card is carrying. It is also what stops a card readin
 of text: the heaviest line on it is a shape rather than a sentence. One grey on every card, on
 purpose — the verdict lives in the number, and a bar that changed colour with it would be a
 second and louder verdict. The pictogram sits in a white disc on the bar, which is what lets
-it read as one pale mark rather than as a picture. Knocking the glyphs out to a flat white
-silhouette was the obvious way to do that and it was wrong: the meaning of half of them is in
-the shading rather than the outline, so the target came out an empty circle, the carton a
-hexagon and the calendar a blank rectangle. Greyscale keeps the light and dark inside a glyph
-and brightness lifts the whole thing off the bar, which leaves the target its rings and the
-calendar its grid. The bar
+it read as one mark rather than as a picture — and that is what eventually cost the emoji
+their place.
+
+Emoji were the right first answer: the plant's own dashboard uses them, the room already
+knows them, and they cost nothing. The bar is what killed them. Knocked back to one colour an
+emoji is whatever silhouette its designer happened to draw — 🎯 becomes a circle, 📦 a
+hexagon, 🪟 a square — and the set stops reading as a set, because it was never drawn as one.
+Greyscale rather than a flat knockout keeps enough of the shading to tell them apart, and it
+still looked like twenty pictures borrowed from twenty places. They also change shape between
+Windows, macOS and Android, so the meeting-room screen and the laptop beside it were showing
+different pictures of the same thing.
+
+`ICONS` is a drawn set now: twenty-odd marks on one 24-unit grid, stroke only, one weight,
+round ends. That is the whole of why they look like one family at any size. A plant's own
+choice of emoji still wins for a department it invented and there is no mark for — but not
+for printing, which has one, because a row of four cards should not read as three marks and
+a sticker. The bar
 is three times the height of the title it holds: twice was enough to read as a bar and not
 enough to hold a pictogram at a size a room can see, so the disc had nowhere to sit. The
 glyph is centred on both axes rather than left to its line box, because an emoji carries its
@@ -603,6 +614,29 @@ second grid for its review notes and Labour wraps its table in one, and both emp
 here — but each was still `flex:1` with a row the height of a card, so the real cards sat a
 hundred and thirty pixels above centre. Safety looked centred and Labour did not, on the
 same rule. A grid with no visible card is now hidden outright.
+
+## Where quality comes from
+
+Quality is not counted every morning. NCRs, customer complaints and the cost of poor quality
+are closed off month by month in one sheet the quality manager keeps — a row per month with
+the plant's own arithmetic already done. `readKpi()` reads that sheet and writes the row for
+the month the morning falls in, because a month-to-date figure is true of the morning you
+read it on. The same row carries shipped dollars and OTIF, so one workbook fills the Quality
+cards, both Financials cards and the two OTIF cards.
+
+Three things about it are worth writing down:
+
+- **Its month column is written by hand.** The same column says JAN and Jan and March and
+  Mar. Three letters, lowercased, is all that survives that.
+- **Columns are found by their letters, not their position.** The headers carry line breaks,
+  double spaces and trailing blanks, and a column inserted on the left must not silently
+  shift every reading one place.
+- **A month it has not closed off yet reads the last one it has, and says so in a note.**
+  Silently reporting a different month than the one asked for is the failure this whole
+  section exists to prevent.
+
+Year to date is summed across the months up to and including that one, rather than taken
+from a total row, so it is right on the eighteenth of March as well as on the thirty-first.
 
 ## The half-import
 

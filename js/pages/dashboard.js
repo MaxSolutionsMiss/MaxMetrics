@@ -283,10 +283,10 @@ const SECTIONS = {
     // itself, rather than three columns that only ever covered these three readings.
     // `name`, not `field` — the parameter was called `field` and shadowed the helper of
     // the same name two scopes up, so every quality card threw on its edit row.
-    const counter = (key, label, icon, name, sub) => {
+    const counter = (key, label, name, sub) => {
       const value = metric(name);
       return metricCard({
-        chart: 'number', pkey: key, label, icon, tone: '',
+        chart: 'number', pkey: key, label, tone: '',
         value: value == null ? '\u2014' : num(value), sub,
         // A running total has no target to draw against, but the shape of the year is a
         // reading in its own right: seven mornings of a carried-forward count is flat while
@@ -314,9 +314,9 @@ const SECTIONS = {
       })}
       ${coqCard('coq', 'COQ \u2014 month to date', 'coq', 'coq_target')}
       ${coqCard('coqytd', 'COQ \u2014 year to date', 'coq_ytd', 'coq_ytd_target')}
-      ${counter('ncr', 'NCRs received', '\u{1F4CB}', 'ncr_ytd', 'year to date')}
-      ${counter('cint', 'Internal complaints', '\u{1F3ED}', 'complaints_internal', 'year to date')}
-      ${counter('cext', 'Customer complaints', '\u{1F4E3}', 'complaints_external', 'year to date')}
+      ${counter('ncr', 'NCRs received', 'ncr_ytd', 'year to date')}
+      ${counter('cint', 'Internal complaints', 'complaints_internal', 'year to date')}
+      ${counter('cext', 'Customer complaints', 'complaints_external', 'year to date')}
     </div>`;
   },
 
@@ -331,7 +331,10 @@ const SECTIONS = {
       const tone = band.rate(rate, target);
       return metricCard({
         chart: 'number', pkey: config.key, label: config.name, medium: true,
-        icon: config.icon || iconFor(config.key), tone,
+        // A drawn mark where there is one for this department, and the plant's own choice
+        // only where there is not — a printing card should look like the rest of the set
+        // rather than like whichever emoji somebody picked in Configure.
+        icon: iconFor(config.key, config.icon), tone,
         value: rate ? num(Math.round(rate)) : '—', sub: rateLabel(config),
         percent: target ? rate / (target * 1.25) * 100 : 0,
         markPercent: 100 / 1.25, markLabel: 'target',
@@ -452,10 +455,10 @@ const SECTIONS = {
     // This was a joined strip with the cells sharing borders and two of them washed violet,
     // which made shipping look like a different product bolted to the page. Nothing about
     // these readings is special enough to earn its own component.
-    const ship = (name, label, icon, { value, unit = '', sub = '', tone = '', target = 0,
+    const ship = (name, label, { value, unit = '', sub = '', tone = '', target = 0,
                                        floor = 0, ceiling = 0, series = null,
                                        lowerIsBetter = false, foot = [] }) => metricCard({
-      chart: 'number', pkey: name, label, icon, tone,
+      chart: 'number', pkey: name, label, tone,
       value, unit, sub,
       percent: target ? Number(value || 0) / target * 100 : 0,
       markPercent: target ? 100 : null, markLabel: 'target',
@@ -467,10 +470,10 @@ const SECTIONS = {
       foot: footLine(foot),
     });
 
-    const pct = (name, label, icon, sub) => {
+    const pct = (name, label, sub) => {
       const value = read(name);
       const tone = value == null ? '' : band.pct(Number(value), SHIPPING_TARGET);
-      return ship(name, label, icon, {
+      return ship(name, label, {
         value: value == null ? '\u2014' : Number(value).toFixed(2), unit: value == null ? '' : '%',
         sub, tone, target: SHIPPING_TARGET, floor: 90, ceiling: 100, series: metricSeries(name),
         foot: [['Target', `\u2265 ${SHIPPING_TARGET}%`],
@@ -480,10 +483,10 @@ const SECTIONS = {
                })()]],
       });
     };
-    const count = (name, label, icon, sub) => {
+    const count = (name, label, sub) => {
       const value = read(name);
       const tone = value == null ? '' : band.count(Number(value));
-      return ship(name, label, icon, {
+      return ship(name, label, {
         value: value ?? '\u2014', sub, tone,
         // No bar — a bar against a target of zero is a bar that is always full — but the
         // week behind it is the difference between one late truck and a pattern.
@@ -493,22 +496,22 @@ const SECTIONS = {
     };
 
     return `<div class="grid grid--cards">
-      ${ship('jobs_shipped', 'Jobs shipped', '\u{1F69A}', {
+      ${ship('jobs_shipped', 'Jobs shipped', {
         series: metricSeries('jobs_shipped'),
         value: read('jobs_shipped') == null ? '\u2014' : num(read('jobs_shipped')), sub: 'today',
         foot: [['On time', read('jobs_on_time') ?? null],
                ['Of', read('jobs_shipped') ?? null]] })}
-      ${ship('cartons', 'Cartons', '\u{1F4E6}', {
+      ${ship('cartons', 'Cartons', {
         series: metricSeries('cartons'),
         value: read('cartons') == null ? '\u2014' : num(read('cartons')), sub: 'shipped today',
         foot: [['Per job', read('cartons') && read('jobs_shipped')
           ? num(Math.round(read('cartons') / read('jobs_shipped'))) : null]] })}
-      ${count('late', 'Late', '\u23F0', 'shipments')}
-      ${count('shorts', 'Shorts', '\u{1F6AB}', 'shipments')}
-      ${pct('otd', 'OTD', '\u{1F3AF}', 'on-time delivery')}
-      ${pct('otif', 'OTIF', '\u{1F3AF}', 'on time, in full')}
-      ${pct('mtd_otif', 'MTD OTIF', '\u{1F4C5}', 'month to date')}
-      ${pct('ytd_otif', 'YTD OTIF', '\u{1F4C5}', 'year to date')}
+      ${count('late', 'Late', 'shipments')}
+      ${count('shorts', 'Shorts', 'shipments')}
+      ${pct('otd', 'OTD', 'on-time delivery')}
+      ${pct('otif', 'OTIF', 'on time, in full')}
+      ${pct('mtd_otif', 'MTD OTIF', 'month to date')}
+      ${pct('ytd_otif', 'YTD OTIF', 'year to date')}
     </div>
     <div class="panel edit-only" style="margin-top:var(--s3)"><div class="panel__body"><div class="grid g4">
       ${[['Jobs shipped','jobs_shipped'],['On time','jobs_on_time'],['Cartons','cartons'],
@@ -535,27 +538,27 @@ const SECTIONS = {
     const any = state.maintenance.length;
     return `<div class="grid grid--cards">
       ${metricCard({
-        chart: 'number', pkey: 'maint-overdue', icon: '\u{1F527}', label: 'Overdue items',
+        chart: 'number', pkey: 'maint-overdue', label: 'Overdue items',
         tone: any ? band.maint(overdue ? 'Overdue' : 'Complete') : '',
         value: any ? String(overdue) : '\u2014',
         sub: any ? 'past their scheduled date' : 'Nothing scheduled today',
         foot: footLine([['Target', '0']]),
       })}
       ${metricCard({
-        chart: 'number', pkey: 'maint-open', icon: '\u{1F4C5}', label: 'Open work',
+        chart: 'number', pkey: 'maint-open', label: 'Open work',
         tone: '',
         value: any ? String(open) : '\u2014',
         sub: any ? `of ${any} scheduled today` : 'Nothing scheduled today',
         foot: footLine([['Completed', any ? `${done} of ${any}` : null]]),
       })}
       ${listCard({
-        pkey: 'maint-list', icon: '\u{1F5D3}\uFE0F', label: 'Today\u2019s schedule',
+        pkey: 'maint-list', label: 'Today\u2019s schedule',
         rows: state.maintenance.map(m => [`${m.dept} \u00b7 ${m.item_type}`,
           esc(m.status), band.maint(m.status)]),
         empty: 'Nothing scheduled for today.',
       })}
       ${noteCard({
-        pkey: 'maint-note', icon: '\u{1F4DD}', label: 'Maintenance notes',
+        pkey: 'maint-note', label: 'Maintenance notes',
         text: metric('maintenance_note'),
         prompt: 'No notes entered.',
         edit: `<div class="er"><label>Notes</label><textarea class="inp"
@@ -607,27 +610,27 @@ const SECTIONS = {
 
     return `<div class="grid grid--cards">
       ${metricCard({
-        chart: 'number', pkey: 'ot-total', icon: '\u{23F1}\u{FE0F}', label: 'Overtime shifts',
+        chart: 'number', pkey: 'ot-total', label: 'Overtime shifts',
         tone: total > 0 ? 'warn' : entered ? 'ok' : '',
         value: headline[0], sub: `shifts \u00b7 ${headline[1]}`,
         foot: footLine([['Target', '0 shifts']]),
       })}
       ${metricCard({
-        chart: 'number', pkey: 'ot-depts', icon: '\u{1F477}', label: 'Departments on OT',
+        chart: 'number', pkey: 'ot-depts', label: 'Departments on OT',
         tone: running.length > 0 ? 'warn' : entered ? 'ok' : '',
         value: entered ? String(running.length) : '\u2014',
         sub: entered ? `of ${list.length} running` : 'Nothing entered yet',
         foot: footLine([['Most shifts', busiest ? esc(busiest.name) : null]]),
       })}
       ${listCard({
-        pkey: 'ot-list', icon: '\u{1F3ED}', label: 'Overtime by department',
+        pkey: 'ot-list', label: 'Overtime by department',
         rows: list.map(c => [c.name,
           shiftsFor(c.key) > 0 ? `${shiftsFor(c.key)} shift${shiftsFor(c.key) === 1 ? '' : 's'}` : '\u2014',
           shiftsFor(c.key) > 0 ? 'warn' : '']),
         empty: 'No departments configured.',
       })}
       ${noteCard({
-        pkey: 'staffing', icon: '\u{1F9D1}\u200D\u{1F3ED}', label: 'Staffing notes',
+        pkey: 'staffing', label: 'Staffing notes',
         text: metric('staffing_note'),
         prompt: 'Call-ins, vacation, training \u2014 nothing entered.',
         edit: `<div class="er"><label>Staffing</label><textarea class="inp"
@@ -698,10 +701,10 @@ const SECTIONS = {
     //
     // "Budget", not "plan". The plant writes a budget; prorating it by elapsed days does
     // not make it a different thing, and two words for one number is one word too many.
-    const pane = (key, title, icon, actual, budget, tone, variance, percent, budgetRow, whenRow) => {
+    const pane = (key, title, actual, budget, tone, variance, percent, budgetRow, whenRow) => {
       const pace = budget ? Math.round(actual / budget * 100) : 0;
       return metricCard({
-        chart: 'number', pkey: key, label: title, icon, tone,
+        chart: 'number', pkey: key, label: title, tone,
         // The figure is the reading and the pace is what it means — the two things the
         // room asks for, on the two lines a card already has for them.
         value: money(actual), sub: `${pace}% of budget`,
@@ -728,13 +731,13 @@ const SECTIONS = {
     };
 
     return `<div class="grid grid--cards">
-      ${pane('fin-mtd', 'Month to date', '\u{1F4B0}', actualMtd, planMtd, toneMtd,
+      ${pane('fin-mtd', 'Month to date', actualMtd, planMtd, toneMtd,
         varianceMtd, percentMtd, [`${MONTHS[month]} budget`, money(monthBudget)],
         // How far into the month the plant is, which is the whole reason the budget is
         // prorated — and one fact on a foot rather than a full-width panel with a
         // progress bar the width of the screen saying "day 9 of 31".
         ['Elapsed', `day ${elapsed} of ${inMonth}`])}
-      ${pane('fin-ytd', 'Year to date', '\u{1F4B0}', actualYtd, planYtd, toneYtd,
+      ${pane('fin-ytd', 'Year to date', actualYtd, planYtd, toneYtd,
         varianceYtd, percentYtd, ['Year budget', money(yearBudget)],
         ['Through', shortDate(reportDate.toISOString().slice(0, 10))])}
     </div>`;
