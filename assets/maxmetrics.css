@@ -53,6 +53,20 @@
   --card-w:318px;
   --card-r:1.132;
   --card-h:calc(var(--card-w)*var(--card-r));
+  /* Present mode's three knobs. They live here because `bestGrid()` reads them back out of
+     the stylesheet rather than keeping its own copy — the arithmetic has to agree on both
+     sides of the fence or the grid is chosen for a card that is not the card drawn.
+     --card-r      the ratio at which a card's contents exactly fill it, so a card is never
+                   narrower than this allows and the contents always fit
+     --card-r-max  the tallest a card may be drawn before it reads as a column
+     --wall-cap    the widest, in vw, so a screen of two does not draw a card like a door
+     --wall-chrome the heading, the dots and the padding above and below them
+   `--wall-chrome` lived on `body.tv`, where `bestGrid()` could not see it — so it read zero,
+   thought it had the whole 1080 to play with, and laid production out as two rows of two
+   when one row of four draws a bigger number. A knob both sides read has to be somewhere
+   both sides can. */
+  --card-r-max:1.6;
+  --wall-cols:4; --wall-rows:1; --wall-cap:34; --wall-chrome:150px;
   --shadow:0 1px 8px rgba(15,23,42,.07);
 }
 @media (prefers-color-scheme:dark){:root[data-theme="auto"]{
@@ -373,44 +387,58 @@ body.tv .verdict{font-size:var(--t-lead)}
 .foot--1 .fs{flex-direction:row;align-items:baseline;justify-content:center;gap:var(--s2)}
 .foot--1 .fs__l{font-size:calc(12px*var(--scale))}
 /* ── Everything on a card is measured in the card ──────────────────────────────
-   `cqi` is a percentage of the card's own width, so a card and its contents can only
-   change size together. That is what makes "the wall is the page's card, larger" true
-   rather than aspirational — present mode is the same card at 404px that the page draws at
-   318, and nothing has to be re-tuned for it. Before this, present mode kept a parallel
-   set of sizes keyed off viewport breakpoints, so a 1366×768 laptop drew a 266px card with
-   type meant for a 440px one and the foot fell off the bottom of four cards at once.
-   It also settles a subtler one: solo view used to bump the title, the icon, the number
-   and the padding, which made one card two cards depending on which link you clicked, and
-   the larger title in the smaller box is what cut "Days since last injury" to "…last inj".
-   The card fits at one size or it fits at every size, which is also what makes it
-   checkable: measure the densest page once.
-   Padding is the exception, in per cent rather than cqi. A container cannot measure
-   itself — `cqi` inside the rule that sizes the container resolves against the next
-   container out, which is the viewport, and 5.2cqi came out as 100px of padding on a 404px
-   card. Per cent resolves against the grid track, which is the card's width. */
-.card .card__head{gap:2cqi;margin-bottom:1.4cqi;min-height:8cqi}
-.card .card__head>.card__ico{font-size:5.6cqi}
-.card .card__label{font-size:5.2cqi}
-.card .card__flag{min-height:6.6cqi;margin-bottom:1.2cqi}
-.card .flag{font-size:3.5cqi;padding:.8cqi 2.4cqi;border-radius:1cqi}
-.card .hero{font-size:min(31.5cqi,calc(150cqi/var(--chars,3)))}
-.card .hero--md{font-size:min(23cqi,calc(150cqi/var(--chars,3)))}
-.card .unit{font-size:4.1cqi}
-.card .ctrack{margin-top:2.6cqi;gap:1.4cqi}
-.card .ctrack__row:not(:first-child){margin-top:1.4cqi}
-.card .ctrack__l{font-size:4cqi}
-.card .ctrack__d{font-size:4.5cqi}
-.card .ctrack .bullet{height:4.2cqi}
-.card .ctrack .spark{height:5.6cqi}
+   `--u` is one per cent of the card, and every length below is a multiple of it. Because a
+   card and its contents can only change size together, "the wall is the page's card,
+   larger" is true rather than aspirational: present mode is the same card at 653px that the
+   page draws at 318, and nothing is re-tuned for it. Before this, present mode kept a
+   parallel set of sizes keyed off viewport breakpoints, so a 1366x768 laptop drew a 266px
+   card with type meant for a 440px one and the foot fell off four cards at once. It also
+   settles a subtler one: solo view used to bump the title, the icon, the number and the
+   padding, which made one card two cards depending on which link you clicked, and the
+   larger title in the same box is what cut "Days since last injury" to "…last inj".
+
+   One per cent of *which* dimension is the whole trick. Width alone — plain `cqi` — sizes
+   the contents by how wide the card is, so a card can never be wider than its own contents
+   are tall. On a two-row screen the card height is fixed at 457px, which pinned the card to
+   404px wide and left two hundred pixels of the row unused beside every one of them: a
+   quality screen three-quarters as wide as the screen it was on. Taking the smaller of the
+   two lets the card fill its cell and stops the contents growing once the height runs out.
+   `--card-h` is inherited from the grid, so this needs no container units and cannot go
+   circular; `1cqi` does, which is why `--u` is declared on the descendants rather than on
+   the card. A container cannot measure itself.
+
+   The divisor is `--card-r`, the ratio at which the contents exactly fill the card, ×100.
+   Keep them in step. */
+.card *{--u:min(1cqi,calc(var(--card-h)/113.2))}
+.card .card__head{gap:calc(2*var(--u));margin-bottom:calc(1.4*var(--u));min-height:calc(8*var(--u))}
+.card .card__head>.card__ico{font-size:calc(5.6*var(--u))}
+.card .card__label{font-size:calc(5.2*var(--u))}
+.card .card__flag{min-height:calc(6.6*var(--u));margin-bottom:calc(1.2*var(--u))}
+.card .flag{font-size:calc(3.5*var(--u));padding:calc(.8*var(--u)) calc(2.4*var(--u));
+  border-radius:calc(1*var(--u))}
+/* The second cap is the number's own length: 31.5% of the card is right for "262" and
+   wrong for "$1.42M", where six glyphs at that size are wider than the card and ran under
+   its border into the card beside it. `--chars` comes from metricCard. */
+.card .hero{font-size:min(calc(31.5*var(--u)),calc(150cqi/var(--chars,3)))}
+.card .hero--md{font-size:min(calc(23*var(--u)),calc(150cqi/var(--chars,3)))}
+.card .unit{font-size:calc(4.1*var(--u))}
+.card .ctrack{margin-top:calc(2.6*var(--u));gap:calc(1.4*var(--u))}
+.card .ctrack__row:not(:first-child){margin-top:calc(1.4*var(--u))}
+.card .ctrack__l{font-size:calc(4*var(--u))}
+.card .ctrack__d{font-size:calc(4.5*var(--u))}
+.card .ctrack .bullet{height:calc(4.2*var(--u))}
+.card .ctrack .spark{height:calc(5.6*var(--u))}
 /* The foot travels with the number rather than being pinned to the floor of the card.
    `margin-top:auto` is right when a card is as tall as its contents; it is wrong now that
-   every card is the same height, because it left safety's number stranded at the top of a
-   card with its context four hundred pixels below. The block centres and holds together. */
-.card .foot{margin-top:3cqi;padding-top:1.8cqi;gap:.8cqi 3cqi}
-.card .fs__l{font-size:4cqi}
-.card .fs__v{font-size:6.2cqi}
-.card .foot--1 .fs{gap:2cqi}
-.card .foot--1 .fs__l{font-size:4.2cqi}
+   every card in a row is the same height, because it left safety's number stranded at the
+   top of a card with its context four hundred pixels below. The block centres and holds
+   together. */
+.card .foot{margin-top:calc(3*var(--u));padding-top:calc(1.8*var(--u));
+  gap:calc(.8*var(--u)) calc(3*var(--u))}
+.card .fs__l{font-size:calc(4*var(--u))}
+.card .fs__v{font-size:calc(6.2*var(--u))}
+.card .foot--1 .fs{gap:calc(2*var(--u))}
+.card .foot--1 .fs__l{font-size:calc(4.2*var(--u))}
 
 /* The rule is a rule, not a verdict. */
 .fstat{display:flex;flex-direction:column;gap:1px;min-width:0}
@@ -569,27 +597,38 @@ body:not(.editing) .ez,body:not(.editing) .edit-only{display:none!important}
    `overflow:hidden`, so on Production the table simply printed on top of the cards. A wall
    is not a smaller version of the page: it is the cards, at the size a room reads, and
    nothing else. Everything that is a table, a note or a field is a thing you lean in for. */
-/* The wall is the page's card, larger. Nothing else.
-   It used to be the page's card *stretched*: the grid row was as tall as the screen and
-   the card was as tall as the row, so safety's two cards came out 452 wide and 940 tall —
-   a shape that exists nowhere else in the product, with the reading marooned in the middle
-   of it. A presentation slide does not distort the thing it is showing.
-   So the size is derived instead of stretched, from whichever of the two runs out first:
-   the width of a four-card row, or the height of two of them. Those are the widest and the
-   tallest pages there are — shipping's eight and quality's six — so the size that fits
-   them fits every other page as well, and safety's two, production's four and financials'
-   two are all the same card. What is left over is empty ground, and the grid centres in
-   it both ways. */
+/* The wall is the page's card, as large as the screen will let it be.
+   Two wrong answers came before this one. Stretching the card to the row made safety's two
+   cards 452 wide and 940 tall — a shape that exists nowhere else in the product, with the
+   reading marooned in the middle of it. Sizing every screen to the densest one fixed the
+   shape and shrank everything: eight cards in two rows set the size, and safety's two then
+   sat at that size in the middle of a screen that was three-quarters empty.
+   The card is sized per screen now, and `WALL_MAX` in dashboard.js keeps every screen to
+   one row of at most four, so the card only has to answer one question: how wide can four
+   of these be, and how tall may that make them.
+     --card-w  the narrower of the room a row of them has, a ceiling so a screen of two
+               does not draw a card the size of a door, and the width at which the card is
+               already as tall as the screen.
+     --card-h  the shorter of the screen and the tallest this card is allowed to be.
+   `--card-r` is the ratio at which the contents exactly fill the card, so the first is what
+   guarantees the contents always fit; 1.6 is where a card stops reading as a card and
+   starts reading as a column. Between them a screen of two comes out 653 by 940 and a
+   screen of four 452 by 791 — a range of less than half, which is variation the eye reads
+   as the same card at two sizes rather than as two designs. */
 body.tv{overflow:hidden;--scale:1.45;
   --wall-gap:var(--s4);
-  /* The heading, the dots and the padding above and below them. Measured, not guessed:
-     at every viewport this is tested at, the cards start 96px down and the dots need
-     44 below them. */
-  --wall-chrome:150px;
-  --fit-w:calc((100vw - 2*var(--s6) - 3*var(--wall-gap))/4);
-  --fit-h:calc((100vh - var(--wall-chrome) - var(--wall-gap))/2);
-  --card-w:min(var(--fit-w),calc(var(--fit-h)/var(--card-r)));
-  --card-h:calc(var(--card-w)*var(--card-r))}
+  --wall-h:calc(100vh - var(--wall-chrome))}
+/* The columns and rows are counted, not fitted — `bestGrid()` in dashboard.js picks them,
+   because "as many as happen to fit" is what dealt eight shipping cards as five and three.
+   The size is worked out here, on the grid itself, because that is the element the count
+   lands on: a custom property set in an inline style is visible to the element's own other
+   declarations, which is the one thing container units cannot do. */
+body.tv .grid--cards{
+  --cell-w:calc((100vw - 2*var(--s6) - (var(--wall-cols) - 1)*var(--wall-gap))/var(--wall-cols));
+  --cell-h:calc((var(--wall-h) - (var(--wall-rows) - 1)*var(--wall-gap))/var(--wall-rows));
+  --card-w:min(var(--cell-w),calc(var(--wall-cap)*1vw));
+  --card-h:min(var(--cell-h),calc(var(--card-w)*var(--card-r-max)));
+  grid-template-columns:repeat(var(--wall-cols),var(--card-w))}
 @media(min-width:1500px){body.tv{--scale:1.8}}
 @media(min-width:1800px){body.tv{--scale:2.15}}
 body.tv .rail,body.tv .top,body.tv .no-tv{display:none}
@@ -898,9 +937,16 @@ body.tv .content.wall{display:flex;flex-direction:column;gap:var(--s4);
   color:var(--ink-muted)}
 .wall__rn{font-family:var(--font-condensed);font-size:calc(var(--t-metric)*1.5);font-weight:500;
   letter-spacing:-.01em;line-height:1}
-.wall__dots{display:flex;gap:7px;justify-content:center}
+/* One dot per screen, with a wider gap where a new section starts. Shipping over two
+   screens is two dots, and without the grouping the row of them stops saying how far
+   through the walk the room is. */
+.wall__dots{display:flex;gap:7px;justify-content:center;align-items:center}
 .wall__dot{width:36px;height:4px;border-radius:2px;background:var(--rule-strong)}
+.wall__dot--first:not(:first-child){margin-left:var(--s4)}
 .wall__dot--on{background:var(--warn)}
+/* Which screen of a section this is. Quiet — it is a page number, not a heading. */
+.wall__part{font-family:var(--font);font-size:.42em;font-weight:600;letter-spacing:.04em;
+  text-transform:none;color:var(--ink-faint);margin-left:.7em;vertical-align:.12em}
 .wall__empty{display:grid;place-items:center;flex:1;color:var(--ink-muted);font-size:var(--t-title)}
 /* The readings that rode along under an area's worst one. Present, so nothing is
    hidden; quiet, so the meeting hears the story once. */

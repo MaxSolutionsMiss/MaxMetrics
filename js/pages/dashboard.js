@@ -10,14 +10,14 @@ import {
   openDay, loadDay, loadHistory, loadBudgets, saveField, saveDepartment, saveReview,
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   importHistory,
-} from '../db.js?v=871ac39d4a9d';
-import { assess, attention, settled, verdicts } from '../assess.js?v=871ac39d4a9d';
+} from '../db.js?v=41dbec03312a';
+import { assess, attention, settled, verdicts } from '../assess.js?v=41dbec03312a';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, footLine, drawReading, showsHeroNumber, CHART_ICONS, CHART_NAMES, iconFor,
   spark, bullet, chip, cardTrack, readingOf, derivedShipping, SHIPPING_TARGET,
   volumeLabel, rateLabel, hoursLabel,
-} from '../readings.js?v=871ac39d4a9d';
+} from '../readings.js?v=41dbec03312a';
 
 const $ = selector => document.querySelector(selector);
 
@@ -835,20 +835,103 @@ function render() {
 //
 // The sections are the ones already on the page, rendered by the same code, so the wall
 // cannot drift from what the room saw on the laptop five minutes earlier.
+// How a section is dealt out on the wall.
+//
+// The group stays together — Shipping is one screen, not two — so the only question is how
+// to arrange it, and the answer is not "as many as fit". `auto-fit` dealt eight shipping
+// cards as five and three on a wide screen, and a row of five above a row of three is the
+// first thing anybody notices about a slide.
+//
+// So the arrangement is chosen rather than fallen into. Every column count is costed at the
+// size it would actually produce, and the one that puts the most card on the screen wins —
+// with a squared penalty for cells left empty in the last row, because a ragged last row is
+// the same fault the room already caught once. Eight comes out four and four. Six comes out
+// three and three. Four comes out four across, because one row of four is half again as
+// much card as two rows of two.
+//
+// It has to be arithmetic and not a rule of thumb, because the answer moves with the screen:
+// the same eight cards want four columns on a 1920 wall and would want three on a tall one.
+const cssNum = name => parseFloat(
+  getComputedStyle(document.documentElement).getPropertyValue(name)) || 0;
+
+function bestGrid(count) {
+  const gap = cssNum('--s4'), pad = cssNum('--s6');
+  // The ratio at which a card's contents exactly fill it, and the tallest it may be drawn
+  // before it stops reading as a card. Both live in the stylesheet — this reads them rather
+  // than holding a second copy that would drift the first time either is tuned.
+  const min = cssNum('--card-r') || 1.13, max = cssNum('--card-r-max') || 1.6;
+  const room = { w: window.innerWidth - pad * 2,
+                 h: window.innerHeight - cssNum('--wall-chrome'),
+                 cap: window.innerWidth * cssNum('--wall-cap') / 100 };
+  let best = { cols: count, rows: 1, score: -1 };
+  for (let cols = 1; cols <= count; cols++) {
+    const rows = Math.ceil(count / cols);
+    const cell = { w: (room.w - (cols - 1) * gap) / cols,
+                   h: (room.h - (rows - 1) * gap) / rows };
+    const w = Math.min(cell.w, room.cap);
+    const h = Math.min(cell.h, w * max);
+    if (w <= 0 || h <= 0) continue;
+    // What is being maximised is how big the *reading* comes out, not how much card there
+    // is. They are not the same: two rows of three and three rows of two both cover most of
+    // the screen, and one of them draws the number at half the size. This is the same
+    // `min(width, height ÷ ratio)` the stylesheet uses to size the contents, so the
+    // arrangement is chosen for the card that will actually be drawn.
+    const reading = Math.min(w, h / min);
+    // Squared, because a ragged last row is the fault the room already caught once — five
+    // shipping cards above three — and it has to cost more than a few pixels of type.
+    const filled = count / (cols * rows);
+    const score = reading * filled * filled;
+    if (score > best.score) best = { cols, rows, score };
+  }
+  return best;
+}
+
+function wallPages() {
+  const pages = [];
+  // The sections render themselves, once, and their cards are read back out. Doing it this
+  // way rather than keeping a parallel list of readings is what stops the wall drifting
+  // from the page: there is one definition of a Shipping card and this is reading it.
+  const holder = document.createElement('div');
+  for (const key of ORDER) {
+    holder.innerHTML = SECTIONS[key]();
+    const cards = [...holder.querySelectorAll('.grid--cards > .card')];
+    if (!cards.length) continue;
+    pages.push({ key, ...bestGrid(cards.length),
+                 html: cards.map(card => card.outerHTML).join('') });
+  }
+  return pages;
+}
+
 function renderWall() {
-  const key = ORDER[state.wallStep % ORDER.length];
+  const pages = wallPages();
+  if (!pages.length) return;
+  const at = ((state.wallStep % pages.length) + pages.length) % pages.length;
+  const page = pages[at];
   const content = $('#content');
   content.className = 'content wall';
   content.innerHTML = `
     <div class="wall__top">
-      <h2>${esc(TITLES[key])} · ${esc(state.locations.find(l => l.id === state.location)?.name || '')}</h2>
+      <h2>${esc(TITLES[page.key])} · ${esc(state.locations.find(l => l.id === state.location)?.name || '')}</h2>
       <span class="wall__date">${$('#date-long').textContent}</span>
     </div>
-    ${one(key)}
-    <div class="wall__dots">${ORDER.map((k, i) =>
-      `<span class="wall__dot${i === state.wallStep % ORDER.length ? ' wall__dot--on' : ''}"
-             title="${esc(TITLES[k])}"></span>`).join('')}</div>`;
+    <section class="sec">
+      <div class="grid grid--cards"
+           style="--wall-cols:${page.cols};--wall-rows:${page.rows}">${page.html}</div>
+    </section>
+    <div class="wall__dots">${pages.map((p, i) =>
+      `<span class="wall__dot${i === at ? ' wall__dot--on' : ''}"
+             title="${esc(TITLES[p.key])}"></span>`).join('')}</div>`;
 }
+
+// The arrangement is worked out against the screen it is going on, so a screen that changes
+// size has to be asked again. Moving a browser window between a laptop and a meeting-room
+// display is exactly this, and it is the moment somebody is watching.
+let wallResize;
+addEventListener('resize', () => {
+  if (!document.body.classList.contains('tv')) return;
+  clearTimeout(wallResize);
+  wallResize = setTimeout(renderWall, 120);
+});
 
 // ── Saving ──────────────────────────────────────────────────────────────────────
 
@@ -1074,7 +1157,8 @@ function toast(message) {
 // meeting waiting for the page to come back round. Arrows, space and the two buttons —
 // that is the whole control surface.
 const step = direction => {
-  state.wallStep = (state.wallStep + direction + ORDER.length) % ORDER.length;
+  const total = wallPages().length || 1;
+  state.wallStep = ((state.wallStep + direction) % total + total) % total;
   renderWall();
 };
 $('#tv-btn').addEventListener('click', () => {
