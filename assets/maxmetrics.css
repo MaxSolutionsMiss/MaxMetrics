@@ -265,8 +265,13 @@ body.tv .verdict{font-size:var(--t-lead)}
   padding:0;overflow:hidden;display:flex;flex-direction:column;
   box-shadow:var(--shadow);
   transition:border-color .2s;min-width:0;container-type:inline-size;position:relative}
-/* Everything below the bar, centred in what is left of the card. */
-.card__body{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center;
+/* Everything below the bar, spread through what is left of the card.
+   Centred, the reading and its context sat as one block in the middle with the spare
+   height split evenly above and below it — which on a card with room to spare reads as a
+   number floating in an empty box. Spreading them puts the number higher, the foot lower
+   and air between the parts rather than around them, which is the same amount of space
+   doing something. */
+.card__body{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:space-evenly;
   padding:3.6% 5.2%}
 .card--ok{border-color:var(--ok-rule)}
 .card--warn{border-color:var(--warn-rule)}
@@ -489,7 +494,13 @@ body.tv .verdict{font-size:var(--t-lead)}
 /* The pictogram leads the title rather than accompanying it, at about a fifth again its
    height — enough to be the thing the eye lands on, not enough to be the thing it reads. */
 .card .card__head>.card__ico{font-size:1.2em}
+/* The flag row is reserved so a card that has one and a card that does not start their
+   readings on the same line — but only on a screen where something is actually flagged.
+   Reserved unconditionally it was thirty pixels of nothing at the top of every card on
+   Quality, Shipping and Financials, which is why they looked top-heavy. `fitCards()` puts
+   the class on when any card in the screen has a flag. */
 .card .card__flag{min-height:calc(6.6*var(--u));margin-bottom:calc(1.2*var(--u))}
+.grid--cards:not(.flagged) .card__flag{display:none}
 .card .flag{font-size:calc(3.5*var(--u));padding:calc(.8*var(--u)) calc(2.4*var(--u));
   border-radius:calc(1*var(--u))}
 /* The second cap is the number's own length: 31.5% of the card is right for "262" and

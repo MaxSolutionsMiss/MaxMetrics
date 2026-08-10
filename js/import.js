@@ -18,7 +18,7 @@
 // to record. Neither is a warning, and neither holds up an import. An alarm that fires
 // every Monday about a Sunday nobody worked is one people learn to close without reading.
 
-import { openWorkbook, serialToISO } from './xlsx.js?v=aff0484de567';
+import { openWorkbook, serialToISO } from './xlsx.js?v=7bb17c712c73';
 
 // ── Matching a column ───────────────────────────────────────────────────────────
 
@@ -360,6 +360,45 @@ export async function readKpi(workbook, { date }) {
   }
   put('fin_actual_mtd', num(latest.row, col.sales));
   put('fin_actual_ytd', salesYear);
+
+  // ── Today, from the raw log rather than the monthly roll-up ──────────────────
+  //
+  // A year-to-date count answers "how are we doing"; the morning asks "what happened
+  // yesterday", and the roll-up sheets cannot say. The raw logs can: one row per NCR and
+  // one per customer complaint, each with the date it was raised. Counting rows is the
+  // whole of it, and it gives the month to date for free — which is the figure between the
+  // two the meeting actually moves on.
+  for (const [wanted, fields] of [
+    [/ncr.*raw|rerun|shortage.*raw/i, ['ncr_today', 'ncr_mtd']],
+    [/cc.*raw|rejection|complaint.*raw/i,
+     ['complaints_external_today', 'complaints_external_mtd']],
+  ]) {
+    const raw = workbook.sheetNames.find(n => wanted.test(n));
+    if (!raw) continue;
+    const log = await workbook.rows(raw);
+    const dateAt = (log[0] || []).findIndex(h => bare(h).startsWith('date'));
+    if (dateAt < 0) { notes.push(`${raw}: no date column, so no daily count.`); continue; }
+    let today = 0, month = 0;
+    for (const row of log.slice(1)) {
+      const on = serialToISO(row?.[dateAt]);
+      if (!on) continue;
+      if (on === date) today += 1;
+      if (on.slice(0, 7) === date.slice(0, 7)) month += 1;
+    }
+    // Nought is a reading. A morning with no NCR raised is the morning worth showing a
+    // zero on, and leaving the field empty would carry yesterday's count forward instead.
+    metrics[fields[0]] = today;
+    metrics[fields[1]] = month;
+    notes.push(`${raw}: ${today} on ${date}, ${month} this month.`);
+  }
+  // Internal non-conformances are the NCR log; the sheet does not split them by origin at
+  // the daily level, so the internal count follows the NCR count rather than inventing a
+  // split the file cannot support.
+  if (metrics.ncr_today != null) metrics.complaints_internal_today = metrics.ncr_today;
+  if (metrics.ncr_mtd != null) metrics.complaints_internal_mtd = metrics.ncr_mtd;
+  // The month-to-date NCR figure the roll-up gives is the closed month's; the raw log's is
+  // the real one for a month still running.
+  if (metrics.ncr_mtd == null) put('ncr_mtd', num(latest.row, col.ncrInternal));
 
   notes.push(`${sheet}: ${MONTH_KEYS[latest.month].toUpperCase()} ${want.year}, `
     + `with the year to date from ${(toDate.length ? toDate : [latest]).length} month(s).`);

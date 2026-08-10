@@ -10,14 +10,14 @@ import {
   openDay, loadDay, loadHistory, loadBudgets, saveField, saveDepartment, saveReview,
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   importHistory,
-} from '../db.js?v=aff0484de567';
-import { assess, attention, settled, verdicts } from '../assess.js?v=aff0484de567';
+} from '../db.js?v=7bb17c712c73';
+import { assess, attention, settled, verdicts } from '../assess.js?v=7bb17c712c73';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
   spark, bullet, chip, cardTrack, readingOf, derivedShipping, SHIPPING_TARGET,
   volumeLabel, rateLabel, hoursLabel,
-} from '../readings.js?v=aff0484de567';
+} from '../readings.js?v=7bb17c712c73';
 
 const $ = selector => document.querySelector(selector);
 
@@ -283,21 +283,38 @@ const SECTIONS = {
     // itself, rather than three columns that only ever covered these three readings.
     // `name`, not `field` — the parameter was called `field` and shadowed the helper of
     // the same name two scopes up, so every quality card threw on its edit row.
-    const counter = (key, label, name, sub) => {
-      const value = metric(name);
+    // Today, with the month and the year underneath it.
+    //
+    // These three were year-to-date counts and nothing else, which answers "how are we
+    // doing" and not the question a morning meeting asks — what happened since yesterday.
+    // A count of 94 does not change between Tuesday and Wednesday, so the card said the
+    // same thing every morning and the room stopped looking at it. The reading is the last
+    // twenty-four hours now; the month and the year are the context under the rule, the
+    // same shape Safety uses for its record and its last incident.
+    //
+    // Nought is a reading, not a blank. A morning with no NCR raised is exactly the morning
+    // worth printing a zero on.
+    const counter = (key, label, base) => {
+      const today = metric(`${base}_today`), mtd = metric(`${base}_mtd`), ytd = metric(base === 'ncr' ? 'ncr_ytd' : base);
+      const has = today != null && today !== '';
       return metricCard({
-        chart: 'number', pkey: key, label, tone: '',
-        value: value == null ? '\u2014' : num(value), sub,
-        // A running total has no target to draw against, but the shape of the year is a
-        // reading in its own right: seven mornings of a carried-forward count is flat while
-        // nothing happens and steps the morning something does. Whether these are piling up
-        // is the question the number alone leaves open.
-        track: cardTrack({ chart: 'number', actual: 0, target: 0, tone: '',
-          lowerIsBetter: true, seriesLabel: 'Last 7 mornings', series: metricSeries(name) }),
-        // No foot. The only thing worth saying about a year-to-date count is the count,
-        // and it is already the largest thing on the card — repeating it under a rule
-        // labelled "year to date" says it three times.
-        edit: field(label, name, `type="number" min="0" value="${value ?? ''}"`),
+        chart: 'number', pkey: key, label,
+        tone: has ? band.count(Number(today)) : '',
+        value: has ? num(today) : '\u2014',
+        sub: 'in the last 24 hours',
+        // Seven mornings of a daily count is the shape of a run: one on Monday is a
+        // Monday, one every morning for a week is something to talk about.
+        track: cardTrack({ chart: 'number', actual: 0, target: 0,
+          tone: has ? band.count(Number(today)) : '', lowerIsBetter: true,
+          seriesLabel: 'Last 7 mornings', series: metricSeries(`${base}_today`) }),
+        foot: footLine([
+          ['Month to date', mtd == null ? null : num(mtd)],
+          ['Year to date', ytd == null ? null : num(ytd)],
+        ]),
+        edit: field('Last 24 hours', `${base}_today`, `type="number" min="0" value="${today ?? ''}"`)
+            + field('Month to date', `${base}_mtd`, `type="number" min="0" value="${mtd ?? ''}"`)
+            + field('Year to date', base === 'ncr' ? 'ncr_ytd' : base,
+                    `type="number" min="0" value="${ytd ?? ''}"`),
       });
     };
     return `<div class="grid grid--cards">
@@ -314,9 +331,9 @@ const SECTIONS = {
       })}
       ${coqCard('coq', 'COQ \u2014 month to date', 'coq', 'coq_target')}
       ${coqCard('coqytd', 'COQ \u2014 year to date', 'coq_ytd', 'coq_ytd_target')}
-      ${counter('ncr', 'NCRs received', 'ncr_ytd', 'year to date')}
-      ${counter('cint', 'Internal complaints', 'complaints_internal', 'year to date')}
-      ${counter('cext', 'Customer complaints', 'complaints_external', 'year to date')}
+      ${counter('ncr', 'NCRs received', 'ncr')}
+      ${counter('cint', 'Internal complaints', 'complaints_internal')}
+      ${counter('cext', 'Customer complaints', 'complaints_external')}
     </div>`;
   },
 
@@ -921,6 +938,11 @@ function fitCards() {
     // draw two bar heights and put their readings on two different lines, which is the fault
     // the bar exists to remove — and it is found by measuring rather than by counting
     // characters, because the width a title needs depends on which letters are in it.
+    // A row only reserves the flag line if something on it is flagged.
+    for (const grid of group) {
+      grid.classList.toggle('flagged',
+        [...grid.querySelectorAll('.card .flag')].length > 0);
+    }
     const titles = cards.map(card => card.querySelector('.card__label')).filter(Boolean);
     const capTitle = value => group.forEach(grid =>
       grid.style.setProperty('--tcap', `${value.toFixed(2)}px`));
