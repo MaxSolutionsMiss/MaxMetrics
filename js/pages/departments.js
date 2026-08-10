@@ -22,11 +22,11 @@ import {
   currentSession, signOut, myProfile, myLocations,
   loadDepartmentConfig, saveDepartmentConfig, addDepartmentConfig, ensureDepartmentRows,
   loadBudgets, saveBudget, loadPlant, savePlant,
-} from '../db.js?v=79ad1e78e526';
+} from '../db.js?v=785566ac9bfe';
 import {
   esc, num, money, MONTHS, metricCard, footLine, iconFor, cardTrack,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE,
-} from '../readings.js?v=79ad1e78e526';
+} from '../readings.js?v=785566ac9bfe';
 
 const $ = selector => document.querySelector(selector);
 

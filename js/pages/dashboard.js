@@ -10,14 +10,14 @@ import {
   openDay, loadDay, loadHistory, loadBudgets, saveField, saveDepartment, saveReview,
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   importHistory,
-} from '../db.js?v=79ad1e78e526';
-import { assess, attention, settled, verdicts } from '../assess.js?v=79ad1e78e526';
+} from '../db.js?v=785566ac9bfe';
+import { assess, attention, settled, verdicts } from '../assess.js?v=785566ac9bfe';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
-  metricCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
+  metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
   spark, bullet, chip, cardTrack, readingOf, derivedShipping, SHIPPING_TARGET,
   volumeLabel, rateLabel, hoursLabel,
-} from '../readings.js?v=79ad1e78e526';
+} from '../readings.js?v=785566ac9bfe';
 
 const $ = selector => document.querySelector(selector);
 
@@ -537,38 +537,39 @@ const SECTIONS = {
       ${metricCard({
         chart: 'number', pkey: 'maint-overdue', icon: '\u{1F527}', label: 'Overdue items',
         tone: any ? band.maint(overdue ? 'Overdue' : 'Complete') : '',
-        value: any ? String(overdue) : '—',
+        value: any ? String(overdue) : '\u2014',
         sub: any ? 'past their scheduled date' : 'Nothing scheduled today',
         foot: footLine([['Target', '0']]),
       })}
       ${metricCard({
         chart: 'number', pkey: 'maint-open', icon: '\u{1F4C5}', label: 'Open work',
         tone: '',
-        value: any ? String(open) : '—',
+        value: any ? String(open) : '\u2014',
         sub: any ? `of ${any} scheduled today` : 'Nothing scheduled today',
         foot: footLine([['Completed', any ? `${done} of ${any}` : null]]),
       })}
+      ${listCard({
+        pkey: 'maint-list', icon: '\u{1F5D3}\uFE0F', label: 'Today\u2019s schedule',
+        rows: state.maintenance.map(m => [`${m.dept} \u00b7 ${m.item_type}`,
+          esc(m.status), band.maint(m.status)]),
+        empty: 'Nothing scheduled for today.',
+      })}
+      ${noteCard({
+        pkey: 'maint-note', icon: '\u{1F4DD}', label: 'Maintenance notes',
+        text: metric('maintenance_note'),
+        prompt: 'No notes entered.',
+        edit: `<div class="er"><label>Notes</label><textarea class="inp"
+          data-field="maintenance_note">${esc(metric('maintenance_note') || '')}</textarea></div>`,
+      })}
     </div>
     <div class="panel" style="margin-top:var(--s3)">
-      <div class="panel__head"><span class="card__ico" aria-hidden="true">🔧</span>
-        <h3 class="panel__title">Today&rsquo;s schedule</h3>
+      <div class="panel__head"><span class="card__ico" aria-hidden="true">\u{1F527}</span>
+        <h3 class="panel__title">The schedule in full</h3>
         <div class="panel__actions">
           <span class="pill pill--${overdue ? 'stop' : 'ok'}">${overdue} overdue</span>
           <span class="pill pill--info">${open} open</span></div></div>
       <div class="panel__body"><table class="tbl"><thead><tr><th>Department</th><th>Type</th>
         <th>Frequency</th><th>Scheduled</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div>
-      <!-- The note belongs to the schedule, so it sits under it rather than in a panel of
-           its own beside it. Two panels at 1.7fr and 1fr put a five-row table next to three
-           words and made the page look like two pages. -->
-      <div class="panel__note" data-pkey="notes">
-        <span class="panel__notel">Notes</span>
-        <span class="rev__note${metric('maintenance_note') ? '' : ' rev__note--none'}">${
-          esc(metric('maintenance_note') || 'No notes entered.')}</span>
-      </div>
-      <div class="ez">
-        <div class="er"><label>Notes</label><textarea class="inp"
-          data-field="maintenance_note">${esc(metric('maintenance_note') || '')}</textarea></div>
-      </div>
     </div>`;
   },
 
@@ -618,6 +619,20 @@ const SECTIONS = {
         sub: entered ? `of ${list.length} running` : 'Nothing entered yet',
         foot: footLine([['Most shifts', busiest ? esc(busiest.name) : null]]),
       })}
+      ${listCard({
+        pkey: 'ot-list', icon: '\u{1F3ED}', label: 'Overtime by department',
+        rows: list.map(c => [c.name,
+          shiftsFor(c.key) > 0 ? `${shiftsFor(c.key)} shift${shiftsFor(c.key) === 1 ? '' : 's'}` : '\u2014',
+          shiftsFor(c.key) > 0 ? 'warn' : '']),
+        empty: 'No departments configured.',
+      })}
+      ${noteCard({
+        pkey: 'staffing', icon: '\u{1F9D1}\u200D\u{1F3ED}', label: 'Staffing notes',
+        text: metric('staffing_note'),
+        prompt: 'Call-ins, vacation, training \u2014 nothing entered.',
+        edit: `<div class="er"><label>Staffing</label><textarea class="inp"
+          data-field="staffing_note">${esc(metric('staffing_note') || '')}</textarea></div>`,
+      })}
     </div>
     <div class="grid" style="grid-template-columns:1fr;margin-top:var(--s3)">
       <div class="panel">
@@ -646,16 +661,6 @@ const SECTIONS = {
               placeholder="why" value="${esc(noteFor(c.key))}"
               aria-label="${esc(c.name)} overtime reason"></div>`).join('')}
           </div>
-        </div>
-      </div>
-      <div class="panel" style="grid-column:1/-1">
-        <div class="panel__head"><span class="card__ico" aria-hidden="true">🧑‍🏭</span>
-          <h3 class="panel__title">Staffing notes</h3></div>
-        <div class="panel__body" data-pkey="staffing">
-          <div class="rev__note${metric('staffing_note') ? '' : ' rev__note--none'}">${
-            esc(metric('staffing_note') || 'No notes entered.')}</div>
-          <div class="ez"><div class="er"><label>Staffing</label><textarea class="inp"
-            data-field="staffing_note">${esc(metric('staffing_note') || '')}</textarea></div></div>
         </div>
       </div>
     </div>`;
@@ -908,6 +913,22 @@ function fitCards() {
     const cards = group.flatMap(grid => [...grid.children].filter(c => c.classList.contains('card')));
     if (!cards.length) continue;
     const set = value => group.forEach(grid => grid.style.setProperty('--fit', String(value)));
+    // The title first, because the bar it sits in is what is left of the card for
+    // everything else. One size for the whole screen — two titles of different lengths would
+    // draw two bar heights and put their readings on two different lines, which is the fault
+    // the bar exists to remove — and it is found by measuring rather than by counting
+    // characters, because the width a title needs depends on which letters are in it.
+    const titles = cards.map(card => card.querySelector('.card__label')).filter(Boolean);
+    const capTitle = value => group.forEach(grid =>
+      grid.style.setProperty('--tcap', `${value.toFixed(2)}px`));
+    const ceilingPx = 0.09 * (cards[0].clientWidth || 300);
+    let cap = ceilingPx;
+    capTitle(cap);
+    for (let i = 0; i < 24 && cap > ceilingPx * 0.28; i++) {
+      if (!titles.some(title => title.scrollWidth > title.clientWidth + 1)) break;
+      cap *= 0.94;
+      capTitle(cap);
+    }
     set(1);
     // The fullest card sets the ceiling. Reading each card's own headroom first means one
     // measurement pass rather than one per step of the climb.

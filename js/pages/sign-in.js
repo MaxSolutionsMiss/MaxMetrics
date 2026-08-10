@@ -1,6 +1,6 @@
 // Signing in. Two panels, one at a time, and no state worth keeping between them.
 
-import { signIn, resetPassword, currentSession } from '../db.js?v=79ad1e78e526';
+import { signIn, resetPassword, currentSession } from '../db.js?v=785566ac9bfe';
 
 const $ = selector => document.querySelector(selector);
 
