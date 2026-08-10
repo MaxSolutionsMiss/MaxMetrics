@@ -358,6 +358,46 @@ export const iconFor = key => {
 // card. A safety streak has no trend worth drawing — a counter that goes up by one a day
 // is a diagonal line — and printing one on every card taught the eye to ignore all of
 // them, including the ones that meant something.
+// Every card the dashboard can draw, and which section it belongs to.
+//
+// A plant that does not raise NCRs should not carry a card that reads a permanent dash —
+// that teaches the room a blank is normal. That was three switches on the `locations` row
+// for the three quality cards nobody could agree were universal; every other card was
+// hard-wired on. The list is the switch now, and it is here rather than in the dashboard
+// because Configure has to draw the same names without importing the page that renders
+// them.
+export const CARD_CATALOGUE = [
+  { section: 'Safety',      key: 'injury',        name: 'Days since last injury' },
+  { section: 'Safety',      key: 'nearmiss',      name: 'Days since near-miss' },
+  { section: 'Quality',     key: 'shortages',     name: 'Shortage count' },
+  { section: 'Quality',     key: 'coq',           name: 'COQ \u2014 month to date' },
+  { section: 'Quality',     key: 'coqytd',        name: 'COQ \u2014 year to date' },
+  { section: 'Quality',     key: 'ncr',           name: 'NCRs received' },
+  { section: 'Quality',     key: 'cint',          name: 'Internal complaints' },
+  { section: 'Quality',     key: 'cext',          name: 'Customer complaints' },
+  { section: 'Shipping',    key: 'jobs_shipped',  name: 'Jobs shipped' },
+  { section: 'Shipping',    key: 'cartons',       name: 'Cartons' },
+  { section: 'Shipping',    key: 'late',          name: 'Late' },
+  { section: 'Shipping',    key: 'shorts',        name: 'Shorts' },
+  { section: 'Shipping',    key: 'otd',           name: 'OTD' },
+  { section: 'Shipping',    key: 'otif',          name: 'OTIF' },
+  { section: 'Shipping',    key: 'mtd_otif',      name: 'MTD OTIF' },
+  { section: 'Shipping',    key: 'ytd_otif',      name: 'YTD OTIF' },
+  { section: 'Financials',  key: 'fin-mtd',       name: 'Month to date' },
+  { section: 'Financials',  key: 'fin-ytd',       name: 'Year to date' },
+  { section: 'Maintenance', key: 'maint-overdue', name: 'Overdue items' },
+  { section: 'Maintenance', key: 'maint-open',    name: 'Open work' },
+  { section: 'Labour',      key: 'ot-total',      name: 'Overtime shifts' },
+  { section: 'Labour',      key: 'ot-depts',      name: 'Departments on OT' },
+];
+
+// A card is turned off in one place rather than at each of its call sites, because a card
+// that is switched off has to leave nothing behind — not an empty grid cell, not a gap in a
+// row of four. Returning nothing from the one function that builds them does exactly that,
+// and the arrangement is worked out afterwards from what is left.
+let hidden = new Set();
+export const hideCards = keys => { hidden = new Set(keys || []); };
+
 // How wide the number is about to be, in characters, so the card can cap its own type.
 //
 // The hero was sized purely as a share of the card — 31.5% of its width — which is right
@@ -377,19 +417,29 @@ export function metricCard({ chart, pkey, icon, label, tone, value, unit, percen
         ? `<div class="unit unit--under">${esc([unit && !ridesInside(unit) ? unit : '', sub]
             .filter(Boolean).join(' · '))}</div>`
         : '');
+  // The title rides in a bar across the top of the card rather than floating above the
+  // number. Three things fall out of that and all three were asked for: every title on the
+  // page sits at the same height, because the bar is the first thing in every card; every
+  // title is the same size, because the bar is the same height; and a card stops being a
+  // column of text, because the heaviest line on it is now a shape. The pictogram sits in a
+  // white disc on the bar, which is what lets it stay the plant's own colourful icon
+  // instead of being flattened to a white glyph.
+  if (hidden.has(pkey)) return '';
   return `<div class="card card--${tone}" data-pkey="${esc(pkey)}">
     <div class="card__head">
       <span class="card__ico" aria-hidden="true">${icon || iconFor(pkey)}</span>
       <span class="card__label">${esc(label)}</span>
     </div>
-    <div class="card__flag">${flag || ''}</div>
-    <div class="card__mid">
-      ${hero ? `<div class="hero${medium ? ' hero--md' : ''}" style="--chars:${
-        heroChars(value, unit)}">${esc(value)}${
-        unit ? `<i>${esc(unit)}</i>` : ''}</div>${caption}${drawn}` : `${drawn}${caption}`}
-      ${track || ''}
+    <div class="card__body">
+      <div class="card__flag">${flag || ''}</div>
+      <div class="card__mid">
+        ${hero ? `<div class="hero${medium ? ' hero--md' : ''}" style="--chars:${
+          heroChars(value, unit)}">${esc(value)}${
+          unit ? `<i>${esc(unit)}</i>` : ''}</div>${caption}${drawn}` : `${drawn}${caption}`}
+        ${track || ''}
+      </div>
+      ${foot || ''}
+      ${edit ? `<div class="ez">${edit}</div>` : ''}
     </div>
-    ${foot || ''}
-    ${edit ? `<div class="ez">${edit}</div>` : ''}
   </div>`;
 }

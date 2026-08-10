@@ -10,14 +10,14 @@ import {
   openDay, loadDay, loadHistory, loadBudgets, saveField, saveDepartment, saveReview,
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   importHistory,
-} from '../db.js?v=9dd18e47b6ea';
-import { assess, attention, settled, verdicts } from '../assess.js?v=9dd18e47b6ea';
+} from '../db.js?v=7fa57939cf86';
+import { assess, attention, settled, verdicts } from '../assess.js?v=7fa57939cf86';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
-  metricCard, footLine, drawReading, showsHeroNumber, CHART_ICONS, CHART_NAMES, iconFor,
+  metricCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
   spark, bullet, chip, cardTrack, readingOf, derivedShipping, SHIPPING_TARGET,
   volumeLabel, rateLabel, hoursLabel,
-} from '../readings.js?v=9dd18e47b6ea';
+} from '../readings.js?v=7fa57939cf86';
 
 const $ = selector => document.querySelector(selector);
 
@@ -41,7 +41,7 @@ const state = {
   location: null, date: today(), active: 'overview',
   metrics: null, departments: [], review: [], maintenance: [], labour: [], config: [], budgets: [],
   history: { metrics: [], departments: [] }, findings: [], verdicts: {}, plant: null,
-  chart: 'bar', team: [], live: null, wallStep: 0,
+  team: [], live: null, wallStep: 0,
 };
 
 // ── Reading the loaded morning ──────────────────────────────────────────────────
@@ -135,10 +135,19 @@ function streakCard(kind, label, lastField, recordField, word) {
     // line and made a two-character number look like part of a phrase.
     value: days == null ? '\u2014' : days, sub: 'days',
     flag: beaten ? `<div class="flag flag--ok">Record broken · +${days - record} days</div>` : '',
-    // No bar and no line. A streak is chased, not met, so a bar against the record fills a
-    // little further every morning and tells the room nothing it did not know yesterday —
-    // and the one morning it does matter, the flag above says so in words. The record and
-    // the date it was set are the context, and they fit on the line under the rule.
+    // The bar runs while the record is being chased, and stops the morning it is beaten.
+    //
+    // A streak is measured against nothing — the record is a target to beat, not a
+    // denominator — so drawn permanently it would fill a little further every morning and
+    // say the same thing every morning. But while the plant is still short of the record,
+    // how short is the one thing the number alone does not say, and it is the question the
+    // room actually asks. Once it is beaten the bar is pinned full and the flag says so in
+    // words, so the bar goes.
+    track: !beaten && record && days != null ? cardTrack({
+      chart: 'number', actual: days, target: record, tone,
+      targetText: `Against the record of ${record} days`,
+      deltaText: `${record - days} to go`, deltaTone: tone,
+    }) : '',
     foot: footLine([
       ['Record', record ? `${record} days` : null],
       [`Last ${word}`, shortDate(last)],
@@ -154,7 +163,7 @@ function coqCard(kind, label, valueField, targetField) {
   const tone = has ? band.coq(Number(value), target) : '';
   const off = has ? Number(value) - target : 0;
   return metricCard({
-    chart: state.chart, pkey: kind, label, tone,
+    chart: 'number', pkey: kind, label, tone,
     value: has ? Number(value).toFixed(2) : '\u2014', unit: '%', sub: 'of sales',
     percent: has ? Number(value) / (target * 1.6) * 100 : 0,
     markPercent: 100 / 1.6, markLabel: 'target',
@@ -162,7 +171,7 @@ function coqCard(kind, label, valueField, targetField) {
     // mornings of it is seven readings of the same number, drawn as a slope that means
     // nothing, and it was the widest thing on the card.
     track: has ? cardTrack({
-      chart: state.chart, actual: Number(value), target, tone, lowerIsBetter: true,
+      chart: 'number', actual: Number(value), target, tone, lowerIsBetter: true,
       targetText: `Against \u2264 ${target.toFixed(2)}%`, deltaTone: tone,
       deltaText: `${off <= 0 ? '\u2212' : '+'}${Math.abs(off).toFixed(2)} pts`,
     }) : '',
@@ -268,10 +277,8 @@ const SECTIONS = {
   quality: () => {
     const shortages = metric('shortages');
     const shortTone = shortages == null ? '' : band.shortage(Number(shortages));
-    // Not every plant raises NCRs or splits its complaints, and a card that reads a
-    // permanent dash teaches the room that a blank is normal. Which of the three appear is
-    // a switch on the plant, set in Configure.
-    const on = key => state.plant?.[key] !== false;
+    // Which cards a plant carries is one list in Configure now, checked by metricCard
+    // itself, rather than three columns that only ever covered these three readings.
     // `name`, not `field` — the parameter was called `field` and shadowed the helper of
     // the same name two scopes up, so every quality card threw on its edit row.
     const counter = (key, label, icon, name, sub) => {
@@ -294,9 +301,9 @@ const SECTIONS = {
       })}
       ${coqCard('coq', 'COQ \u2014 month to date', 'coq', 'coq_target')}
       ${coqCard('coqytd', 'COQ \u2014 year to date', 'coq_ytd', 'coq_ytd_target')}
-      ${on('show_ncr') ? counter('ncr', 'NCRs received', '\u{1F4CB}', 'ncr_ytd', 'year to date') : ''}
-      ${on('show_internal') ? counter('cint', 'Internal complaints', '\u{1F3ED}', 'complaints_internal', 'year to date') : ''}
-      ${on('show_external') ? counter('cext', 'Customer complaints', '\u{1F4E3}', 'complaints_external', 'year to date') : ''}
+      ${counter('ncr', 'NCRs received', '\u{1F4CB}', 'ncr_ytd', 'year to date')}
+      ${counter('cint', 'Internal complaints', '\u{1F3ED}', 'complaints_internal', 'year to date')}
+      ${counter('cext', 'Customer complaints', '\u{1F4E3}', 'complaints_external', 'year to date')}
     </div>`;
   },
 
@@ -310,7 +317,7 @@ const SECTIONS = {
       const target = Number(row.target ?? config.target);
       const tone = band.rate(rate, target);
       return metricCard({
-        chart: state.chart, pkey: config.key, label: config.name, medium: true,
+        chart: 'number', pkey: config.key, label: config.name, medium: true,
         icon: config.icon || iconFor(config.key), tone,
         value: rate ? num(Math.round(rate)) : '—', sub: rateLabel(config),
         percent: target ? rate / (target * 1.25) * 100 : 0,
@@ -318,7 +325,7 @@ const SECTIONS = {
         // The bar and the line answer the two questions the foot does not: how this rate
         // sits against its target as a shape, and which way the week has gone.
         track: cardTrack({
-          chart: state.chart, actual: rate, target, tone,
+          chart: 'number', actual: rate, target, tone,
           targetText: `Against ${num(Math.round(target))} ${rateLabel(config)}`,
           deltaText: rate && target
             ? `${rate >= target ? '+' : '\u2212'}${num(Math.round(Math.abs(rate - target)))}` : '',
@@ -435,12 +442,12 @@ const SECTIONS = {
     const ship = (name, label, icon, { value, unit = '', sub = '', tone = '', target = 0,
                                        floor = 0, ceiling = 0, series = null,
                                        lowerIsBetter = false, foot = [] }) => metricCard({
-      chart: target ? state.chart : 'number', pkey: name, label, icon, tone,
+      chart: 'number', pkey: name, label, icon, tone,
       value, unit, sub,
       percent: target ? Number(value || 0) / target * 100 : 0,
       markPercent: target ? 100 : null, markLabel: 'target',
       track: series ? cardTrack({
-        chart: target ? state.chart : 'number',
+        chart: 'number',
         actual: Number(value || 0), target, tone, floor, ceiling, lowerIsBetter,
         targetText: target ? `Against ${target}%` : '', seriesLabel: 'Last 7 mornings', series,
       }) : '',
@@ -738,12 +745,6 @@ function renderNav() {
         <span class="rail__dot rail__dot--none"></span></a>` : '');
 }
 
-function renderChartPicker() {
-  $('#chartpick').innerHTML = ['number', 'bar', 'donut', 'gauge'].map(kind =>
-    `<button type="button" data-kind="${kind}" aria-pressed="${state.chart === kind}"
-      title="${CHART_NAMES[kind]}" aria-label="${CHART_NAMES[kind]}">${CHART_ICONS[kind]}</button>`).join('');
-}
-
 function renderHeader() {
   const d = dateOf(state.date);
   $('#date-long').textContent = `${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
@@ -810,10 +811,11 @@ function renderContent() {
 }
 
 function render() {
+  hideCards(state.plant?.hidden_cards);
   state.findings = assess(state);
   state.verdicts = verdicts(state, state.findings);
   document.body.dataset.view = state.active;
-  renderHeader(); renderChartPicker(); renderNav(); renderContent(); renderWho(); paintPresence();
+  renderHeader(); renderNav(); renderContent(); renderWho(); paintPresence();
   fitCards();
 }
 
@@ -844,11 +846,21 @@ const FIT_STEPS = [0.32, 0.16, 0.08, 0.04, 0.02];
 // What a card is actually using, top of its first row to bottom of its last. `scrollHeight`
 // cannot answer this: the contents are centred, so a card with room to spare reports its own
 // height and looks full.
+//
+// The title bar is not part of it. The bar is fixed to the top and sizes itself; what has to
+// fit is everything under it, in what the bar leaves behind.
+const bodyOf = card => card.querySelector('.card__body') || card;
+
 function usedBy(card) {
-  const rows = [...card.children].filter(row => row.getClientRects().length);
+  const rows = [...bodyOf(card).children].filter(row => row.getClientRects().length);
   if (!rows.length) return 0;
   return rows[rows.length - 1].getBoundingClientRect().bottom
        - rows[0].getBoundingClientRect().top;
+}
+
+function roomIn(card) {
+  const body = bodyOf(card), style = getComputedStyle(body);
+  return body.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
 }
 
 // Anything that has run out of room: the card itself, a title past its second line, or a
@@ -859,11 +871,7 @@ function usedBy(card) {
 // `clientHeight` — which read as "this card is full" on every card at every size and pinned
 // the whole thing at 1. Height that genuinely overruns shows up in the card's own total.
 function overflows(card) {
-  const style = getComputedStyle(card);
-  const room = card.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
-  if (usedBy(card) > room + 1) return true;
-  const title = card.querySelector('.card__label');
-  if (title && title.scrollHeight > title.clientHeight + 1) return true;
+  if (usedBy(card) > roomIn(card) + 1) return true;
   for (const part of card.querySelectorAll('.card__label,.hero,.unit,.fs__l,.fs__v,.ctrack__l,.ctrack__d')) {
     if (part.scrollWidth > part.clientWidth + 1) return true;
   }
@@ -871,36 +879,39 @@ function overflows(card) {
 }
 
 function fitCards() {
-  for (const grid of document.querySelectorAll('.grid--cards')) {
-    const cards = [...grid.children].filter(card => card.classList.contains('card'));
+  // On the wall each screen is measured on its own, because each screen has its own card
+  // size. On the page every card is 318 by 360 whatever section it is in, so the whole page
+  // is measured together — otherwise Safety's two cards would grow to a larger title than
+  // Production's four on the same screen, which is the same "two designs" fault in a new
+  // place.
+  const grids = [...document.querySelectorAll('.grid--cards')];
+  const groups = document.body.classList.contains('tv') ? grids.map(g => [g]) : [grids];
+  for (const group of groups) {
+    const cards = group.flatMap(grid => [...grid.children].filter(c => c.classList.contains('card')));
     if (!cards.length) continue;
-    grid.style.setProperty('--fit', 1);
-    // The fullest card in the screen sets the ceiling. Reading each card's own headroom
-    // first means one measurement pass rather than one per step of the search.
+    const set = value => group.forEach(grid => grid.style.setProperty('--fit', String(value)));
+    set(1);
+    // The fullest card sets the ceiling. Reading each card's own headroom first means one
+    // measurement pass rather than one per step of the climb.
     let fit = FIT_MAX;
     for (const card of cards) {
-      const style = getComputedStyle(card);
-      const room = card.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
       const used = usedBy(card);
-      if (used > 0) fit = Math.min(fit, room / used);
+      if (used > 0) fit = Math.min(fit, roomIn(card) / used);
     }
     // Below 1 as well as above it. The proportions are set by the fullest card there is, and
     // on a small laptop a screen of eight came out two pixels over — which under
     // `overflow:hidden` is a foot with its descenders shaved off, and nothing to say so.
     const ceiling = fit;
     fit = Math.min(1, ceiling);
-    grid.style.setProperty('--fit', String(fit));
-    while (fit > FIT_MIN && cards.some(overflows)) {
-      fit -= 0.02;
-      grid.style.setProperty('--fit', String(fit));
-    }
+    set(fit);
+    while (fit > FIT_MIN && cards.some(overflows)) { fit -= 0.02; set(fit); }
     for (const step of FIT_STEPS) {
       while (fit + step <= ceiling) {
-        grid.style.setProperty('--fit', String(fit + step));
+        set(fit + step);
         if (cards.some(overflows)) break;
         fit += step;
       }
-      grid.style.setProperty('--fit', String(fit));
+      set(fit);
     }
   }
 }
@@ -1179,14 +1190,6 @@ $('#nav').addEventListener('click', event => {
   scrollTo({ top: 0, behavior: 'smooth' });
 });
 
-$('#chartpick').addEventListener('click', event => {
-  const button = event.target.closest('[data-kind]');
-  if (!button) return;
-  state.chart = button.dataset.kind;
-  render();
-  savePreference(state.me.id, { chart_style: state.chart }).catch(() => {});
-});
-
 $('#rail-btn').addEventListener('click', () => {
   const mini = document.documentElement.dataset.rail === 'mini';
   document.documentElement.dataset.rail = mini ? '' : 'mini';
@@ -1288,7 +1291,6 @@ const [profile, grants] = await Promise.all([myProfile(), myLocations()]);
 if (!profile) { location.replace('../index.html'); }
 
 state.me = profile;
-state.chart = profile.chart_style || 'bar';
 // Light, always. The theme was a button in the utility bar and a column on the profile;
 // a dashboard that half the plant reads dark and half reads light is two dashboards, and
 // the one on the wall has to be the one on the desk.
