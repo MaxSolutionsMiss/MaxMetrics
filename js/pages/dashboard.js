@@ -501,7 +501,30 @@ const SECTIONS = {
           <td>${esc(m.item_type)}</td><td>${esc(m.frequency)}</td><td>${esc(m.scheduled)}</td>
           <td><span class="pill pill--${band.maint(m.status)}">${esc(m.status)}</span></td></tr>`).join('')
       : `<tr><td colspan="5" style="color:var(--ink-faint)">Nothing scheduled for today.</td></tr>`;
-    return `<div class="grid" style="grid-template-columns:1.7fr 1fr">
+    // Maintenance reached the wall as a blank screen. Only cards go up there — a five-row
+    // schedule is a thing you lean in for, not a thing a room reads across ten metres —
+    // and this section had none, so the walk had a slide with nothing on it. The two
+    // counts the schedule is checked for are the two the room actually asks about, and
+    // they are the same card as every other section's.
+    const done = state.maintenance.filter(m => m.status === 'Complete').length;
+    const any = state.maintenance.length;
+    return `<div class="grid grid--cards">
+      ${metricCard({
+        chart: 'number', pkey: 'maint-overdue', icon: '\u{1F527}', label: 'Overdue items',
+        tone: any ? band.maint(overdue ? 'Overdue' : 'Complete') : '',
+        value: any ? String(overdue) : '—',
+        sub: any ? 'past their scheduled date' : 'Nothing scheduled today',
+        foot: footLine([['Target', '0']]),
+      })}
+      ${metricCard({
+        chart: 'number', pkey: 'maint-open', icon: '\u{1F4C5}', label: 'Open work',
+        tone: '',
+        value: any ? String(open) : '—',
+        sub: any ? `of ${any} scheduled today` : 'Nothing scheduled today',
+        foot: footLine([['Completed', any ? `${done} of ${any}` : null]]),
+      })}
+    </div>
+    <div class="grid" style="grid-template-columns:1.7fr 1fr;margin-top:var(--s3)">
       <div class="panel">
         <div class="panel__head"><span class="card__ico" aria-hidden="true">🔧</span>
           <h3 class="panel__title">Maintenance schedule</h3>
@@ -547,18 +570,30 @@ const SECTIONS = {
         ? ['0', 'No overtime this morning']
         : [String(total), `${running.length} department${running.length === 1 ? '' : 's'} on overtime`];
 
-    return `<div class="grid" style="grid-template-columns:minmax(220px,.8fr) 2fr">
-      <div class="card card--${total > 0 ? 'warn' : entered ? 'ok' : ''}" data-pkey="ot-total">
-        <div class="card__head"><span class="card__ico" aria-hidden="true">⏱️</span>
-          <span class="card__label">Overtime shifts</span></div>
-        <div class="card__mid">
-          <div class="hero">${esc(headline[0])}</div>
-          <div class="unit">shifts \u00b7 ${esc(headline[1])}</div>
-        </div>
-        ${footLine([
-          ['Departments', entered ? `${running.length} of ${list.length}` : null],
-        ])}
-      </div>
+    // Two cards, because one card in a bespoke two-column grid is what pinned a single
+    // narrow card to the left edge of the wall with two thirds of the screen empty beside
+    // it. The second card is not padding: how many shifts and how many departments are the
+    // two halves of the question the meeting actually asks, and the table underneath —
+    // which does not reach the wall — is that answer in detail.
+    const busiest = running.length
+      ? [...running].sort((a, b) => shiftsFor(b.key) - shiftsFor(a.key))[0] : null;
+
+    return `<div class="grid grid--cards">
+      ${metricCard({
+        chart: 'number', pkey: 'ot-total', icon: '\u{23F1}\u{FE0F}', label: 'Overtime shifts',
+        tone: total > 0 ? 'warn' : entered ? 'ok' : '',
+        value: headline[0], sub: `shifts \u00b7 ${headline[1]}`,
+        foot: footLine([['Target', '0 shifts']]),
+      })}
+      ${metricCard({
+        chart: 'number', pkey: 'ot-depts', icon: '\u{1F477}', label: 'Departments on OT',
+        tone: running.length > 0 ? 'warn' : entered ? 'ok' : '',
+        value: entered ? String(running.length) : '\u2014',
+        sub: entered ? `of ${list.length} running` : 'Nothing entered yet',
+        foot: footLine([['Most shifts', busiest ? esc(busiest.name) : null]]),
+      })}
+    </div>
+    <div class="grid" style="grid-template-columns:1fr;margin-top:var(--s3)">
       <div class="panel">
         <div class="panel__head"><span class="card__ico" aria-hidden="true">👷</span>
           <h3 class="panel__title">Which departments</h3>
@@ -621,67 +656,62 @@ const SECTIONS = {
     const percentYtd = planYtd ? varianceYtd / planYtd * 100 : 0;
     const toneMtd = band.money(percentMtd), toneYtd = band.money(percentYtd);
 
-    // The chart choice reaches the financials too. Sales against plan is a reading like
-    // any other, and a page where five cards are rings and the money is a bar reads as
-    // two designs rather than one.
-    // One line for the figure and its percentage, then the three numbers that explain it,
-    // set large enough to read from the back of the room. It used to stack the percentage
-    // over the money, which spent a line on a label and left both smaller than they needed
-    // to be.
+    // Two cards, the same card as everywhere else.
+    //
+    // Money used to be one wide panel holding two panes — the only thing on the whole
+    // product that was not a card. On the page it was three times the width of its
+    // neighbours; on the wall it was the width of the screen, sitting between a Shipping
+    // screen of eight cards and a Maintenance screen of two. A reader walking the five
+    // screens saw the design change under them at slide four. Month to date and year to
+    // date are two readings against two targets, which is exactly what a card is for.
     //
     // "Budget", not "plan". The plant writes a budget; prorating it by elapsed days does
     // not make it a different thing, and two words for one number is one word too many.
-    const pane = (title, actual, budget, rows, tone) => {
+    const pane = (key, title, icon, actual, budget, tone, variance, percent, budgetRow) => {
       const pace = budget ? Math.round(actual / budget * 100) : 0;
-      return `<div class="fin__pane fin__pane--${tone}">
-        <div class="fin__t">${title}</div>
-        <div class="fin__line">
-          <span class="fin__v">${money(actual)}</span>
-          <span class="fin__pct">${pace}<i>% of budget</i></span>
-        </div>
-        <div>${rows.map(([label, value, colour]) => `<div class="fin__row"><span>${label}</span>
-          <strong${colour ? ` style="color:var(--${colour})"` : ''}>${value}</strong></div>`).join('')}</div></div>`;
+      return metricCard({
+        chart: 'number', pkey: key, label: title, icon, tone,
+        // The figure is the reading and the pace is what it means — the two things the
+        // room asks for, on the two lines a card already has for them.
+        value: money(actual), sub: `${pace}% of budget`,
+        // The chart choice reaches the money too. A page where five readings are rings and
+        // the sales figure is bare reads as two designs rather than one.
+        // `chart:'number'`, not the reader's choice: the reading itself is the money, so
+        // the card's body is a hero rather than a drawing, and cardTrack only draws its
+        // bullet when the body did not already draw one. Passing 'bar' here got neither.
+        track: cardTrack({
+          chart: 'number', actual, target: budget, tone,
+          targetText: `Against ${money(budget)} expected`,
+          deltaText: `${variance >= 0 ? '+' : '−'}${money(Math.abs(variance))}`,
+          deltaTone: tone,
+        }),
+        foot: footLine([
+          budgetRow,
+          ['Variance', `${variance >= 0 ? '▲' : '▼'} ${Math.abs(percent).toFixed(1)}%`],
+        ]),
+        edit: field(`Actual ${key === 'fin-mtd' ? 'MTD' : 'YTD'}`,
+          key === 'fin-mtd' ? 'fin_actual_mtd' : 'fin_actual_ytd',
+          `type="number" value="${metric(key === 'fin-mtd' ? 'fin_actual_mtd' : 'fin_actual_ytd') ?? ''}"`),
+      });
     };
 
-    const pace = planMtd ? actualMtd / planMtd * 100 : 0;
-    return `<div class="card" data-pkey="financials" style="padding:var(--s5)">
-      <div class="card__head">
-        <span class="card__ico" aria-hidden="true">💰</span>
-        <span class="card__label">Sales against budget · through ${
-          shortDate(reportDate.toISOString().slice(0, 10))}</span>
-      </div>
-      <div class="fin">
-        ${pane('Month to date', actualMtd, planMtd, [
-          [`${MONTHS[month]} budget`, money(monthBudget)],
-          ['Expected by today', money(planMtd)],
-          ['Variance', `${varianceMtd >= 0 ? '▲' : '▼'} ${money(Math.abs(varianceMtd))} (${Math.abs(percentMtd).toFixed(1)}%)`, toneMtd],
-        ], toneMtd)}
-        ${pane('Year to date', actualYtd, planYtd, [
-          ['Full-year budget', money(yearBudget)],
-          ['Expected by today', money(planYtd)],
-          ['Variance', `${varianceYtd >= 0 ? '▲' : '▼'} ${money(Math.abs(varianceYtd))} (${Math.abs(percentYtd).toFixed(1)}%)`, toneYtd],
-        ], toneYtd)}
-      </div>
-      <div class="finbars">
-        <div class="finbar">
-          <div class="finbar__l">Month to date against budget
-            <b class="tone--${toneMtd}">${pace.toFixed(0)}% of budget</b></div>
-          ${bullet({ actual: actualMtd, target: planMtd, tone: toneMtd })}
-        </div>
-        <div class="finbar">
-          <div class="finbar__l">Year to date against budget
-            <b class="tone--${toneYtd}">${(planYtd ? actualYtd / planYtd * 100 : 0).toFixed(0)}% of budget</b></div>
-          ${bullet({ actual: actualYtd, target: planYtd, tone: toneYtd })}
-        </div>
+    return `<div class="grid grid--cards">
+      ${pane('fin-mtd', 'Month to date', '\u{1F4B0}', actualMtd, planMtd, toneMtd,
+        varianceMtd, percentMtd, [`${MONTHS[month]} budget`, money(monthBudget)])}
+      ${pane('fin-ytd', 'Year to date', '\u{1F4B0}', actualYtd, planYtd, toneYtd,
+        varianceYtd, percentYtd, ['Year budget', money(yearBudget)])}
+    </div>
+    <div class="panel" style="margin-top:var(--s3)">
+      <div class="panel__head"><span class="card__ico" aria-hidden="true">📅</span>
+        <h3 class="panel__title">Where the month stands</h3>
+        <span class="panel__actions chip">Through ${
+          shortDate(reportDate.toISOString().slice(0, 10))}</span></div>
+      <div class="panel__body">
         <div class="finbar">
           <div class="finbar__l">${MONTHS[month]} so far
             <b>day ${elapsed} of ${inMonth}</b></div>
           <div class="finmonth"><span style="width:${(elapsed / inMonth * 100).toFixed(1)}%"></span></div>
         </div>
-      </div>
-      <div class="ez">
-        ${field('Actual MTD', 'fin_actual_mtd', `type="number" value="${metric('fin_actual_mtd') ?? ''}"`)}
-        ${field('Actual YTD', 'fin_actual_ytd', `type="number" value="${metric('fin_actual_ytd') ?? ''}"`)}
       </div>
     </div>`;
   },

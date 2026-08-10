@@ -88,22 +88,24 @@ sized against the width it actually got. This is what allows a department card t
 without its rate overflowing, which in turn is what gives the Previous Week table the width
 it needs — the specific complaint that ran through several versions of the old file.
 
-Present mode is fitted to 1920×1080 and verified to fit with no scrollbar. Type is pegged
-to viewport breakpoints so one page fills a laptop and a 48" screen.
+Present mode is verified to fit with no scrollbar at 1366×768, 1600×900, 1920×1080 and
+2560×1440. Type is not pegged to viewport breakpoints — it is pegged to the card, which is
+the whole subject of *One card* below.
 
-**A card is as tall as what it has to say.** An earlier version stretched each section to
-the viewport and the cards with it, so three lines of a review note sat at the top of a
-four-hundred-pixel card and the rest was empty ground. Filling a screen is not the same as
-using it: an inflated card reads as one with something missing. Rows now end where their
-cards end and the leftover space stays empty. The meeting-room TV is the single exception,
-and even there the row is centred in the space rather than stretched to fill it.
+**A card is as tall as the tallest card.** An earlier version stretched each section to the
+viewport and the cards with it, so three lines of a review note sat at the top of a
+four-hundred-pixel card and the rest was empty ground; a later one let each row find its own
+height, which gave one section a 305px row above a 220px row. Neither is a page. The height
+is declared once, from the card that carries the most — a bar, a trend line and a three-part
+foot — and the cards with less spend the difference on air. Air reads as deliberate. Five
+heights read as a fault.
 
-Within a row cards do still share a height — that part was right, because a ragged row of
-readings looks like a fault. What follows from it is that their contents must be
-top-anchored: printing carries five foot stats and gluing four, and centring the middle put
-each department's rate at a different height, which turns reading three numbers into three
-separate hunts. Card titles get two lines of room whether they need them or not, for the
-same reason.
+Which means their contents centre rather than sitting at the top. Top-anchoring was right
+when a card was as tall as its contents; with one height for all of them it left safety's
+number stranded under the title with its context four hundred pixels below. Cards in a row
+still share the line their numbers sit on, which is the part that always mattered: the head
+reserves the same height whether or not it holds a flag, so reading a row is one sweep
+rather than five hunts.
 
 ## Looking like the dashboard it replaces
 
@@ -358,19 +360,54 @@ click the paths, and assert on what the page actually did. That check lives outs
 repository because it needs Playwright and this repository has no dependencies — which is
 a real gap, and the reason it is written down here.
 
-## One size, one shape
+## One card
 
-Two rules that took several drafts to find, and both are about a page being one page:
+There is one card in this product. Not one design applied seven ways — one card, one size,
+one shape, on the page and on the wall, in every section. Everything below is a consequence
+of taking that literally, and each line of it replaced a draft that only looked uniform.
 
-**Every card title is the same size.** It was derived from the card's width in `cqi`, so a
-narrow safety card and a wide production card drew their titles differently and the eye
-read two kinds of card. It is a fixed size now, and the grids are sized to fit it.
+**One width, and the columns fall out of it.** Every earlier attempt fixed the columns per
+section — two for safety, three for quality, four for shipping — and every one produced a
+different card width per section, which the eye reads as three kinds of card rather than
+one kind laid out three ways. So `--card-w` is the fixed thing and every row is `auto-fit`
+against it.
 
-**A card is the same width in every section.** Safety has two readings and Quality has six;
-a two-column grid gave safety's three times the width. Safety's row is six tracks with each
-card spanning two, starting one track in — the cards come out exactly a three-across width
-and the row sits centred. Shipping is the deliberate exception at four across, because eight
-readings in two rows of four is what the plant asked for.
+**One height, declared rather than discovered.** Letting each row take the height of what
+was in it gave quality a 305px row above a 220px row and shipping a 268 above a 358: six
+cards plainly the same design and visibly not the same object. `--card-h` is set to the
+tallest card that exists — production, which carries a bar, a trend line and a three-part
+foot — so nothing is squeezed, and the shorter cards spend the difference on air. Air reads
+as deliberate; five different heights do not.
+
+**Everything on the card is measured in the card.** Titles, feet, bullets, sparks and
+padding are all a percentage of the card's own width, so a card and its contents can only
+change size together. This is the rule that makes present mode free: the wall is this card
+at 404px that the page draws at 318, and nothing needs re-tuning for it. It is also what
+makes it checkable — the card fits at one size or it fits at every size, so the densest
+page is measured once.
+
+Two traps in that last one, both found by measuring:
+
+- A container cannot measure itself. `cqi` inside the rule that *sizes* the container
+  resolves against the next container out — the viewport — so `padding:5.2cqi` came out as
+  100px on a 404px card and left the title half the room it thought it had. Padding is in
+  per cent, which resolves against the grid track.
+- `cqi` alone sizes a number by the card and not by the number. `$1.42M` at 31.5% of the
+  card is wider than the card, and it ran under its own border into the card beside it. The
+  hero carries a `--chars` count and takes the smaller of the two caps.
+
+**Nothing is bumped for one view.** Solo view used to give a card a larger title, a larger
+icon, a larger number and more padding — four changes that made one card two cards
+depending on which link you had clicked. The larger title in the same box is what cut "Days
+since last injury" down to "…last inj".
+
+**Everything is a card, including the money.** Financials was one wide panel holding two
+panes — the only thing in the product that was not a card, three times its neighbours' width
+on the page and the full width of the screen on the wall, between a Shipping screen of eight
+cards and a Maintenance screen of none. Month to date and year to date are two readings
+against two targets, which is what a card is for. Labour's single card in a bespoke
+two-column grid and Maintenance's tables-only section were the same mistake in the other
+direction, and are two cards each now.
 
 **The foot is one row, however many facts are in it.** Two meant two columns and three meant
 a second row, so a production card spent a whole line on "HOURS 8.5 h". It divides by what
@@ -384,24 +421,35 @@ each with a seven-day movement — four comparisons per department, three of whi
 card directly above it. What is left is the one thing the card cannot say: what the same
 weekday produced, and how that sat against target.
 
-## A wall is rows, not a page scaled up
+## A wall is the page's card, larger
 
-Two levers got this wrong before it got it right, and both are worth writing down.
+Three levers got this wrong before it got it right, and all three are worth writing down,
+because each produced a wall that looked plausible in a screenshot and wrong in the room.
 
-`min-height` on the card was the wrong one. It made a two-card page fill the screen and
-broke every page with two rows: quality's six and shipping's eight do not fit two rows of
-42vh plus a heading in 1080, so the rows compressed and the cards clipped their own feet
-under `overflow:hidden` — silently, which is the worst way for a wall to be wrong.
+`min-height` on the card broke every two-row page: quality's six and shipping's eight do not
+fit two rows of 42vh plus a heading in 1080, so the rows compressed and the cards clipped
+their own feet under `overflow:hidden` — silently, which is the worst way for a wall to be
+wrong.
 
-`grid-auto-rows: minmax(min-content, 1fr)` is the right one, and it says the opposite per
-row: never shorter than what is in it, and share whatever is left. One row of two fills the
-screen; two rows of four take half each. The densest page — eight cards — is what sets the
-padding, and it is checked by measuring the lowest card's bottom against the viewport
-rather than by looking.
+`grid-auto-rows: minmax(min-content, 1fr)` fixed the clipping and introduced a worse
+problem. `1fr` rows share out the whole screen, so a one-row page got a card 940px tall and
+a two-row page got cards half that: three different card shapes across a five-screen walk,
+and safety's reading marooned in the middle of a shape that exists nowhere else in the
+product. A presentation does not distort the thing it is showing.
 
-On a page a card's foot is pinned to the bottom so a row lines up whatever each card
-carries. On a wall the card is a thousand pixels tall and that leaves a hole between the
-number and its context, so there the contents travel together and centre.
+The right lever is a **fixed row and `align-content:center`**. The card size is derived
+rather than stretched, from whichever of the two constraints runs out first: the width of a
+four-card row, or the height of two of them. Those are the widest and tallest pages there
+are, so the size that fits them fits every page, and the leftover height becomes margin
+above and below rather than stretch inside. Safety's two, production's four, financials'
+two and shipping's eight are all the same card, centred horizontally and vertically. At
+1920×1080 that is 404×457; at 1366×768 it is 266×301; the proportion never changes.
+
+One more thing had to go with it: an empty grid still occupies a row. Production keeps a
+second grid for its review notes and Labour wraps its table in one, and both empty out up
+here — but each was still `flex:1` with a row the height of a card, so the real cards sat a
+hundred and thirty pixels above centre. Safety looked centred and Labour did not, on the
+same rule. A grid with no visible card is now hidden outright.
 
 ## Importing a year
 
