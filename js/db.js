@@ -224,6 +224,19 @@ export function loadHistory(location, fromDate, toDate) {
   ]).then(([metrics, departments]) => ({ metrics: metrics || [], departments: departments || [] }));
 }
 
+// The year, a month at a time.
+//
+// NCRs and complaints are closed off monthly, so the picture the room asks for is twelve
+// columns rather than seven mornings. Every morning of the month carries the month-to-date
+// count, so the month's total is the largest one written in it — which is why this reads
+// the running column rather than a monthly table there is no reason to keep.
+export const loadYearCounts = (location, year) =>
+  run(() => client.from('daily_metrics')
+    .select('metric_date, ncr_mtd, complaints_internal_mtd, complaints_external_mtd')
+    .eq('location_id', location)
+    .gte('metric_date', `${year}-01-01`).lte('metric_date', `${year}-12-31`)
+    .order('metric_date'));
+
 export const loadBudgets = (location, year) =>
   run(() => client.from('location_budgets').select('month, amount')
     .eq('location_id', location).eq('year', year).order('month'));

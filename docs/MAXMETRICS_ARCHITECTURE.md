@@ -626,13 +626,27 @@ neither put its number in the middle, and the rule above the foot came out at fo
 heights across one screen. The room's words for it were "there are, like, three or four
 different types".
 
-- **The reading** starts directly under the title bar, on every card, always.
+- **The reading** starts at the same line on every card, always: a fixed inset below the
+  title bar, measured as a share of the card so it is the same line at 318px and at 870.
 - **The drawings** — the bar against target and the seven-day line — drop to the floor of
   what is left. That is also why the graphs are twice as easy to read as they were: pinned
   under the number, a line sat halfway up a card with two hundred pixels of nothing beneath
   it.
 - **The foot** is a fixed-height strip at the bottom. A card with nothing to put there
   reserves the same strip and simply does not draw the rule.
+
+Two attempts at the reading's line were wrong in opposite directions before this. Flush
+under the bar read as though the number had been shoved up against the title with all the
+card's air pooled beneath it. And centring the cards that had nothing under them — Safety's
+two, and the complaint counters before they had a chart — broke the only rule that matters:
+NCRs sat in the middle of its card while the COQ card beside it sat at the top. The answer
+to a card with nothing under its number is to give it something, not to move the number.
+
+The flag line is reserved across the whole group rather than per grid, for the same reason.
+Per grid, a Safety section carrying "Record broken" reserved the row and no other section
+did, so every number in Safety started twenty pixels below every other number on the page.
+The group is one screen on the wall and the whole page on the page, which is exactly the set
+of cards a reader takes in at once.
 
 Three things had to be nailed down before the rule would actually land on the same line.
 
@@ -663,6 +677,30 @@ on the same line. True, and worth keeping; but reserved *unconditionally* it was
 of nothing at the top of every card on Quality, Shipping and Financials, none of which ever
 carries a flag. `fitCards()` puts a class on the grid when something on that screen is
 actually flagged, and only then is the row held open.
+
+## A year of months, for the counts that are closed monthly
+
+The seven-day line is the right picture for a reading taken every morning and the wrong one
+for a count closed off at month end. NCRs, internal complaints and customer complaints are
+the second kind: a week of them is four zeroes and a one, drawn as a spike that means
+nothing — and it left those three cards with nothing along their bottom while every card
+beside them carried a bar and a line, which is what pulled their numbers out of line with
+the rest of the screen.
+
+Twelve columns answer the question actually asked of these three: is this a bad month or a
+bad year. The month being read is drawn solid and the ones behind it are washed. A month
+with no incidents draws a stub, because an empty slot and a month that has not happened yet
+would otherwise look identical; months past the one being read are left out entirely, since
+drawing December in August is a promise the data cannot keep.
+
+The series comes from the running month-to-date column rather than from a monthly table
+there is no reason to keep — every morning of a month carries that month's count so far, so
+the month's total is the largest one written in it.
+
+`columns()` is the one chart drawn in HTML rather than as an SVG. The line and the bar are
+stretched to the card's width with `preserveAspectRatio:none`, which is right for a shape
+and wrong for a letter: at a 120-wide viewBox in a 600px card, a month initial comes out
+five times as wide as it is tall.
 
 ## One word for variance
 
@@ -752,6 +790,30 @@ file carries that is not a column is ignored rather than raising. The rule that 
 unchanged and is the reason the assignment is generated rather than written: every one is a
 `coalesce`, so a reading somebody typed is never replaced by a file. Departments work the
 same way.
+
+## What the DOR's own Formulas tab settles
+
+Uptime, make-ready and the make-ready count were read out of the DOR and deliberately not
+imported, because run-hours over crewed-hours gave printing 68% on a day the plant had
+recorded near a hundred, and a wrong number that arrives by itself is one nobody thinks to
+check.
+
+The definition was in the workbook the whole time. DOR V9 carries a `Formulas` tab:
+
+```
+Uptime      = (MR Hrs + Run Hrs) / Crewed Hours
+Avg MR Time = MR Hrs / # of MR's
+```
+
+Setting a machine up is not downtime — it is the machine being worked on by the crew it is
+crewed for, which is the whole reason make-ready carries a target of its own. Counting the
+make-ready hours puts all three departments between 75% and 95% on every day in the file,
+and 5 August prints 0.95 h over 5 make-readies, which is the plant's own stored figure to
+the digit. It is clamped at 100: a shift logging more make-ready and run than it was crewed
+for is a timesheet to fix, not a machine that ran 124% of the time.
+
+Output and crewed hours were never in doubt and reproduce exactly, so the sheet was being
+read correctly all along. What was missing was one tab nobody had opened.
 
 ## Where quality comes from
 
