@@ -54,18 +54,48 @@ eventually disagree, and a dashboard that contradicts itself is worse than no da
 The conformance check in `scripts/verify-maxmetrics.mjs` fails the build if a threshold
 appears anywhere else.
 
-This is also what makes the chart style a free choice. The four drawings — number, bar,
-ring, gauge — receive a verdict already reached. Swapping one for another changes the
-shape and cannot change the answer.
+This is also what makes the drawing a free choice. A bar, a ring and a number all receive a
+verdict already reached. Swapping one for another changes the shape and cannot change the
+answer.
 
-## One style for every card
+## The drawing belongs to the reading, not to the reader
 
-The chart style is one setting for the whole dashboard, not one per card. A screen of
-mixed bars, rings and gauges cannot be compared across, and comparison is the only reason
-to draw a number as a shape rather than print it.
+There was a picker — number, bar, ring, gauge — and it applied one choice to every card at
+once. That was already an improvement on mixing them, because a screen of mixed shapes cannot
+be compared across. But it was still the wrong question: the reader was being asked to choose
+between four ways of drawing a reading, when only one of them is right for any given reading,
+and which one depends on the reading rather than on who is looking.
 
-The style belongs to the reader, stored on their profile. One person preferring rings must
-not change what anyone else sees on their own screen or on the TV.
+So there is one shape now — **the number, and the evidence for it underneath** — and what the
+evidence is depends on what the number is:
+
+| Reading | Under it |
+|---|---|
+| A production rate | a bar against target, and the last seven mornings |
+| OTD and OTIF | a bar against 98%, and the last seven mornings |
+| Cost of quality | a bar against the ceiling, and no line — a month-to-date figure drawn as seven daily readings is a slope that means nothing |
+| Sales | a bar against the budget expected by today |
+| A safety streak | a bar against the record **while it is being chased**, and nothing once it is beaten |
+| A count — late, shorts, NCRs | nothing. A count has no denominator, and a bar against zero is a bar that is always full |
+
+The streak is the one worth spelling out. A streak is measured against nothing — the record
+is a target to beat, not a denominator — so drawn permanently the bar fills a little further
+every morning and says the same thing every morning. But while the plant is short of the
+record, *how* short is the one thing the number alone does not say, and it is the question
+the room actually asks. Once it is beaten the bar would be pinned full, and the flag says so
+in words instead.
+
+## Which cards a plant carries
+
+One list on the plant, `hidden_cards`, checked by `metricCard()` itself. It was three columns
+— `show_ncr`, `show_internal`, `show_external` — covering the three quality readings nobody
+could agree were universal, while every other card on the dashboard was hard-wired on. A
+plant that ships on pallets and does not count cartons had exactly the problem those three
+had: a card that reads a permanent dash teaches the room that a blank is normal.
+
+Turning one off returns nothing from the one function that builds cards, so it leaves nothing
+behind — no empty cell, no gap in a row of four. The arrangement is worked out afterwards
+from what is left, so hiding two of Shipping's eight re-deals it from four across to three.
 
 ## Reading against a target
 
@@ -410,11 +440,26 @@ Three things it has to be careful about, each of which pinned it silently once:
   is to say it decided how large the whole card was allowed to be drawn. Each fact carries its
   own character count and is capped by the share of the card its column gets.
 
-**The title takes two lines, and the head reserves both.** One line capped the title at
-whatever "Days since last injury" happened to fit in — twenty-two characters wide, so on a
-653px card it could not grow past 30px however much room was going spare. Reserving both
-lines on every card is what keeps the readings in a row on one line; a card that wraps beside
-a card that does not would start them at different heights.
+**The title rides in a bar across the top of the card.** Floating it above the number gave
+every card a different title position — a flag pushed it up, a longer title pushed it down,
+and NCRs Received sat visibly lower than the two cards beside it. A bar is the first thing in
+every card and is always the same height, so every title on the page is at the same place and
+the same size whatever the card is carrying. It is also what stops a card reading as a column
+of text: the heaviest line on it is a shape rather than a sentence. One grey on every card, on
+purpose — the verdict lives in the number, and a bar that changed colour with it would be a
+second and louder verdict. The pictogram sits in a white disc on the bar, which is what lets
+it stay the plant's own colourful icon instead of being flattened to a white glyph.
+
+Titles are one line, always. Wrapping to two bought a larger title and cost the thing the
+title is for: a row where one card wrapped and the next did not put their readings at
+different heights. In the bar the title has the whole width of the card rather than the width
+inside its padding, and the fit pass grows it until the longest title on the screen fills
+that — so it is as large as one line allows, and identical on every card.
+
+On the page the fit is measured across **every** grid at once rather than per section,
+because every page card is 318×360 whatever section it is in. Measured per grid, Safety's two
+cards grew to a larger title than Production's four on the same screen — the same "two
+designs" fault in a new place.
 
 **Everything on the card is measured in the card.** Titles, feet, bullets, sparks and
 padding are all a multiple of `--u`, one per cent of the card, so a card and its contents

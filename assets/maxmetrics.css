@@ -65,6 +65,9 @@
    thought it had the whole 1080 to play with, and laid production out as two rows of two
    when one row of four draws a bigger number. A knob both sides read has to be somewhere
    both sides can. */
+  /* The title bar. One grey on every card, on purpose: the verdict lives in the number,
+     and a bar that changed colour with it would be a second, louder verdict. */
+  --card-bar:#4A5162;
   --card-r-max:1.6;
   --wall-cols:4; --wall-rows:1; --wall-cap:34; --wall-chrome:150px;
   --shadow:0 1px 8px rgba(15,23,42,.07);
@@ -254,9 +257,12 @@ body.tv .verdict{font-size:var(--t-lead)}
    the one place it cannot be confused with decoration: the number itself.
    The border keeps a whisper of it so a card is still findable at a glance across a room. */
 .card{background:var(--surface);border:1px solid var(--rule);border-radius:var(--radius-lg);
-  padding:3.6% 5.2%;display:flex;flex-direction:column;justify-content:center;
+  padding:0;overflow:hidden;display:flex;flex-direction:column;
   box-shadow:var(--shadow);
   transition:border-color .2s;min-width:0;container-type:inline-size;position:relative}
+/* Everything below the bar, centred in what is left of the card. */
+.card__body{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center;
+  padding:3.6% 5.2%}
 .card--ok{border-color:var(--ok-rule)}
 .card--warn{border-color:var(--warn-rule)}
 .card--stop{border-color:var(--stop-rule)}
@@ -265,9 +271,20 @@ body.tv .verdict{font-size:var(--t-lead)}
    cards legible at a glance: the eye finds the pictogram, then the word, then the number.
    A ten-pixel grey caption in the corner asks the reader to hunt for what they are
    looking at, which is a poor use of a three-minute meeting. */
-.card__head{display:flex;align-items:center;justify-content:center;gap:8px;
-  margin-bottom:var(--s2);min-width:0}
+/* A bar across the top of the card, title knocked out of it in white.
+   Floating the title above the number gave every card a different title position — a card
+   with a flag pushed it up, a two-line title pushed it down, and NCRs Received sat lower
+   than the two cards beside it. A bar is the first thing in every card and is always the
+   same height, so every title on the page is at the same place and the same size whatever
+   the card is carrying. It also stops a card reading as a column of text: the heaviest
+   line on it is now a shape rather than a sentence. */
+.card__head{display:flex;align-items:center;justify-content:center;gap:8px;min-width:0;
+  background:var(--card-bar);color:#fff;flex:none}
 .card__ico{font-size:25px;line-height:1;flex:none;font-family:var(--font)}
+/* A white disc, so the plant's own colourful pictograms keep their colour against a dark
+   bar instead of being flattened to a white glyph. */
+.card__head>.card__ico{background:#fff;border-radius:50%;display:grid;place-items:center;
+  width:1.62em;height:1.62em;font-size:25px}
 .card__ico svg{width:1.05em;height:1.05em;display:block;stroke:currentColor;fill:none;stroke-width:4.5;
   stroke-linecap:round;stroke-linejoin:round}
 /* One line, always — and the size the plant's own dashboard gives it. It was dropped to a
@@ -277,18 +294,16 @@ body.tv .verdict{font-size:var(--t-lead)}
    that is now safe. It was a fixed pixel size on the argument that `cqi` would draw a
    narrow safety card's title smaller than a wide production card's. True then; there is no
    longer a narrow card and a wide one. */
-/* Two lines, and the head reserves both whether or not the title needs them.
-   One line was the rule, and it capped the title at whatever "Days since last injury"
-   happened to fit in — twenty-two characters wide, so on a 653px card the title could not
-   grow past 30px however much room was going spare above and below it. The title is how
-   you find the card and it is allowed to be the second loudest thing on it. Reserving both
-   lines on every card is what keeps the numbers in a row on one line: a card that wraps
-   and a card that does not would otherwise start their readings at different heights. */
+/* One line, always. Wrapping to two bought a larger title and cost the thing the title is
+   for: a row where one card's title took two lines and the next took one put their
+   readings at different heights, which is the fault this has been chasing since the first
+   draft. In the bar the title has the whole width of the card rather than the width inside
+   its padding, and `fitCards()` grows it until the longest title on the screen fills that —
+   so it is as large as one line allows, and the same size on every card. */
 .card__label{font-family:var(--font-condensed);font-size:calc(19px*var(--scale));
-  font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-muted);
+  font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#fff;
   line-height:1.12;text-align:center;min-width:0;overflow:hidden;
-  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
-  overflow-wrap:anywhere;text-wrap:balance}
+  white-space:nowrap;text-overflow:ellipsis}
 /* The heading stays ink whatever the verdict. A red title over a red number says the same
    thing twice and leaves the reader nothing quieter to land on. */
 /* Every number on the page starts at the same height.
@@ -299,7 +314,7 @@ body.tv .verdict{font-size:var(--t-lead)}
    So the head is a fixed height whether or not it holds a flag, and the reading sits
    directly under it. Cards in a row already share a height; now they share the line their
    numbers sit on, which is the one that matters. */
-.card__head{min-height:calc(30px*var(--scale));align-items:center}
+
 .card__flag{min-height:calc(24px*var(--scale));display:flex;align-items:center;
   justify-content:center;width:100%;margin-bottom:var(--s2)}
 
@@ -431,12 +446,14 @@ body.tv .verdict{font-size:var(--t-lead)}
    factor for the whole screen, so the cards on it stay the same card. */
 .card *{--u:calc(min(1cqi,calc(var(--card-h)/113.2))*var(--fit,1))}
 /* The head reserves two lines of title on every card so the readings in a row stay level. */
-.card .card__head{gap:calc(2.4*var(--u));margin-bottom:calc(1.4*var(--u));
-  min-height:calc(12.6*var(--u))}
+/* The bar is twice the height of the title it holds, which is what makes it read as a bar
+   rather than as a tinted line of text. */
+.card .card__head{gap:calc(2.4*var(--u));padding:0 calc(4*var(--u));
+  min-height:calc(10.4*var(--u))}
 /* The pictogram is what the eye lands on first, so it leads rather than accompanies: about
    half again the height of the title it sits beside. It was a fifth smaller than that and
    read as punctuation. */
-.card .card__head>.card__ico{font-size:calc(8.4*var(--u))}
+.card .card__head>.card__ico{font-size:calc(4.6*var(--u))}
 .card .card__label{font-size:calc(5.2*var(--u))}
 .card .card__flag{min-height:calc(6.6*var(--u));margin-bottom:calc(1.2*var(--u))}
 .card .flag{font-size:calc(3.5*var(--u));padding:calc(.8*var(--u)) calc(2.4*var(--u));
@@ -992,6 +1009,11 @@ body.tv .content.wall{display:flex;flex-direction:column;gap:var(--s4);
 .panel__notel{font-family:var(--font-condensed);font-size:calc(11.5px*var(--scale));
   text-transform:uppercase;letter-spacing:.06em;font-weight:700;color:var(--ink-faint);flex:none}
 .panel__note .rev__note{margin:0}
+/* A column of switches reads as a list, not as a form: one per line, tight, the whole row
+   clickable. */
+.cfg__card{display:flex;align-items:center;gap:var(--s3);padding:var(--s2) 0;
+  border-bottom:1px solid var(--rule);cursor:pointer}
+.cfg__card:last-child{border-bottom:none}
 .wall__empty{display:grid;place-items:center;flex:1;color:var(--ink-muted);font-size:var(--t-title)}
 /* The readings that rode along under an area's worst one. Present, so nothing is
    hidden; quiet, so the meeting hears the story once. */
