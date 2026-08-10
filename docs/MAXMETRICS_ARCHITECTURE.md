@@ -615,6 +615,25 @@ here — but each was still `flex:1` with a row the height of a card, so the rea
 hundred and thirty pixels above centre. Safety looked centred and Labour did not, on the
 same rule. A grid with no visible card is now hidden outright.
 
+## One left edge on the page, centred on the wall
+
+The page scrolls and the wall does not, and that is the whole reason they align differently.
+
+Centred, a row of two Safety cards began in the middle of a 1600px screen and a row of eight
+Shipping cards began at the edge, so scrolling from one section to the next shifted the whole
+page sideways. One left edge for every row — and for the section headings above them, which
+used to be centred between two rules and now sit against a rule that runs to the right — is
+what makes a scroll read as one page rather than as seven.
+
+A presentation is the opposite case: one screen at a time, nothing to scan down, and a block
+of cards pinned left with a third of the screen empty beside it looks like a mistake. So
+`justify-content:center` survives, but only under `body.tv`.
+
+Tables under a section stop at 1080px rather than running the width of the screen. Nine
+columns of last week's productivity stretched across 1600 put "Printing" at one edge and its
+make-ready target at the other, which is a long way to carry your eye for numbers the cards
+above already summarise.
+
 ## Where quality comes from
 
 Quality is not counted every morning. NCRs, customer complaints and the cost of poor quality

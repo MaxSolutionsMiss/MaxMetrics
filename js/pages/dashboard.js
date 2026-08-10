@@ -433,7 +433,7 @@ const SECTIONS = {
         const name = config?.name || row.dept_key;
         return `<div class="revcard revcard--${row.status}" data-pkey="rev-${esc(row.dept_key)}">
           <div class="revcard__head"><span class="rev__dot rev__dot--${row.status}"></span>
-            <span class="card__ico" aria-hidden="true">${config?.icon || iconFor(row.dept_key)}</span>
+            <span class="card__ico" aria-hidden="true">${iconFor(row.dept_key, config?.icon)}</span>
             <h4>${esc(name)}</h4></div>
           <div class="rev__note${row.note ? '' : ' rev__note--none'}">${esc(row.note || 'No issues reported.')}</div>
           <div class="ez">
