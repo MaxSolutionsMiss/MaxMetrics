@@ -452,15 +452,29 @@ body.tv .verdict{font-size:var(--t-lead)}
    factor for the whole screen, so the cards on it stay the same card. */
 .card *{--u:calc(min(1cqi,calc(var(--card-h)/113.2))*var(--fit,1))}
 /* The head reserves two lines of title on every card so the readings in a row stay level. */
-/* Three times the height of the title it holds. Twice was enough to read as a bar and not
-   enough to hold a pictogram at a size a room can see — the disc had nowhere to sit. */
-.card .card__head{gap:calc(2.4*var(--u));padding:0 calc(3.4*var(--u));
-  min-height:calc(15.6*var(--u))}
+/* The bar is sized by its title, and the title is sized by how long it is.
+   Everything else on a card is a share of `--u`, which on a two-row screen is set by the
+   card's height — and that made the titles on Quality and Shipping half the size of the
+   ones on Safety, on cards with a whole bar's width going spare. A title is not competing
+   for the height the reading needs; it is competing with its own length. So it takes the
+   smaller of a share of the card and the width its characters need, and the bar, the disc
+   and the padding are all multiples of whatever that comes out as.
+   `--tcap` is measured rather than calculated, by `fitCards()`, and set on the screen rather
+   than on the card: two cards side by side with different title lengths would otherwise draw
+   two bar heights and put their readings at different lines. Measured, because the width a
+   title needs depends on which letters are in it — a formula from the character count put
+   "COQ — month to date" two pixels over and truncated it.
+   Both terms are a share of the card's width and neither is a multiple of `--u`, so the bar
+   is a fixed fraction of the card and does not grow when `fitCards()` scales the body. Tied
+   to `--u` it did, and on a sparse card it grew fastest of all — Maintenance's title came
+   out at 69px and took a hundred and eighty pixels off its number to get there. */
+.card .card__head{font-size:min(9cqi,var(--tcap,99px));
+  gap:.42em;padding:0 .6em;min-height:1.95em}
+.card .card__label{font-size:1em}
 /* The pictogram is what the eye lands on first, so it leads rather than accompanies. The
-   disc is about seven tenths of the bar, which leaves the bar reading as a bar rather than
+   disc is about nine tenths of the bar, which leaves the bar reading as a bar rather than
    as a ring with a title after it. */
-.card .card__head>.card__ico{font-size:calc(6.5*var(--u))}
-.card .card__label{font-size:calc(5.2*var(--u))}
+.card .card__head>.card__ico{font-size:1.06em}
 .card .card__flag{min-height:calc(6.6*var(--u));margin-bottom:calc(1.2*var(--u))}
 .card .flag{font-size:calc(3.5*var(--u));padding:calc(.8*var(--u)) calc(2.4*var(--u));
   border-radius:calc(1*var(--u))}
@@ -1007,6 +1021,22 @@ body.tv .content.wall{display:flex;flex-direction:column;gap:var(--s4);
 /* Which screen of a section this is. Quiet — it is a page number, not a heading. */
 .wall__part{font-family:var(--font);font-size:.42em;font-weight:600;letter-spacing:.04em;
   text-transform:none;color:var(--ink-faint);margin-left:.7em;vertical-align:.12em}
+/* A list, and a note, drawn as the body of a card.
+   Both are sized in `--u` like every other part of a card, so they grow and shrink with it
+   and a screen of them fits the same way a screen of numbers does. */
+.clist{list-style:none;margin:0;padding:0;width:100%;align-self:stretch}
+.clist__row{display:flex;align-items:baseline;justify-content:space-between;
+  gap:calc(2*var(--u));padding:calc(1.4*var(--u)) 0;border-bottom:1px solid var(--rule)}
+.clist__row:last-child{border-bottom:none}
+.clist__l{font-family:var(--font-condensed);font-size:calc(5*var(--u));font-weight:600;
+  color:var(--ink);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.clist__r{font-family:var(--font-condensed);font-size:calc(5*var(--u));font-weight:700;
+  color:var(--ink-muted);white-space:nowrap;flex:none}
+.clist__more{font-size:calc(3.8*var(--u));color:var(--ink-faint);padding-top:calc(1.2*var(--u))}
+.clist__none,.cnote{font-size:calc(4.6*var(--u));line-height:1.4;color:var(--ink);
+  text-align:center;margin:0}
+.cnote--none,.clist__none{color:var(--ink-faint);font-style:italic}
+
 /* A note that belongs to the panel above it, on one line with its label, rather than in a
    panel of its own beside it. Maintenance had a five-row table at 1.7fr next to three words
    at 1fr, which made one section look like two. */

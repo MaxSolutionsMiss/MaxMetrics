@@ -21,6 +21,9 @@ DRY=false
 echo "── Architecture rules"
 node scripts/verify-maxmetrics.mjs
 
+echo "── The shapes an export comes in"
+node scripts/check-import.mjs
+
 echo "── Every module parses"
 find js -name '*.js' -print0 | xargs -0 -n1 node --check
 echo "all modules parse."

@@ -106,6 +106,17 @@ Turning one off returns nothing from the one function that builds cards, so it l
 behind — no empty cell, no gap in a row of four. The arrangement is worked out afterwards
 from what is left, so hiding two of Shipping's eight re-deals it from four across to three.
 
+## A table is not a card, so it never reached the wall
+
+Maintenance's schedule and Labour's department breakdown were tables, and only cards go up on
+the wall — so those two sections went up with two cards each and half a screen of nothing
+under them. But they are readings like any other: which departments, and what state each one
+is in. `listCard()` and `noteCard()` draw them with the same bar, the same body and the same
+grid, so a screen of them is still a screen of cards and the arrangement is chosen the same
+way. Maintenance is four now — overdue, open, today's schedule, notes — and Labour is four:
+shifts, departments, the breakdown, and staffing. Each is in the catalogue, so a plant that
+does not want one unticks it and the screen re-deals.
+
 ## Reading against a target
 
 A number alone does not say whether it is good. Every reading is drawn against the thing it
@@ -449,6 +460,18 @@ Three things it has to be careful about, each of which pinned it silently once:
   is to say it decided how large the whole card was allowed to be drawn. Each fact carries its
   own character count and is capped by the share of the card its column gets.
 
+**The title is sized by its own length, not by the card's height.** Everything else is a
+share of `--u`, which on a two-row screen is set by the card's height — and that drew the
+titles on Quality and Shipping at half the size of Safety's, on cards with a whole bar's
+width going spare. A title is not competing for the height the reading needs; it is competing
+with its own length. So it takes the smaller of a share of the card's width and the width its
+characters need, and the bar, the disc and the padding are all multiples of whatever that
+comes out as. The cap is **measured, not calculated**: a formula from the character count put
+"COQ — month to date" two pixels over and truncated it, because the width a title needs
+depends on which letters are in it. And it is one size per screen rather than per card — two
+titles of different lengths would draw two bar heights and put their readings on two
+different lines, which is the fault the bar exists to remove.
+
 **The title rides in a bar across the top of the card.** Floating it above the number gave
 every card a different title position — a flag pushed it up, a longer title pushed it down,
 and NCRs Received sat visibly lower than the two cards beside it. A bar is the first thing in
@@ -575,6 +598,35 @@ second grid for its review notes and Labour wraps its table in one, and both emp
 here — but each was still `flex:1` with a row the height of a card, so the real cards sat a
 hundred and thirty pixels above centre. Safety looked centred and Labour did not, on the
 same rule. A grid with no visible card is now hidden outright.
+
+## The half-import
+
+An export came in with safety and shipping filled and quality, financials and production
+empty. It reported success and listed nothing as unrecognised, which is the worst way for an
+importer to be wrong: nobody goes looking for the readings that are missing when the ones
+they checked are right.
+
+The walk that finds records stopped at the first object carrying a date and treated *that* as
+the record. An export laid out as `{safety: {date, …}, shipping: {date, …}, quality: {…}}`
+therefore kept the two sections that happened to be dated and dropped the ones that were not.
+Three things fix it, and the third is the one that matters:
+
+- A date found higher up is passed down, so sections inside a dated record belong to it.
+- Records sharing a date are one morning, not several.
+- **When every date in the file is the same date, the whole file is the record.** The
+  question of which object is "the record" does not arise for a one-morning export, so it
+  is read from the root and the undated sections come with it.
+
+Two smaller ones fell out of testing it. `shipping` is both a department and a section of the
+morning, and an export that grouped late, shorts and OTIF under it had all four swallowed as
+unreadable department fields — a department-named object is only a department if half its
+keys are department fields. And a streak written as "6 days" rather than as a date was being
+dropped entirely, when the count and the record's own date are enough to work the date out.
+
+`scripts/check-import.mjs` runs the five shapes an export has actually arrived in and fails
+if any of them loses a reading. It runs before every publish. The conformance rules cannot
+catch this class of bug and neither can `node --check`; only reading a file and counting what
+came out can.
 
 ## Importing a year
 

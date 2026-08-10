@@ -393,8 +393,12 @@ export const CARD_CATALOGUE = [
   { section: 'Financials',  key: 'fin-ytd',       name: 'Year to date' },
   { section: 'Maintenance', key: 'maint-overdue', name: 'Overdue items' },
   { section: 'Maintenance', key: 'maint-open',    name: 'Open work' },
+  { section: 'Maintenance', key: 'maint-list',    name: "Today's schedule" },
+  { section: 'Maintenance', key: 'maint-note',    name: 'Maintenance notes' },
   { section: 'Labour',      key: 'ot-total',      name: 'Overtime shifts' },
   { section: 'Labour',      key: 'ot-depts',      name: 'Departments on OT' },
+  { section: 'Labour',      key: 'ot-list',       name: 'Overtime by department' },
+  { section: 'Labour',      key: 'staffing',      name: 'Staffing notes' },
 ];
 
 // A card is turned off in one place rather than at each of its call sites, because a card
@@ -412,6 +416,51 @@ export const hideCards = keys => { hidden = new Set(keys || []); };
 // missing half of the sum. The unit rides at .3em, so it counts for about a third.
 const heroChars = (value, unit) => (String(value ?? '').length
   + (unit ? String(unit).length * 0.35 : 0)).toFixed(2);
+
+// A card whose reading is a list rather than a number.
+//
+// Maintenance's schedule and Labour's department breakdown lived in tables, and a table
+// does not reach the wall — it is a thing you lean in for, so those two sections went up
+// with two cards on them and half a screen of nothing. They are readings like any other:
+// which departments, and what state each one is in. Same bar, same body, same grid, so a
+// screen of them is still a screen of cards.
+export function listCard({ pkey, icon, label, tone, rows, empty = 'Nothing to report.',
+                           cap = 8, edit }) {
+  if (hidden.has(pkey)) return '';
+  const shown = (rows || []).slice(0, cap);
+  const over = (rows || []).length - shown.length;
+  return `<div class="card card--${tone || ''}" data-pkey="${esc(pkey)}">
+    <div class="card__head">
+      <span class="card__ico" aria-hidden="true">${icon || iconFor(pkey)}</span>
+      <span class="card__label">${esc(label)}</span>
+    </div>
+    <div class="card__body">
+      <div class="card__mid">${shown.length
+        ? `<ul class="clist">${shown.map(([left, right, kind]) =>
+            `<li class="clist__row"><span class="clist__l">${esc(left)}</span>
+             <span class="clist__r${kind ? ` tone--${kind}` : ''}">${right ?? ''}</span></li>`).join('')}
+           ${over > 0 ? `<li class="clist__more">and ${over} more</li>` : ''}</ul>`
+        : `<p class="clist__none">${esc(empty)}</p>`}</div>
+      ${edit ? `<div class="ez">${edit}</div>` : ''}
+    </div>
+  </div>`;
+}
+
+// A card whose reading is a sentence somebody wrote.
+export function noteCard({ pkey, icon, label, text, prompt = 'Nothing entered.', edit }) {
+  if (hidden.has(pkey)) return '';
+  return `<div class="card" data-pkey="${esc(pkey)}">
+    <div class="card__head">
+      <span class="card__ico" aria-hidden="true">${icon || iconFor(pkey)}</span>
+      <span class="card__label">${esc(label)}</span>
+    </div>
+    <div class="card__body">
+      <div class="card__mid"><p class="cnote${text ? '' : ' cnote--none'}">${
+        esc(text || prompt)}</p></div>
+      ${edit ? `<div class="ez">${edit}</div>` : ''}
+    </div>
+  </div>`;
+}
 
 export function metricCard({ chart, pkey, icon, label, tone, value, unit, percent, markPercent,
                              markLabel, sub, flag, foot, edit, medium, track }) {

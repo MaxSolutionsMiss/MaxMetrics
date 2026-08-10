@@ -315,6 +315,9 @@ export const JSON_FIELDS = {
   otif:             ['otif', 'ontimeinfull', 'otifpercent'],
   mtd_otif:         ['mtdotif', 'otifmtd', 'monthtodateotif'],
   ytd_otif:         ['ytdotif', 'otifytd', 'yeartodateotif'],
+  ncr_ytd:          ['ncr', 'ncrytd', 'ncrs', 'ncrsreceived', 'ncrreceived', 'ncrcount'],
+  complaints_internal: ['complaintsinternal', 'internalcomplaints', 'internal'],
+  complaints_external: ['complaintsexternal', 'externalcomplaints', 'customercomplaints', 'external'],
   maintenance_note: ['maintenancenote', 'maintenancenotes', 'maintnote', 'maintenance'],
   staffing_note:    ['staffingnote', 'staffingnotes', 'staffing', 'labournote'],
   fin_actual_mtd:   ['finactualmtd', 'actualmtd', 'salesmtd', 'mtdsales', 'monthtodatesales'],
@@ -330,6 +333,12 @@ const JSON_DEPT_FIELDS = {
   pw_hours:   ['pwhours', 'previousweekhours', 'lastweekhours'],
   uptime:     ['uptime'],
   make_ready: ['makeready', 'mr', 'mrtime', 'avgmrtime', 'makereadytime'],
+};
+
+// A streak written as a count, in the spellings the old dashboard used for it.
+const STREAK_COUNTS = {
+  injury:   ['dayssinceinjury', 'dayssincelastinjury', 'daysinjuryfree', 'injurydays', 'injuryfreedays'],
+  nearMiss: ['dayssincenearmiss', 'dayssincelastnearmiss', 'nearmissdays', 'nearmissfreedays'],
 };
 
 const DEPT_NAMES = {
@@ -360,17 +369,45 @@ function daysIn(parsed) {
   const out = [];
   const consider = (value, keyedDate) => {
     if (!value || typeof value !== 'object') return;
-    if (Array.isArray(value)) { value.forEach(v => consider(v)); return; }
+    // A date found higher up belongs to everything under it. It used not to be passed down,
+    // so a record dated at the top with sections nested inside it kept only whichever
+    // sections carried a date of their own.
+    if (Array.isArray(value)) { value.forEach(v => consider(v, keyedDate)); return; }
     const own = Object.entries(value).find(([k]) => matchField(k, { date: ['date', 'metricdate', 'day', 'reportdate'] }));
     const date = keyedDate || (own && looksLikeDate(own[1]) ? asDate(own[1]) : null);
     if (date) { out.push({ date, body: value }); return; }
     for (const [k, v] of Object.entries(value)) {
       if (looksLikeDate(k)) consider(v, asDate(k));
-      else if (v && typeof v === 'object') consider(v);
+      else if (v && typeof v === 'object') consider(v, keyedDate);
     }
   };
   consider(parsed);
-  return out;
+
+  // A file about one morning is one record, whatever shape it is in.
+  //
+  // This is the fix for the silent half-import. The walk above stops at the first object
+  // carrying a date and treats *that* as the record — so an export laid out as
+  // `{safety: {date, …}, shipping: {date, …}, quality: {…}}` kept safety and shipping,
+  // because they were dated, and dropped quality on the floor, because it was not. It
+  // imported cleanly and reported nothing missing, which is the worst way for an importer
+  // to be wrong.
+  //
+  // When every date in the file is the same date, the question of which object is "the
+  // record" does not arise: the whole file is. Reading it from the root picks up the
+  // sections that carry a date and the ones that do not, together.
+  const dates = [...new Set(out.map(day => day.date))];
+  if (dates.length === 1 && parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+    return [{ date: dates[0], body: parsed }];
+  }
+  // Two records for one morning are one morning. An export that dates each section
+  // separately produces one per section, and they are the same day's readings.
+  const merged = [];
+  for (const day of out) {
+    const already = merged.find(m => m.date === day.date);
+    if (already) already.bodies.push(day.body);
+    else merged.push({ date: day.date, bodies: [day.body] });
+  }
+  return merged.map(m => ({ date: m.date, body: m.bodies.length === 1 ? m.bodies[0] : m.bodies }));
 }
 
 export function readDashboardJson(text, fileName = 'file.json') {
@@ -385,18 +422,28 @@ export function readDashboardJson(text, fileName = 'file.json') {
 
   for (const { date, body } of daysIn(parsed)) {
     const metrics = {}, departments = {};
+    const counts = {};
     const walk = (object, path = '') => {
       for (const [key, value] of Object.entries(object || {})) {
         if (value && typeof value === 'object' && !Array.isArray(value)) {
-          // A nested object named after a department is that department's numbers.
+          // A nested object named after a department is that department's numbers — but
+          // only if it holds any. "shipping" is both a department and a section of the
+          // morning, and an export that groups late, shorts and OTIF under `shipping`
+          // was having all four swallowed as unreadable department fields. If nothing
+          // inside looks like output or hours, it is a section and gets walked as one.
           const dept = matchField(key, DEPT_NAMES);
-          if (dept) {
-            for (const [inner, innerValue] of Object.entries(value)) {
-              const field = matchField(inner, JSON_DEPT_FIELDS);
-              if (field) {
-                (departments[dept] ??= {})[field] = innerValue;
-                recognised.add(`${key}.${inner}`);
-              } else unknown.add(`${key}.${inner}`);
+          const inner = dept ? Object.entries(value)
+            .map(([k, v]) => [matchField(k, JSON_DEPT_FIELDS), k, v])
+            .filter(([field]) => field) : [];
+          // Half its keys have to be department fields. One out of seven is a section that
+          // happens to mention cartons; two out of two is a department.
+          if (dept && inner.length && inner.length * 2 >= Object.keys(value).length) {
+            for (const [field, k, v] of inner) {
+              (departments[dept] ??= {})[field] = v;
+              recognised.add(`${key}.${k}`);
+            }
+            for (const k of Object.keys(value)) {
+              if (!inner.some(([, name]) => name === k)) unknown.add(`${key}.${k}`);
             }
             continue;
           }
@@ -413,10 +460,31 @@ export function readDashboardJson(text, fileName = 'file.json') {
           const field2 = matchField(rest, JSON_DEPT_FIELDS);
           if (field2) { (departments[flat[0]] ??= {})[field2] = value; recognised.add(key); continue; }
         }
+        const streak = Object.keys(STREAK_COUNTS)
+          .find(name => matchField(key, { [name]: STREAK_COUNTS[name] }));
+        if (streak) { counts[streak] = value; recognised.add(key); continue; }
         if (!looksLikeDate(value) || !/date/i.test(key)) unknown.add(path ? `${path}.${key}` : key);
       }
     };
     walk(body);
+
+    // A streak written as "412 days" rather than as the date it started.
+    //
+    // The dashboard stores the date and counts forward from it, because a count is only
+    // true on the morning it was written and a date is true forever. An export that carries
+    // the count and not the date was losing the reading entirely — but the count and the
+    // record's own date are enough to work the date out, so it is worked out rather than
+    // dropped. The date already in the file always wins.
+    const fromCount = (countKey, dateField) => {
+      const days = Number(counts[countKey]);
+      if (metrics[dateField] || !Number.isFinite(days)) return;
+      const d = new Date(`${date}T00:00:00`);
+      d.setDate(d.getDate() - days);
+      metrics[dateField] = d.toISOString().slice(0, 10);
+    };
+    fromCount('injury', 'injury_last');
+    fromCount('nearMiss', 'near_miss_last');
+
     if (Object.keys(metrics).length || Object.keys(departments).length) {
       days.push({ date, metrics, departments });
     }
