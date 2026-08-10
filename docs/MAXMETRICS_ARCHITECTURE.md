@@ -480,7 +480,12 @@ the same size whatever the card is carrying. It is also what stops a card readin
 of text: the heaviest line on it is a shape rather than a sentence. One grey on every card, on
 purpose — the verdict lives in the number, and a bar that changed colour with it would be a
 second and louder verdict. The pictogram sits in a white disc on the bar, which is what lets
-it stay the plant's own colourful icon instead of being flattened to a white glyph. The bar
+it read as one pale mark rather than as a picture. Knocking the glyphs out to a flat white
+silhouette was the obvious way to do that and it was wrong: the meaning of half of them is in
+the shading rather than the outline, so the target came out an empty circle, the carton a
+hexagon and the calendar a blank rectangle. Greyscale keeps the light and dark inside a glyph
+and brightness lifts the whole thing off the bar, which leaves the target its rings and the
+calendar its grid. The bar
 is three times the height of the title it holds: twice was enough to read as a bar and not
 enough to hold a pictogram at a size a room can see, so the disc had nowhere to sit. The
 glyph is centred on both axes rather than left to its line box, because an emoji carries its
@@ -616,6 +621,19 @@ Three things fix it, and the third is the one that matters:
 - **When every date in the file is the same date, the whole file is the record.** The
   question of which object is "the record" does not arise for a one-morning export, so it
   is read from the root and the undated sections come with it.
+
+A list of rows was the other half of it. An array fell straight through to the scalar
+branch and was filed as one unreadable key, so `departments: [{name: "Printing", qty: …,
+hours: …}, …]` — which is how most exports write "the departments" — lost every department
+in the plant and said "departments" once in the not-recognised list. A row that names its
+department is that department's numbers now; a row that does not is walked like any other
+object.
+
+And the preview says which sections a file will fill **before** it is accepted, in the
+language of the dashboard rather than the language of the file. A list of unrecognised keys
+is the truth but it is not the answer: the question somebody is asking after an import is
+"did Production come in", and a section with nothing coming is what a silent half-import
+looks like when it stops being silent.
 
 Two smaller ones fell out of testing it. `shipping` is both a department and a section of the
 morning, and an export that grouped late, shorts and OTIF under it had all four swallowed as

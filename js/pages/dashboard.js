@@ -1405,10 +1405,43 @@ function importPanel() {
   }
   if (!p) return drop;
 
+  // Which sections this file will actually fill, and which it will leave exactly as they
+  // are. A list of unrecognised keys is the truth but it is not the answer — the question
+  // somebody is asking after an import is "did Production come in", and the way to answer
+  // that is to say so in the language of the dashboard rather than in the language of the
+  // file. A section with nothing coming is the whole point of the panel: it is what a
+  // silent half-import looks like when it stops being silent.
+  const SECTION_FIELDS = {
+    Safety: ['injury_last', 'injury_record', 'near_miss_last', 'near_miss_record'],
+    Quality: ['shortages', 'coq', 'coq_target', 'coq_ytd', 'coq_ytd_target', 'ncr_ytd',
+              'complaints_internal', 'complaints_external'],
+    Shipping: ['jobs_shipped', 'jobs_on_time', 'cartons', 'late', 'shorts', 'otd', 'otif',
+               'mtd_otif', 'ytd_otif'],
+    Financials: ['fin_actual_mtd', 'fin_actual_ytd'],
+    Notes: ['maintenance_note', 'staffing_note'],
+  };
+  const coverage = () => {
+    const seen = new Set();
+    for (const day of p.json?.days || []) for (const field of Object.keys(day.metrics)) seen.add(field);
+    const depts = (p.json?.days || []).some(day => Object.keys(day.departments).length)
+      || p.departments.length;
+    const rows = Object.entries(SECTION_FIELDS).map(([name, fields]) =>
+      [name, fields.filter(field => seen.has(field)).length, fields.length]);
+    rows.splice(2, 0, ['Production', depts ? 1 : 0, 1]);
+    return rows;
+  };
+  const empty = coverage().filter(([, got]) => !got).map(([name]) => name);
+
   // What a JSON export turned into, and every key it could not place. A file that
   // half-works has to say which half, or somebody is left diffing two screens.
   const jsonPanel = !p.json ? '' : `
     <div class="sheet__sub">From the old dashboard</div>
+    <div class="cover">${coverage().map(([name, got, of]) =>
+      `<span class="cover__s cover__s--${got ? 'on' : 'off'}">${esc(name)}
+        <b>${got ? (of > 1 ? `${got} of ${of}` : 'yes') : 'nothing'}</b></span>`).join('')}</div>
+    ${empty.length ? `<p class="drop__bad">Nothing in this file lands on ${
+      empty.join(', ')}. Either the file does not carry those readings, or it names them
+      something this does not know yet — the unrecognised keys below will say which.</p>` : ''}
     <p class="drop__note">${p.json.days.length} ${p.json.days.length === 1 ? 'morning' : 'mornings'},
       ${shortDate(p.json.days[0].date)} to ${shortDate(p.json.days[p.json.days.length - 1].date)}.
       Only mornings this plant has no reading for are written; anything already entered stays.</p>

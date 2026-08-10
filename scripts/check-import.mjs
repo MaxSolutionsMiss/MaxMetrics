@@ -51,6 +51,23 @@ const CASES = [
     departments: [],
   },
   {
+    name: 'departments written as a list of rows',
+    // The other half of the silent import: an array fell through to the scalar branch and
+    // was filed as one unreadable key, so every department in the plant went missing and the
+    // file reported one unrecognised name.
+    blob: { date: '2026-08-10', salesMonthToDate: 253754.2,
+            departments: [
+              { name: 'Printing',   quantity: 198329, manHours: 33.5 },
+              { name: 'Die Cutting', quantity: 86727, manHours: 29 },
+              { name: 'Gluing',     quantity: 676677, manHours: 60 },
+            ] },
+    days: 1,
+    metrics: ['fin_actual_mtd'],
+    departments: ['printing', 'diecutting', 'gluing'],
+    expect: day => day.departments.printing.qty === 198329
+      || `printing qty came out ${day.departments.printing.qty}, expected 198329`,
+  },
+  {
     name: 'a streak given as a count rather than a date',
     // 6 days before the 10th is the 4th. The dashboard stores the date because a count is
     // only true on the morning it was written.
