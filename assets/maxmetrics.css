@@ -758,8 +758,34 @@ body.tv .sec > .panel{max-width:none}
   min-width:0;border-radius:var(--radius);border:1px solid var(--rule-strong);
   background:var(--surface);color:var(--ink)}
 .inp:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-wash)}
+/* Overtime is a number and a set of ticks on one line: how many shifts, and which machines.
+   It was a number and a free-text "why", and in every morning on file the why is empty —
+   the room says "three shifts, Heidelberg and Omega", which is a count and a list, not a
+   sentence. */
+.er--ot{align-items:center;flex-wrap:wrap}
+.er--ot .inp--n{width:88px;flex:none}
+.ticks{display:flex;flex-wrap:wrap;gap:var(--s2) var(--s3);align-items:center;min-width:0}
+.tick2{display:inline-flex;align-items:center;gap:6px;font-size:var(--t-small);
+  color:var(--ink);cursor:pointer;white-space:nowrap;
+  padding:4px 10px;border:1px solid var(--rule-strong);border-radius:var(--radius);
+  background:var(--surface)}
+.tick2:has(input:checked){border-color:var(--warn);background:var(--warn-wash);color:var(--warn);
+  font-weight:600}
+.tick2 input{accent-color:var(--warn);width:14px;height:14px;margin:0}
 textarea.inp{height:auto;min-height:54px;padding:var(--s2);resize:vertical;line-height:1.5}
 body:not(.editing) .ez,body:not(.editing) .edit-only{display:none!important}
+/* A card grows to hold its fields.
+   A card is a fixed height with its contents in three zones, and the fields are a fourth
+   thing that has nowhere to go: the reading's zone shrank to nothing under them and the
+   number, the graph and the foot all landed on top of each other. Auto rows in edit mode,
+   floored at the normal card height so a row of cards with no fields does not collapse.
+   `min-height:0` has to be lifted with it — it is what lets the zones shrink, and while a
+   row is sizing itself to its contents there is nothing to shrink for. */
+body.editing .grid--cards{grid-auto-rows:minmax(var(--card-h),auto)}
+body.editing .card__body,body.editing .card__mid{min-height:auto}
+/* And `fitCards()` never measures them. It sizes a card for the morning meeting, not for
+   the two minutes somebody is filling it in. */
+.grid--cards.measuring .ez{display:none}
 /* Chart picker — the reader chooses how a reading is drawn, per card. */
 /* Its own row, right-aligned: sharing a line with the label pushed a four-word
    heading onto four lines. */
@@ -1188,11 +1214,21 @@ body.tv .content.wall{display:flex;flex-direction:column;gap:var(--s4);
    Both are sized in `--u` like every other part of a card, so they grow and shrink with it
    and a screen of them fits the same way a screen of numbers does. */
 .clist{list-style:none;margin:0;padding:0;width:100%;align-self:stretch}
-.clist__row{display:flex;align-items:baseline;justify-content:space-between;
+.clist__row{display:flex;align-items:center;justify-content:space-between;
   gap:calc(2*var(--u));padding:calc(1.4*var(--u)) 0;border-bottom:1px solid var(--rule)}
 .clist__row:last-child{border-bottom:none}
-.clist__l{font-family:var(--font-condensed);font-size:calc(5*var(--u));font-weight:600;
-  color:var(--ink);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* The name holds and the value gives way, not the other way round. A row reading
+   "Gl\u2026  3 shifts \u00b7 Heidelberg, Omega" has cut the only word that says which row it is;
+   "Gluing  3 shifts \u00b7 Heidelb\u2026" still tells you what you are looking at. */
+.clist__l{display:flex;flex-direction:column;gap:0;flex:1 1 auto;min-width:0}
+.clist__l b{font-family:var(--font-condensed);font-size:calc(5*var(--u));font-weight:600;
+  color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* The quieter line is sized against the card rather than against the fit factor. On a
+   sparse screen `--fit` runs past two and "Heidelberg, Omega" at twice its size no longer
+   fits the card it is naming. */
+.clist__l i{font-style:normal;font-family:var(--font-condensed);font-size:calc(4.4*var(--cu));
+  font-weight:600;color:var(--ink-faint);white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;letter-spacing:.02em}
 .clist__r{font-family:var(--font-condensed);font-size:calc(5*var(--u));font-weight:700;
   color:var(--ink-muted);white-space:nowrap;flex:none}
 .clist__more{font-size:calc(3.8*var(--u));color:var(--ink-faint);padding-top:calc(1.2*var(--u))}

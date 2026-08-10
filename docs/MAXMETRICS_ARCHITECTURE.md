@@ -702,6 +702,38 @@ stretched to the card's width with `preserveAspectRatio:none`, which is right fo
 and wrong for a letter: at a 120-wide viewBox in a 600px card, a month initial comes out
 five times as wide as it is tall.
 
+## A card grows to hold its fields
+
+A card is a fixed height with its contents in three zones. The edit fields are a fourth
+thing, and they had nowhere to go: the reading's zone shrank to nothing under them and the
+number, the graph and the foot all landed on top of each other. Turning on Edit mode made
+every card on the page illegible.
+
+In edit mode the grid's rows size to their contents, floored at the normal card height so a
+row of cards with no fields does not collapse. `min-height:0` — the declaration that lets
+the zones shrink — is lifted with it, since a row sizing itself to its contents has nothing
+to shrink for. And `fitCards()` never sees the fields at all: they are hidden during the
+measuring pass, because a card is sized for the morning meeting, not for the two minutes
+somebody is filling it in.
+
+## Overtime is a count and a list of machines
+
+The overtime table asked for a reason in free text, and in every morning on file the reason
+is empty. What the room actually says is "three shifts, Heidelberg and Omega" — a count and
+a list, not a sentence.
+
+The list is not typed either. The plant already keeps one row per machine per department in
+`machines`, which is where the DOR's own machine names come from: 40" and 41" Press, Die
+Cutter 2017 and 2018, Bobst, Heidelberg and Omega. Overtime ticks against that list and
+stores the codes in `daily_labour.machines`, so a machine renamed in Configure is renamed
+everywhere and a machine that never existed cannot be recorded. What is written is the whole
+set rather than the box that changed, read back off the page — the ticks and the row can
+then never disagree about which machines are running.
+
+The second card counts machines rather than departments now. How many shifts and on how many
+machines are the two halves of the question; how many departments was a third fact nobody
+asked for.
+
 ## One word for variance
 
 Four sections were each inventing their own. Shipping printed `−0.13 pts`, cost of quality

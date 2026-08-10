@@ -589,8 +589,12 @@ export function listCard({ pkey, icon, label, tone, rows, empty = 'Nothing to re
     </div>
     <div class="card__body">
       <div class="card__mid">${shown.length
-        ? `<ul class="clist">${shown.map(([left, right, kind]) =>
-            `<li class="clist__row"><span class="clist__l">${esc(left)}</span>
+        // A row is a name, optionally a quieter line under it, and a value. The second line
+      // is what stops "Gluing" being cut to "Gl\u2026" so that "3 shifts \u00b7 Heidelberg, Omega"
+      // can have the width: the two facts are not competing for one line any more.
+      ? `<ul class="clist">${shown.map(([left, right, kind, sub]) =>
+            `<li class="clist__row"><span class="clist__l"><b>${esc(left)}</b>${
+               sub ? `<i>${esc(sub)}</i>` : ''}</span>
              <span class="clist__r${kind ? ` tone--${kind}` : ''}">${right ?? ''}</span></li>`).join('')}
            ${over > 0 ? `<li class="clist__more">and ${over} more</li>` : ''}</ul>`
         : `<p class="clist__none">${esc(empty)}</p>`}</div>
