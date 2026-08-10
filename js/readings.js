@@ -310,8 +310,14 @@ export const footLine = pairs => {
   if (!shown.length) return '';
   // The row divides by what it holds, so three facts sit on one line rather than spilling
   // onto a second, and one reads as a sentence rather than as a lonely column.
+  // Each fact carries how long it is, for the same reason the hero does: a column of the
+  // foot is a fraction of a card, and "Nov 20, 2025" at the size that suits "39" is wider
+  // than half of one. Without it the date was the first thing to run out of room on every
+  // card, which capped how large the whole card could be drawn.
+  const chars = text => String(text).replace(/<[^>]*>/g, '').trim().length || 1;
   return `<div class="foot foot--${shown.length}">${shown.map(([label, value]) =>
-    `<span class="fs"><span class="fs__l">${esc(label)}</span><span class="fs__v">${value}</span></span>`
+    `<span class="fs"><span class="fs__l" style="--lc:${chars(label)}">${esc(label)}</span>` +
+    `<span class="fs__v" style="--fc:${chars(value)}">${value}</span></span>`
   ).join('')}</div>`;
 };
 
