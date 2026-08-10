@@ -544,12 +544,15 @@ export const CARD_CATALOGUE = [
   { section: 'Shipping',    key: 'ytd_otif',      name: 'YTD OTIF' },
   { section: 'Financials',  key: 'fin-mtd',       name: 'Month to date' },
   { section: 'Financials',  key: 'fin-ytd',       name: 'Year to date' },
-  { section: 'Maintenance', key: 'maint-overdue', name: 'Overdue items' },
-  { section: 'Maintenance', key: 'maint-open',    name: 'Open work' },
-  { section: 'Maintenance', key: 'maint-list',    name: "Today's schedule" },
+  // Off unless a plant asks for them. All three answer a question the morning meeting does
+  // not ask — what happened to today's schedule — and the one it does ask is what is coming.
+  { section: 'Maintenance', key: 'maint-overdue', name: 'Overdue items', off: true },
+  { section: 'Maintenance', key: 'maint-open',    name: 'Open work', off: true },
+  { section: 'Maintenance', key: 'maint-list',    name: "Today's schedule", off: true },
+  { section: 'Maintenance', key: 'maint-upcoming', name: 'Upcoming maintenance' },
   { section: 'Maintenance', key: 'maint-note',    name: 'Maintenance notes' },
   { section: 'Labour',      key: 'ot-total',      name: 'Overtime shifts' },
-  { section: 'Labour',      key: 'ot-depts',      name: 'Departments on OT' },
+  { section: 'Labour',      key: 'ot-depts',      name: 'Machines on OT' },
   { section: 'Labour',      key: 'ot-list',       name: 'Overtime by department' },
   { section: 'Labour',      key: 'staffing',      name: 'Staffing notes' },
 ];
@@ -559,7 +562,12 @@ export const CARD_CATALOGUE = [
 // row of four. Returning nothing from the one function that builds them does exactly that,
 // and the arrangement is worked out afterwards from what is left.
 let hidden = new Set();
-export const hideCards = keys => { hidden = new Set(keys || []); };
+// A plant that has never opened Configure gets the catalogue's own defaults, and one that
+// has gets exactly what it chose. Without the distinction a card marked off by default
+// could never be turned on: the plant's list says which cards are off, and "not in the
+// list" would keep meaning "off" for those three for ever.
+export const DEFAULT_OFF = CARD_CATALOGUE.filter(c => c.off).map(c => c.key);
+export const hideCards = keys => { hidden = new Set(keys ?? DEFAULT_OFF); };
 
 // How wide the number is about to be, in characters, so the card can cap its own type.
 //

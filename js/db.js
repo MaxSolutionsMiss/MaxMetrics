@@ -265,6 +265,30 @@ export const saveLabour = (location, date, key, patch) =>
     .upsert({ location_id: location, metric_date: date, dept_key: key, ...patch },
             { onConflict: 'location_id,metric_date,dept_key' }), { retry: 0 });
 
+// What is coming, rather than what was scheduled for this morning.
+//
+// A maintenance row belongs to the plant, not to the day it was typed on: entered on Monday
+// for Friday, it has to keep showing up until Friday. So this reads forward from the morning
+// being viewed rather than matching its date. Rows with no date yet — somebody halfway
+// through adding one — come last rather than disappearing.
+export const loadUpcoming = (location, fromDate) =>
+  run(() => client.from('maintenance_items')
+    .select('*').eq('location_id', location)
+    .or(`scheduled_on.gte.${fromDate},scheduled_on.is.null`)
+    .order('scheduled_on', { ascending: true, nullsFirst: false })
+    .order('sort_order').limit(24));
+
+export const addMaintenance = (location, date) =>
+  run(() => client.from('maintenance_items')
+    .insert({ location_id: location, metric_date: date, scheduled_on: date })
+    .select().limit(1), { retry: 0 }).then(rows => rows?.[0] ?? null);
+
+export const saveMaintenance = (id, patch) =>
+  run(() => client.from('maintenance_items').update(patch).eq('id', id), { retry: 0 });
+
+export const removeMaintenance = id =>
+  run(() => client.from('maintenance_items').delete().eq('id', id), { retry: 0 });
+
 export const saveReview = (location, date, key, patch) =>
   run(() => client.from('daily_review')
     .upsert({ location_id: location, metric_date: date, dept_key: key, ...patch },

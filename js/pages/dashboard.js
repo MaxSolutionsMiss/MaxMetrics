@@ -8,18 +8,19 @@
 import {
   currentSession, signOut, myProfile, myLocations, savePreference,
   openDay, loadDay, loadHistory, loadBudgets, loadYearCounts, loadMachines,
+  loadUpcoming, addMaintenance, saveMaintenance, removeMaintenance,
   saveField, saveDepartment, saveReview,
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   importHistory,
-} from '../db.js?v=3586911c2e6f';
-import { assess, attention, settled, verdicts } from '../assess.js?v=3586911c2e6f';
+} from '../db.js?v=d88bd91a2e75';
+import { assess, attention, settled, verdicts } from '../assess.js?v=d88bd91a2e75';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
   spark, bullet, chip, cardTrack, readingOf, derivedShipping, SHIPPING_TARGET,
   varianceChip, varianceTone, variancePct,
   volumeLabel, rateLabel, hoursLabel,
-} from '../readings.js?v=3586911c2e6f';
+} from '../readings.js?v=d88bd91a2e75';
 
 const $ = selector => document.querySelector(selector);
 
@@ -42,7 +43,7 @@ const state = {
   me: null, locations: [], canEdit: true,
   location: null, date: today(), active: 'overview',
   metrics: null, departments: [], review: [], maintenance: [], labour: [], config: [], budgets: [],
-  machines: [],
+  machines: [], upcoming: [],
   history: { metrics: [], departments: [] }, year: [], findings: [], verdicts: {}, plant: null,
   team: [], live: null, wallStep: 0,
 };
@@ -107,9 +108,12 @@ const VIEWS = ['line', 'board'];
 // They are two subjects with two owners, and on a wall each deserves its own screen — six
 // quality readings do not fit under two safety ones.
 const ORDER = ['safety', 'quality', 'production', 'shipping', 'financials', 'maintenance', 'labour'];
+// Labour and maintenance are one screen for most plants and two for some, so it is the
+// plant's own answer rather than a rule. Together is the default.
+const order = () => ORDER.filter(key => key !== 'maintenance' || state.plant?.split_upkeep);
 const TITLES = {
   safety: 'Safety', quality: 'Quality', production: 'Production', shipping: 'Shipping',
-  maintenance: 'Maintenance', labour: 'Labour & Overtime', financials: 'Financials',
+  maintenance: 'Upcoming maintenance', labour: 'Labour & Overtime', financials: 'Financials',
 };
 const NAV = { labour: 'Labour', line: 'Today', board: 'Board' };
 Object.assign(TITLES, { line: 'Today', board: 'The board' });
@@ -195,6 +199,244 @@ function coqCard(kind, label, valueField, targetField) {
     edit: field('Actual %', valueField, `type="number" step="0.01" value="${value ?? ''}"`)
         + field('Target %', targetField, `type="number" step="0.01" value="${target}"`),
   });
+}
+
+// A note is a list of things, so it is drawn as one.
+//
+// Whoever writes the morning review types one problem per line — "Die 4 slow overnight",
+// "waiting on a plate" — and it came out as a paragraph with the line breaks collapsed, so
+// three problems read as one long sentence. Every line is a bullet; a single line is left
+// as a sentence, because one bullet is not a list.
+function bullets(text) {
+  const lines = String(text || '').split(/\r?\n/).map(line => line.replace(/^[-*\u2022]\s*/, '').trim())
+    .filter(Boolean);
+  if (!lines.length) return `<div class="rev__note rev__note--none">No issues reported.</div>`;
+  if (lines.length === 1) return `<div class="rev__note">${esc(lines[0])}</div>`;
+  return `<ul class="rev__note rev__note--list">${
+    lines.map(line => `<li>${esc(line)}</li>`).join('')}</ul>`;
+}
+
+// ── Entering a number where the number is ───────────────────────────────────────
+//
+// The fields used to hang under whatever they belonged to: a table of four departments, and
+// then four more rows of labelled inputs beneath it saying the same four names again. Twice
+// the height for the same information, and the person filling it in has to look up the row,
+// look down at the form, and keep their place.
+//
+// A cell shows its value and holds its field. In edit mode the value steps aside and the
+// input takes the same square of the table, so the form is the table and nothing moves.
+// Nothing needs more than seven digits, so nothing is wider than seven digits either.
+const cell = (shown, name, attrs = '', klass = '') =>
+  `<span class="view-only">${shown ?? '—'}</span>` +
+  `<input class="inp inp--cell edit-only${klass ? ` ${klass}` : ''}" data-field="${name}" ${attrs}>`;
+
+const mergedUpkeep = () => !state.plant?.split_upkeep;
+
+// ── Maintenance ─────────────────────────────────────────────────────────────────
+
+const MAINT_STATUS = ['Scheduled', 'Due Today', 'Overdue', 'Complete'];
+
+// Everything with a date from this morning on, and anything not dated yet.
+const upcomingItems = () => (state.upcoming || []).length
+  ? state.upcoming
+  : state.maintenance.filter(m => !m.scheduled_on || m.scheduled_on >= state.date);
+
+const whenText = row => row.scheduled_on
+  ? (row.scheduled_on === state.date ? 'Today' : shortDate(row.scheduled_on))
+  : (row.scheduled || '—');
+
+function maintenanceCards() {
+  const items = upcomingItems();
+  const today = state.maintenance;
+  const overdue = today.filter(m => m.status === 'Overdue').length;
+  const open = today.filter(m => m.status !== 'Complete').length;
+  const done = today.filter(m => m.status === 'Complete').length;
+  const any = today.length;
+  return `<div class="grid grid--cards">
+    ${metricCard({
+      chart: 'number', pkey: 'maint-overdue', label: 'Overdue items',
+      tone: any ? band.maint(overdue ? 'Overdue' : 'Complete') : '',
+      value: any ? String(overdue) : '—',
+      sub: any ? 'past their scheduled date' : 'Nothing scheduled today',
+      foot: footLine([['Target', '0']]),
+    })}
+    ${metricCard({
+      chart: 'number', pkey: 'maint-open', label: 'Open work', tone: '',
+      value: any ? String(open) : '—',
+      sub: any ? `of ${any} scheduled today` : 'Nothing scheduled today',
+      foot: footLine([['Completed', any ? `${done} of ${any}` : null]]),
+    })}
+    ${listCard({
+      pkey: 'maint-list', label: 'Today’s schedule',
+      rows: today.map(m => [m.dept || '—', esc(m.status), band.maint(m.status),
+                            m.machine || m.item_type || null]),
+      empty: 'Nothing scheduled for today.',
+    })}
+    ${listCard({
+      pkey: 'maint-upcoming', label: 'Upcoming maintenance',
+      rows: items.map(m => [m.dept || '—', esc(whenText(m)), band.maint(m.status),
+        [m.machine, m.hours ? `${m.hours} h` : '', m.note].filter(Boolean).join(' · ') || null]),
+      empty: 'Nothing booked in.',
+      cap: 6,
+    })}
+    ${noteCard({
+      pkey: 'maint-note', label: 'Maintenance notes',
+      text: metric('maintenance_note'),
+      prompt: 'No notes entered.',
+      edit: `<div class="er"><label>Notes</label><textarea class="inp"
+        data-field="maintenance_note">${esc(metric('maintenance_note') || '')}</textarea></div>`,
+    })}
+  </div>`;
+}
+
+// Department, machine, hours, what for, when. Five things, five columns, and the fields are
+// the columns — which is the whole difference between a form and a table you can type into.
+function maintenancePanel() {
+  const items = upcomingItems();
+  const depts = state.config.filter(c => c.active !== false);
+  const options = (list, chosen, blank) => `<option value="">${blank}</option>` + list
+    .map(o => `<option value="${esc(o.value)}"${o.value === chosen ? ' selected' : ''}>${esc(o.label)}</option>`)
+    .join('');
+  const row = m => {
+    const machines = (state.machines || [])
+      .filter(x => x.active !== false && (!m.dept || deptKeyOf(m.dept) === x.dept_key));
+    return `<tr data-pkey="maint-${esc(m.id)}">
+      <td class="dept">
+        <span class="view-only">${esc(m.dept || '—')}</span>
+        <select class="inp inp--cell edit-only" data-field="maint:${esc(m.id)}:dept">${
+          options(depts.map(d => ({ value: d.name, label: d.name })), m.dept, 'Department')}</select></td>
+      <td>
+        <span class="view-only">${esc(m.machine || '—')}</span>
+        <select class="inp inp--cell edit-only" data-field="maint:${esc(m.id)}:machine">${
+          options(machines.map(x => ({ value: x.name, label: x.name })), m.machine, 'Machine')}</select></td>
+      <td class="num">${cell(m.hours ? `${m.hours} h` : '—', `maint:${esc(m.id)}:hours`,
+        `type="number" step="0.5" min="0" value="${m.hours ?? ''}"`, 'inp--h')}</td>
+      <td>${cell(esc(m.note || m.item_type || '—'), `maint:${esc(m.id)}:note`,
+        `type="text" value="${esc(m.note || m.item_type || '')}" placeholder="what for"`, 'inp--wide')}</td>
+      <td class="num">${cell(esc(whenText(m)), `maint:${esc(m.id)}:scheduled_on`,
+        `type="date" value="${m.scheduled_on || ''}"`, 'inp--d')}</td>
+      <td class="num">
+        <span class="view-only"><span class="pill pill--${band.maint(m.status)}">${esc(m.status)}</span></span>
+        <select class="inp inp--cell edit-only" data-field="maint:${esc(m.id)}:status">${
+          options(MAINT_STATUS.map(v => ({ value: v, label: v })), m.status, m.status)}</select></td>
+      <td class="num"><button class="lnk edit-only" data-drop-maint="${esc(m.id)}"
+        aria-label="Remove this item">×</button></td>
+    </tr>`;
+  };
+  return `<div class="panel" style="margin-top:var(--s3)">
+    <div class="panel__head"><span class="card__ico" aria-hidden="true">${iconFor('maintenance')}</span>
+      <h3 class="panel__title">Upcoming maintenance</h3>
+      <div class="panel__actions">
+        <span class="pill pill--info">${items.length} booked</span>
+        <button class="btn btn--ghost edit-only" id="maint-add">Add an item</button></div></div>
+    <div class="panel__body"><table class="tbl tbl--tight"><thead><tr>
+      <th>Department</th><th>Machine</th><th class="num">Hours</th><th>What for</th>
+      <th class="num">When</th><th class="num">Status</th><th></th>
+    </tr></thead><tbody>${items.length ? items.map(row).join('')
+      : `<tr><td colspan="7" style="color:var(--ink-faint)">Nothing booked in.</td></tr>`}</tbody></table></div>
+  </div>`;
+}
+
+// The plant names a department "Die Cutting" and the machine list keys it "diecutting".
+const deptKeyOf = name => (state.config.find(c => c.name === name) || {}).key
+  || String(name ?? '').toLowerCase().replace(/[^a-z]/g, '');
+
+// ── Labour ──────────────────────────────────────────────────────────────────────
+
+function labourCards() {
+  const list = state.config.filter(c => c.active !== false);
+  const running = list.filter(c => otShifts(c.key) > 0);
+  const total = list.reduce((sum, c) => sum + otShifts(c.key), 0);
+  const entered = state.labour.some(l => l.ot_shifts != null);
+  const onOt = list.reduce((sum, c) => sum + otMachines(c.key).length, 0);
+  const floor = list.reduce((n, c) => n + machinesIn(c.key).length, 0);
+  const busiest = running.length
+    ? [...running].sort((a, b) => otShifts(b.key) - otShifts(a.key))[0] : null;
+
+  const headline = !entered
+    ? ['—', 'Nothing entered yet']
+    : total === 0
+      ? ['0', 'No overtime this morning']
+      : [String(total), `${running.length} department${running.length === 1 ? '' : 's'} on overtime`];
+
+  return `<div class="grid grid--cards">
+    ${metricCard({
+      chart: 'number', pkey: 'ot-total', label: 'Overtime shifts',
+      tone: total > 0 ? 'warn' : entered ? 'ok' : '',
+      value: headline[0], sub: `shifts · ${headline[1]}`,
+      foot: footLine([['Target', '0 shifts']]),
+    })}
+    ${metricCard({
+      chart: 'number', pkey: 'ot-depts', label: 'Machines on OT',
+      tone: onOt > 0 ? 'warn' : entered ? 'ok' : '',
+      value: entered ? String(onOt) : '—',
+      sub: entered ? `of ${floor} on the floor` : 'Nothing entered yet',
+      foot: footLine([['Most shifts', busiest ? esc(busiest.name) : null]]),
+    })}
+    ${listCard({
+      pkey: 'ot-list', label: 'Overtime by department',
+      // "Three shifts, Heidelberg and Omega" is the whole of what the room says about a
+      // department's overtime, so it is the whole of what the card prints — the count
+      // against the name, and the machines on the quieter line under it.
+      rows: list.map(c => [c.name,
+        otShifts(c.key) ? `${otShifts(c.key)} shift${otShifts(c.key) === 1 ? '' : 's'}` : '—',
+        otShifts(c.key) > 0 ? 'warn' : '', machineNames(c.key) || null]),
+      empty: 'No departments configured.',
+    })}
+    ${noteCard({
+      pkey: 'staffing', label: 'Staffing notes',
+      text: metric('staffing_note'),
+      prompt: 'Call-ins, vacation, training — nothing entered.',
+      edit: `<div class="er"><label>Staffing</label><textarea class="inp"
+        data-field="staffing_note">${esc(metric('staffing_note') || '')}</textarea></div>`,
+    })}
+  </div>`;
+}
+
+const labourRow = key => state.labour.find(l => l.dept_key === key);
+const otShifts = key => Number(labourRow(key)?.ot_shifts ?? 0);
+const machinesIn = key => (state.machines || [])
+  .filter(m => m.dept_key === key && m.active !== false);
+const otMachines = key => {
+  const chosen = new Set(labourRow(key)?.machines || []);
+  return machinesIn(key).filter(m => chosen.has(m.code));
+};
+const machineNames = key => otMachines(key).map(m => m.name).join(', ');
+
+function labourPanel() {
+  const list = state.config.filter(c => c.active !== false);
+  const total = list.reduce((sum, c) => sum + otShifts(c.key), 0);
+  return `<div class="panel" style="margin-top:var(--s3)">
+    <div class="panel__head"><span class="card__ico" aria-hidden="true">${iconFor('labour')}</span>
+      <h3 class="panel__title">Which departments</h3>
+      <div class="panel__actions">
+        <span class="pill pill--${total > 0 ? 'warn' : 'ok'}">${total} shift${total === 1 ? '' : 's'}</span>
+      </div></div>
+    <div class="panel__body">
+      <table class="tbl tbl--tight"><thead><tr><th>Department</th>
+        <th class="num">OT shifts</th><th>Machines</th></tr></thead>
+        <tbody>${list.map(c => {
+          const shifts = otShifts(c.key), names = machineNames(c.key);
+          const chosen = new Set(labourRow(c.key)?.machines || []);
+          const machines = machinesIn(c.key);
+          return `<tr data-pkey="ot-${esc(c.key)}">
+            <td class="dept"><span class="card__ico" aria-hidden="true"
+              style="font-size:1em">${iconFor(c.key, c.icon)}</span> ${esc(c.name)}</td>
+            <td class="num">${cell(shifts > 0 ? `<b class="tone--warn">${shifts}</b>` : '—',
+              `labour:${esc(c.key)}:ot_shifts`,
+              `type="number" step="0.5" min="0" placeholder="shifts" value="${
+                labourRow(c.key)?.ot_shifts ?? ''}"`, 'inp--h')}</td>
+            <td>
+              <span class="view-only">${names ? esc(names) : '—'}</span>
+              ${machines.length ? `<div class="ticks edit-only">${machines.map(m => `<label class="tick2">
+                <input type="checkbox" data-field="labour:${esc(c.key)}:machines"
+                  data-machine="${esc(m.code)}"${chosen.has(m.code) ? ' checked' : ''}>
+                <span>${esc(m.name)}</span></label>`).join('')}</div>`
+                : '<span class="edit-only lane__quiet">No machines listed.</span>'}
+            </td></tr>`;
+        }).join('')}</tbody></table>
+    </div>
+  </div>`;
 }
 
 const SECTIONS = {
@@ -419,9 +661,13 @@ const SECTIONS = {
       const target = Number(row.target ?? config.target);
       const upTarget = Number(config.uptime_target || 0) * 100;
       const mrTarget = Number(config.mr_target || 0);
-      return `<tr><td class="dept">${esc(config.name)}</td>
-        <td class="num">${row.pw_qty ? num(row.pw_qty) : '—'}</td>
-        <td class="num">${row.pw_hours ? `${row.pw_hours} h` : '—'}</td>
+      return `<tr><td class="dept"><span class="card__ico" aria-hidden="true"
+          style="font-size:1em">${iconFor(config.key, config.icon)}</span> ${esc(config.name)}</td>
+        <td class="num">${cell(row.pw_qty ? num(row.pw_qty) : '—', `dept:${config.key}:pw_qty`,
+          `type="number" value="${row.pw_qty ?? ''}" aria-label="${esc(config.name)} volume"`)}</td>
+        <td class="num">${cell(row.pw_hours ? `${row.pw_hours} h` : '—', `dept:${config.key}:pw_hours`,
+          `type="number" step="0.1" value="${row.pw_hours ?? ''}" aria-label="${esc(config.name)} hours"`,
+          'inp--h')}</td>
         <td class="num big tone--${band.rate(rate, target) || 'none'}">${
           rate ? num(Math.round(rate)) : '—'}</td>
         <td class="num">${num(Math.round(target))}</td>
@@ -430,15 +676,6 @@ const SECTIONS = {
         <td class="num">${mrTarget ? `${mrTarget.toFixed(2)} h` : '—'}</td>
       </tr>`;
     };
-
-    const weekEdit = list.map(config => {
-      const row = dept(config.key);
-      return `<div class="er"><label>${esc(config.name)}</label>
-        <input class="inp" data-field="dept:${config.key}:pw_qty" type="number"
-          value="${row.pw_qty ?? ''}" aria-label="${esc(config.name)} previous week volume">
-        <input class="inp" data-field="dept:${config.key}:pw_hours" type="number" step="0.1"
-          value="${row.pw_hours ?? ''}" aria-label="${esc(config.name)} previous week hours"></div>`;
-    }).join('');
 
     // The cards used to share a row with this table, sized by counting the departments.
     // That worked while there were three and stopped the moment a plant could add its own.
@@ -449,7 +686,7 @@ const SECTIONS = {
         <h3 class="panel__title">Last week&rsquo;s productivity</h3>
         <span class="panel__actions chip">Same weekday</span></div>
       <div class="panel__body">
-        <table class="tbl tbl--week"><thead><tr>
+        <table class="tbl tbl--week tbl--tight"><thead><tr>
           <th>Department</th>
           <th class="num">${esc(unitsInPlay.length === 1 ? capitalised(unitsInPlay[0]) : 'Volume')}</th>
           <th class="num">Hours</th>
@@ -459,7 +696,6 @@ const SECTIONS = {
           <th class="num">Uptime target</th>
           <th class="num">Make-ready target</th>
         </tr></thead><tbody>${list.map(weekRow).join('')}</tbody></table>
-        <div class="ez">${weekEdit}</div>
       </div>
     </div>
     <div class="sec__head" style="margin-top:var(--s3)">
@@ -473,7 +709,7 @@ const SECTIONS = {
           <div class="revcard__head"><span class="rev__dot rev__dot--${row.status}"></span>
             <span class="card__ico" aria-hidden="true">${iconFor(row.dept_key, config?.icon)}</span>
             <h4>${esc(name)}</h4></div>
-          <div class="rev__note${row.note ? '' : ' rev__note--none'}">${esc(row.note || 'No issues reported.')}</div>
+          ${bullets(row.note)}
           <div class="ez">
             <div class="er"><label>Status</label>
               <select class="inp" data-field="review:${esc(row.dept_key)}:status">
@@ -536,17 +772,17 @@ const SECTIONS = {
     };
 
     return `<div class="grid grid--cards">
-      ${/* A count of jobs and a count of cartons are four and five figures, and at the size
-            a two-digit percentage is drawn they ran the width of the card and left the
-            graph under them nothing. The medium hero is the same number about a fifth
-            smaller, which is what the room asked for and what gives the line room. */''}
+      ${/* No `medium` on these two. It was here because four and five figures at full size
+            ran the width of the card — which the length cap already prevents — and all it
+            achieved was four shipping cards drawn at one size and four at another. The room
+            asked for the eight to match, and they match by all being the same card. */''}
       ${ship('jobs_shipped', 'Jobs shipped', {
-        series: metricSeries('jobs_shipped'), medium: true,
+        series: metricSeries('jobs_shipped'),
         value: read('jobs_shipped') == null ? '\u2014' : num(read('jobs_shipped')), sub: 'today',
         foot: [['On time', read('jobs_on_time') ?? null],
                ['Of', read('jobs_shipped') ?? null]] })}
       ${ship('cartons', 'Cartons', {
-        series: metricSeries('cartons'), medium: true,
+        series: metricSeries('cartons'),
         value: read('cartons') == null ? '\u2014' : num(read('cartons')), sub: 'shipped today',
         foot: [['Per job', read('cartons') && read('jobs_shipped')
           ? num(Math.round(read('cartons') / read('jobs_shipped'))) : null]] })}
@@ -565,177 +801,22 @@ const SECTIONS = {
     </div></div></div>`;
   },
 
-  maintenance: () => {
-    const overdue = state.maintenance.filter(m => m.status === 'Overdue').length;
-    const open = state.maintenance.filter(m => m.status !== 'Complete').length;
-    const rows = state.maintenance.length
-      ? state.maintenance.map(m => `<tr><td class="dept">${esc(m.dept)}</td>
-          <td>${esc(m.item_type)}</td><td>${esc(m.frequency)}</td><td>${esc(m.scheduled)}</td>
-          <td><span class="pill pill--${band.maint(m.status)}">${esc(m.status)}</span></td></tr>`).join('')
-      : `<tr><td colspan="5" style="color:var(--ink-faint)">Nothing scheduled for today.</td></tr>`;
-    // Maintenance reached the wall as a blank screen. Only cards go up there — a five-row
-    // schedule is a thing you lean in for, not a thing a room reads across ten metres —
-    // and this section had none, so the walk had a slide with nothing on it. The two
-    // counts the schedule is checked for are the two the room actually asks about, and
-    // they are the same card as every other section's.
-    const done = state.maintenance.filter(m => m.status === 'Complete').length;
-    const any = state.maintenance.length;
-    return `<div class="grid grid--cards">
-      ${metricCard({
-        chart: 'number', pkey: 'maint-overdue', label: 'Overdue items',
-        tone: any ? band.maint(overdue ? 'Overdue' : 'Complete') : '',
-        value: any ? String(overdue) : '\u2014',
-        sub: any ? 'past their scheduled date' : 'Nothing scheduled today',
-        foot: footLine([['Target', '0']]),
-      })}
-      ${metricCard({
-        chart: 'number', pkey: 'maint-open', label: 'Open work',
-        tone: '',
-        value: any ? String(open) : '\u2014',
-        sub: any ? `of ${any} scheduled today` : 'Nothing scheduled today',
-        foot: footLine([['Completed', any ? `${done} of ${any}` : null]]),
-      })}
-      ${listCard({
-        pkey: 'maint-list', label: 'Today\u2019s schedule',
-        rows: state.maintenance.map(m => [`${m.dept} \u00b7 ${m.item_type}`,
-          esc(m.status), band.maint(m.status)]),
-        empty: 'Nothing scheduled for today.',
-      })}
-      ${noteCard({
-        pkey: 'maint-note', label: 'Maintenance notes',
-        text: metric('maintenance_note'),
-        prompt: 'No notes entered.',
-        edit: `<div class="er"><label>Notes</label><textarea class="inp"
-          data-field="maintenance_note">${esc(metric('maintenance_note') || '')}</textarea></div>`,
-      })}
-    </div>
-    <div class="panel" style="margin-top:var(--s3)">
-      <div class="panel__head"><span class="card__ico" aria-hidden="true">\u{1F527}</span>
-        <h3 class="panel__title">The schedule in full</h3>
-        <div class="panel__actions">
-          <span class="pill pill--${overdue ? 'stop' : 'ok'}">${overdue} overdue</span>
-          <span class="pill pill--info">${open} open</span></div></div>
-      <div class="panel__body"><table class="tbl"><thead><tr><th>Department</th><th>Type</th>
-        <th>Frequency</th><th>Scheduled</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div>
-    </div>`;
-  },
+  // ── Maintenance ──
+  //
+  // What is coming, not what happened to today's list. The three cards this led with —
+  // overdue items, open work, today's schedule — answer a question the morning meeting does
+  // not ask, so they are off unless a plant turns them on in Configure. What is left is one
+  // list: which department, which machine, how many hours, and what for.
+  maintenance: () => maintenanceCards() + maintenancePanel(),
 
   // ── Labour & overtime ──
   //
-  // Split out of Maintenance, because they were one section only in the sense that both
-  // were a note. Maintenance is a schedule with a status. Overtime is a cost the plant is
-  // choosing to spend this morning, and the meeting's question about it is always the same
-  // two-part one: which departments, and how many shifts.
-  //
-  // Shifts rather than hours. It is the unit the floor talks in and the one a supervisor
-  // can answer without a timesheet — the hours turn up in the pay period two weeks later,
-  // and the shift count is the thing nobody writes down.
-  labour: () => {
-    const list = state.config.filter(c => c.active !== false);
-    const rowFor = key => state.labour.find(l => l.dept_key === key);
-    const shiftsFor = key => Number(rowFor(key)?.ot_shifts ?? 0);
-    // Which machines are running it. The plant already keeps the list — one row per machine
-    // per department — so this is a tick against that list rather than a sentence somebody
-    // has to write and nobody ever did.
-    const machinesIn = key => (state.machines || [])
-      .filter(m => m.dept_key === key && m.active !== false);
-    const runningIn = key => {
-      const chosen = new Set(rowFor(key)?.machines || []);
-      return machinesIn(key).filter(m => chosen.has(m.code));
-    };
-    const machineNames = key => runningIn(key).map(m => m.name).join(', ');
-    const running = list.filter(c => shiftsFor(c.key) > 0);
-    const total = list.reduce((sum, c) => sum + shiftsFor(c.key), 0);
-    const entered = state.labour.some(l => l.ot_shifts != null);
-    const onOt = list.reduce((sum, c) => sum + runningIn(c.key).length, 0);
-
-    const headline = !entered
-      ? ['\u2014', 'Nothing entered yet']
-      : total === 0
-        ? ['0', 'No overtime this morning']
-        : [String(total), `${running.length} department${running.length === 1 ? '' : 's'} on overtime`];
-
-    // Two cards, because one card in a bespoke two-column grid is what pinned a single
-    // narrow card to the left edge of the wall with two thirds of the screen empty beside
-    // it. The second card is not padding: how many shifts and on how many machines are the
-    // two halves of the question the meeting actually asks, and the table underneath —
-    // which does not reach the wall — is that answer in detail.
-    const busiest = running.length
-      ? [...running].sort((a, b) => shiftsFor(b.key) - shiftsFor(a.key))[0] : null;
-
-
-    return `<div class="grid grid--cards">
-      ${metricCard({
-        chart: 'number', pkey: 'ot-total', label: 'Overtime shifts',
-        tone: total > 0 ? 'warn' : entered ? 'ok' : '',
-        value: headline[0], sub: `shifts \u00b7 ${headline[1]}`,
-        foot: footLine([['Target', '0 shifts']]),
-      })}
-      ${metricCard({
-        chart: 'number', pkey: 'ot-depts', label: 'Machines on OT',
-        tone: onOt > 0 ? 'warn' : entered ? 'ok' : '',
-        value: entered ? String(onOt) : '\u2014',
-        sub: entered ? `of ${list.reduce((n, c) => n + machinesIn(c.key).length, 0)} on the floor`
-                     : 'Nothing entered yet',
-        foot: footLine([['Most shifts', busiest ? esc(busiest.name) : null]]),
-      })}
-      ${listCard({
-        pkey: 'ot-list', label: 'Overtime by department',
-        // "Three shifts, Heidelberg and Omega" is the whole of what the room says about a
-        // department's overtime, so it is the whole of what the card prints \u2014 the count
-        // against the name, and the machines on the quieter line under it.
-        rows: list.map(c => [c.name,
-          shiftsFor(c.key) ? `${shiftsFor(c.key)} shift${shiftsFor(c.key) === 1 ? '' : 's'}` : '\u2014',
-          shiftsFor(c.key) > 0 ? 'warn' : '', machineNames(c.key) || null]),
-        empty: 'No departments configured.',
-      })}
-      ${noteCard({
-        pkey: 'staffing', label: 'Staffing notes',
-        text: metric('staffing_note'),
-        prompt: 'Call-ins, vacation, training \u2014 nothing entered.',
-        edit: `<div class="er"><label>Staffing</label><textarea class="inp"
-          data-field="staffing_note">${esc(metric('staffing_note') || '')}</textarea></div>`,
-      })}
-    </div>
-    <div class="grid" style="grid-template-columns:1fr;margin-top:var(--s3)">
-      <div class="panel">
-        <div class="panel__head"><span class="card__ico" aria-hidden="true">${iconFor('labour')}</span>
-          <h3 class="panel__title">Which departments</h3>
-          <div class="panel__actions">
-            <span class="pill pill--${total > 0 ? 'warn' : 'ok'}">${total} shift${total === 1 ? '' : 's'}</span>
-          </div></div>
-        <div class="panel__body">
-          <table class="tbl"><thead><tr><th>Department</th>
-            <th class="num">OT shifts</th><th>Machines</th></tr></thead>
-            <tbody>${list.map(c => {
-              const shifts = shiftsFor(c.key), names = machineNames(c.key);
-              return `<tr data-pkey="ot-${esc(c.key)}">
-                <td class="dept"><span class="card__ico" aria-hidden="true"
-                  style="font-size:1em">${iconFor(c.key, c.icon)}</span> ${esc(c.name)}</td>
-                <td class="num big${shifts > 0 ? ' tone--warn' : ''}">${shifts > 0 ? shifts : '\u2014'}</td>
-                <td>${names ? esc(names) : '<span class="lane__quiet">\u2014</span>'}</td></tr>`;
-            }).join('')}</tbody></table>
-          <div class="ez">${list.map(c => {
-            const machines = machinesIn(c.key);
-            const chosen = new Set(rowFor(c.key)?.machines || []);
-            return `<div class="er er--ot">
-              <label>${esc(c.name)}</label>
-              <input class="inp inp--n" data-field="labour:${esc(c.key)}:ot_shifts" type="number"
-                step="0.5" min="0" placeholder="shifts"
-                value="${rowFor(c.key)?.ot_shifts ?? ''}"
-                aria-label="${esc(c.name)} overtime shifts">
-              ${machines.length ? `<div class="ticks">${machines.map(m => `<label class="tick2">
-                <input type="checkbox" data-field="labour:${esc(c.key)}:machines"
-                  data-machine="${esc(m.code)}"${chosen.has(m.code) ? ' checked' : ''}>
-                <span>${esc(m.name)}</span></label>`).join('')}</div>`
-                : '<span class="lane__quiet">No machines listed for this department.</span>'}
-            </div>`;
-          }).join('')}
-          </div>
-        </div>
-      </div>
-    </div>`;
-  },
+  // Which departments are running overtime, how many shifts, and on which machines — and,
+  // for most plants, maintenance on the same screen. Four overtime cards and two
+  // maintenance ones is a screen; each on its own is half of one. A plant that wants them
+  // apart says so once, in Configure.
+  labour: () => labourCards() + (mergedUpkeep() ? maintenanceCards() : '')
+               + labourPanel() + (mergedUpkeep() ? maintenancePanel() : ''),
 
   financials: () => {
     // Billing is reviewed the next morning, so the financial picture reports through the
@@ -833,7 +914,7 @@ function renderNav() {
       key === 'line' ? (attention(state.findings).length ? worstOfAll : 'ok') : 'none')).join('')
     + `<div class="rail__split"></div>`
     + link('overview', 'Everything', ICONS.overview, 'none')
-    + ORDER.map(key => link(key, NAV[key] || TITLES[key], ICONS[key], sectionTone(key))).join('')
+    + order().map(key => link(key, NAV[key] || TITLES[key], ICONS[key], sectionTone(key))).join('')
     // Configure is a different page, not a section of this one — the plant's shape is not
     // a reading of a morning. Only somebody who can edit the plant is offered it; the
     // policies would refuse anyone else, and offering a door that does not open is worse
@@ -908,11 +989,13 @@ function renderContent() {
   const solo = state.active !== 'overview';
   const content = $('#content');
   content.className = `content${solo && !document.body.classList.contains('tv') ? ' content--solo' : ''}`;
-  content.innerHTML = solo ? one(state.active) : ORDER.map(one).join('');
+  content.innerHTML = solo ? one(state.active) : order().map(one).join('');
 }
 
 function render() {
   hideCards(state.plant?.hidden_cards);
+  // One section or two, and the heading says which.
+  TITLES.labour = state.plant?.split_upkeep ? 'Labour & Overtime' : 'Labour & Maintenance';
   state.findings = assess(state);
   state.verdicts = verdicts(state, state.findings);
   document.body.dataset.view = state.active;
@@ -1125,7 +1208,7 @@ function wallPages() {
   // way rather than keeping a parallel list of readings is what stops the wall drifting
   // from the page: there is one definition of a Shipping card and this is reading it.
   const holder = document.createElement('div');
-  for (const key of ORDER) {
+  for (const key of order()) {
     holder.innerHTML = SECTIONS[key]();
     const cards = [...holder.querySelectorAll('.grid--cards > .card')];
     if (!cards.length) continue;
@@ -1186,7 +1269,8 @@ const parse = (element, raw) => {
 async function persist(name, value) {
   const [kind, first, second] = name.split(':');
   try {
-    if (kind === 'dept') await saveDepartment(state.location, state.date, first, { [second]: value });
+    if (kind === 'maint') await saveMaintenance(first, { [second]: value });
+    else if (kind === 'dept') await saveDepartment(state.location, state.date, first, { [second]: value });
     else if (kind === 'labour') await saveLabour(state.location, state.date, first, { [second]: value });
     else if (kind === 'review') await saveReview(state.location, state.date, first, { [second]: value });
     else if (kind === 'budget') await saveBudget(state.location, dateOf(state.date).getFullYear(), Number(first), value ?? 0);
@@ -1211,7 +1295,12 @@ async function persist(name, value) {
 // person just typed is theirs; it must not wait on the network to appear.
 function applyLocally(name, value) {
   const [kind, first, second] = name.split(':');
-  if (kind === 'dept') {
+  if (kind === 'maint') {
+    for (const list of [state.upcoming, state.maintenance]) {
+      const row = (list || []).find(m => m.id === first);
+      if (row) row[second] = value;
+    }
+  } else if (kind === 'dept') {
     const row = state.departments.find(d => d.dept_key === first);
     if (row) row[second] = value;
   } else if (kind === 'labour') {
@@ -1293,15 +1382,16 @@ async function open(location, date) {
   try {
     if (state.canEdit) await openDay(location, date);
     const from = new Date(dateOf(date)); from.setDate(from.getDate() - 6);
-    const [day, budgets, history, months, machines] = await Promise.all([
+    const [day, budgets, history, months, machines, upcoming] = await Promise.all([
       loadDay(location, date),
       loadBudgets(location, dateOf(date).getFullYear()),
       loadHistory(location, from.toISOString().slice(0, 10), date),
       loadYearCounts(location, dateOf(date).getFullYear()),
       loadMachines(location),
+      loadUpcoming(location, date),
     ]);
     Object.assign(state, day, { budgets: budgets || [], history, year: months || [],
-                                machines: machines || [] });
+                                machines: machines || [], upcoming: upcoming || [] });
     saved('All changes saved');
   } catch (error) {
     $('#content').innerHTML = `<div class="loading">${esc(error.message)}</div>`;
@@ -1350,6 +1440,28 @@ $('#rail-btn').addEventListener('click', () => {
   $('#rail-btn').setAttribute('aria-label', mini ? 'Collapse menu' : 'Expand menu');
   $('#rail-btn').querySelector('path').setAttribute('d', mini ? 'M15 5 L8 12 L15 19' : 'M9 5 L16 12 L9 19');
   savePreference(state.me.id, { rail_collapsed: !mini }).catch(() => {});
+});
+
+// Adding and dropping a maintenance item. Both are a write and a redraw, and both are only
+// reachable in edit mode.
+document.addEventListener('click', async event => {
+  const add = event.target.closest('#maint-add');
+  if (add) {
+    try {
+      const row = await addMaintenance(state.location, state.date);
+      if (row) { state.upcoming = [...(state.upcoming || []), row]; render(); }
+    } catch (error) { toast(error.message); }
+    return;
+  }
+  const drop = event.target.closest('[data-drop-maint]');
+  if (!drop) return;
+  const id = drop.dataset.dropMaint;
+  try {
+    await removeMaintenance(id);
+    state.upcoming = (state.upcoming || []).filter(m => m.id !== id);
+    state.maintenance = state.maintenance.filter(m => m.id !== id);
+    render();
+  } catch (error) { toast(error.message); }
 });
 
 $('#edit-btn').addEventListener('click', () => {
@@ -1739,8 +1851,14 @@ async function applyImport() {
   if (!p) return;
   const writes = [];
   for (const d of p.departments) {
-    // Output and crewed hours only. See rollup() for why the other three are not written.
     writes.push([`dept:${d.dept_key}:qty`, d.qty], [`dept:${d.dept_key}:hours`, d.hours]);
+    // Uptime and make-ready come from the DOR's own Formulas tab now, so they are written
+    // with the rest rather than left to be typed.
+    if (d.uptime != null) writes.push([`dept:${d.dept_key}:uptime`, Number(d.uptime.toFixed(4))]);
+    if (d.make_ready != null) writes.push([`dept:${d.dept_key}:make_ready`, Number(d.make_ready.toFixed(3))]);
+    // And the same weekday a week ago, which is the whole of the productivity table.
+    if (d.pw_qty != null) writes.push([`dept:${d.dept_key}:pw_qty`, d.pw_qty]);
+    if (d.pw_hours != null) writes.push([`dept:${d.dept_key}:pw_hours`, d.pw_hours]);
   }
   if (p.shipping) {
     writes.push(['jobs_shipped', p.shipping.jobs_shipped], ['jobs_on_time', p.shipping.jobs_on_time],

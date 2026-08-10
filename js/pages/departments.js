@@ -22,11 +22,11 @@ import {
   currentSession, signOut, myProfile, myLocations,
   loadDepartmentConfig, saveDepartmentConfig, addDepartmentConfig, ensureDepartmentRows,
   loadBudgets, saveBudget, loadPlant, savePlant,
-} from '../db.js?v=3586911c2e6f';
+} from '../db.js?v=d88bd91a2e75';
 import {
   esc, num, money, MONTHS, metricCard, footLine, iconFor, cardTrack,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE,
-} from '../readings.js?v=3586911c2e6f';
+} from '../readings.js?v=d88bd91a2e75';
 
 const $ = selector => document.querySelector(selector);
 
@@ -410,6 +410,13 @@ function qualityPane() {
         Unticking a card removes it from the dashboard and from present mode; the section
         rearranges around what is left. Production's cards are the plant's departments and
         are set on the Departments screen. Targets stay on the card itself, in Edit mode.</p>
+        <label class="tog cfg__card" style="margin-top:var(--s2)">
+          <input type="checkbox" data-plant="split_upkeep"${
+            state.plant?.split_upkeep ? ' checked' : ''}${canEdit() ? '' : ' disabled'}>
+          <span>Keep Labour and Maintenance as separate screens</span></label>
+        <p class="cfg__none" style="font-style:normal;color:var(--ink-faint)">
+          Off, they are one screen — four overtime cards and two maintenance ones. On, each
+          gets its own, which suits a plant with a long maintenance list.</p>
       </div></div>
     <div class="grid g3" style="margin-top:var(--s3)">
       ${sections.map(group => `<div class="panel">

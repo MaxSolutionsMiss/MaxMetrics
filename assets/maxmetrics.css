@@ -764,16 +764,33 @@ body.tv .sec > .panel{max-width:none}
    sentence. */
 .er--ot{align-items:center;flex-wrap:wrap}
 .er--ot .inp--n{width:88px;flex:none}
-.ticks{display:flex;flex-wrap:wrap;gap:var(--s2) var(--s3);align-items:center;min-width:0}
-.tick2{display:inline-flex;align-items:center;gap:6px;font-size:var(--t-small);
+.ticks{display:flex;flex-wrap:wrap;gap:4px 6px;align-items:center;min-width:0}
+.tick2{display:inline-flex;align-items:center;gap:5px;font-size:var(--t-small);
   color:var(--ink);cursor:pointer;white-space:nowrap;
-  padding:4px 10px;border:1px solid var(--rule-strong);border-radius:var(--radius);
+  padding:2px 8px;border:1px solid var(--rule-strong);border-radius:var(--radius);
   background:var(--surface)}
 .tick2:has(input:checked){border-color:var(--warn);background:var(--warn-wash);color:var(--warn);
   font-weight:600}
 .tick2 input{accent-color:var(--warn);width:14px;height:14px;margin:0}
 textarea.inp{height:auto;min-height:54px;padding:var(--s2);resize:vertical;line-height:1.5}
 body:not(.editing) .ez,body:not(.editing) .edit-only{display:none!important}
+/* And the value steps aside when its field takes the cell. */
+body.editing .view-only{display:none!important}
+/* A field in a table cell, sized for what goes in it. Nothing on this product needs more
+   than seven digits, and a full-width input under a table is how the entry screens ended up
+   twice as tall as the tables they belonged to. */
+.inp--cell{height:28px;font-size:var(--t-small);width:100%;max-width:11ch;
+  display:inline-block;vertical-align:middle}
+td.num .inp--cell{text-align:right;margin-left:auto}
+.inp--h{max-width:7ch}
+.inp--d{max-width:15ch}
+.inp--wide{max-width:100%}
+select.inp--cell{max-width:17ch;padding-right:2px}
+/* A table being typed into wants its rows tighter, not looser. */
+.tbl--tight th,.tbl--tight td{padding:5px var(--s2)}
+.lnk{background:none;border:none;color:var(--ink-faint);font-size:16px;line-height:1;
+  cursor:pointer;padding:2px 6px;border-radius:var(--radius)}
+.lnk:hover{color:var(--stop);background:var(--stop-wash)}
 /* A card grows to hold its fields.
    A card is a fixed height with its contents in three zones, and the fields are a fourth
    thing that has nowhere to go: the reading's zone shrank to nothing under them and the
@@ -1278,6 +1295,12 @@ body.tv .content.wall{display:flex;flex-direction:column;gap:var(--s4);
 .rev__note{white-space:pre-line}
 .revcard .rev__note{font-size:var(--t-base);line-height:1.6;min-height:2.6em}
 .rev__note--none{color:var(--ink-faint);font-style:italic}
+/* One problem per line is how the review is written, so one bullet per line is how it is
+   read. A paragraph with the breaks collapsed made three problems look like one sentence. */
+.rev__note--list{list-style:none;margin:0;padding:0;white-space:normal}
+.rev__note--list li{position:relative;padding-left:1.1em;margin:.28em 0}
+.rev__note--list li::before{content:"";position:absolute;left:.18em;top:.62em;
+  width:5px;height:5px;border-radius:50%;background:var(--ink-faint)}
 
 /* ── Financials, standing on its own ── */
 .finbars{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--s4);
