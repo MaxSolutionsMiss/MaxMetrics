@@ -212,7 +212,9 @@ export function loadHistory(location, fromDate, toDate) {
   return Promise.all([
     run(() => client.from('daily_metrics')
       .select(`metric_date, otif, otd, coq, coq_ytd, shortages, late, shorts, cartons,
-               jobs_shipped, mtd_otif, ytd_otif, injury_last, near_miss_last, fin_actual_mtd`)
+               jobs_shipped, mtd_otif, ytd_otif, injury_last, near_miss_last,
+               fin_actual_mtd, fin_actual_ytd,
+               ncr_today, complaints_internal_today, complaints_external_today`)
       .eq('location_id', location)
       .gte('metric_date', fromDate).lte('metric_date', toDate).order('metric_date')),
     run(() => client.from('daily_departments')

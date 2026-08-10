@@ -615,19 +615,87 @@ here — but each was still `flex:1` with a row the height of a card, so the rea
 hundred and thirty pixels above centre. Safety looked centred and Labour did not, on the
 same rule. A grid with no visible card is now hidden outright.
 
-## Air between the parts, not around them
+## Three zones, and the line at the bottom of the card
 
-A card's contents were centred in the body, so the spare height was split evenly above and
-below one block — which on a card with room to spare reads as a number floating in an empty
-box. They are spread through the body now: the number sits higher, the foot sits lower, and
-the same amount of space is doing something.
+A card's body has three zones and none of them depends on what the others hold.
 
-The other half of the top gap was invisible. The flag row — where "RECORD BROKEN" goes — was
+Two earlier drafts did not. Centred, the whole block floated in the middle of a card with
+room to spare. Spread evenly, the parts landed wherever the *count* of parts put them: a card
+carrying a bar and a line put its number a third of the way down, the card beside it with
+neither put its number in the middle, and the rule above the foot came out at four different
+heights across one screen. The room's words for it were "there are, like, three or four
+different types".
+
+- **The reading** starts directly under the title bar, on every card, always.
+- **The drawings** — the bar against target and the seven-day line — drop to the floor of
+  what is left. That is also why the graphs are twice as easy to read as they were: pinned
+  under the number, a line sat halfway up a card with two hundred pixels of nothing beneath
+  it.
+- **The foot** is a fixed-height strip at the bottom. A card with nothing to put there
+  reserves the same strip and simply does not draw the rule.
+
+Three things had to be nailed down before the rule would actually land on the same line.
+
+The **foot's height** is measured in `--cu`, the card's own hundredth, *before* `fitCards()`
+has had its say — not in `--u`, which carries the fit factor. `--fit` is found per screen from
+whatever the fullest card on it needs, so a Safety screen of two sparse cards settles at 1.96
+and a Shipping screen of eight at 0.95; a foot tied to that drew two different feet and put
+the two sections' rules at two heights. The foot is not competing for the room the reading
+needs. It is a fixed strip, the same strip on every card of the same size.
+
+The **two lines inside a fact** have fixed line boxes. Each fact caps its own type by how
+long it is — that is what stops "Nov 20, 2025" running off a card — but a smaller value means
+a shorter line box, so two cards side by side finished their feet a few pixels apart. Fixing
+the boxes keeps the caps doing their job and takes the side effect away.
+
+And a foot holding **one fact** keeps the same two-line shape as one holding four. It used to
+read as a sentence on a single line, which is nicer on its own and put Shortage count's rule
+below the COQ card's beside it.
+
+`fitCards()` cannot measure a card while the middle zone is stretching — every card fills its
+own height exactly, so nothing ever looks full and the climb has nothing to push against. It
+adds a `measuring` class for the duration, which puts the parts back in a plain stack. What
+has to fit is the stack; the stretch is only what to do with what is left over.
+
+The flag row is the other half of the top gap, and it was invisible. The flag row — where "RECORD BROKEN" goes — was
 reserved on every card so that a card with a flag and a card without one start their readings
 on the same line. True, and worth keeping; but reserved *unconditionally* it was thirty pixels
 of nothing at the top of every card on Quality, Shipping and Financials, none of which ever
 carries a flag. `fitCards()` puts a class on the grid when something on that screen is
 actually flagged, and only then is the row held open.
+
+## One word for variance
+
+Four sections were each inventing their own. Shipping printed `−0.13 pts`, cost of quality
+`+0.04 pts`, money `▲ 2.3%`, and a department a bare `−50`. Asked what "pts" meant, nobody in
+the room was sure whether it was a percentage of the target or a percentage of a percentage —
+and "fifty off" is a different miss on three thousand than it is on two thousand.
+
+Every variance on the product is now the same thing: **how far off target, as a share of the
+target, in a chip the colour of the verdict**. Over is green, under is red, and a little under
+is amber — four per cent is the line, because a miss inside four per cent of budget is a week
+of weather and past it is a decision. `varianceChip()` in `readings.js` is the only thing that
+draws one, and `lowerIsBetter` flips which side is green without flipping the sign printed:
+cost of quality at half its target reads `−55.3%` in green. The number says which way it
+moved; the colour says whether that was the way to move.
+
+It appears **once** per card. Where the foot has a slot for it — the shipping percentages,
+both COQ cards — that is where it goes, under the rule with the target beside it. Where the
+foot is full, it rides at the right of the bar's label row instead.
+
+## Safety has no bar
+
+Two drafts drew the streak against the record: first as a target to reach, then as a marker to
+run past. Both were wrong for the same reason. The plant is not trying to beat this record.
+Safety has one target and it is zero — zero injuries, zero near-misses — and a bar filling a
+little further every morning turns "eighty-nine days clean" into a race against a number the
+room would rather never think about again. The record belongs where it is: a fact under the
+rule.
+
+Where target *is* drawn, it is drawn loudly. The marker was a three-pixel line at
+three-quarter opacity over a washed band, which ten metres from a screen is not there at all.
+It runs the full height of the bar at full ink now, with a shoulder of card colour on each
+side so it reads against green, amber and red alike, and a notch pointing at itself.
 
 ## One left edge on the page, centred on the wall
 
@@ -668,6 +736,22 @@ today and the month to date in the same pass.
 does **not** carry the daily counts, and that omission is the point: carried forward,
 yesterday's one NCR would still read as one this morning, and a card reporting a stale
 incident is worse than one reporting none.
+
+## import_morning reads the table, not a list
+
+`import_morning` named its columns one by one. Every column added to `daily_metrics` after
+it was written was therefore dropped on the way in, silently — the file imported cleanly, the
+run said "written", and the card stayed blank. Ten columns had accumulated behind it:
+`ncr_ytd`, both complaint totals, all six of the today/month-to-date counters, and both
+financial figures. That is most of what the room reported as "the numbers are not coming
+through", and none of it showed up as an error anywhere.
+
+It reads `information_schema` now and builds the update from the columns the file actually
+mentions. A column the parser learns to fill is written the morning it is added; a key the
+file carries that is not a column is ignored rather than raising. The rule that matters is
+unchanged and is the reason the assignment is generated rather than written: every one is a
+`coalesce`, so a reading somebody typed is never replaced by a file. Departments work the
+same way.
 
 ## Where quality comes from
 

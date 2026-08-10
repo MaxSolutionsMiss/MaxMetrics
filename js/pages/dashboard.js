@@ -16,6 +16,7 @@ import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
   spark, bullet, chip, cardTrack, readingOf, derivedShipping, SHIPPING_TARGET,
+  varianceChip, varianceTone, variancePct,
   volumeLabel, rateLabel, hoursLabel,
 } from '../readings.js';
 
@@ -135,21 +136,12 @@ function streakCard(kind, label, lastField, recordField, word) {
     // line and made a two-character number look like part of a phrase.
     value: days == null ? '\u2014' : days, sub: 'days',
     flag: beaten ? `<div class="flag flag--ok">Record broken · +${days - record} days</div>` : '',
-    // The record as a marker the bar can run past, rather than as a ceiling it stops at.
-    //
-    // The bar was drawn only while the record was being chased, on the argument that once
-    // it is beaten it would be pinned full and say the same thing every morning. Pinning it
-    // full was the mistake, not drawing it: the scale ends past whichever of the two is
-    // larger, so the marker sits partway along and the fill runs beyond it. Short of the
-    // record, the gap is the picture. Past it, the distance past is the picture. Either way
-    // the room can see where it stands without reading two numbers and subtracting.
-    track: record && days != null ? cardTrack({
-      chart: 'number', actual: days, target: record, tone,
-      ceiling: Math.max(days, record) * 1.12, bands: false,
-      targetText: `Record ${record} days`,
-      deltaText: beaten ? `+${days - record} past it` : `${record - days} to go`,
-      deltaTone: tone,
-    }) : '',
+    // No bar. Two drafts drew the streak against the record, first as a target to reach and
+    // then as a marker to run past, and both were wrong for the same reason: the plant is
+    // not trying to beat this record. Safety has one target and it is zero — zero injuries,
+    // zero near-misses — and a bar filling a little further every morning turns "eighty-nine
+    // days clean" into a race against a number the room would rather never think about
+    // again. The record belongs where it is: a fact under the rule, not a finish line.
     foot: footLine([
       ['Record', record ? `${record} days` : null],
       [`Last ${word}`, shortDate(last)],
@@ -163,23 +155,26 @@ function coqCard(kind, label, valueField, targetField) {
   const value = metric(valueField), target = Number(metric(targetField) || 0.85);
   const has = value != null && value !== '';
   const tone = has ? band.coq(Number(value), target) : '';
-  const off = has ? Number(value) - target : 0;
+  const variance = has ? varianceChip(Number(value), target, { lowerIsBetter: true }) : null;
   return metricCard({
     chart: 'number', pkey: kind, label, tone,
     value: has ? Number(value).toFixed(2) : '\u2014', unit: '%', sub: 'of sales',
     percent: has ? Number(value) / (target * 1.6) * 100 : 0,
     markPercent: 100 / 1.6, markLabel: 'target',
-    // The bar against target, and no line. Cost of quality is a month-long figure — seven
-    // mornings of it is seven readings of the same number, drawn as a slope that means
-    // nothing, and it was the widest thing on the card.
+    // The bar against target, and the line under it.
+    //
+    // The line was dropped once, on the argument that cost of quality is a month-long figure
+    // and seven mornings of it is the same number seven times. That is true of a month that
+    // has closed and false of the one running: a month-to-date figure moves every time a
+    // claim lands, and its shape — creeping up all week, or flat since Monday — is the
+    // only warning the room gets before the month closes on the wrong side of target.
     track: has ? cardTrack({
       chart: 'number', actual: Number(value), target, tone, lowerIsBetter: true,
-      targetText: `Against \u2264 ${target.toFixed(2)}%`, deltaTone: tone,
-      deltaText: `${off <= 0 ? '\u2212' : '+'}${Math.abs(off).toFixed(2)} pts`,
+      targetText: `Against \u2264 ${target.toFixed(2)}%`, series: metricSeries(valueField),
     }) : '',
     foot: footLine([
       ['Target', `\u2264 ${target.toFixed(2)}%`],
-      ['Variance', has ? `${off <= 0 ? '\u2212' : '+'}${Math.abs(off).toFixed(2)} pts` : null],
+      ['Variance', variance],
     ]),
     edit: field('Actual %', valueField, `type="number" step="0.01" value="${value ?? ''}"`)
         + field('Target %', targetField, `type="number" step="0.01" value="${target}"`),
@@ -306,7 +301,7 @@ const SECTIONS = {
         // Monday, one every morning for a week is something to talk about.
         track: cardTrack({ chart: 'number', actual: 0, target: 0,
           tone: has ? band.count(Number(today)) : '', lowerIsBetter: true,
-          seriesLabel: 'Last 7 mornings', series: metricSeries(`${base}_today`) }),
+          series: metricSeries(`${base}_today`) }),
         foot: footLine([
           ['Month to date', mtd == null ? null : num(mtd)],
           ['Year to date', ytd == null ? null : num(ytd)],
@@ -325,7 +320,7 @@ const SECTIONS = {
         // fresh every morning, and a week of it says whether two is a bad Tuesday or the
         // fourth bad Tuesday running. That is the question a bare number leaves open.
         track: cardTrack({ chart: 'number', actual: 0, target: 0, tone: shortTone,
-          lowerIsBetter: true, seriesLabel: 'Last 7 mornings', series: metricSeries('shortages') }),
+          lowerIsBetter: true, series: metricSeries('shortages') }),
         foot: footLine([['Target', '0']]),
         edit: field('Count', 'shortages', `type="number" min="0" value="${shortages ?? ''}"`),
       })}
@@ -360,9 +355,12 @@ const SECTIONS = {
         track: cardTrack({
           chart: 'number', actual: rate, target, tone,
           targetText: `Against ${num(Math.round(target))} ${rateLabel(config)}`,
-          deltaText: rate && target
-            ? `${rate >= target ? '+' : '\u2212'}${num(Math.round(Math.abs(rate - target)))}` : '',
-          deltaTone: tone, series: deptSeries(config.key),
+          // The same chip the money and the shipping percentages carry. It printed a bare
+          // "\u221250" before, which is fifty of something the label above it names and the
+          // reader has to go and find \u2014 and fifty off three thousand and fifty off two
+          // thousand are not the same miss.
+          deltaHtml: rate && target ? varianceChip(rate, target) : '',
+          series: deptSeries(config.key),
         }),
         // Target, what was made, and the hours it took — the three things asked after the
         // rate itself, on one line. "vs target" is not among them any more: the bar above
@@ -473,31 +471,33 @@ const SECTIONS = {
     // which made shipping look like a different product bolted to the page. Nothing about
     // these readings is special enough to earn its own component.
     const ship = (name, label, { value, unit = '', sub = '', tone = '', target = 0,
-                                       floor = 0, ceiling = 0, series = null,
-                                       lowerIsBetter = false, foot = [] }) => metricCard({
-      chart: 'number', pkey: name, label, tone,
+                                       floor = 0, ceiling = 0, series = null, medium = false,
+                                       lowerIsBetter = false, deltaHtml = null, foot = [] }) => metricCard({
+      chart: 'number', pkey: name, label, tone, medium,
       value, unit, sub,
       percent: target ? Number(value || 0) / target * 100 : 0,
       markPercent: target ? 100 : null, markLabel: 'target',
       track: series ? cardTrack({
         chart: 'number',
         actual: Number(value || 0), target, tone, floor, ceiling, lowerIsBetter,
-        targetText: target ? `Against ${target}%` : '', seriesLabel: 'Last 7 mornings', series,
+        targetText: target ? `Against ${target}%` : '', deltaHtml, series,
       }) : '',
       foot: footLine(foot),
     });
 
+    // The four percentages, and the one sentence they all say: how far off target, as a
+    // share of it, in the same chip the money uses. It used to read "\u22120.13 pts", which
+    // is a unit the room does not think in \u2014 asked what it meant, nobody was sure
+    // whether it was a percentage of the target or a percentage of a percentage.
     const pct = (name, label, sub) => {
       const value = read(name);
       const tone = value == null ? '' : band.pct(Number(value), SHIPPING_TARGET);
+      const variance = value == null ? null
+        : varianceChip(Number(value), SHIPPING_TARGET, { digits: 2 });
       return ship(name, label, {
         value: value == null ? '\u2014' : Number(value).toFixed(2), unit: value == null ? '' : '%',
         sub, tone, target: SHIPPING_TARGET, floor: 90, ceiling: 100, series: metricSeries(name),
-        foot: [['Target', `\u2265 ${SHIPPING_TARGET}%`],
-               ['Variance', value == null ? null : (() => {
-                 const off = Number(value) - SHIPPING_TARGET;
-                 return `${off >= 0 ? '+' : '\u2212'}${Math.abs(off).toFixed(2)} pts`;
-               })()]],
+        foot: [['Target', `\u2265 ${SHIPPING_TARGET}%`], ['Variance', variance]],
       });
     };
     const count = (name, label, sub) => {
@@ -513,13 +513,17 @@ const SECTIONS = {
     };
 
     return `<div class="grid grid--cards">
+      ${/* A count of jobs and a count of cartons are four and five figures, and at the size
+            a two-digit percentage is drawn they ran the width of the card and left the
+            graph under them nothing. The medium hero is the same number about a fifth
+            smaller, which is what the room asked for and what gives the line room. */''}
       ${ship('jobs_shipped', 'Jobs shipped', {
-        series: metricSeries('jobs_shipped'),
+        series: metricSeries('jobs_shipped'), medium: true,
         value: read('jobs_shipped') == null ? '\u2014' : num(read('jobs_shipped')), sub: 'today',
         foot: [['On time', read('jobs_on_time') ?? null],
                ['Of', read('jobs_shipped') ?? null]] })}
       ${ship('cartons', 'Cartons', {
-        series: metricSeries('cartons'),
+        series: metricSeries('cartons'), medium: true,
         value: read('cartons') == null ? '\u2014' : num(read('cartons')), sub: 'shipped today',
         foot: [['Per job', read('cartons') && read('jobs_shipped')
           ? num(Math.round(read('cartons') / read('jobs_shipped'))) : null]] })}
@@ -718,12 +722,16 @@ const SECTIONS = {
     //
     // "Budget", not "plan". The plant writes a budget; prorating it by elapsed days does
     // not make it a different thing, and two words for one number is one word too many.
-    const pane = (key, title, actual, budget, tone, variance, percent, budgetRow, whenRow) => {
+    const pane = (key, title, actual, budget, tone, variance, percent, budgetRow, whenRow,
+                  seriesField) => {
       const pace = budget ? Math.round(actual / budget * 100) : 0;
       return metricCard({
-        chart: 'number', pkey: key, label: title, tone,
+        chart: 'number', pkey: key, label: title, tone, medium: true,
         // The figure is the reading and the pace is what it means — the two things the
         // room asks for, on the two lines a card already has for them.
+        // Medium, like the other five-figure readings on the product. "$21.11M" at the size
+        // that suits "98" is the widest thing on any card, and the width it took came out of
+        // the graph underneath.
         value: money(actual), sub: `${pace}% of budget`,
         // The chart choice reaches the money too. A page where five readings are rings and
         // the sales figure is bare reads as two designs rather than one.
@@ -734,12 +742,15 @@ const SECTIONS = {
           chart: 'number', actual, target: budget, tone,
           targetText: `Against ${money(budget)} expected`,
           deltaText: `${variance >= 0 ? '+' : '−'}${money(Math.abs(variance))}`,
-          deltaTone: tone,
+          // The month's own shape. Sales against budget is a race the plant runs once a
+          // month, and the line says whether it is being won steadily or was won on one
+          // good Thursday — which is the difference between a forecast and a relief.
+          deltaTone: tone, series: metricSeries(seriesField),
         }),
         foot: footLine([
           budgetRow,
           whenRow,
-          ['Variance', `${variance >= 0 ? '▲' : '▼'} ${Math.abs(percent).toFixed(1)}%`],
+          ['Variance', chip(varianceTone(percent), variancePct(percent))],
         ]),
         edit: field(`Actual ${key === 'fin-mtd' ? 'MTD' : 'YTD'}`,
           key === 'fin-mtd' ? 'fin_actual_mtd' : 'fin_actual_ytd',
@@ -753,10 +764,10 @@ const SECTIONS = {
         // How far into the month the plant is, which is the whole reason the budget is
         // prorated — and one fact on a foot rather than a full-width panel with a
         // progress bar the width of the screen saying "day 9 of 31".
-        ['Elapsed', `day ${elapsed} of ${inMonth}`])}
+        ['Elapsed', `day ${elapsed} of ${inMonth}`], 'fin_actual_mtd')}
       ${pane('fin-ytd', 'Year to date', actualYtd, planYtd, toneYtd,
         varianceYtd, percentYtd, ['Year budget', money(yearBudget)],
-        ['Through', shortDate(reportDate.toISOString().slice(0, 10))])}
+        ['Through', shortDate(reportDate.toISOString().slice(0, 10))], 'fin_actual_ytd')}
     </div>`;
   },
 };
@@ -915,7 +926,8 @@ function roomIn(card) {
 // the whole thing at 1. Height that genuinely overruns shows up in the card's own total.
 function overflows(card) {
   if (usedBy(card) > roomIn(card) + 1) return true;
-  for (const part of card.querySelectorAll('.card__label,.hero,.unit,.fs__l,.fs__v,.ctrack__l,.ctrack__d')) {
+  for (const part of card.querySelectorAll(
+    '.card__label,.flag,.hero,.unit,.fs__l,.fs__v,.ctrack__l,.ctrack__d')) {
     if (part.scrollWidth > part.clientWidth + 1) return true;
   }
   return false;
@@ -932,6 +944,16 @@ function fitCards() {
   for (const group of groups) {
     const cards = group.flatMap(grid => [...grid.children].filter(c => c.classList.contains('card')));
     if (!cards.length) continue;
+    // Measured with the zones switched off.
+    //
+    // A card body is three zones now — reading, drawings, foot — and the middle one takes
+    // whatever height is left over. That is the point of it, and it makes the card
+    // unmeasurable while it is on: every card fills its own height exactly, so `usedBy`
+    // equals `roomIn` on all of them, nothing ever looks full, and the climb below has
+    // nothing to push against. `measuring` puts the parts back in a plain stack for the
+    // duration, which is what has to fit; the stretch is only ever what to do with what is
+    // left after it does.
+    group.forEach(grid => grid.classList.add('measuring'));
     const set = value => group.forEach(grid => grid.style.setProperty('--fit', String(value)));
     // The title first, because the bar it sits in is what is left of the card for
     // everything else. One size for the whole screen — two titles of different lengths would
@@ -977,6 +999,7 @@ function fitCards() {
       }
       set(fit);
     }
+    group.forEach(grid => grid.classList.remove('measuring'));
   }
 }
 
