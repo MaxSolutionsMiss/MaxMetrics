@@ -7,18 +7,19 @@
 
 import {
   currentSession, signOut, myProfile, myLocations, savePreference,
-  openDay, loadDay, loadHistory, loadBudgets, loadYearCounts, saveField, saveDepartment, saveReview,
+  openDay, loadDay, loadHistory, loadBudgets, loadYearCounts, loadMachines,
+  saveField, saveDepartment, saveReview,
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   importHistory,
-} from '../db.js?v=fdca8e0e28d9';
-import { assess, attention, settled, verdicts } from '../assess.js?v=fdca8e0e28d9';
+} from '../db.js?v=3586911c2e6f';
+import { assess, attention, settled, verdicts } from '../assess.js?v=3586911c2e6f';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
   spark, bullet, chip, cardTrack, readingOf, derivedShipping, SHIPPING_TARGET,
   varianceChip, varianceTone, variancePct,
   volumeLabel, rateLabel, hoursLabel,
-} from '../readings.js?v=fdca8e0e28d9';
+} from '../readings.js?v=3586911c2e6f';
 
 const $ = selector => document.querySelector(selector);
 
@@ -41,6 +42,7 @@ const state = {
   me: null, locations: [], canEdit: true,
   location: null, date: today(), active: 'overview',
   metrics: null, departments: [], review: [], maintenance: [], labour: [], config: [], budgets: [],
+  machines: [],
   history: { metrics: [], departments: [] }, year: [], findings: [], verdicts: {}, plant: null,
   team: [], live: null, wallStep: 0,
 };
@@ -630,25 +632,37 @@ const SECTIONS = {
   // and the shift count is the thing nobody writes down.
   labour: () => {
     const list = state.config.filter(c => c.active !== false);
-    const shiftsFor = key => Number(state.labour.find(l => l.dept_key === key)?.ot_shifts ?? 0);
-    const noteFor = key => state.labour.find(l => l.dept_key === key)?.note || '';
+    const rowFor = key => state.labour.find(l => l.dept_key === key);
+    const shiftsFor = key => Number(rowFor(key)?.ot_shifts ?? 0);
+    // Which machines are running it. The plant already keeps the list — one row per machine
+    // per department — so this is a tick against that list rather than a sentence somebody
+    // has to write and nobody ever did.
+    const machinesIn = key => (state.machines || [])
+      .filter(m => m.dept_key === key && m.active !== false);
+    const runningIn = key => {
+      const chosen = new Set(rowFor(key)?.machines || []);
+      return machinesIn(key).filter(m => chosen.has(m.code));
+    };
+    const machineNames = key => runningIn(key).map(m => m.name).join(', ');
     const running = list.filter(c => shiftsFor(c.key) > 0);
     const total = list.reduce((sum, c) => sum + shiftsFor(c.key), 0);
     const entered = state.labour.some(l => l.ot_shifts != null);
+    const onOt = list.reduce((sum, c) => sum + runningIn(c.key).length, 0);
 
     const headline = !entered
-      ? ['—', 'Nothing entered yet']
+      ? ['\u2014', 'Nothing entered yet']
       : total === 0
         ? ['0', 'No overtime this morning']
         : [String(total), `${running.length} department${running.length === 1 ? '' : 's'} on overtime`];
 
     // Two cards, because one card in a bespoke two-column grid is what pinned a single
     // narrow card to the left edge of the wall with two thirds of the screen empty beside
-    // it. The second card is not padding: how many shifts and how many departments are the
+    // it. The second card is not padding: how many shifts and on how many machines are the
     // two halves of the question the meeting actually asks, and the table underneath —
     // which does not reach the wall — is that answer in detail.
     const busiest = running.length
       ? [...running].sort((a, b) => shiftsFor(b.key) - shiftsFor(a.key))[0] : null;
+
 
     return `<div class="grid grid--cards">
       ${metricCard({
@@ -658,17 +672,21 @@ const SECTIONS = {
         foot: footLine([['Target', '0 shifts']]),
       })}
       ${metricCard({
-        chart: 'number', pkey: 'ot-depts', label: 'Departments on OT',
-        tone: running.length > 0 ? 'warn' : entered ? 'ok' : '',
-        value: entered ? String(running.length) : '\u2014',
-        sub: entered ? `of ${list.length} running` : 'Nothing entered yet',
+        chart: 'number', pkey: 'ot-depts', label: 'Machines on OT',
+        tone: onOt > 0 ? 'warn' : entered ? 'ok' : '',
+        value: entered ? String(onOt) : '\u2014',
+        sub: entered ? `of ${list.reduce((n, c) => n + machinesIn(c.key).length, 0)} on the floor`
+                     : 'Nothing entered yet',
         foot: footLine([['Most shifts', busiest ? esc(busiest.name) : null]]),
       })}
       ${listCard({
         pkey: 'ot-list', label: 'Overtime by department',
+        // "Three shifts, Heidelberg and Omega" is the whole of what the room says about a
+        // department's overtime, so it is the whole of what the card prints \u2014 the count
+        // against the name, and the machines on the quieter line under it.
         rows: list.map(c => [c.name,
-          shiftsFor(c.key) > 0 ? `${shiftsFor(c.key)} shift${shiftsFor(c.key) === 1 ? '' : 's'}` : '\u2014',
-          shiftsFor(c.key) > 0 ? 'warn' : '']),
+          shiftsFor(c.key) ? `${shiftsFor(c.key)} shift${shiftsFor(c.key) === 1 ? '' : 's'}` : '\u2014',
+          shiftsFor(c.key) > 0 ? 'warn' : '', machineNames(c.key) || null]),
         empty: 'No departments configured.',
       })}
       ${noteCard({
@@ -681,30 +699,38 @@ const SECTIONS = {
     </div>
     <div class="grid" style="grid-template-columns:1fr;margin-top:var(--s3)">
       <div class="panel">
-        <div class="panel__head"><span class="card__ico" aria-hidden="true">👷</span>
+        <div class="panel__head"><span class="card__ico" aria-hidden="true">${iconFor('labour')}</span>
           <h3 class="panel__title">Which departments</h3>
           <div class="panel__actions">
             <span class="pill pill--${total > 0 ? 'warn' : 'ok'}">${total} shift${total === 1 ? '' : 's'}</span>
           </div></div>
         <div class="panel__body">
           <table class="tbl"><thead><tr><th>Department</th>
-            <th class="num">OT shifts</th><th>Why</th></tr></thead>
+            <th class="num">OT shifts</th><th>Machines</th></tr></thead>
             <tbody>${list.map(c => {
-              const shifts = shiftsFor(c.key), note = noteFor(c.key);
+              const shifts = shiftsFor(c.key), names = machineNames(c.key);
               return `<tr data-pkey="ot-${esc(c.key)}">
                 <td class="dept"><span class="card__ico" aria-hidden="true"
-                  style="font-size:1em">${c.icon || iconFor(c.key)}</span> ${esc(c.name)}</td>
-                <td class="num big${shifts > 0 ? ' tone--warn' : ''}">${shifts > 0 ? shifts : '—'}</td>
-                <td>${note ? esc(note) : '<span class="lane__quiet">—</span>'}</td></tr>`;
+                  style="font-size:1em">${iconFor(c.key, c.icon)}</span> ${esc(c.name)}</td>
+                <td class="num big${shifts > 0 ? ' tone--warn' : ''}">${shifts > 0 ? shifts : '\u2014'}</td>
+                <td>${names ? esc(names) : '<span class="lane__quiet">\u2014</span>'}</td></tr>`;
             }).join('')}</tbody></table>
-          <div class="ez">${list.map(c => `<div class="er">
-            <label>${esc(c.name)}</label>
-            <input class="inp" data-field="labour:${esc(c.key)}:ot_shifts" type="number"
-              step="0.5" min="0" value="${state.labour.find(l => l.dept_key === c.key)?.ot_shifts ?? ''}"
-              aria-label="${esc(c.name)} overtime shifts">
-            <input class="inp" data-field="labour:${esc(c.key)}:note" type="text"
-              placeholder="why" value="${esc(noteFor(c.key))}"
-              aria-label="${esc(c.name)} overtime reason"></div>`).join('')}
+          <div class="ez">${list.map(c => {
+            const machines = machinesIn(c.key);
+            const chosen = new Set(rowFor(c.key)?.machines || []);
+            return `<div class="er er--ot">
+              <label>${esc(c.name)}</label>
+              <input class="inp inp--n" data-field="labour:${esc(c.key)}:ot_shifts" type="number"
+                step="0.5" min="0" placeholder="shifts"
+                value="${rowFor(c.key)?.ot_shifts ?? ''}"
+                aria-label="${esc(c.name)} overtime shifts">
+              ${machines.length ? `<div class="ticks">${machines.map(m => `<label class="tick2">
+                <input type="checkbox" data-field="labour:${esc(c.key)}:machines"
+                  data-machine="${esc(m.code)}"${chosen.has(m.code) ? ' checked' : ''}>
+                <span>${esc(m.name)}</span></label>`).join('')}</div>`
+                : '<span class="lane__quiet">No machines listed for this department.</span>'}
+            </div>`;
+          }).join('')}
           </div>
         </div>
       </div>
@@ -1227,7 +1253,19 @@ document.addEventListener('input', event => {
 
 document.addEventListener('change', event => {
   const name = event.target.dataset?.field;
-  if (!name || event.target.tagName !== 'SELECT') return;
+  if (!name) return;
+  // A tick is one of a set, so what is written is the whole set. Reading the boxes back off
+  // the page rather than keeping a list beside them means the ticks and the row can never
+  // disagree about which machines are running.
+  if (event.target.type === 'checkbox') {
+    const chosen = [...document.querySelectorAll(`input[type="checkbox"][data-field="${
+      CSS.escape(name)}"]`)].filter(box => box.checked).map(box => box.dataset.machine);
+    applyLocally(name, chosen);
+    persist(name, chosen);
+    render();
+    return;
+  }
+  if (event.target.tagName !== 'SELECT') return;
   applyLocally(name, event.target.value);
   persist(name, event.target.value);
   render();
@@ -1255,13 +1293,15 @@ async function open(location, date) {
   try {
     if (state.canEdit) await openDay(location, date);
     const from = new Date(dateOf(date)); from.setDate(from.getDate() - 6);
-    const [day, budgets, history, months] = await Promise.all([
+    const [day, budgets, history, months, machines] = await Promise.all([
       loadDay(location, date),
       loadBudgets(location, dateOf(date).getFullYear()),
       loadHistory(location, from.toISOString().slice(0, 10), date),
       loadYearCounts(location, dateOf(date).getFullYear()),
+      loadMachines(location),
     ]);
-    Object.assign(state, day, { budgets: budgets || [], history, year: months || [] });
+    Object.assign(state, day, { budgets: budgets || [], history, year: months || [],
+                                machines: machines || [] });
     saved('All changes saved');
   } catch (error) {
     $('#content').innerHTML = `<div class="loading">${esc(error.message)}</div>`;
