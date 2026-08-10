@@ -75,15 +75,24 @@ evidence is depends on what the number is:
 | OTD and OTIF | a bar against 98%, and the last seven mornings |
 | Cost of quality | a bar against the ceiling, and no line — a month-to-date figure drawn as seven daily readings is a slope that means nothing |
 | Sales | a bar against the budget expected by today |
-| A safety streak | a bar against the record **while it is being chased**, and nothing once it is beaten |
-| A count — late, shorts, NCRs | nothing. A count has no denominator, and a bar against zero is a bar that is always full |
+| A safety streak | the record as a **marker** on an unbanded track, which the fill runs past |
+| A count — late, shorts, shortages | the last seven mornings. No bar: a count has no denominator, and a bar against a target of zero is always full |
+| A running total — NCRs, complaints | the last seven mornings, which is flat while nothing happens and steps the morning something does |
 
-The streak is the one worth spelling out. A streak is measured against nothing — the record
-is a target to beat, not a denominator — so drawn permanently the bar fills a little further
-every morning and says the same thing every morning. But while the plant is short of the
-record, *how* short is the one thing the number alone does not say, and it is the question
-the room actually asks. Once it is beaten the bar would be pinned full, and the flag says so
-in words instead.
+The streak is the one worth spelling out, because two things about it are easy to get wrong.
+It is not measured against the record the way a rate is measured against target — a record is
+a target to *beat*, not one to meet — so the scale ends past whichever of the two is larger
+and the marker sits partway along. Short of the record, the gap is the picture; past it, the
+distance past is. Drawn as an ordinary bar it would pin full the morning the record fell and
+say the same thing every morning after.
+
+And it carries no bands. The red-amber-green ground under a bar means "short of this is a
+miss", which is true of a rate and false of a record: ten days since the last near-miss on a
+red field says the plant is failing at something it is not failing at.
+
+A count gets no bar for the same family of reasons, but it does get a line. Two shortages is
+a number; two shortages after one, nought, three, two, one and four is a pattern, and the
+pattern is the thing worth putting on a wall.
 
 ## Which cards a plant carries
 
@@ -448,7 +457,11 @@ the same size whatever the card is carrying. It is also what stops a card readin
 of text: the heaviest line on it is a shape rather than a sentence. One grey on every card, on
 purpose — the verdict lives in the number, and a bar that changed colour with it would be a
 second and louder verdict. The pictogram sits in a white disc on the bar, which is what lets
-it stay the plant's own colourful icon instead of being flattened to a white glyph.
+it stay the plant's own colourful icon instead of being flattened to a white glyph. The bar
+is three times the height of the title it holds: twice was enough to read as a bar and not
+enough to hold a pictogram at a size a room can see, so the disc had nowhere to sit. The
+glyph is centred on both axes rather than left to its line box, because an emoji carries its
+own leading and sits a few per cent low — invisible at 25px and not at 100.
 
 Titles are one line, always. Wrapping to two bought a larger title and cost the thing the
 title is for: a row where one card wrapped and the next did not put their readings at

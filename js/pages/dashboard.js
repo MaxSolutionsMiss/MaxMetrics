@@ -135,18 +135,20 @@ function streakCard(kind, label, lastField, recordField, word) {
     // line and made a two-character number look like part of a phrase.
     value: days == null ? '\u2014' : days, sub: 'days',
     flag: beaten ? `<div class="flag flag--ok">Record broken · +${days - record} days</div>` : '',
-    // The bar runs while the record is being chased, and stops the morning it is beaten.
+    // The record as a marker the bar can run past, rather than as a ceiling it stops at.
     //
-    // A streak is measured against nothing — the record is a target to beat, not a
-    // denominator — so drawn permanently it would fill a little further every morning and
-    // say the same thing every morning. But while the plant is still short of the record,
-    // how short is the one thing the number alone does not say, and it is the question the
-    // room actually asks. Once it is beaten the bar is pinned full and the flag says so in
-    // words, so the bar goes.
-    track: !beaten && record && days != null ? cardTrack({
+    // The bar was drawn only while the record was being chased, on the argument that once
+    // it is beaten it would be pinned full and say the same thing every morning. Pinning it
+    // full was the mistake, not drawing it: the scale ends past whichever of the two is
+    // larger, so the marker sits partway along and the fill runs beyond it. Short of the
+    // record, the gap is the picture. Past it, the distance past is the picture. Either way
+    // the room can see where it stands without reading two numbers and subtracting.
+    track: record && days != null ? cardTrack({
       chart: 'number', actual: days, target: record, tone,
-      targetText: `Against the record of ${record} days`,
-      deltaText: `${record - days} to go`, deltaTone: tone,
+      ceiling: Math.max(days, record) * 1.12, bands: false,
+      targetText: `Record ${record} days`,
+      deltaText: beaten ? `+${days - record} past it` : `${record - days} to go`,
+      deltaTone: tone,
     }) : '',
     foot: footLine([
       ['Record', record ? `${record} days` : null],
@@ -286,6 +288,12 @@ const SECTIONS = {
       return metricCard({
         chart: 'number', pkey: key, label, icon, tone: '',
         value: value == null ? '\u2014' : num(value), sub,
+        // A running total has no target to draw against, but the shape of the year is a
+        // reading in its own right: seven mornings of a carried-forward count is flat while
+        // nothing happens and steps the morning something does. Whether these are piling up
+        // is the question the number alone leaves open.
+        track: cardTrack({ chart: 'number', actual: 0, target: 0, tone: '',
+          lowerIsBetter: true, seriesLabel: 'Last 7 mornings', series: metricSeries(name) }),
         // No foot. The only thing worth saying about a year-to-date count is the count,
         // and it is already the largest thing on the card — repeating it under a rule
         // labelled "year to date" says it three times.
@@ -296,6 +304,11 @@ const SECTIONS = {
       ${metricCard({
         chart: 'number', pkey: 'shortages', label: 'Shortage count', tone: shortTone,
         value: shortages ?? '\u2014', sub: 'jobs short today',
+        // A count has no denominator, so there is no bar to draw — but this one is counted
+        // fresh every morning, and a week of it says whether two is a bad Tuesday or the
+        // fourth bad Tuesday running. That is the question a bare number leaves open.
+        track: cardTrack({ chart: 'number', actual: 0, target: 0, tone: shortTone,
+          lowerIsBetter: true, seriesLabel: 'Last 7 mornings', series: metricSeries('shortages') }),
         foot: footLine([['Target', '0']]),
         edit: field('Count', 'shortages', `type="number" min="0" value="${shortages ?? ''}"`),
       })}
@@ -472,16 +485,21 @@ const SECTIONS = {
       const tone = value == null ? '' : band.count(Number(value));
       return ship(name, label, icon, {
         value: value ?? '\u2014', sub, tone,
+        // No bar — a bar against a target of zero is a bar that is always full — but the
+        // week behind it is the difference between one late truck and a pattern.
+        series: metricSeries(name), lowerIsBetter: true,
         foot: [['Target', '0']],
       });
     };
 
     return `<div class="grid grid--cards">
       ${ship('jobs_shipped', 'Jobs shipped', '\u{1F69A}', {
+        series: metricSeries('jobs_shipped'),
         value: read('jobs_shipped') == null ? '\u2014' : num(read('jobs_shipped')), sub: 'today',
         foot: [['On time', read('jobs_on_time') ?? null],
                ['Of', read('jobs_shipped') ?? null]] })}
       ${ship('cartons', 'Cartons', '\u{1F4E6}', {
+        series: metricSeries('cartons'),
         value: read('cartons') == null ? '\u2014' : num(read('cartons')), sub: 'shipped today',
         foot: [['Per job', read('cartons') && read('jobs_shipped')
           ? num(Math.round(read('cartons') / read('jobs_shipped'))) : null]] })}

@@ -164,7 +164,9 @@ html[data-rail="mini"]{--rail-w:62px}
 .top{min-height:var(--topbar-h);background:var(--surface);border-bottom:1px solid var(--rule);
   display:flex;align-items:center;gap:var(--s3);padding:var(--s2) var(--s5);flex-wrap:wrap;
   position:sticky;top:0;z-index:20}
-.top__loc{font-family:var(--font-condensed);font-size:calc(28px*var(--scale));font-weight:600;
+/* The plant name at 28px was the largest thing in the chrome and read as the page title.
+   It is neither — it is a switch, and one that gets used once a morning. */
+.top__loc{font-family:var(--font-condensed);font-size:calc(20px*var(--scale));font-weight:600;
   letter-spacing:0;color:var(--ink);
   background:none;border:none;font-family:inherit;cursor:pointer;padding:2px 22px 2px 0;
   appearance:none;-webkit-appearance:none;
@@ -282,9 +284,13 @@ body.tv .verdict{font-size:var(--t-lead)}
   background:var(--card-bar);color:#fff;flex:none}
 .card__ico{font-size:25px;line-height:1;flex:none;font-family:var(--font)}
 /* A white disc, so the plant's own colourful pictograms keep their colour against a dark
-   bar instead of being flattened to a white glyph. */
+   bar instead of being flattened to a white glyph.
+   `line-height:1` and a grid that centres on both axes, because an emoji carries its own
+   leading and half-leading — left to a line box it sits a few per cent low, which at the
+   size this is drawn on a wall is visible. */
 .card__head>.card__ico{background:#fff;border-radius:50%;display:grid;place-items:center;
-  width:1.62em;height:1.62em;font-size:25px}
+  width:1.66em;height:1.66em;font-size:25px;line-height:1;overflow:hidden}
+.card__head>.card__ico>*{display:block}
 .card__ico svg{width:1.05em;height:1.05em;display:block;stroke:currentColor;fill:none;stroke-width:4.5;
   stroke-linecap:round;stroke-linejoin:round}
 /* One line, always — and the size the plant's own dashboard gives it. It was dropped to a
@@ -446,14 +452,14 @@ body.tv .verdict{font-size:var(--t-lead)}
    factor for the whole screen, so the cards on it stay the same card. */
 .card *{--u:calc(min(1cqi,calc(var(--card-h)/113.2))*var(--fit,1))}
 /* The head reserves two lines of title on every card so the readings in a row stay level. */
-/* The bar is twice the height of the title it holds, which is what makes it read as a bar
-   rather than as a tinted line of text. */
-.card .card__head{gap:calc(2.4*var(--u));padding:0 calc(4*var(--u));
-  min-height:calc(10.4*var(--u))}
-/* The pictogram is what the eye lands on first, so it leads rather than accompanies: about
-   half again the height of the title it sits beside. It was a fifth smaller than that and
-   read as punctuation. */
-.card .card__head>.card__ico{font-size:calc(4.6*var(--u))}
+/* Three times the height of the title it holds. Twice was enough to read as a bar and not
+   enough to hold a pictogram at a size a room can see — the disc had nowhere to sit. */
+.card .card__head{gap:calc(2.4*var(--u));padding:0 calc(3.4*var(--u));
+  min-height:calc(15.6*var(--u))}
+/* The pictogram is what the eye lands on first, so it leads rather than accompanies. The
+   disc is about seven tenths of the bar, which leaves the bar reading as a bar rather than
+   as a ring with a title after it. */
+.card .card__head>.card__ico{font-size:calc(6.5*var(--u))}
 .card .card__label{font-size:calc(5.2*var(--u))}
 .card .card__flag{min-height:calc(6.6*var(--u));margin-bottom:calc(1.2*var(--u))}
 .card .flag{font-size:calc(3.5*var(--u));padding:calc(.8*var(--u)) calc(2.4*var(--u));
