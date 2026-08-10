@@ -372,29 +372,37 @@ different card width per section, which the eye reads as three kinds of card rat
 one kind laid out three ways. So `--card-w` is the fixed thing and every row is `auto-fit`
 against it.
 
-**One height, declared rather than discovered.** Letting each row take the height of what
-was in it gave quality a 305px row above a 220px row and shipping a 268 above a 358: six
-cards plainly the same design and visibly not the same object. `--card-h` is set to the
-tallest card that exists — production, which carries a bar, a trend line and a three-part
-foot — so nothing is squeezed, and the shorter cards spend the difference on air. Air reads
-as deliberate; five different heights do not.
+**One height per screen, declared rather than discovered.** Letting each row take the
+height of what was in it gave quality a 305px row above a 220px row and shipping a 268 above
+a 358: six cards plainly the same design and visibly not the same object. On the page
+`--card-h` is set to the tallest card that exists — production, which carries a bar, a trend
+line and a three-part foot — so nothing is squeezed and the shorter cards spend the
+difference on air. Air reads as deliberate; five different heights do not.
 
 **Everything on the card is measured in the card.** Titles, feet, bullets, sparks and
-padding are all a percentage of the card's own width, so a card and its contents can only
-change size together. This is the rule that makes present mode free: the wall is this card
-at 404px that the page draws at 318, and nothing needs re-tuning for it. It is also what
-makes it checkable — the card fits at one size or it fits at every size, so the densest
-page is measured once.
+padding are all a multiple of `--u`, one per cent of the card, so a card and its contents
+can only change size together. This is the rule that makes present mode free: the wall is
+this card at 653px that the page draws at 318, and nothing needs re-tuning for it. It is
+also what makes it checkable — the card fits at one size or it fits at every size.
 
-Two traps in that last one, both found by measuring:
+One per cent of *which* dimension is the whole trick, and three traps sit in it, all found
+by measuring:
 
-- A container cannot measure itself. `cqi` inside the rule that *sizes* the container
+- **Width alone is not enough.** Plain `cqi` sizes the contents by how wide the card is,
+  which means a card can never be wider than its own contents are tall. On a two-row screen
+  the card height is fixed at 457px, and that pinned every card to 404px wide and left two
+  hundred pixels of the row unused beside each of them — a Quality screen three-quarters as
+  wide as the screen it was on. `--u` takes the smaller of the width and the height ÷
+  `--card-r`, so the card fills its cell and the contents stop growing when the height runs
+  out.
+- **A container cannot measure itself.** `cqi` inside the rule that *sizes* the container
   resolves against the next container out — the viewport — so `padding:5.2cqi` came out as
-  100px on a 404px card and left the title half the room it thought it had. Padding is in
-  per cent, which resolves against the grid track.
-- `cqi` alone sizes a number by the card and not by the number. `$1.42M` at 31.5% of the
-  card is wider than the card, and it ran under its own border into the card beside it. The
-  hero carries a `--chars` count and takes the smaller of the two caps.
+  100px on a 404px card. Padding is in per cent, which resolves against the grid track, and
+  `--u` is declared on the card's descendants rather than on the card.
+- **A number has a length as well as a size.** 31.5% of the card is right for `262` and
+  wrong for `$1.42M`, where six glyphs at that size are wider than the card and ran under
+  its own border into the card beside it. The hero carries a `--chars` count and takes the
+  smaller of the two caps.
 
 **Nothing is bumped for one view.** Solo view used to give a card a larger title, a larger
 icon, a larger number and more padding — four changes that made one card two cards
@@ -437,13 +445,35 @@ a two-row page got cards half that: three different card shapes across a five-sc
 and safety's reading marooned in the middle of a shape that exists nowhere else in the
 product. A presentation does not distort the thing it is showing.
 
-The right lever is a **fixed row and `align-content:center`**. The card size is derived
-rather than stretched, from whichever of the two constraints runs out first: the width of a
-four-card row, or the height of two of them. Those are the widest and tallest pages there
-are, so the size that fits them fits every page, and the leftover height becomes margin
-above and below rather than stretch inside. Safety's two, production's four, financials'
-two and shipping's eight are all the same card, centred horizontally and vertically. At
-1920×1080 that is 404×457; at 1366×768 it is 266×301; the proportion never changes.
+A **single size for every screen** was the third. It fixed the shape and shrank everything:
+eight shipping cards in two rows set the size for the whole walk, so Safety's two then sat
+at that size in the middle of a screen three-quarters empty — the number smaller than it had
+been before any of this started. One size across screens is not the same goal as one card,
+and chasing it cost the thing the wall is for.
+
+The right answer is **sized per screen, arranged on purpose**. The group stays together —
+Shipping is one screen, not two — and `bestGrid()` in `dashboard.js` costs every column
+count at the size it would actually produce and takes the best, with a squared penalty for
+cells left empty in the last row. Eight comes out four and four. Six comes out three and
+three. Four comes out four across, because one row of four draws a bigger number than two
+rows of two. It has to be arithmetic rather than a rule of thumb, because the answer moves
+with the screen.
+
+What it maximises is **how big the reading comes out**, not how much card there is. Those
+are different: two rows of three and three rows of two both cover most of the screen, and
+one of them draws the number at half the size.
+
+At 1920×1080 that gives Safety 653×930 with a 184px number, Quality 608×457, Shipping
+452×457 four and four, Production 452×723. Between the largest screen and the smallest the
+card varies by about half — variation the eye reads as the same card at two sizes rather
+than as two designs — and every screen fills the height it is given. Three constants bound
+it, and both the stylesheet and `bestGrid()` read them from the same place, because an
+arrangement chosen for a card that is not the card drawn is worse than no arrangement:
+`--card-r` (the ratio at which contents exactly fill a card), `--card-r-max` (the tallest a
+card may be drawn before it reads as a column) and `--wall-cap` (the widest, so a screen of
+two does not draw a card like a door). `--wall-chrome` was the fourth and lived on
+`body.tv`, where `bestGrid()` could not see it — so it read zero, thought it had the whole
+1080, and laid Production out as two rows of two.
 
 One more thing had to go with it: an empty grid still occupies a row. Production keeps a
 second grid for its review notes and Labour wraps its table in one, and both empty out up

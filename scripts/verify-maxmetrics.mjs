@@ -148,6 +148,7 @@ const GLOBALS = new Set(['Number','String','Boolean','Array','Object','Math','JS
   'Promise','Map','Set','RegExp','Error','parseInt','parseFloat','isNaN','isFinite',
   'setTimeout','clearTimeout','setInterval','clearInterval','fetch','structuredClone',
   'encodeURIComponent','decodeURIComponent','addEventListener','removeEventListener',
+  'getComputedStyle',
   'requestAnimationFrame','queueMicrotask','scrollTo','alert','confirm','print','atob','btoa',
   'if','for','while','switch','catch','return','typeof','function','await','super','class','of',
   'async','import','yield','new','delete','void','in','instanceof','do','else','try']);
