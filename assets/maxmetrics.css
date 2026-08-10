@@ -265,14 +265,33 @@ body.tv .verdict{font-size:var(--t-lead)}
   padding:0;overflow:hidden;display:flex;flex-direction:column;
   box-shadow:var(--shadow);
   transition:border-color .2s;min-width:0;container-type:inline-size;position:relative}
-/* Everything below the bar, spread through what is left of the card.
-   Centred, the reading and its context sat as one block in the middle with the spare
-   height split evenly above and below it — which on a card with room to spare reads as a
-   number floating in an empty box. Spreading them puts the number higher, the foot lower
-   and air between the parts rather than around them, which is the same amount of space
-   doing something. */
-.card__body{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:space-evenly;
+/* Everything below the bar, in three zones with fixed jobs: the reading at the top, the
+   drawings at the bottom of what is left, and the context under a rule that is in the same
+   place on every card on the page.
+
+   Two drafts got this wrong in opposite directions. Centred, the whole block floated in the
+   middle of a card with room to spare. Spread evenly, the parts landed wherever the count of
+   parts put them — a card with a bar and a line put its number a third of the way down, the
+   card beside it with neither put its number in the middle, and the rule under the foot came
+   out at four different heights across one screen. That is what the room kept seeing and
+   calling "three or four different types".
+
+   Zones fix it because none of them depends on what the others hold. The reading starts
+   directly under the bar on every card. The foot is a fixed height at the floor, so the rule
+   is at the same line whether it carries one fact or four — or none, in which case the space
+   is still reserved and the rule is simply not drawn. And the drawings drop to the bottom of
+   the gap between the two, which is also the answer to the other half of the complaint: a
+   graph pinned under the number sat halfway up a card with two hundred pixels of nothing
+   below it, and the same graph pushed to the floor of its zone is twice as easy to read from
+   across a room. */
+.card__body{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:flex-start;
   padding:3.6% 5.2%}
+.card__mid{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;align-items:stretch}
+/* A card with no drawing has nothing to pull to the floor, so its reading would sit at the
+   top of a zone and leave the rest of the card empty underneath. Safety is the whole of
+   this case \u2014 two cards, both bare, on their own screen \u2014 so centring them costs no
+   alignment with anything beside them and buys the number the middle of the card. */
+.card__mid:not(:has(.ctrack)){justify-content:center}
 .card--ok{border-color:var(--ok-rule)}
 .card--warn{border-color:var(--warn-rule)}
 .card--stop{border-color:var(--stop-rule)}
@@ -436,9 +455,12 @@ body.tv .verdict{font-size:var(--t-lead)}
 .fs__v{font-family:var(--font-condensed);font-size:calc(19px*var(--scale));
   font-weight:600;line-height:1.2;letter-spacing:-.01em;color:var(--ink);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
-/* One fact is a sentence, not a column: "Target 0" reads on one line and costs the card
-   nothing. Two lines for it was the widest thing on a shipping card. */
-.foot--1 .fs{flex-direction:row;align-items:baseline;justify-content:center;gap:var(--s2)}
+/* One fact keeps the same two-line shape as the rest, centred.
+   It read as a sentence once — "Target 0" on one line — and that was one of the four foots
+   the room was seeing: a single line is shorter than two, so Shortage count's rule finished
+   below the rule on the COQ card beside it. Whatever the foot holds, it holds it the same
+   way. */
+.foot--1 .fs{align-items:center;text-align:center}
 .foot--1 .fs__l{font-size:calc(12px*var(--scale))}
 /* ── Everything on a card is measured in the card ──────────────────────────────
    `--u` is one per cent of the card, and every length below is a multiple of it. Because a
@@ -470,7 +492,7 @@ body.tv .verdict{font-size:var(--t-lead)}
    middle of five hundred pixels of nothing. `fitCards()` measures what is actually in each
    card and scales the lot until the fullest card in the screen has used its room — one
    factor for the whole screen, so the cards on it stay the same card. */
-.card *{--u:calc(min(1cqi,calc(var(--card-h)/113.2))*var(--fit,1))}
+.card *{--cu:min(1cqi,calc(var(--card-h)/113.2));--u:calc(var(--cu)*var(--fit,1))}
 /* The head reserves two lines of title on every card so the readings in a row stay level. */
 /* The bar is sized by its title, and the title is sized by how long it is.
    Everything else on a card is a share of `--u`, which on a two-row screen is set by the
@@ -507,37 +529,82 @@ body.tv .verdict{font-size:var(--t-lead)}
    wrong for "$1.42M", where six glyphs at that size are wider than the card and ran under
    its border into the card beside it. `--chars` comes from metricCard. */
 .card .hero{font-size:min(calc(31.5*var(--u)),calc(205cqi/var(--chars,3)))}
-.card .hero--md{font-size:min(calc(23*var(--u)),calc(205cqi/var(--chars,3)))}
+/* A medium hero is capped harder by its own length as well as by the card. Six glyphs at
+   the full cap \u2014 "$11.8M", "12,400" \u2014 ran the width of the card and left the graph
+   under them a sliver; the room asked for those to come down by about a fifth, which is
+   what dropping the length cap from 205 to 160 does. */
+.card .hero--md{font-size:min(calc(23*var(--u)),calc(160cqi/var(--chars,3)))}
 .card .unit{font-size:calc(4.1*var(--u))}
 .card .ctrack{margin-top:calc(2.6*var(--u));gap:calc(1.4*var(--u))}
 .card .ctrack__row:not(:first-child){margin-top:calc(1.4*var(--u))}
 .card .ctrack__l{font-size:calc(4*var(--u))}
 .card .ctrack__d{font-size:calc(4.5*var(--u))}
-.card .ctrack .bullet{height:calc(4.2*var(--u))}
-.card .ctrack .spark{height:calc(5.6*var(--u))}
-/* The foot travels with the number rather than being pinned to the floor of the card.
-   `margin-top:auto` is right when a card is as tall as its contents; it is wrong now that
-   every card in a row is the same height, because it left safety's number stranded at the
-   top of a card with its context four hundred pixels below. The block centres and holds
-   together. */
-.card .foot{margin-top:calc(3*var(--u));padding-top:calc(1.8*var(--u));
-  gap:calc(.8*var(--u)) calc(3*var(--u))}
+/* Both drawings grew. A bar four per cent of the card tall is a hairline at page size and
+   an unremarkable stripe on the wall, and the graph under it was smaller still — which is
+   what the room meant by "the bar is not really evident" and by wanting the graphs more
+   visible. The height comes out of space the card was not using. */
+.card .ctrack .bullet{height:calc(5.6*var(--u))}
+.card .ctrack .spark{height:calc(8.4*var(--u))}
+/* The drawings sit at the floor of the reading's zone rather than under the number. Placed
+   after `.card .ctrack` on purpose: same specificity, later wins. */
+.card__mid>.ctrack{margin-top:auto}
+/* While `fitCards()` is working the zones stop stretching, so a card reports the height its
+   contents need rather than the height it was handed. See the note beside `measuring`. */
+.grid--cards.measuring .card__mid{flex:0 0 auto}
+.grid--cards.measuring .card__mid>.ctrack{margin-top:calc(2.6*var(--u))}
+.grid--cards.measuring .card .foot{margin-top:calc(3*var(--u))}
+/* The foot is a fixed height at the floor of the card, and that is the whole of why every
+   rule on a screen is now on the same line.
+   Measured in `--cu` rather than `--u`: the card's own hundredth, before `fitCards()` has
+   had its say. `--fit` is found per screen from whatever the fullest card on it needs, so a
+   Safety screen of two sparse cards settles higher than a Shipping screen of eight — and a
+   foot tied to it drew a taller foot on Safety and put the two sections' rules at two
+   heights. The foot is not competing for the room the reading needs; it is a fixed strip at
+   the bottom of a card, the same strip on every card the same size. The reading above it
+   still grows into whatever is left, which is the whole point of `--fit`.
+   Left to size itself it could not be: the row divides by how many facts it holds, and each
+   fact's type is capped by how long it is, so a card carrying "Nov 20, 2025" drew a smaller
+   value than one carrying "0" and its rule finished a few pixels lower. Multiply that by
+   four card shapes on a screen and the page reads as four designs. Given a height, the rule
+   is at the same place whatever the foot is carrying — and a card with nothing to put there
+   reserves the same space and simply does not draw the line. */
+.card .foot{margin-top:auto;min-height:calc(15.4*var(--cu));align-content:start;
+  padding-top:calc(1.8*var(--cu));gap:calc(.8*var(--cu)) calc(3*var(--cu))}
+.foot--0{border-top-color:transparent}
+/* The variance chip is the foot's value, so it is sized against the foot rather than
+   against the page — the same rectangle at 318px and at 653px. */
+.card .fs__v .delta{font-size:.86em;height:calc(6.6*var(--cu));line-height:1;
+  padding:0 calc(1.5*var(--cu));border-radius:calc(1*var(--cu));gap:calc(.6*var(--cu));
+  vertical-align:middle}
+.card .ctrack .delta{font-size:calc(4.2*var(--cu));padding:calc(.4*var(--cu)) calc(1.3*var(--cu));
+  border-radius:calc(.9*var(--cu))}
 /* A fact in the foot is capped by its own length as well as by the card, and the divisor
    is how much of the card its column gets. "Nov 20, 2025" set at the size that suits "39"
    is wider than half a card, and it was the first thing to run out of room on every card —
    which is to say it decided how large the whole card was allowed to be drawn. */
-.card .fs__l{font-size:min(calc(4*var(--u)),calc(170cqi/var(--lc,6)))}
-.card .fs__v{font-size:min(calc(6.2*var(--u)),calc(150cqi/var(--fc,4)))}
-.card .foot--2 .fs__l{font-size:min(calc(4*var(--u)),calc(82cqi/var(--lc,6)))}
-.card .foot--2 .fs__v{font-size:min(calc(6.2*var(--u)),calc(74cqi/var(--fc,4)))}
-.card .foot--3 .fs__l{font-size:min(calc(4*var(--u)),calc(53cqi/var(--lc,6)))}
-.card .foot--3 .fs__v{font-size:min(calc(6.2*var(--u)),calc(47cqi/var(--fc,4)))}
-.card .foot--4 .fs__l{font-size:min(calc(4*var(--u)),calc(38cqi/var(--lc,6)))}
-.card .foot--4 .fs__v{font-size:min(calc(6.2*var(--u)),calc(34cqi/var(--fc,4)))}
-/* One fact reads as a sentence, so the label and the value share the line between them. */
-.card .foot--1 .fs{gap:calc(2*var(--u))}
-.card .foot--1 .fs__l{font-size:min(calc(4.2*var(--u)),calc(115cqi/var(--lc,6)))}
-.card .foot--1 .fs__v{font-size:min(calc(6.2*var(--u)),calc(105cqi/var(--fc,4)))}
+/* Two line boxes of a fixed height, whatever type ends up in them.
+   This is the last of the four foots. Each fact caps its own size by how long it is, so the
+   value on one card came out at 19px and on the next at 14px, each line box grew to its own
+   type, and two cards side by side finished their feet a few pixels apart — visible as
+   rules that do not line up, which is exactly what the room reported. Fixing the line boxes
+   rather than the type keeps the caps doing their job (nothing is truncated) and takes their
+   side effect away (nothing moves). */
+.card .fs__l{line-height:calc(5.2*var(--cu))}
+.card .fs__v{line-height:calc(8.4*var(--cu))}
+.card .fs__l{font-size:min(calc(4*var(--cu)),calc(170cqi/var(--lc,6)))}
+.card .fs__v{font-size:min(calc(6.2*var(--cu)),calc(150cqi/var(--fc,4)))}
+.card .foot--2 .fs__l{font-size:min(calc(4*var(--cu)),calc(82cqi/var(--lc,6)))}
+.card .foot--2 .fs__v{font-size:min(calc(6.2*var(--cu)),calc(74cqi/var(--fc,4)))}
+.card .foot--3 .fs__l{font-size:min(calc(4*var(--cu)),calc(53cqi/var(--lc,6)))}
+.card .foot--3 .fs__v{font-size:min(calc(6.2*var(--cu)),calc(47cqi/var(--fc,4)))}
+.card .foot--4 .fs__l{font-size:min(calc(4*var(--cu)),calc(38cqi/var(--lc,6)))}
+.card .foot--4 .fs__v{font-size:min(calc(6.2*var(--cu)),calc(34cqi/var(--fc,4)))}
+/* One fact, two lines, like every other foot — the gap that used to separate a label from
+   its value on one line would now separate two lines and put this card's rule above the
+   next card's. */
+.card .foot--1 .fs{gap:0}
+.card .foot--1 .fs__l{font-size:min(calc(4.2*var(--cu)),calc(115cqi/var(--lc,6)))}
+.card .foot--1 .fs__v{font-size:min(calc(6.2*var(--cu)),calc(105cqi/var(--fc,4)))}
 
 /* The rule is a rule, not a verdict. */
 .fstat{display:flex;flex-direction:column;gap:1px;min-width:0}
@@ -566,9 +633,14 @@ body.tv .verdict{font-size:var(--t-lead)}
    that a filled block was shouting; it was not — it is the one thing on the card that is
    news rather than a reading, and on a white card it is also the only colour above the
    number. Outlined, it disappeared. */
+/* One line, and never wider than the card it sits on. `overflow:hidden` is what makes the
+   overrun visible to `fitCards()`: nowrap alone let "Record broken · +127 days" run out
+   through both borders of a Safety card on the wall, and nothing in the measuring pass
+   could see it happening. */
 .flag{align-self:center;font-size:var(--t-micro);font-weight:700;text-transform:uppercase;
-  letter-spacing:.07em;padding:3px 10px;border-radius:4px;
-  white-space:nowrap;background:var(--ink-faint);color:#fff;border:none}
+  letter-spacing:.07em;padding:3px 10px;border-radius:4px;max-width:100%;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  background:var(--ink-faint);color:#fff;border:none}
 .flag--ok{background:var(--ok)}.flag--warn{background:var(--warn)}.flag--stop{background:var(--stop)}
 .trend--good{color:var(--ok)}.trend--bad{color:var(--stop)}.trend--flat{color:var(--ink-faint)}
 
@@ -781,7 +853,13 @@ body.tv .finbars{display:none}
    screen empty beside it looks like a mistake. */
 body.tv .grid{flex:1 1 auto;align-content:center;justify-content:center;
   grid-auto-rows:var(--card-h);margin:0}
-body.tv .card__mid{flex:0 1 auto}
+/* The reading's zone stretches on the wall too. It was pinned to its content height back
+   when the body spread its parts with `space-evenly` and the middle child stretching would
+   have eaten the spread. The body has zones now and the middle one is the elastic one on
+   every screen, page and wall alike \u2014 left at `0 1 auto` here it collapsed to its
+   contents and left the graph floating in the middle of a wall card with eighty pixels of
+   nothing under it. */
+body.tv .card__mid{flex:1 1 auto}
 /* The track's captions are captions, not readings. Scaled with everything else at 2.15×
    they ran out of card and truncated to "LAST 7 MORNI…", which is a label that has
    stopped being a label. They grow more slowly than the numbers they sit under. */
@@ -1006,9 +1084,23 @@ body[data-view="line"] .chartpick,body[data-view="board"] .chartpick{display:non
 .bullet__band--bad{background:var(--stop-wash)}
 .bullet__band--mid{background:var(--warn-wash)}
 .bullet__band--good{background:var(--ok-wash)}
-.bullet__fill{position:absolute;top:6px;bottom:6px;left:0;border-radius:3px;background:currentColor}
-.bullet__target{position:absolute;top:1px;bottom:1px;width:3px;background:var(--ink);
-  border-radius:2px;opacity:.75}
+/* Proportional, not six pixels. The bar is a share of the card now, so a fixed inset left a
+   fat grey border on the wall and none at all on the page. */
+.bullet__fill{position:absolute;top:20%;bottom:20%;left:0;border-radius:3px;background:currentColor}
+/* Where target is, said loudly.
+   It was a three-pixel line at three-quarter opacity over a washed band, which on a screen
+   ten metres away is not there at all — the room's words were "the bar is not really evident
+   in the target". Now it runs the full height of the bar at full ink, carries a shoulder of
+   card colour on each side so it reads against green, amber and red alike, and points at
+   itself with a notch. Sized in `--u` where there is one, in pixels where there is not: the
+   same mark is drawn on the flag cards and the lanes, which are not cards and have no `--u`. */
+.bullet__target{position:absolute;top:0;bottom:0;width:var(--u,3px);min-width:3px;
+  background:var(--ink);border-radius:0;opacity:1;
+  box-shadow:0 0 0 calc(.55*var(--u,2px)) var(--surface)}
+.bullet__target::before{content:"";position:absolute;left:50%;top:0;transform:translateX(-50%);
+  border-left:calc(2.1*var(--u,3px)) solid transparent;
+  border-right:calc(2.1*var(--u,3px)) solid transparent;
+  border-top:calc(2.1*var(--u,3px)) solid var(--ink)}
 .delta{display:inline-flex;align-items:center;gap:4px;font-size:var(--t-micro);font-weight:700;
   padding:2px 8px;border-radius:20px;white-space:nowrap;background:var(--sunk);color:var(--ink-muted)}
 .delta--ok{background:var(--ok-wash);color:var(--ok)}

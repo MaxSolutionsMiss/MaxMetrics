@@ -245,6 +245,35 @@ export function bullet({ actual, target, tone = '', floor = 0, ceiling = 0, lowe
 
 export const chip = (tone, text) => `<span class="delta delta--${tone}">${esc(text)}</span>`;
 
+// ── Variance, said one way ──────────────────────────────────────────────────────
+//
+// Four sections were each inventing their own. Shipping printed "−0.13 pts", cost of
+// quality "+0.04 pts", money "▲ 2.3%", and the departments a bare "−240". Points are a
+// unit nobody outside a statistics class asks for — "two points off" and "two per cent
+// off" are different numbers, and the room reads the first as the second anyway. So every
+// variance on the product is now the same thing: how far off target, as a share of the
+// target, in a chip the colour of the verdict.
+//
+// The colour is the sign, not a band, because that is the question being asked of it: over
+// is good, under is not, and a little under is worth a different colour from a lot under.
+// Four per cent is the line between them — a miss inside four per cent of budget is a week
+// of weather, past it is a decision.
+export const varianceTone = pct =>
+  !Number.isFinite(pct) ? 'none' : pct >= 0 ? 'ok' : pct > -4 ? 'warn' : 'stop';
+
+export const variancePct = (pct, digits = 1) =>
+  `${pct >= 0 ? '+' : '−'}${Math.abs(pct).toFixed(digits)}%`;
+
+// `lowerIsBetter` flips which side is green without flipping the sign printed. Cost of
+// quality half its target is "−55%" and green: the number says which way it moved, the
+// colour says whether that was the way to move.
+export const varianceChip = (actual, target, { digits = 1, lowerIsBetter = false } = {}) => {
+  const a = Number(actual), t = Number(target);
+  if (!Number.isFinite(a) || !Number.isFinite(t) || !t) return null;
+  const pct = (a - t) / Math.abs(t) * 100;
+  return chip(varianceTone(lowerIsBetter ? -pct : pct), variancePct(pct, digits));
+};
+
 // ── What every card carries under its number ────────────────────────────────────
 //
 // A figure on its own answers "what is it" and nothing else. The two questions the room
@@ -261,7 +290,7 @@ export const chip = (tone, text) => `<span class="delta delta--${tone}">${esc(te
 // answer the same question twice.
 export function cardTrack({ chart, actual, target, tone = '', floor = 0, ceiling = 0,
                            lowerIsBetter = false, bands = true, targetText, deltaText, deltaTone,
-                           series, seriesLabel = 'Last 7 mornings' }) {
+                           series, seriesLabel = 'Last 7 days', deltaHtml }) {
   const bar = chart === 'bar' ? ''
     : bullet({ actual, target, tone, floor, ceiling, lowerIsBetter, bands });
   const points = (series || []).filter(v => Number.isFinite(Number(v))).map(Number);
@@ -271,7 +300,9 @@ export function cardTrack({ chart, actual, target, tone = '', floor = 0, ceiling
     ${right || ''}</div>`;
   return `<div class="ctrack">
     ${bar ? row(targetText || 'Against target',
-        deltaText ? `<span class="ctrack__d tone--${deltaTone || tone || 'none'}">${esc(deltaText)}</span>` : '')
+        deltaHtml || (deltaText
+          ? `<span class="ctrack__d tone--${deltaTone || tone || 'none'}">${esc(deltaText)}</span>`
+          : ''))
       + bar : ''}
     ${line ? row(seriesLabel, trend(points[points.length - 1], points[0], lowerIsBetter)) + line : ''}
   </div>`;
@@ -575,7 +606,7 @@ export function metricCard({ chart, pkey, icon, label, tone, value, unit, percen
           unit ? `<i>${esc(unit)}</i>` : ''}</div>${caption}${drawn}` : `${drawn}${caption}`}
         ${track || ''}
       </div>
-      ${foot || ''}
+      ${foot || '<div class="foot foot--0"></div>'}
       ${edit ? `<div class="ez">${edit}</div>` : ''}
     </div>
   </div>`;
