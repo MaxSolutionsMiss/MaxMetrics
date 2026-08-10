@@ -163,11 +163,11 @@ function streakCard(kind, label, lastField, recordField, word) {
     // days clean" into a race against a number the room would rather never think about
     // again. The record belongs where it is: a fact under the rule, not a finish line.
     foot: footLine([
-      ['Record', record ? `${record} days` : null],
-      [`Last ${word}`, shortDate(last)],
+      ['Record', record ? `${record} days` : null,
+        { field: recordField, attrs: `type="number" min="0" value="${record || ''}"` }],
+      [`Last ${word}`, shortDate(last),
+        { field: lastField, attrs: `type="date" value="${last || ''}"` }],
     ]),
-    edit: field('Last', lastField, `type="date" value="${last || ''}"`)
-        + field('Record', recordField, `type="number" value="${record || ''}"`),
   });
 }
 
@@ -192,12 +192,12 @@ function coqCard(kind, label, valueField, targetField) {
       chart: 'number', actual: Number(value), target, tone, lowerIsBetter: true,
       targetText: `Against \u2264 ${target.toFixed(2)}%`, series: metricSeries(valueField),
     }) : '',
+    heroEdit: { field: valueField, attrs: `type="number" step="0.01" value="${value ?? ''}"` },
     foot: footLine([
-      ['Target', `\u2264 ${target.toFixed(2)}%`],
+      ['Target', `\u2264 ${target.toFixed(2)}%`,
+        { field: targetField, attrs: `type="number" step="0.01" value="${target}"` }],
       ['Variance', variance],
     ]),
-    edit: field('Actual %', valueField, `type="number" step="0.01" value="${value ?? ''}"`)
-        + field('Target %', targetField, `type="number" step="0.01" value="${target}"`),
   });
 }
 
@@ -323,7 +323,7 @@ function maintenancePanel() {
         aria-label="Remove this item">×</button></td>
     </tr>`;
   };
-  return `<div class="panel" style="margin-top:var(--s3)">
+  return `<div class="panel panel--wall" style="margin-top:var(--s3)">
     <div class="panel__head"><span class="card__ico" aria-hidden="true">${iconFor('maintenance')}</span>
       <h3 class="panel__title">Upcoming maintenance</h3>
       <div class="panel__actions">
@@ -567,14 +567,14 @@ const SECTIONS = {
           months: monthSeries(`${base}_mtd`),
           monthsThrough: dateOf(state.date).getMonth(),
           monthsLabel: `${dateOf(state.date).getFullYear()} by month` }),
+        heroEdit: { field: `${base}_today`, attrs: `type="number" min="0" value="${today ?? ''}"` },
         foot: footLine([
-          ['Month to date', mtd == null ? null : num(mtd)],
-          ['Year to date', ytd == null ? null : num(ytd)],
+          ['Month to date', mtd == null ? null : num(mtd),
+            { field: `${base}_mtd`, attrs: `type="number" min="0" value="${mtd ?? ''}"` }],
+          ['Year to date', ytd == null ? null : num(ytd),
+            { field: base === 'ncr' ? 'ncr_ytd' : base,
+              attrs: `type="number" min="0" value="${ytd ?? ''}"` }],
         ]),
-        edit: field('Last 24 hours', `${base}_today`, `type="number" min="0" value="${today ?? ''}"`)
-            + field('Month to date', `${base}_mtd`, `type="number" min="0" value="${mtd ?? ''}"`)
-            + field('Year to date', base === 'ncr' ? 'ncr_ytd' : base,
-                    `type="number" min="0" value="${ytd ?? ''}"`),
       });
     };
     return `<div class="grid grid--cards">
@@ -586,8 +586,8 @@ const SECTIONS = {
         // fourth bad Tuesday running. That is the question a bare number leaves open.
         track: cardTrack({ chart: 'number', actual: 0, target: 0, tone: shortTone,
           lowerIsBetter: true, series: metricSeries('shortages') }),
+        heroEdit: { field: 'shortages', attrs: `type="number" min="0" value="${shortages ?? ''}"` },
         foot: footLine([['Target', '0']]),
-        edit: field('Count', 'shortages', `type="number" min="0" value="${shortages ?? ''}"`),
       })}
       ${coqCard('coq', 'COQ \u2014 month to date', 'coq', 'coq_target')}
       ${coqCard('coqytd', 'COQ \u2014 year to date', 'coq_ytd', 'coq_ytd_target')}
@@ -625,7 +625,7 @@ const SECTIONS = {
           // reader has to go and find \u2014 and fifty off three thousand and fifty off two
           // thousand are not the same miss.
           deltaHtml: rate && target ? varianceChip(rate, target) : '',
-          series: deptSeries(config.key),
+          series: deptSeries(config.key), seriesTrend: false,
         }),
         // Target, what was made, and the hours it took — the three things asked after the
         // rate itself, on one line. "vs target" is not among them any more: the bar above
@@ -633,16 +633,23 @@ const SECTIONS = {
         // the card felt crowded.
         // Three facts, one row: what the target was, what was made against it, and the
         // hours it took. They were two rows, which spent a whole line on the hours.
+        // Three facts, three fields, and they are the same three squares of the card.
+        //
+        // Uptime and make-ready are gone from here. They were two more inputs on a card that
+        // prints neither, entered by hand for a figure the DOR has always carried — and the
+        // DOR's own Formulas tab settled how to read them, so they arrive with the morning
+        // now. Two fewer rows on every department card is most of why Production used to be
+        // a page and a half in edit mode.
         foot: footLine([
-          ['Target', num(Math.round(target))],
-          [volumeLabel(config), row.qty ? num(row.qty) : null],
-          [hoursLabel(config), row.hours ? `${row.hours} h` : null],
+          ['Target', num(Math.round(target)),
+            { field: `dept:${config.key}:target`,
+              attrs: `type="number" value="${row.target ?? config.target}"` }],
+          [volumeLabel(config), row.qty ? num(row.qty) : null,
+            { field: `dept:${config.key}:qty`, attrs: `type="number" value="${row.qty ?? ''}"` }],
+          [hoursLabel(config), row.hours ? `${row.hours} h` : null,
+            { field: `dept:${config.key}:hours`,
+              attrs: `type="number" step="0.1" value="${row.hours ?? ''}"` }],
         ]),
-        edit: field(volumeLabel(config), `dept:${config.key}:qty`, `type="number" value="${row.qty ?? ''}"`)
-            + field(hoursLabel(config), `dept:${config.key}:hours`, `type="number" step="0.1" value="${row.hours ?? ''}"`)
-            + field('Target', `dept:${config.key}:target`, `type="number" value="${row.target ?? config.target}"`)
-            + field('Uptime', `dept:${config.key}:uptime`, `type="number" step="0.001" placeholder="0.88" value="${row.uptime ?? ''}"`)
-            + field('Make-ready', `dept:${config.key}:make_ready`, `type="number" step="0.01" placeholder="hours" value="${row.make_ready ?? ''}"`),
       });
     }).join('');
 
@@ -672,8 +679,8 @@ const SECTIONS = {
           rate ? num(Math.round(rate)) : '—'}</td>
         <td class="num">${num(Math.round(target))}</td>
         <td class="num">${rate && target ? trend(rate, target) : '—'}</td>
-        <td class="num">${upTarget ? `${upTarget.toFixed(0)}%` : '—'}</td>
-        <td class="num">${mrTarget ? `${mrTarget.toFixed(2)} h` : '—'}</td>
+        <td class="num tv-hide">${upTarget ? `${upTarget.toFixed(0)}%` : '—'}</td>
+        <td class="num tv-hide">${mrTarget ? `${mrTarget.toFixed(2)} h` : '—'}</td>
       </tr>`;
     };
 
@@ -681,8 +688,12 @@ const SECTIONS = {
     // That worked while there were three and stopped the moment a plant could add its own.
     // The cards wrap on their own now and the table takes the full width underneath.
     return `<div class="grid grid--cards">${cards}</div>
-    <div class="panel" style="margin-top:var(--s3)">
-      <div class="panel__head"><span class="card__ico" aria-hidden="true">📅</span>
+    ${/* On a Monday it goes up on the wall as well. The week just gone is the thing the
+          Monday meeting is actually about, and it is nine columns of numbers — a table, not
+          a card. Every other morning it stays on the page, where it is read leaning in. */''}
+    <div class="panel panel--full${dateOf(state.date).getDay() === 1 ? ' panel--wall' : ''}"
+         style="margin-top:var(--s3)">
+      <div class="panel__head"><span class="card__ico" aria-hidden="true">${iconFor('calendar')}</span>
         <h3 class="panel__title">Last week&rsquo;s productivity</h3>
         <span class="panel__actions chip">Same weekday</span></div>
       <div class="panel__body">
@@ -693,8 +704,8 @@ const SECTIONS = {
           <th class="num">Per hour</th>
           <th class="num">Target</th>
           <th class="num">vs target</th>
-          <th class="num">Uptime target</th>
-          <th class="num">Make-ready target</th>
+          <th class="num tv-hide">Uptime target</th>
+          <th class="num tv-hide">Make-ready target</th>
         </tr></thead><tbody>${list.map(weekRow).join('')}</tbody></table>
       </div>
     </div>
@@ -731,8 +742,9 @@ const SECTIONS = {
     // these readings is special enough to earn its own component.
     const ship = (name, label, { value, unit = '', sub = '', tone = '', target = 0,
                                        floor = 0, ceiling = 0, series = null, medium = false,
-                                       lowerIsBetter = false, deltaHtml = null, foot = [] }) => metricCard({
-      chart: 'number', pkey: name, label, tone, medium,
+                                       lowerIsBetter = false, deltaHtml = null, foot = [],
+                                       heroEdit = null }) => metricCard({
+      chart: 'number', pkey: name, label, tone, medium, heroEdit,
       value, unit, sub,
       percent: target ? Number(value || 0) / target * 100 : 0,
       markPercent: target ? 100 : null, markLabel: 'target',
@@ -753,7 +765,13 @@ const SECTIONS = {
       const tone = value == null ? '' : band.pct(Number(value), SHIPPING_TARGET);
       const variance = value == null ? null
         : varianceChip(Number(value), SHIPPING_TARGET, { digits: 2 });
+      // OTD and OTIF follow from jobs, late and short, so they have no field. The two
+      // roll-ups do, because nothing on this morning can work them out.
+      const typed = name === 'mtd_otif' || name === 'ytd_otif';
       return ship(name, label, {
+        heroEdit: typed
+          ? { field: name, attrs: `type="number" step="0.01" value="${state.metrics?.[name] ?? ''}"` }
+          : null,
         value: value == null ? '\u2014' : Number(value).toFixed(2), unit: value == null ? '' : '%',
         sub, tone, target: SHIPPING_TARGET, floor: 90, ceiling: 100, series: metricSeries(name),
         foot: [['Target', `\u2265 ${SHIPPING_TARGET}%`], ['Variance', variance]],
@@ -764,6 +782,7 @@ const SECTIONS = {
       const tone = value == null ? '' : band.count(Number(value));
       return ship(name, label, {
         value: value ?? '\u2014', sub, tone,
+        heroEdit: { field: name, attrs: `type="number" min="0" value="${value ?? ''}"` },
         // No bar — a bar against a target of zero is a bar that is always full — but the
         // week behind it is the difference between one late truck and a pattern.
         series: metricSeries(name), lowerIsBetter: true,
@@ -779,11 +798,17 @@ const SECTIONS = {
       ${ship('jobs_shipped', 'Jobs shipped', {
         series: metricSeries('jobs_shipped'),
         value: read('jobs_shipped') == null ? '\u2014' : num(read('jobs_shipped')), sub: 'today',
-        foot: [['On time', read('jobs_on_time') ?? null],
+        heroEdit: { field: 'jobs_shipped',
+                    attrs: `type="number" min="0" value="${state.metrics?.jobs_shipped ?? ''}"` },
+        foot: [['On time', read('jobs_on_time') ?? null,
+                 { field: 'jobs_on_time',
+                   attrs: `type="number" min="0" value="${state.metrics?.jobs_on_time ?? ''}"` }],
                ['Of', read('jobs_shipped') ?? null]] })}
       ${ship('cartons', 'Cartons', {
         series: metricSeries('cartons'),
         value: read('cartons') == null ? '\u2014' : num(read('cartons')), sub: 'shipped today',
+        heroEdit: { field: 'cartons',
+                    attrs: `type="number" min="0" value="${state.metrics?.cartons ?? ''}"` },
         foot: [['Per job', read('cartons') && read('jobs_shipped')
           ? num(Math.round(read('cartons') / read('jobs_shipped'))) : null]] })}
       ${count('late', 'Late', 'shipments')}
@@ -793,12 +818,7 @@ const SECTIONS = {
       ${pct('mtd_otif', 'MTD OTIF', 'month to date')}
       ${pct('ytd_otif', 'YTD OTIF', 'year to date')}
     </div>
-    <div class="panel edit-only" style="margin-top:var(--s3)"><div class="panel__body"><div class="grid g4">
-      ${[['Jobs shipped','jobs_shipped'],['On time','jobs_on_time'],['Cartons','cartons'],
-         ['Late','late'],['Shorts','shorts'],['MTD OTIF %','mtd_otif'],['YTD OTIF %','ytd_otif']]
-        .map(([label, name]) => field(label, name, `type="number" step="0.01" value="${state.metrics?.[name] ?? ''}"`)).join('')}
-      <p class="note-derived">OTD and OTIF are worked out from jobs, late and short.</p>
-    </div></div></div>`;
+    <p class="note-derived edit-only">OTD and OTIF are worked out from jobs, late and short.</p>`;
   },
 
   // ── Maintenance ──
@@ -861,6 +881,9 @@ const SECTIONS = {
         // that suits "98" is the widest thing on any card, and the width it took came out of
         // the graph underneath.
         value: money(actual), sub: `${pace}% of budget`,
+        heroEdit: { field: key === 'fin-mtd' ? 'fin_actual_mtd' : 'fin_actual_ytd',
+                    attrs: `type="number" step="0.01" value="${
+                      metric(key === 'fin-mtd' ? 'fin_actual_mtd' : 'fin_actual_ytd') ?? ''}"` },
         // The chart choice reaches the money too. A page where five readings are rings and
         // the sales figure is bare reads as two designs rather than one.
         // `chart:'number'`, not the reader's choice: the reading itself is the money, so
@@ -880,9 +903,6 @@ const SECTIONS = {
           whenRow,
           ['Variance', chip(varianceTone(percent), variancePct(percent))],
         ]),
-        edit: field(`Actual ${key === 'fin-mtd' ? 'MTD' : 'YTD'}`,
-          key === 'fin-mtd' ? 'fin_actual_mtd' : 'fin_actual_ytd',
-          `type="number" value="${metric(key === 'fin-mtd' ? 'fin_actual_mtd' : 'fin_actual_ytd') ?? ''}"`),
       });
     };
 
@@ -1170,14 +1190,18 @@ function fitCards() {
 const cssNum = name => parseFloat(
   getComputedStyle(document.documentElement).getPropertyValue(name)) || 0;
 
-function bestGrid(count) {
+// `share` is how much of the screen's height the cards get. It is one on every screen but
+// the one that also carries a table, where the cards take the top half and the table the
+// rest — and the arrangement has to be chosen for the height the cards will actually have,
+// not for the screen.
+function bestGrid(count, share = 1) {
   const gap = cssNum('--s4'), pad = cssNum('--s6');
   // The ratio at which a card's contents exactly fill it, and the tallest it may be drawn
   // before it stops reading as a card. Both live in the stylesheet — this reads them rather
   // than holding a second copy that would drift the first time either is tuned.
   const min = cssNum('--card-r') || 1.13, max = cssNum('--card-r-max') || 1.6;
   const room = { w: window.innerWidth - pad * 2,
-                 h: window.innerHeight - cssNum('--wall-chrome'),
+                 h: (window.innerHeight - cssNum('--wall-chrome')) * share,
                  cap: window.innerWidth * cssNum('--wall-cap') / 100 };
   let best = { cols: count, rows: 1, score: -1 };
   for (let cols = 1; cols <= count; cols++) {
@@ -1211,9 +1235,16 @@ function wallPages() {
   for (const key of order()) {
     holder.innerHTML = SECTIONS[key]();
     const cards = [...holder.querySelectorAll('.grid--cards > .card')];
-    if (!cards.length) continue;
-    pages.push({ key, ...bestGrid(cards.length),
-                 html: cards.map(card => card.outerHTML).join('') });
+    // One panel is allowed on the wall, and only one: the upcoming maintenance table. Every
+    // other panel on the product is a thing you lean in for, and a five-row table read from
+    // ten metres is a slide with nothing on it. This one is the exception because what the
+    // room needs off it — which machine, for how long — is five columns wide, so a card
+    // cannot carry it and a card was never what was being asked for.
+    const panel = holder.querySelector('.panel--wall');
+    if (!cards.length && !panel) continue;
+    pages.push({ key, ...bestGrid(Math.max(1, cards.length), panel ? 0.52 : 1),
+                 html: cards.map(card => card.outerHTML).join(''),
+                 panel: panel ? panel.outerHTML : '' });
   }
   return pages;
 }
@@ -1230,9 +1261,10 @@ function renderWall() {
       <h2>${esc(TITLES[page.key])} · ${esc(state.locations.find(l => l.id === state.location)?.name || '')}</h2>
       <span class="wall__date">${$('#date-long').textContent}</span>
     </div>
-    <section class="sec">
-      <div class="grid grid--cards"
-           style="--wall-cols:${page.cols};--wall-rows:${page.rows}">${page.html}</div>
+    <section class="sec${page.panel ? ' sec--split' : ''}">
+      ${page.html ? `<div class="grid grid--cards"
+           style="--wall-cols:${page.cols};--wall-rows:${page.rows}">${page.html}</div>` : ''}
+      ${page.panel || ''}
     </section>
     <div class="wall__dots">${pages.map((p, i) =>
       `<span class="wall__dot${i === at ? ' wall__dot--on' : ''}"

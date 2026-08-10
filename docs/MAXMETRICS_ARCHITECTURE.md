@@ -702,19 +702,45 @@ stretched to the card's width with `preserveAspectRatio:none`, which is right fo
 and wrong for a letter: at a 120-wide viewBox in a 600px card, a month initial comes out
 five times as wide as it is tall.
 
-## A card grows to hold its fields
+## The field is where the number is
 
-A card is a fixed height with its contents in three zones. The edit fields are a fourth
-thing, and they had nowhere to go: the reading's zone shrank to nothing under them and the
-number, the graph and the foot all landed on top of each other. Turning on Edit mode made
-every card on the page illegible.
+Every card grew a block of labelled inputs under its foot. So the person entering a morning
+read a number in one place and typed it in another an inch below, with the label written out
+twice — and the card doubled in height, which is what turned "Everything" into a scroll.
 
-In edit mode the grid's rows size to their contents, floored at the normal card height so a
-row of cards with no fields does not collapse. `min-height:0` — the declaration that lets
-the zones shrink — is lifted with it, since a row sizing itself to its contents has nothing
-to shrink for. And `fitCards()` never sees the fields at all: they are hidden during the
-measuring pass, because a card is sized for the morning meeting, not for the two minutes
-somebody is filling it in.
+The value and the field are the same square now. A pair in `footLine()` takes a third
+element and becomes editable in place; `heroEdit` does the same for the reading itself. In
+edit mode the value steps aside and the input stands where it stood, and the card is the
+same height it was. Tables work the same way: a cell shows its value and holds its field, so
+last week's productivity and Which departments have no form under them at all — the table
+*is* the form. Nothing here needs more than seven digits, so nothing is wider than seven
+digits.
+
+Two fields left the product entirely rather than moving. Uptime and make-ready were typed by
+hand into every department card for a figure the DOR has always carried, and now that its
+Formulas tab has settled how to read them they arrive with the morning. Two fewer rows on
+every card is most of why Production was a page and a half.
+
+A card still grows when it has to — the grid's rows size to their contents in edit mode,
+floored at the normal card height — but almost nothing needs it any more. `fitCards()` never
+sees the fields: they are hidden during the measuring pass, because a card is sized for the
+morning meeting, not for the two minutes somebody is filling it in.
+
+## One table reaches the wall
+
+Only cards go up on the wall. A five-row table read from ten metres is a slide with nothing
+on it, which is why every panel is hidden under `body.tv`.
+
+Two earn an exception, and both for the same reason: what the room needs off them is five
+columns wide, so a card cannot carry it. **Upcoming maintenance** — which department, which
+machine, for how many hours, and what for — goes up every morning. **Last week's
+productivity** goes up on Mondays, because the week just gone is what the Monday meeting is
+about and on every other morning it is a thing you lean in for.
+
+A page carrying one of these splits: `bestGrid()` is told the cards get 52% of the height so
+it chooses an arrangement for the height they will actually have, the stylesheet reads the
+same share, and the table takes what is left. The delete buttons and the reference columns
+are dropped up there — a wall reads five columns and stops.
 
 ## Overtime is a count and a list of machines
 
