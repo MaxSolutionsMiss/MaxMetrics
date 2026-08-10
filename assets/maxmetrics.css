@@ -692,6 +692,11 @@ body.tv .verdict{font-size:var(--t-lead)}
    make-ready target at the other, which is a long way to carry your eye for a number the
    cards above already summarise. */
 .sec > .panel{max-width:min(100%, 1080px)}
+/* Two panels are the width of the page rather than of a paragraph: last week's
+   productivity, which is nine columns of numbers and is the whole reason anyone opens
+   Production on a Monday, and the upcoming maintenance list, which is what maintenance is.
+   Squeezed to 1080 they set their numbers at half the size of the cards above them. */
+.sec > .panel--full,.sec > .panel--wall{max-width:100%}
 body.tv .sec > .panel{max-width:none}
 .panel__head .card__ico{font-size:22px}
 .panel__head{display:flex;align-items:center;gap:var(--s2);padding:var(--s2) var(--s4);
@@ -781,6 +786,15 @@ body.editing .view-only{display:none!important}
    twice as tall as the tables they belonged to. */
 .inp--cell{height:28px;font-size:var(--t-small);width:100%;max-width:11ch;
   display:inline-block;vertical-align:middle}
+/* A field on a card, standing where its number stood. Sized in the card like everything
+   else on it, so it is the same field at 318px and at 870. */
+.card .inp--hero{display:block;width:100%;max-width:min(100%,9ch);margin:0 auto;
+  height:calc(11*var(--cu));font-size:calc(7*var(--cu));text-align:center;font-weight:600;
+  font-family:var(--font-condensed)}
+.card .inp--foot{display:block;width:100%;height:calc(8*var(--cu));
+  font-size:calc(5.2*var(--cu));padding:0 calc(1.2*var(--cu))}
+.foot .fs:last-child:not(:only-child) .inp--foot{text-align:right}
+.foot--3 .fs:nth-child(2) .inp--foot{text-align:center}
 td.num .inp--cell{text-align:right;margin-left:auto}
 .inp--h{max-width:7ch}
 .inp--d{max-width:15ch}
@@ -855,7 +869,7 @@ body.tv{overflow:hidden;--scale:1.45;
    declarations, which is the one thing container units cannot do. */
 body.tv .grid--cards{
   --cell-w:calc((100vw - 2*var(--s6) - (var(--wall-cols) - 1)*var(--wall-gap))/var(--wall-cols));
-  --cell-h:calc((var(--wall-h) - (var(--wall-rows) - 1)*var(--wall-gap))/var(--wall-rows));
+  --cell-h:calc((var(--wall-h)*var(--wall-share,1) - (var(--wall-rows) - 1)*var(--wall-gap))/var(--wall-rows));
   --card-w:min(var(--cell-w),calc(var(--wall-cap)*1vw));
   --card-h:min(var(--cell-h),calc(var(--card-w)*var(--card-r-max)));
   grid-template-columns:repeat(var(--wall-cols),var(--card-w))}
@@ -871,9 +885,28 @@ body.tv .content{flex:1;min-height:0;overflow:hidden;padding:var(--s4) var(--s5)
    the section, the card was as tall as the row, and the content inside it was taller
    than both. */
 body.tv .sec{flex:1;min-height:0;display:flex;flex-direction:column}
-/* Only cards reach the wall. */
+/* Only cards reach the wall — and one table.
+   The exception is the upcoming maintenance list, and it earns it: what the room needs off
+   it is which department, which machine and for how many hours, which is five columns wide.
+   A card cannot carry five columns, and a card was never what was being asked for. It is
+   drawn at wall type, with the entry fields and the row of buttons left behind. */
 body.tv .panel,body.tv .ez,body.tv .edit-only,body.tv .revcard,body.tv .sec__head,
 body.tv .tbl,body.tv .today,body.tv .settled{display:none}
+body.tv .panel--wall{display:block;flex:1 1 auto;min-height:0;margin:var(--s4) 0 0;overflow:hidden}
+/* The cards stop stretching when a table shares the screen with them: they take the share
+   of the height `bestGrid` sized them for, and the table takes what is left. The share is
+   the one number both have to agree on, so the script sets it and the stylesheet reads it. */
+body.tv .sec--split > .grid{flex:0 0 auto;align-content:start;--wall-share:.52}
+body.tv .panel--wall .tbl{display:table;width:100%}
+body.tv .panel--wall .panel__title{font-size:calc(20px*var(--scale))}
+body.tv .panel--wall .panel__actions{display:none}
+body.tv .panel--wall th{font-size:calc(11px*var(--scale));padding:0 var(--s3) 6px}
+body.tv .panel--wall td{font-size:calc(15px*var(--scale));padding:8px var(--s3);line-height:1.15}
+body.tv .panel--wall td.dept{font-family:var(--font-condensed);font-weight:700}
+body.tv .panel--wall td.dept .card__ico{display:none}
+/* The delete button, and any column a table marks as detail. A wall reads five columns and
+   stops; the reference numbers beside them are for the person leaning in. */
+body.tv .panel--wall tr > *:last-child,body.tv .panel--wall .tv-hide{display:none}
 /* And a grid whose cards were all hidden takes no room either.
    Production keeps a second grid for the review notes and Labour wraps its table in one;
    both empty out up here, but an empty grid is still `flex:1` with a row the height of a

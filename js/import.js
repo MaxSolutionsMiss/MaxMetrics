@@ -18,7 +18,7 @@
 // to record. Neither is a warning, and neither holds up an import. An alarm that fires
 // every Monday about a Sunday nobody worked is one people learn to close without reading.
 
-import { openWorkbook, serialToISO } from './xlsx.js?v=d88bd91a2e75';
+import { openWorkbook, serialToISO } from './xlsx.js?v=fd083d2dfa91';
 
 // ── Matching a column ───────────────────────────────────────────────────────────
 

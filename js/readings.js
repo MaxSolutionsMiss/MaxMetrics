@@ -327,7 +327,7 @@ export const varianceChip = (actual, target, { digits = 1, lowerIsBetter = false
 // answer the same question twice.
 export function cardTrack({ chart, actual, target, tone = '', floor = 0, ceiling = 0,
                            lowerIsBetter = false, bands = true, targetText, deltaText, deltaTone,
-                           series, seriesLabel = 'Last 7 days', deltaHtml,
+                           series, seriesLabel = 'Last 7 days', seriesTrend = true, deltaHtml,
                            months, monthsLabel = 'This year, by month', monthsThrough = 11 }) {
   const bar = chart === 'bar' ? ''
     : bullet({ actual, target, tone, floor, ceiling, lowerIsBetter, bands });
@@ -343,7 +343,8 @@ export function cardTrack({ chart, actual, target, tone = '', floor = 0, ceiling
           ? `<span class="ctrack__d tone--${deltaTone || tone || 'none'}">${esc(deltaText)}</span>`
           : ''))
       + bar : ''}
-    ${line ? row(seriesLabel, trend(points[points.length - 1], points[0], lowerIsBetter)) + line : ''}
+    ${line ? row(seriesLabel, seriesTrend
+        ? trend(points[points.length - 1], points[0], lowerIsBetter) : '') + line : ''}
     ${year ? row(monthsLabel, '') + year : ''}
   </div>`;
 }
@@ -382,8 +383,16 @@ export const footStat = (label, value, small) =>
 // seconds. A card carries one number; everything else is the sentence that qualifies it,
 // and a sentence belongs on a line. Pairs are dropped rather than printed as dashes —
 // "Record —" tells nobody anything and still costs a slot.
+// A third element on a pair makes it editable, and it is edited where it is printed.
+//
+// Every card used to grow a block of labelled inputs under its foot, which meant the person
+// entering a morning read a number in one place and typed it in another, an inch below, with
+// the label written out twice. Worse, it doubled the height of every card on the page and
+// turned "Everything" into a scroll. The value and the field are the same square of the card
+// now: in edit mode the value steps aside and the input stands where it stood.
 export const footLine = pairs => {
-  const shown = (pairs || []).filter(([, value]) => value != null && value !== '' && value !== '—');
+  const shown = (pairs || []).filter(([, value, edit]) =>
+    edit || (value != null && value !== '' && value !== '—'));
   if (!shown.length) return '';
   // The row divides by what it holds, so three facts sit on one line rather than spilling
   // onto a second, and one reads as a sentence rather than as a lonely column.
@@ -392,9 +401,12 @@ export const footLine = pairs => {
   // than half of one. Without it the date was the first thing to run out of room on every
   // card, which capped how large the whole card could be drawn.
   const chars = text => String(text).replace(/<[^>]*>/g, '').trim().length || 1;
-  return `<div class="foot foot--${shown.length}">${shown.map(([label, value]) =>
+  return `<div class="foot foot--${shown.length}">${shown.map(([label, value, edit]) =>
     `<span class="fs"><span class="fs__l" style="--lc:${chars(label)}">${esc(label)}</span>` +
-    `<span class="fs__v" style="--fc:${chars(value)}">${value}</span></span>`
+    `<span class="fs__v" style="--fc:${chars(value ?? '—')}">${
+      edit ? `<span class="view-only">${value ?? '—'}</span>` +
+             `<input class="inp inp--foot edit-only" data-field="${esc(edit.field)}" ${edit.attrs || ''}>`
+           : value}</span></span>`
   ).join('')}</div>`;
 };
 
@@ -549,10 +561,15 @@ export const CARD_CATALOGUE = [
   { section: 'Maintenance', key: 'maint-overdue', name: 'Overdue items', off: true },
   { section: 'Maintenance', key: 'maint-open',    name: 'Open work', off: true },
   { section: 'Maintenance', key: 'maint-list',    name: "Today's schedule", off: true },
-  { section: 'Maintenance', key: 'maint-upcoming', name: 'Upcoming maintenance' },
+  // The upcoming list reaches the wall as a table rather than as a card, because what the
+  // room needs off it is which machine and for how long — five columns, not two.
+  { section: 'Maintenance', key: 'maint-upcoming', name: 'Upcoming maintenance (as a card)', off: true },
   { section: 'Maintenance', key: 'maint-note',    name: 'Maintenance notes' },
-  { section: 'Labour',      key: 'ot-total',      name: 'Overtime shifts' },
-  { section: 'Labour',      key: 'ot-depts',      name: 'Machines on OT' },
+  // Off by default. "Which departments, how many shifts, which machines" is the whole
+  // question, and it is one card; a count of shifts and a count of machines beside it are
+  // the same answer twice more.
+  { section: 'Labour',      key: 'ot-total',      name: 'Overtime shifts', off: true },
+  { section: 'Labour',      key: 'ot-depts',      name: 'Machines on OT', off: true },
   { section: 'Labour',      key: 'ot-list',       name: 'Overtime by department' },
   { section: 'Labour',      key: 'staffing',      name: 'Staffing notes' },
 ];
@@ -628,7 +645,7 @@ export function noteCard({ pkey, icon, label, text, prompt = 'Nothing entered.',
 }
 
 export function metricCard({ chart, pkey, icon, label, tone, value, unit, percent, markPercent,
-                             markLabel, sub, flag, foot, edit, medium, track }) {
+                             markLabel, sub, flag, foot, edit, medium, track, heroEdit }) {
   const hero = showsHeroNumber(chart);
   const drawn = drawReading(chart, { percent, markPercent, markLabel, value, unit });
   const caption = hero
@@ -653,9 +670,12 @@ export function metricCard({ chart, pkey, icon, label, tone, value, unit, percen
     <div class="card__body">
       <div class="card__flag">${flag || ''}</div>
       <div class="card__mid">
-        ${hero ? `<div class="hero${medium ? ' hero--md' : ''}" style="--chars:${
+        ${hero ? `<div class="hero${medium ? ' hero--md' : ''}${
+            heroEdit ? ' view-only' : ''}" style="--chars:${
           heroChars(value, unit)}">${esc(value)}${
-          unit ? `<i>${esc(unit)}</i>` : ''}</div>${caption}${drawn}` : `${drawn}${caption}`}
+          unit ? `<i>${esc(unit)}</i>` : ''}</div>${
+          heroEdit ? `<input class="inp inp--hero edit-only" data-field="${esc(heroEdit.field)}" ${
+            heroEdit.attrs || ''}>` : ''}${caption}${drawn}` : `${drawn}${caption}`}
         ${track || ''}
       </div>
       ${foot || '<div class="foot foot--0"></div>'}
