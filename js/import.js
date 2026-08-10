@@ -18,7 +18,7 @@
 // to record. Neither is a warning, and neither holds up an import. An alarm that fires
 // every Monday about a Sunday nobody worked is one people learn to close without reading.
 
-import { openWorkbook, serialToISO } from './xlsx.js?v=785566ac9bfe';
+import { openWorkbook, serialToISO } from './xlsx.js?v=640d633f2090';
 
 // ── Matching a column ───────────────────────────────────────────────────────────
 
@@ -320,14 +320,21 @@ export const JSON_FIELDS = {
   complaints_external: ['complaintsexternal', 'externalcomplaints', 'customercomplaints', 'external'],
   maintenance_note: ['maintenancenote', 'maintenancenotes', 'maintnote', 'maintenance'],
   staffing_note:    ['staffingnote', 'staffingnotes', 'staffing', 'labournote'],
-  fin_actual_mtd:   ['finactualmtd', 'actualmtd', 'salesmtd', 'mtdsales', 'monthtodatesales'],
-  fin_actual_ytd:   ['finactualytd', 'actualytd', 'salesytd', 'ytdsales', 'yeartodatesales'],
+  fin_actual_mtd:   ['finactualmtd', 'actualmtd', 'salesmtd', 'mtdsales', 'monthtodatesales',
+                     'mtdactual', 'mtdrevenue', 'revenuemtd', 'salesmonthtodate', 'invoicedmtd',
+                     'mtdinvoiced', 'billedmtd', 'mtdbilled', 'monthtodate'],
+  fin_actual_ytd:   ['finactualytd', 'actualytd', 'salesytd', 'ytdsales', 'yeartodatesales',
+                     'ytdactual', 'ytdrevenue', 'revenueytd', 'salesyeartodate', 'invoicedytd',
+                     'ytdinvoiced', 'billedytd', 'ytdbilled', 'yeartodate'],
 };
 
 // Department volume and hours, per department key. The old file named its three by hand.
 const JSON_DEPT_FIELDS = {
-  qty:        ['qty', 'volume', 'output', 'netimps', 'netcartons', 'sheets', 'cartons', 'impressions'],
-  hours:      ['hours', 'crewhours', 'crewedhours', 'crewhrs', 'hrs'],
+  qty:        ['qty', 'volume', 'output', 'netimps', 'netcartons', 'sheets', 'cartons', 'impressions',
+               'quantity', 'produced', 'units', 'pieces', 'panes', 'imps', 'totalimps', 'grossimps',
+               'netsheets', 'totalsheets', 'totalcartons', 'actual', 'actualqty', 'runqty'],
+  hours:      ['hours', 'crewhours', 'crewedhours', 'crewhrs', 'hrs', 'manhours', 'labourhours',
+               'laborhours', 'workedhours', 'hoursworked', 'totalhours', 'machinehours', 'runhours'],
   target:     ['target', 'targetperhour', 'targethr'],
   pw_qty:     ['pwqty', 'previousweekqty', 'lastweekqty', 'previousvolume'],
   pw_hours:   ['pwhours', 'previousweekhours', 'lastweekhours'],
@@ -342,10 +349,11 @@ const STREAK_COUNTS = {
 };
 
 const DEPT_NAMES = {
-  printing:   ['printing', 'print', 'press'],
-  diecutting: ['diecutting', 'diecut', 'cutting'],
-  gluing:     ['gluing', 'glue', 'folder', 'foldergluer'],
-  windowing:  ['windowing', 'window'],
+  printing:   ['printing', 'print', 'press', 'presses', 'offset', 'printingdept', 'printdept'],
+  diecutting: ['diecutting', 'diecut', 'cutting', 'die', 'dies', 'diecutter', 'diecutters'],
+  gluing:     ['gluing', 'glue', 'folder', 'foldergluer', 'gluer', 'gluers', 'folding',
+               'foldergluing', 'foldinggluing'],
+  windowing:  ['windowing', 'window', 'windower', 'windowmachine'],
   shipping:   ['shipping', 'ship'],
 };
 
@@ -425,7 +433,32 @@ export function readDashboardJson(text, fileName = 'file.json') {
     const counts = {};
     const walk = (object, path = '') => {
       for (const [key, value] of Object.entries(object || {})) {
-        if (value && typeof value === 'object' && !Array.isArray(value)) {
+        // A list of rows, which is how most exports write "the departments".
+        //
+        // This was the other half of the silent import. An array fell straight through to
+        // the scalar branch and was filed as one unreadable key, so `departments: [{name:
+        // "Printing", qty: …, hours: …}, …]` lost every department in the plant and said
+        // "departments" once in the not-recognised list. A row that names its department is
+        // that department's numbers; a row that does not is walked like any other object.
+        if (Array.isArray(value)) {
+          for (const item of value) {
+            if (!item || typeof item !== 'object') continue;
+            const named = Object.entries(item)
+              .find(([k]) => ['name', 'department', 'dept', 'machine', 'area', 'line', 'section']
+                .includes(normalise(k)));
+            const dept = named ? matchField(String(named[1]), DEPT_NAMES) : null;
+            if (dept) {
+              for (const [k, v] of Object.entries(item)) {
+                const inner = matchField(k, JSON_DEPT_FIELDS);
+                if (inner) { (departments[dept] ??= {})[inner] = v; recognised.add(`${key}[].${k}`); }
+              }
+              continue;
+            }
+            walk(item, path ? `${path}.${key}` : key);
+          }
+          continue;
+        }
+        if (value && typeof value === 'object') {
           // A nested object named after a department is that department's numbers — but
           // only if it holds any. "shipping" is both a department and a section of the
           // morning, and an export that groups late, shorts and OTIF under `shipping`

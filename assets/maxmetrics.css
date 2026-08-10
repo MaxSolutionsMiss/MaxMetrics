@@ -283,13 +283,20 @@ body.tv .verdict{font-size:var(--t-lead)}
 .card__head{display:flex;align-items:center;justify-content:center;gap:8px;min-width:0;
   background:var(--card-bar);color:#fff;flex:none}
 .card__ico{font-size:25px;line-height:1;flex:none;font-family:var(--font)}
-/* A white disc, so the plant's own colourful pictograms keep their colour against a dark
-   bar instead of being flattened to a white glyph.
-   `line-height:1` and a grid that centres on both axes, because an emoji carries its own
-   leading and half-leading — left to a line box it sits a few per cent low, which at the
-   size this is drawn on a wall is visible. */
-.card__head>.card__ico{background:#fff;border-radius:50%;display:grid;place-items:center;
-  width:1.66em;height:1.66em;font-size:25px;line-height:1;overflow:hidden}
+/* A pale monochrome glyph on the bar, and no disc behind it.
+   The disc was there so the plant's own colourful pictograms kept their colour, and at the
+   size the bar grew to it became the loudest thing on the card — a ring of white with a
+   title beside it.
+   Knocking them out to a flat white silhouette was the obvious replacement and it was
+   wrong: the meaning of half of them is in the shading rather than the outline, so 🎯 came
+   out an empty circle, 📦 a hexagon and 📅 a blank rectangle. Greyscale keeps the light and
+   dark inside the glyph and brightness lifts the whole thing off the bar, so the target
+   keeps its rings and the calendar keeps its grid while both read as one pale mark.
+   Grid-centred on both axes rather than left to a line box, because an emoji carries its
+   own leading and sits a few per cent low — invisible at 25px, not at 100. */
+.card__head>.card__ico{display:grid;place-items:center;line-height:1;
+  width:1.16em;height:1.16em;font-size:25px;
+  filter:grayscale(1) brightness(1.7)}
 .card__head>.card__ico>*{display:block}
 .card__ico svg{width:1.05em;height:1.05em;display:block;stroke:currentColor;fill:none;stroke-width:4.5;
   stroke-linecap:round;stroke-linejoin:round}
@@ -471,10 +478,9 @@ body.tv .verdict{font-size:var(--t-lead)}
 .card .card__head{font-size:min(9cqi,var(--tcap,99px));
   gap:.42em;padding:0 .6em;min-height:1.95em}
 .card .card__label{font-size:1em}
-/* The pictogram is what the eye lands on first, so it leads rather than accompanies. The
-   disc is about nine tenths of the bar, which leaves the bar reading as a bar rather than
-   as a ring with a title after it. */
-.card .card__head>.card__ico{font-size:1.06em}
+/* The pictogram leads the title rather than accompanying it, at about a fifth again its
+   height — enough to be the thing the eye lands on, not enough to be the thing it reads. */
+.card .card__head>.card__ico{font-size:1.2em}
 .card .card__flag{min-height:calc(6.6*var(--u));margin-bottom:calc(1.2*var(--u))}
 .card .flag{font-size:calc(3.5*var(--u));padding:calc(.8*var(--u)) calc(2.4*var(--u));
   border-radius:calc(1*var(--u))}
@@ -1021,6 +1027,15 @@ body.tv .content.wall{display:flex;flex-direction:column;gap:var(--s4);
 /* Which screen of a section this is. Quiet — it is a page number, not a heading. */
 .wall__part{font-family:var(--font);font-size:.42em;font-weight:600;letter-spacing:.04em;
   text-transform:none;color:var(--ink-faint);margin-left:.7em;vertical-align:.12em}
+/* Which sections an import will fill, before it is accepted. */
+.cover{display:flex;flex-wrap:wrap;gap:var(--s2);margin:var(--s3) 0}
+.cover__s{display:flex;align-items:baseline;gap:6px;padding:5px 11px;border-radius:20px;
+  font-size:var(--t-small);border:1px solid var(--rule)}
+.cover__s b{font-family:var(--font-condensed);text-transform:uppercase;letter-spacing:.05em;
+  font-size:var(--t-micro)}
+.cover__s--on{background:var(--ok-wash);border-color:var(--ok-rule);color:var(--ok)}
+.cover__s--off{background:var(--stop-wash);border-color:var(--stop-rule);color:var(--stop)}
+
 /* A list, and a note, drawn as the body of a card.
    Both are sized in `--u` like every other part of a card, so they grow and shrink with it
    and a screen of them fits the same way a screen of numbers does. */
