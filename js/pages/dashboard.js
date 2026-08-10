@@ -10,14 +10,14 @@ import {
   openDay, loadDay, loadHistory, loadBudgets, saveField, saveDepartment, saveReview,
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   importHistory,
-} from '../db.js?v=749f83cd7471';
-import { assess, attention, settled, verdicts } from '../assess.js?v=749f83cd7471';
+} from '../db.js?v=86c7fe61ea6d';
+import { assess, attention, settled, verdicts } from '../assess.js?v=86c7fe61ea6d';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
   spark, bullet, chip, cardTrack, readingOf, derivedShipping, SHIPPING_TARGET,
   volumeLabel, rateLabel, hoursLabel,
-} from '../readings.js?v=749f83cd7471';
+} from '../readings.js?v=86c7fe61ea6d';
 
 const $ = selector => document.querySelector(selector);
 
