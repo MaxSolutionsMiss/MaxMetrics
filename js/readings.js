@@ -200,6 +200,43 @@ export function spark(values, tone = '') {
   </svg>`;
 }
 
+// Twelve months of a count, drawn as columns.
+//
+// The seven-day line is the right picture for a reading taken every morning and the wrong
+// one for a count that is closed off monthly. NCRs, internal complaints and customer
+// complaints are the second kind: a week of them is four zeroes and a one, drawn as a spike
+// that means nothing, and it left the card with nothing along its bottom while every card
+// beside it had a bar and a line. A year of months answers the question actually asked of
+// these three — is this a bad month or a bad year — and gives the card the same footprint
+// as the rest of the screen.
+//
+// A month with no incidents draws a stub rather than nothing, because an empty slot and a
+// month that has not happened yet would otherwise look identical. Months past the one being
+// read are left out entirely: drawing December in August is a promise the data cannot keep.
+const MONTH_INITIALS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
+
+// Drawn in HTML rather than as an SVG, unlike every other chart here. The line and the bar
+// are stretched to the card's width with `preserveAspectRatio:none`, which is right for a
+// shape and wrong for a letter: at a 120-wide viewBox in a 600px card, "J" comes out five
+// times as wide as it is tall. Twelve boxes and twelve letters need no scaling trick.
+export function columns(values, tone = '', { through = 11 } = {}) {
+  const upto = Math.max(0, Math.min(11, through));
+  // `Number(null)` is nought, not NaN, so a month with no row has to be caught before the
+  // cast — otherwise a year with nothing in it draws twelve confident zeroes.
+  const shown = (values || []).slice(0, upto + 1)
+    .map(v => v == null || v === '' || !Number.isFinite(Number(v)) ? null : Number(v));
+  if (!shown.some(v => v != null)) return '';
+  const peak = Math.max(1, ...shown.map(v => v ?? 0));
+  return `<div class="cols${tone ? ` cols--${tone}` : ''}" aria-hidden="true">${
+    shown.map((v, i) => {
+      const tall = v == null ? 2 : Math.max(2, (v / peak) * 66);
+      return `<span class="cols__c${i === upto ? ' cols__c--now' : ''}${
+        v == null ? ' cols__c--none' : ''}">
+        <span class="cols__b" style="height:${tall.toFixed(1)}%"></span>
+        <i>${MONTH_INITIALS[i]}</i></span>`;
+    }).join('')}</div>`;
+}
+
 // Actual against target, with the bands that decided the verdict drawn behind it.
 //
 // `floor` is doing more work than it looks. OTIF of 97.87 against a target of 98, drawn
@@ -290,12 +327,14 @@ export const varianceChip = (actual, target, { digits = 1, lowerIsBetter = false
 // answer the same question twice.
 export function cardTrack({ chart, actual, target, tone = '', floor = 0, ceiling = 0,
                            lowerIsBetter = false, bands = true, targetText, deltaText, deltaTone,
-                           series, seriesLabel = 'Last 7 days', deltaHtml }) {
+                           series, seriesLabel = 'Last 7 days', deltaHtml,
+                           months, monthsLabel = 'This year, by month', monthsThrough = 11 }) {
   const bar = chart === 'bar' ? ''
     : bullet({ actual, target, tone, floor, ceiling, lowerIsBetter, bands });
   const points = (series || []).filter(v => Number.isFinite(Number(v))).map(Number);
   const line = points.length > 1 ? spark(points, tone) : '';
-  if (!bar && !line) return '';
+  const year = months ? columns(months, tone, { through: monthsThrough }) : '';
+  if (!bar && !line && !year) return '';
   const row = (label, right) => `<div class="ctrack__row"><span class="ctrack__l">${esc(label)}</span>
     ${right || ''}</div>`;
   return `<div class="ctrack">
@@ -305,6 +344,7 @@ export function cardTrack({ chart, actual, target, tone = '', floor = 0, ceiling
           : ''))
       + bar : ''}
     ${line ? row(seriesLabel, trend(points[points.length - 1], points[0], lowerIsBetter)) + line : ''}
+    ${year ? row(monthsLabel, '') + year : ''}
   </div>`;
 }
 

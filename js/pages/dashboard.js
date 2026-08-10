@@ -7,18 +7,18 @@
 
 import {
   currentSession, signOut, myProfile, myLocations, savePreference,
-  openDay, loadDay, loadHistory, loadBudgets, saveField, saveDepartment, saveReview,
+  openDay, loadDay, loadHistory, loadBudgets, loadYearCounts, saveField, saveDepartment, saveReview,
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   importHistory,
-} from '../db.js?v=fa3a7534d5a6';
-import { assess, attention, settled, verdicts } from '../assess.js?v=fa3a7534d5a6';
+} from '../db.js?v=fdca8e0e28d9';
+import { assess, attention, settled, verdicts } from '../assess.js?v=fdca8e0e28d9';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
   spark, bullet, chip, cardTrack, readingOf, derivedShipping, SHIPPING_TARGET,
   varianceChip, varianceTone, variancePct,
   volumeLabel, rateLabel, hoursLabel,
-} from '../readings.js?v=fa3a7534d5a6';
+} from '../readings.js?v=fdca8e0e28d9';
 
 const $ = selector => document.querySelector(selector);
 
@@ -41,7 +41,7 @@ const state = {
   me: null, locations: [], canEdit: true,
   location: null, date: today(), active: 'overview',
   metrics: null, departments: [], review: [], maintenance: [], labour: [], config: [], budgets: [],
-  history: { metrics: [], departments: [] }, findings: [], verdicts: {}, plant: null,
+  history: { metrics: [], departments: [] }, year: [], findings: [], verdicts: {}, plant: null,
   team: [], live: null, wallStep: 0,
 };
 
@@ -63,6 +63,20 @@ const metricSeries = field => (state.history?.metrics || [])
   .map(row => readingOf(row, field))
   .filter(value => value !== null && value !== undefined && value !== '')
   .map(Number);
+// Twelve slots, one per month, filled with the largest month-to-date count written in each.
+// Months the year has not reached are left out by the caller rather than zeroed here.
+const monthSeries = field => {
+  const months = Array(12).fill(null);
+  for (const row of state.year || []) {
+    const value = row?.[field];
+    if (value == null || value === '') continue;
+    const m = Number(String(row.metric_date).slice(5, 7)) - 1;
+    if (m < 0 || m > 11) continue;
+    months[m] = Math.max(months[m] ?? 0, Number(value));
+  }
+  return months;
+};
+
 const deptSeries = (key, field) => (state.history?.departments || [])
   .filter(row => row.dept_key === key)
   .map(row => field ? Number(row[field]) : (Number(row.hours) ? Number(row.qty) / Number(row.hours) : null))
@@ -297,11 +311,18 @@ const SECTIONS = {
         tone: has ? band.count(Number(today)) : '',
         value: has ? num(today) : '\u2014',
         sub: 'in the last 24 hours',
-        // Seven mornings of a daily count is the shape of a run: one on Monday is a
-        // Monday, one every morning for a week is something to talk about.
+        // A year of months, not seven mornings.
+        //
+        // These are closed off monthly, and a week of them is four zeroes and a one drawn as
+        // a spike — a picture of nothing, on a card that then had nothing along its bottom
+        // while every card beside it carried a bar and a line. Twelve columns answer the
+        // question actually asked of these three, which is whether this is a bad month or a
+        // bad year, and give the card the same footprint as the rest of the screen.
         track: cardTrack({ chart: 'number', actual: 0, target: 0,
           tone: has ? band.count(Number(today)) : '', lowerIsBetter: true,
-          series: metricSeries(`${base}_today`) }),
+          months: monthSeries(`${base}_mtd`),
+          monthsThrough: dateOf(state.date).getMonth(),
+          monthsLabel: `${dateOf(state.date).getFullYear()} by month` }),
         foot: footLine([
           ['Month to date', mtd == null ? null : num(mtd)],
           ['Year to date', ytd == null ? null : num(ytd)],
@@ -960,11 +981,16 @@ function fitCards() {
     // draw two bar heights and put their readings on two different lines, which is the fault
     // the bar exists to remove — and it is found by measuring rather than by counting
     // characters, because the width a title needs depends on which letters are in it.
-    // A row only reserves the flag line if something on it is flagged.
-    for (const grid of group) {
-      grid.classList.toggle('flagged',
-        [...grid.querySelectorAll('.card .flag')].length > 0);
-    }
+    // The flag line is reserved across the whole group, not per grid.
+    //
+    // Per grid, a Safety section carrying "Record broken" reserved the row and every other
+    // section on the page did not — so Safety's number started twenty pixels below every
+    // other number on the page, which is the same complaint as a rule that does not line up.
+    // The group is one screen on the wall and the whole page on the page, which is exactly
+    // the set of cards a reader sees at once. A section that never flags still costs nothing
+    // on a morning when nothing anywhere is flagged.
+    const flagged = group.some(grid => grid.querySelector('.card .flag'));
+    for (const grid of group) grid.classList.toggle('flagged', flagged);
     const titles = cards.map(card => card.querySelector('.card__label')).filter(Boolean);
     const capTitle = value => group.forEach(grid =>
       grid.style.setProperty('--tcap', `${value.toFixed(2)}px`));
@@ -1229,12 +1255,13 @@ async function open(location, date) {
   try {
     if (state.canEdit) await openDay(location, date);
     const from = new Date(dateOf(date)); from.setDate(from.getDate() - 6);
-    const [day, budgets, history] = await Promise.all([
+    const [day, budgets, history, months] = await Promise.all([
       loadDay(location, date),
       loadBudgets(location, dateOf(date).getFullYear()),
       loadHistory(location, from.toISOString().slice(0, 10), date),
+      loadYearCounts(location, dateOf(date).getFullYear()),
     ]);
-    Object.assign(state, day, { budgets: budgets || [], history });
+    Object.assign(state, day, { budgets: budgets || [], history, year: months || [] });
     saved('All changes saved');
   } catch (error) {
     $('#content').innerHTML = `<div class="loading">${esc(error.message)}</div>`;
@@ -1703,11 +1730,12 @@ async function applyImport() {
   importState.preview = null;
   $('#import-sheet').close();
   if (mornings) {
-    const [day, history] = await Promise.all([
+    const [day, history, months] = await Promise.all([
       loadDay(state.location, state.date),
       loadHistory(state.location, addDays(state.date, -6), state.date),
+      loadYearCounts(state.location, dateOf(state.date).getFullYear()),
     ]);
-    Object.assign(state, day, { history });
+    Object.assign(state, day, { history, year: months || [] });
   }
   render();
   toast([writes.length ? `${writes.length} readings imported` : '',

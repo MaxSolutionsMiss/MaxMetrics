@@ -287,11 +287,18 @@ body.tv .verdict{font-size:var(--t-lead)}
 .card__body{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:flex-start;
   padding:3.6% 5.2%}
 .card__mid{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;align-items:stretch}
-/* A card with no drawing has nothing to pull to the floor, so its reading would sit at the
-   top of a zone and leave the rest of the card empty underneath. Safety is the whole of
-   this case \u2014 two cards, both bare, on their own screen \u2014 so centring them costs no
-   alignment with anything beside them and buys the number the middle of the card. */
-.card__mid:not(:has(.ctrack)){justify-content:center}
+/* The reading starts at the same line on every card, whatever is or is not under it.
+   Centring the ones with no drawing was the obvious fix for the empty half of a Safety card
+   and it broke the only rule that matters here: NCRs sat in the middle of its card and the
+   COQ card beside it sat at the top, which is precisely the "some in the middle, some too
+   high" the room reported. A fixed inset instead \u2014 a share of the card, so it is the same
+   line at 318px and at 870 \u2014 and the answer to a card with nothing under its number is to
+   give it something, not to move the number.
+
+   Nine per cent of the card, not nought. Flush under the bar was as wrong in the other
+   direction: the number read as though it had been pushed up against the title, with all the
+   air of the card pooled underneath it. */
+.card__mid{padding-top:calc(9*var(--cu))}
 .card--ok{border-color:var(--ok-rule)}
 .card--warn{border-color:var(--warn-rule)}
 .card--stop{border-color:var(--stop-rule)}
@@ -545,6 +552,8 @@ body.tv .verdict{font-size:var(--t-lead)}
    visible. The height comes out of space the card was not using. */
 .card .ctrack .bullet{height:calc(5.6*var(--u))}
 .card .ctrack .spark{height:calc(8.4*var(--u))}
+.card .ctrack .cols{height:calc(14.5*var(--u));gap:calc(.5*var(--u))}
+.card .ctrack .cols__c i{font-size:calc(3.2*var(--u))}
 /* The drawings sit at the floor of the reading's zone rather than under the number. Placed
    after `.card .ctrack` on purpose: same specificity, later wins. */
 .card__mid>.ctrack{margin-top:auto}
@@ -1076,6 +1085,20 @@ body[data-view="line"] .chartpick,body[data-view="board"] .chartpick{display:non
 .spark__end{fill:currentColor;stroke:none}
 .spark--ok{color:var(--ok)}.spark--warn{color:var(--warn)}.spark--stop{color:var(--stop)}
 .spark:not([class*="spark--"]){color:var(--ink-faint)}
+/* A year of months, for the counts that are closed off monthly rather than read every
+   morning. Same width and the same place on the card as the seven-day line, so a Quality
+   screen still reads as one set of cards. */
+.cols{display:flex;align-items:flex-end;gap:2px;width:100%;align-self:stretch;height:38px;
+  margin-top:2px;color:var(--ink-faint)}
+.cols__c{flex:1 1 0;min-width:0;height:100%;display:flex;flex-direction:column;
+  align-items:center;justify-content:flex-end;gap:1px}
+.cols__b{display:block;flex:none;width:72%;background:currentColor;opacity:.42;border-radius:1px}
+.cols__c--now .cols__b{opacity:1}
+.cols__c--none .cols__b{background:var(--ink-faint);opacity:.28}
+.cols__c i{font-style:normal;font-family:var(--font-condensed);font-weight:600;font-size:9px;
+  line-height:1;color:var(--ink-faint)}
+.cols__c--now i{color:currentColor;font-weight:700}
+.cols--ok{color:var(--ok)}.cols--warn{color:var(--warn)}.cols--stop{color:var(--stop)}
 .bullet{position:relative;width:100%;align-self:stretch;height:22px;border-radius:5px;
   overflow:hidden;background:var(--sunk);
   margin:var(--s1) 0;color:var(--ink-faint)}

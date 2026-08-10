@@ -18,7 +18,7 @@
 // to record. Neither is a warning, and neither holds up an import. An alarm that fires
 // every Monday about a Sunday nobody worked is one people learn to close without reading.
 
-import { openWorkbook, serialToISO } from './xlsx.js?v=fa3a7534d5a6';
+import { openWorkbook, serialToISO } from './xlsx.js?v=fdca8e0e28d9';
 
 // ── Matching a column ───────────────────────────────────────────────────────────
 
@@ -218,20 +218,27 @@ export function rollup(shifts, from, to) {
     qty: d.qty,
     hours: d.hours,
     rate: d.hours ? d.qty / d.hours : null,
-    // Uptime, make-ready and the make-ready count are computed but NOT imported, because
-    // these formulas are demonstrably not the plant's. Rolling 4 August the way the DOR's
-    // own columns suggest gives printing 68.2% uptime, 1.03 h make-ready and 9 make-readies;
-    // the figures the plant stored for that day are 100%, 0.95 h and 5. Output and crewed
-    // hours reproduce exactly, so the sheet is being read correctly — these three are
-    // derived somewhere else, from a definition nobody has written down yet.
+    // Uptime is (make-ready + run) over crewed, not run over crewed.
     //
-    // Writing them anyway would put three wrong numbers on a dashboard beside two right
-    // ones, which is worse than leaving them to be typed: a wrong number that arrived by
-    // itself is one nobody thinks to check.
-    uptime: d.hours && d.runHours ? d.runHours / d.hours : null,
+    // These three were computed and deliberately not imported, because run-over-crewed gave
+    // printing 68% on a day the plant recorded near a hundred, and a wrong number that
+    // arrived by itself is one nobody thinks to check. The definition was in the workbook
+    // the whole time: DOR V9 carries a `Formulas` tab, and it says
+    //
+    //     Uptime      = (MR Hrs + Run Hrs) / Crewed Hours
+    //     Avg MR Time = MR Hrs / # of MR's
+    //
+    // Setting up a machine is not downtime — it is the machine being worked on by the crew
+    // it is crewed for, which is the whole reason make-ready has a target of its own. With
+    // the make-ready hours counted, the three departments land between 75% and 95% on every
+    // day in the file, and 5 August prints 0.95 h over 5 make-readies, which is the plant's
+    // own stored figure to the digit.
+    //
+    // Clamped at 100. A shift that logs more make-ready and run than it was crewed for is a
+    // timesheet to fix, not a machine that ran 124% of the time.
+    uptime: d.hours ? Math.min(1, (d.mrHours + d.runHours) / d.hours) : null,
     make_ready: d.mrCount ? d.mrHours / d.mrCount : null,
     mr_count: d.mrCount || null,
-    derivedUnverified: true,
     machines: [...d.machines].sort(),
     teams: [...d.teams].sort(),
     shifts: d.rows,
