@@ -18,7 +18,7 @@
 // to record. Neither is a warning, and neither holds up an import. An alarm that fires
 // every Monday about a Sunday nobody worked is one people learn to close without reading.
 
-import { openWorkbook, serialToISO } from './xlsx.js?v=640d633f2090';
+import { openWorkbook, serialToISO } from './xlsx.js?v=749f83cd7471';
 
 // ── Matching a column ───────────────────────────────────────────────────────────
 
@@ -273,6 +273,98 @@ export async function readShipping(workbook) {
 
 const looksLikeDor = names => names.some(n => /data$/i.test(n) && /print|die|glu/i.test(n));
 const looksLikeShipping = names => names.some(n => /otd/i.test(n));
+
+// ── The monthly KPI workbook ────────────────────────────────────────────────────
+//
+// Quality is not counted every morning. NCRs, customer complaints and the cost of poor
+// quality are closed off month by month, in one sheet the quality manager keeps — the row
+// per month with the plant's own arithmetic already done. So this is the source for the
+// Quality cards and, because the same row carries shipped dollars and OTIF, for the
+// Financials and the two OTIF cards as well. It writes to the morning it is imported for:
+// a month-to-date figure is true of the morning you read it on.
+//
+// Its month column is written by hand, so it says JAN and Jan and March and Mar in the same
+// column. Three letters, lowercased, is all that survives that.
+const MONTH_KEYS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+const monthIndex = value => MONTH_KEYS.indexOf(String(value ?? '').trim().slice(0, 3).toLowerCase());
+
+const looksLikeKpi = names => names.some(n => /plz do not touch/i.test(n))
+  || names.some(n => /coq/i.test(n)) && names.some(n => /complaint/i.test(n));
+
+// Headers in this sheet carry line breaks, double spaces and trailing blanks, and the
+// wording moves between plants. Matching on the letters alone is what survives that.
+const bare = text => String(text ?? '').toLowerCase().replace(/[^a-z0-9%$]/g, '');
+
+export async function readKpi(workbook, { date }) {
+  const notes = [];
+  const sheet = workbook.sheetNames.find(n => /plz do not touch/i.test(n))
+    ?? workbook.sheetNames[0];
+  const rows = await workbook.rows(sheet);
+  const head = (rows[0] || []).map(bare);
+  // `find` rather than an index, because a column added to the left of the sheet must not
+  // silently shift every reading one place.
+  const at = (...wanted) => head.findIndex(h => h && wanted.some(w => h.includes(bare(w))));
+  const col = {
+    year: at('year'), month: at('month'), plant: at('plant'),
+    sales: at('shipped$', 'sales($)', 'sales$'),
+    ncrInternal: at('ncrinternal'), ncrSupplier: at('ncrsupplier'),
+    complaints: at('totalcc#', 'totalcomplaint'),
+    coqDollars: at('totalcoq'), coqPercent: at('copq%'), coqTarget: at('targetcoq%'),
+    otif: at('otif'), otifPercent: at('otif%'), deliveries: at('deliveries'),
+  };
+  if (col.year === -1 || col.month === -1) {
+    return { metrics: {}, notes: [`${sheet}: no year and month columns, so no month could be read.`] };
+  }
+
+  const want = { year: Number(date.slice(0, 4)), month: Number(date.slice(5, 7)) - 1 };
+  const all = rows.slice(1)
+    .filter(r => r && Number(r[col.year]) === want.year && monthIndex(r[col.month]) >= 0)
+    .map(r => ({ month: monthIndex(r[col.month]), row: r }));
+  if (!all.length) {
+    return { metrics: {}, notes: [`${sheet}: nothing for ${want.year}.`] };
+  }
+
+  // The month being imported for, or the last one the sheet has if it has not been closed
+  // off yet. Silently reading a different month than the one asked for is not on.
+  const toDate = all.filter(m => m.month <= want.month);
+  const latest = (toDate.length ? toDate : all).reduce((a, b) => a.month > b.month ? a : b);
+  if (latest.month !== want.month) {
+    notes.push(`${sheet}: no row for ${MONTH_KEYS[want.month].toUpperCase()} yet — read `
+      + `${MONTH_KEYS[latest.month].toUpperCase()} instead.`);
+  }
+
+  const num = (row, index) => index >= 0 && row[index] != null && row[index] !== ''
+    ? Number(row[index]) : null;
+  const sum = (index) => index < 0 ? null : (toDate.length ? toDate : [latest])
+    .reduce((total, m) => total + (Number(m.row[index]) || 0), 0);
+  // The sheet keeps its percentages as fractions — 0.0038 is COQ at 0.38% of sales.
+  const asPercent = value => value == null ? null : Number((value * 100).toFixed(4));
+
+  const metrics = {};
+  const put = (field, value) => { if (value != null && Number.isFinite(value)) metrics[field] = value; };
+
+  put('coq', asPercent(num(latest.row, col.coqPercent)));
+  put('coq_target', asPercent(num(latest.row, col.coqTarget)));
+  const coqYear = sum(col.coqDollars), salesYear = sum(col.sales);
+  if (coqYear != null && salesYear) put('coq_ytd', Number((coqYear / salesYear * 100).toFixed(4)));
+  put('coq_ytd_target', asPercent(num(latest.row, col.coqTarget)));
+  // Every non-conformance raised this year, whoever raised it.
+  const internal = sum(col.ncrInternal), supplier = sum(col.ncrSupplier);
+  put('ncr_ytd', (internal || 0) + (supplier || 0));
+  put('complaints_internal', internal);
+  put('complaints_external', sum(col.complaints));
+  put('mtd_otif', asPercent(num(latest.row, col.otifPercent)));
+  const otifYear = sum(col.otif), deliveriesYear = sum(col.deliveries);
+  if (otifYear != null && deliveriesYear) {
+    put('ytd_otif', Number((otifYear / deliveriesYear * 100).toFixed(4)));
+  }
+  put('fin_actual_mtd', num(latest.row, col.sales));
+  put('fin_actual_ytd', salesYear);
+
+  notes.push(`${sheet}: ${MONTH_KEYS[latest.month].toUpperCase()} ${want.year}, `
+    + `with the year to date from ${(toDate.length ? toDate : [latest]).length} month(s).`);
+  return { metrics, notes, month: latest.month, sheet };
+}
 
 // Every file dropped at once, sorted out by what is inside it rather than by its name —
 // people rename these. Nothing is written: this returns what *would* be written, for a
@@ -571,6 +663,21 @@ export async function readFiles(files, { date, reported = [], operators = [] } =
       shifts = shifts.concat(read.shifts);
       notes.push(...read.notes.map(n => `${file.name}: ${n}`));
       sources.push({ file: file.name, kind: 'production', rows: read.shifts.length });
+    } else if (looksLikeKpi(names)) {
+      // Monthly quality, and the sales and OTIF that sit on the same row. It goes through
+      // the same door as an old-dashboard export — one dated record of readings — so the
+      // preview, the coverage strip and the never-overwrite rule all apply unchanged.
+      const read = await readKpi(workbook, { date });
+      notes.push(...read.notes.map(n => `${file.name}: ${n}`));
+      if (Object.keys(read.metrics).length) {
+        const day = { date, metrics: read.metrics, departments: {} };
+        json = json
+          ? { days: json.days.concat([day]),
+              recognised: [...new Set(json.recognised.concat(Object.keys(read.metrics)))].sort(),
+              unknown: json.unknown }
+          : { days: [day], recognised: Object.keys(read.metrics).sort(), unknown: [] };
+        sources.push({ file: file.name, kind: 'quality', rows: Object.keys(read.metrics).length });
+      }
     } else if (looksLikeShipping(names)) {
       const read = await readShipping(workbook);
       shipping = read.days;

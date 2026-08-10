@@ -295,11 +295,16 @@ body.tv .verdict{font-size:var(--t-lead)}
    Grid-centred on both axes rather than left to a line box, because an emoji carries its
    own leading and sits a few per cent low — invisible at 25px, not at 100. */
 .card__head>.card__ico{display:grid;place-items:center;line-height:1;
-  width:1.16em;height:1.16em;font-size:25px;
-  filter:grayscale(1) brightness(1.7)}
+  width:1.16em;height:1.16em;font-size:25px;color:#fff}
+/* The filter is for a plant's own emoji, on a department it named itself. A drawn mark is
+   already one colour and must not be washed by it. */
+.card__head>.card__ico:not(:has(svg)){filter:grayscale(1) brightness(1.7)}
+.card__head>.card__ico svg{width:1.28em;height:1.28em}
 .card__head>.card__ico>*{display:block}
-.card__ico svg{width:1.05em;height:1.05em;display:block;stroke:currentColor;fill:none;stroke-width:4.5;
-  stroke-linecap:round;stroke-linejoin:round}
+/* One grid, one weight, round ends — which is the whole of why twenty marks drawn on a
+   24-unit square look like one family and twenty re-coloured emoji do not. */
+.card__ico svg{width:1.05em;height:1.05em;display:block;stroke:currentColor;fill:none;
+  stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
 /* One line, always — and the size the plant's own dashboard gives it. It was dropped to a
    caption while the number grew, which left a row of cards you had to hunt to identify.
    The title is how you find the card; it is allowed to be the second loudest thing on it. */

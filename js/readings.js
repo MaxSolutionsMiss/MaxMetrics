@@ -330,23 +330,105 @@ export const footLine = pairs => {
 // Every reading carries a pictogram, and they are the plant's own — the ones printed on
 // the dashboard the room has been reading since January. Keeping them costs nothing and
 // means nobody has to learn where anything moved to.
+// ── Marks ───────────────────────────────────────────────────────────────────────
+//
+// One drawn set rather than the operating system's emoji.
+//
+// Emoji were the right first answer: the plant's own dashboard uses them, the room already
+// knows them, and they cost nothing. What killed them was the bar. Knocked back to one
+// colour, an emoji is whatever silhouette its designer happened to draw — 🎯 becomes a
+// circle, 📦 a hexagon, 🪟 a square — and the set stops reading as a set, because it was
+// never drawn as one. They also change shape between Windows, macOS and Android, so the
+// meeting-room screen and the laptop beside it were showing different pictures.
+//
+// These are drawn to one grid: 24 units square, stroke only, one weight, round ends. That
+// is what makes twenty marks look like one family at any size, and it is why they hold up
+// at 40px on a wall where a re-coloured emoji does not.
+const MARK = paths => `<svg viewBox="0 0 24 24" aria-hidden="true">${
+  paths.map(d => `<path d="${d}"/>`).join('')}</svg>`;
+
+const BOX = ['M12 3.2 20.6 7.9v8.2L12 20.8 3.4 16.1V7.9z', 'M3.4 7.9 12 12.6l8.6-4.7M12 12.6v8.2'];
+const CALENDAR = ['M4.6 6.6h14.8v12.8H4.6z', 'M4.6 10.4h14.8', 'M8.6 4.2v3.4M15.4 4.2v3.4'];
+const TARGET = ['M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z', 'M12 16.4a4.4 4.4 0 1 0 0-8.8 4.4 4.4 0 0 0 0 8.8z',
+                'M12 12.6a.6.6 0 1 0 0-1.2.6.6 0 0 0 0 1.2z'];
+const DOLLAR = ['M12 5.6v12.8',
+                'M15 9.1c-.7-.9-1.8-1.4-3-1.4-1.8 0-3 .9-3 2.3s1.2 2 3 2.3 3.1.7 3.1 2.3-1.3 2.3-3.1 2.3c-1.3 0-2.4-.5-3.1-1.5'];
+const FACTORY = ['M3 20.2h18', 'M4.8 20.2V11l4.8 2.9V11l4.8 2.9V6.2l4.8 2.9v11.1'];
+const PERSON = ['M12 11.6a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z', 'M5 20.2a7 7 0 0 1 14 0'];
+const CLOCK = ['M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z', 'M12 7.4V12l3.2 1.9'];
+
 export const ICONS = {
-  injury: '⚕️', nearmiss: '⚠️', shortages: '🚫', coq: '🎯', coqytd: '🎯',
-  printing: '🖨️', diecutting: '✂️', gluing: '📦', windowing: '🪟',
-  stamping: '✨', flexo: '🎨', shipping: '🚚',
-  late: '🚚', otif: '🚚', otd: '🚚', jobs: '🚚',
-  uptime: '⏱️', mr: '🛠️',
-  maint: '🔧', notes: '📝', staffing: '👷', fin: '💰', week: '📅',
+  // Safety
+  injury:     MARK(['M12 3.4 20 6.3v5.9c0 4.3-3.2 7.4-8 8.9-4.8-1.5-8-4.6-8-8.9V6.3z',
+                    'M12 8.6v6.4M8.8 11.8h6.4']),
+  nearmiss:   MARK(['M12 3.8 21.6 20.4H2.4z', 'M12 10v4.1M12 17.4h.01']),
+  // Quality
+  shortages:  MARK([...BOX, 'M8.4 14.9 12 16.9l3.6-2']),
+  coq:        MARK([...DOLLAR, 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z']),
+  coqytd:     MARK([...DOLLAR, 'M20.4 12A8.4 8.4 0 1 1 12 3.6', 'M20.4 3.8v3.9h-3.9']),
+  ncr:        MARK(['M9.2 3.6h5.6v2.9H9.2z',
+                    'M8.4 5.1H6.6A1.6 1.6 0 0 0 5 6.7v12.1a1.6 1.6 0 0 0 1.6 1.6h10.8a1.6 1.6 0 0 0 1.6-1.6V6.7a1.6 1.6 0 0 0-1.6-1.6h-1.8',
+                    'M8.6 11h6.8M8.6 14.4h6.8M8.6 17.8h4']),
+  cint:       MARK(FACTORY),
+  cext:       MARK(['M4 10.4v3.2A1.6 1.6 0 0 0 5.6 15.2H8l6 4.2V4.6L8 8.8H5.6A1.6 1.6 0 0 0 4 10.4z',
+                    'M17.6 9.4a4.2 4.2 0 0 1 0 5.2']),
+  // Shipping
+  jobs_shipped: MARK(['M2.8 6.6h10.6v9.6H2.8z', 'M13.4 9.8h3.9l3.9 3.9v2.5h-7.8',
+                      'M7 19.4a1.7 1.7 0 1 0 0-3.4 1.7 1.7 0 0 0 0 3.4zM17.4 19.4a1.7 1.7 0 1 0 0-3.4 1.7 1.7 0 0 0 0 3.4z']),
+  cartons:    MARK(BOX),
+  late:       MARK(CLOCK),
+  shorts:     MARK(['M12 3.2 20.6 7.9v8.2L12 20.8 3.4 16.1V7.9z', 'M3.4 7.9 12 12.6l8.6-4.7M12 12.6v8.2',
+                    'M8.2 5.6 16.8 10.3']),
+  otd:        MARK(TARGET),
+  otif:       MARK(TARGET),
+  mtd_otif:   MARK([...CALENDAR, 'M8.6 15.2 11 17.4l4.4-4.4']),
+  ytd_otif:   MARK([...CALENDAR, 'M8.4 16.6v-2.4M12 16.6v-4.6M15.6 16.6v-3.4']),
+  // Financials
+  'fin-mtd':  MARK(['M3 6.6h18v10.8H3z', 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z', 'M6.4 9.4h.01M17.6 14.6h.01']),
+  'fin-ytd':  MARK(['M3.6 19.4h16.8', 'M6.8 19.4v-5.2M11.2 19.4V9.6M15.6 19.4v-7M20 19.4V5.4']),
+  // Maintenance
+  'maint-overdue': MARK(['M14.8 6.2a3.6 3.6 0 0 1-4.8 4.8l-5 5 3.2 3.2 5-5a3.6 3.6 0 0 0 4.8-4.8l-2.5 2.5-2.2-2.2z']),
+  'maint-open': MARK([...CALENDAR, 'M12 12.9v3.4M10.3 14.6h3.4']),
+  'maint-list': MARK(['M8.6 6.4h11M8.6 12h11M8.6 17.6h11', 'M4.8 6.4h.01M4.8 12h.01M4.8 17.6h.01']),
+  'maint-note': MARK(['M6.2 3.8h8.2l3.6 3.6v12.8H6.2z', 'M14.4 3.8v3.6H18', 'M9 12.4h6M9 15.8h4']),
+  // Labour
+  'ot-total': MARK(['M12 21a8 8 0 1 0 0-16 8 8 0 0 0 0 16z', 'M12 9.2V13l2.6 1.6',
+                    'M9.6 2.6h4.8', 'M12 2.6V5']),
+  'ot-depts': MARK(['M9.4 11a3.1 3.1 0 1 0 0-6.2 3.1 3.1 0 0 0 0 6.2z', 'M3.4 20a6 6 0 0 1 12 0',
+                    'M16.4 11.4a2.8 2.8 0 1 0 0-5.6', 'M17 14.2a5.4 5.4 0 0 1 3.6 5.1']),
+  'ot-list':  MARK(FACTORY),
+  staffing:   MARK(PERSON),
+  // Departments, and the fallback for one a plant invents
+  printing:   MARK(['M7 4.2h10v4.4H7z', 'M4.6 8.6h14.8v6.2H4.6z', 'M7 14.8h10v5H7z', 'M16.4 11.2h.01']),
+  diecutting: MARK(['M7.4 20.2a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0 5.2zM16.6 20.2a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0 5.2z',
+                    'M9.2 15.6 18 3.8M14.8 15.6 6 3.8']),
+  gluing:     MARK(BOX),
+  windowing:  MARK(['M4.4 4.4h15.2v15.2H4.4z', 'M12 4.4v15.2M4.4 12h15.2']),
+  stamping:   MARK(['M12 3.6 13.9 9.4 20 9.4 15 13l1.9 5.8L12 15.2 7.1 18.8 9 13 4 9.4h6.1z']),
+  flexo:      MARK(['M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z', 'M12 15.4a3.4 3.4 0 1 0 0-6.8']),
+  shipping:   MARK(['M2.8 6.6h10.6v9.6H2.8z', 'M13.4 9.8h3.9l3.9 3.9v2.5h-7.8',
+                    'M7 19.4a1.7 1.7 0 1 0 0-3.4 1.7 1.7 0 0 0 0 3.4zM17.4 19.4a1.7 1.7 0 1 0 0-3.4 1.7 1.7 0 0 0 0 3.4z']),
+  uptime:     MARK(CLOCK),
+  mr:         MARK(['M14.8 6.2a3.6 3.6 0 0 1-4.8 4.8l-5 5 3.2 3.2 5-5a3.6 3.6 0 0 0 4.8-4.8l-2.5 2.5-2.2-2.2z']),
+  maint:      MARK(['M14.8 6.2a3.6 3.6 0 0 1-4.8 4.8l-5 5 3.2 3.2 5-5a3.6 3.6 0 0 0 4.8-4.8l-2.5 2.5-2.2-2.2z']),
+  notes:      MARK(['M6.2 3.8h8.2l3.6 3.6v12.8H6.2z', 'M14.4 3.8v3.6H18', 'M9 12.4h6M9 15.8h4']),
+  fin:        MARK(DOLLAR),
+  week:       MARK(CALENDAR),
+  // Anything a plant adds that has no mark of its own: a machine.
+  none:       MARK(['M4.6 8.6h14.8v9.4H4.6z', 'M8.2 8.6V5.4h7.6v3.2', 'M8.6 12.4h6.8M8.6 15.4h4']),
 };
 
 // A reading's key is `printing`, or `printing-uptime`, or `printing-mr`. The suffix
 // decides the pictogram, so a department added later gets sensible icons on all three of
 // its cards without anyone editing this map.
-export const iconFor = key => {
+export const iconFor = (key, chosen) => {
   const name = String(key || '');
   if (name.endsWith('-uptime')) return ICONS.uptime;
   if (name.endsWith('-mr')) return ICONS.mr;
-  return ICONS[name] || '📊';
+  // A plant's own pick only counts where the set has no mark of its own. A department it
+  // invented gets whatever it chose; printing gets the printing mark, so the row reads as
+  // one set rather than as four cards and a sticker.
+  return ICONS[name] || chosen || ICONS.none;
 };
 
 // A card is an icon, a label, a verdict, a reading drawn some way, and the numbers that
