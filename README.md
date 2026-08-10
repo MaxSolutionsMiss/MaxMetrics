@@ -49,7 +49,7 @@ problem being solved, not a step toward solving it.
 - judgement lives only in `band()` in `js/readings.js`, so a card and the status dot
   beside its section can never disagree about the same number
 - database policies are authoritative; the client cannot grant itself anything
-- built by `scripts/publish.sh` and served by Netlify from the `gh-pages` branch
+- built by `scripts/publish.sh` and served by GitHub Pages from the `gh-pages` branch
 
 Structure and spacing come from MaxDock so the two products feel like one system. The
 identity colour does not: MaxDock owns the corporate blue and status owns green, amber and
@@ -97,7 +97,7 @@ needs internet access.
 There is no build step in the ordinary sense — the file in the repository is the file the
 browser runs. Publishing copies the tree to `_site/`, stamps every asset URL with the
 commit so a reload cannot serve last week's stylesheet, and pushes the result to
-`gh-pages`, which is the branch Netlify deploys from.
+`gh-pages`, which is the branch GitHub Pages serves.
 
 ```
 scripts/publish.sh --dry-run    build and check, push nothing

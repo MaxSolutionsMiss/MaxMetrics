@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Publish the built site to `gh-pages`, which is the branch Netlify deploys from.
+# Publish the built site to `gh-pages`, which is the branch GitHub Pages serves.
 #
 # This used to be a GitHub Actions workflow. The organisation has no runners, so that
 # workflow never ran — which meant the checks in it never ran either, and a deploy
@@ -76,7 +76,7 @@ git -C "$WORKTREE" commit -q -m "Publish $SOURCE_SHA from $SOURCE_REF"
 
 for attempt in 1 2 3 4 5; do
   if git -C "$WORKTREE" push -u origin gh-pages; then
-    echo "── Published $SOURCE_SHA. Netlify deploys from gh-pages."
+    echo "── Published $SOURCE_SHA. GitHub Pages serves gh-pages; give it a minute."
     exit 0
   fi
   if [ "$attempt" = 5 ]; then echo "Push failed after five attempts." >&2; exit 1; fi

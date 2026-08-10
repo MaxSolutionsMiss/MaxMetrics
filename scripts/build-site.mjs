@@ -27,10 +27,10 @@ rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
 cpSync('index.html', join(OUT, 'index.html'));
 for (const directory of COPY) cpSync(directory, join(OUT, directory), { recursive: true });
-// Netlify does not care, but the site is served from a branch GitHub Pages can also be
-// pointed at, and Pages runs Jekyll over a branch unless told not to. It was in the
-// published tree before this script existed; dropping it would be a silent change to how
-// the site is served the next time anyone switches the host over.
+// GitHub Pages runs Jekyll over a branch unless told not to, and Jekyll drops every file
+// and folder whose name starts with an underscore. Nothing here is named that way today,
+// but the cost of the file is nothing and the cost of finding out the hard way is a
+// missing asset on a wall at seven in the morning.
 writeFileSync(join(OUT, '.nojekyll'), '');
 
 function walk(directory, out = []) {

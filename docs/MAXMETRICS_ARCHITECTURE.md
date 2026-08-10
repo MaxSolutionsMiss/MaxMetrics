@@ -744,8 +744,28 @@ somebody is actually sending files.
 
 ## Deployment
 
-Netlify, from the `gh-pages` branch, public URL, protected by sign-in. `scripts/publish.sh`
-runs the conformance rules and a parse check, builds `_site/`, and pushes it.
+GitHub Pages, from the `gh-pages` branch, at `maxsolutionsmiss.github.io/MaxMetrics/` —
+public URL, protected by sign-in. `scripts/publish.sh` runs the conformance rules, the
+import shapes and a parse check, builds `_site/`, and pushes it.
+
+Netlify used to serve the same branch alongside Pages, and was dropped when its credit ran
+out. It cost nothing to leave: nothing in the repository was ever Netlify's — no
+`netlify.toml`, no `_redirects`, no build command of theirs — because the branch already
+held a finished site rather than something to be built. The switch was a sentence in this
+file and the wording in `publish.sh`.
+
+Two things make a host swap that cheap, and both are worth keeping:
+
+- **Every path in the site is relative.** Pages serves a project site under `/MaxMetrics/`
+  and Netlify served it at the root; a single `href="/assets/…"` anywhere would have broken
+  on one of them. `../assets/…` works on both, and on a file opened off a USB stick.
+- **`.nojekyll` is written into every build.** Pages runs Jekyll over a branch unless told
+  not to, and Jekyll drops every file whose name starts with an underscore.
+
+One thing does not travel with the branch and has to be checked on the host: Supabase's
+**Site URL and redirect allow-list**. Sign-in works from any origin, but the link in a
+password-reset email is built from that setting, so a stale host there sends people to a
+domain that no longer answers.
 
 Assets are stamped with the commit at build time, including import specifiers — versioning
 the `<script>` tag alone would leave every module it imports cached, and a reload would show
