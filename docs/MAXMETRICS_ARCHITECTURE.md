@@ -615,6 +615,20 @@ here — but each was still `flex:1` with a row the height of a card, so the rea
 hundred and thirty pixels above centre. Safety looked centred and Labour did not, on the
 same rule. A grid with no visible card is now hidden outright.
 
+## Air between the parts, not around them
+
+A card's contents were centred in the body, so the spare height was split evenly above and
+below one block — which on a card with room to spare reads as a number floating in an empty
+box. They are spread through the body now: the number sits higher, the foot sits lower, and
+the same amount of space is doing something.
+
+The other half of the top gap was invisible. The flag row — where "RECORD BROKEN" goes — was
+reserved on every card so that a card with a flag and a card without one start their readings
+on the same line. True, and worth keeping; but reserved *unconditionally* it was thirty pixels
+of nothing at the top of every card on Quality, Shipping and Financials, none of which ever
+carries a flag. `fitCards()` puts a class on the grid when something on that screen is
+actually flagged, and only then is the row held open.
+
 ## One left edge on the page, centred on the wall
 
 The page scrolls and the wall does not, and that is the whole reason they align differently.
@@ -633,6 +647,27 @@ Tables under a section stop at 1080px rather than running the width of the scree
 columns of last week's productivity stretched across 1600 put "Printing" at one edge and its
 make-ready target at the other, which is a long way to carry your eye for numbers the cards
 above already summarise.
+
+## Today, then the month, then the year
+
+NCRs, internal complaints and customer complaints were year-to-date counts and nothing
+else. That answers "how are we doing" and not the question a morning meeting asks. A count
+of 94 does not change between Tuesday and Wednesday, so the card said the same thing every
+morning and the room stopped looking at it.
+
+The reading is **the last twenty-four hours**; the month and the year are the context under
+the rule, which is the shape Safety already uses for its record and its last incident. Nought
+is a reading, not a blank — a morning with no NCR raised is exactly the morning worth
+printing a zero on.
+
+Both counts come from the raw logs rather than the monthly roll-up, because only the logs
+carry a date per record: one row per NCR, one per customer complaint. Counting rows gives
+today and the month to date in the same pass.
+
+`carry_forward` carries the running totals and the standing targets to the next morning. It
+does **not** carry the daily counts, and that omission is the point: carried forward,
+yesterday's one NCR would still read as one this morning, and a card reporting a stale
+incident is worse than one reporting none.
 
 ## Where quality comes from
 

@@ -27,10 +27,22 @@ setx MAXMETRICS_INGEST_KEY "the-key"
 
 Sign out and back in — `setx` does not affect sessions that are already open.
 
-**2. Name the folders.** Copy `sources.example.json` to `sources.json` in the same folder
-and edit it. Each entry is one spreadsheet. The comments in the example say what each field
-does; the only two that need thought are `dateFrom` (which morning the numbers belong to)
-and `newestOnly` (one file, or every file in the folder).
+**2. Name the folders.** Copy `sources.example.json` to `sources.json` in the same folder.
+Mississauga's three are already in it, at the paths the plant uses:
+
+| Source | Where |
+|---|---|
+| DOR | `Y:\QC Dept\DOR V9.xlsx` — a mapped drive, so the task must run as a signed-in user |
+| OTIF | `…\OneDrive - Max Solutions, Inc\Working Files\Production KPIs & Stats` |
+| Monthly KPI | the same OneDrive folder — quality, complaints, COQ, sales and OTIF in one sheet |
+
+The KPI file is `dateFrom: "today"` rather than `"modified"` on purpose. It is a monthly
+sheet: the row it fills is chosen by the morning being imported for, not by when somebody
+last saved it. The other two are daily files and take the date they were written.
+
+Every other plant is a copy of one of those three lines with its own folder and `location`.
+The `location` has to be one of `mississauga`, `guelph`, `pickering`, `owen-sound`,
+`markham`, `concord`, `milton`, `bristol`, `sturgis`.
 
 **3. Prove it before scheduling it.**
 

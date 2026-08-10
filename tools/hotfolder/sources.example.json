@@ -20,25 +20,25 @@
     {
       "name": "Mississauga DOR",
       "location": "mississauga",
-      "folder": "Z:\\Production\\Daily Operating Report",
-      "match": "DOR_V*.xlsx",
-      "dateFrom": "modified",
-      "newestOnly": true
-    },
-    {
-      "name": "Mississauga KPI",
-      "location": "mississauga",
-      "folder": "C:\\Users\\%USERNAME%\\OneDrive - Max Solutions\\KPI Reporting\\MIssissauga\\2026",
-      "match": "*KPI*.xls*",
+      "folder": "Y:\\QC Dept",
+      "match": "DOR V9.xlsx",
       "dateFrom": "modified",
       "newestOnly": true
     },
     {
       "name": "Mississauga OTIF",
       "location": "mississauga",
-      "folder": "Z:\\Shipping",
-      "match": "OTIF*.xls*",
+      "folder": "C:\\Users\\jresa\\OneDrive - Max Solutions, Inc\\Working Files\\Production KPIs & Stats",
+      "match": "*OTIF*.xls*",
       "dateFrom": "modified",
+      "newestOnly": true
+    },
+    {
+      "name": "Mississauga monthly KPI",
+      "location": "mississauga",
+      "folder": "C:\\Users\\jresa\\OneDrive - Max Solutions, Inc\\Working Files\\Production KPIs & Stats",
+      "match": "*KPI*Raw*Data*.xls*",
+      "dateFrom": "today",
       "newestOnly": true
     },
     {
