@@ -201,11 +201,14 @@ html[data-rail="mini"]{--rail-w:62px}
 
 .content{padding:var(--s4) var(--s5) var(--s5);display:flex;flex-direction:column;gap:var(--s5);flex:1}
 .sec{display:flex;flex-direction:column;gap:var(--s3);min-width:0}
-/* A section heading sits between two rules, centred — the plant's own device, and a good
-   one: it separates without adding a heavy bar, and it reads as a divider rather than as
-   another thing competing with the numbers. */
+/* A section heading sits against a rule that runs to the right of it — the plant's own
+   device, and a good one: it separates without adding a heavy bar and reads as a divider
+   rather than as another thing competing with the numbers.
+   It was centred, with a rule on both sides. That was right while the cards were centred
+   under it and wrong the moment they were not: a heading in the middle of the screen over
+   a row of cards starting at the left edge gives the eye two different places to begin. */
 .sec__head{display:flex;align-items:center;gap:var(--s3)}
-.sec__head::before{content:"";flex:1;height:1.5px;background:var(--rule)}
+body.tv .sec__head::before{content:"";flex:1;height:1.5px;background:var(--rule)}
 .sec__title{font-family:var(--font-condensed);font-size:calc(14px*var(--scale));font-weight:600;
   text-transform:uppercase;letter-spacing:.16em;color:var(--ink-muted);margin:0;white-space:nowrap}
 .sec__rule{flex:1;height:1.5px;background:var(--rule)}
@@ -240,7 +243,7 @@ body.tv .verdict{font-size:var(--t-lead)}
    and shipping's eight are then the same card, four to a row, wrapping where they wrap. */
 .grid--cards{grid-template-columns:repeat(auto-fit,minmax(0,var(--card-w)));
   grid-auto-rows:var(--card-h);
-  justify-content:center;align-items:stretch}
+  justify-content:start;align-items:stretch}
 @media(max-width:760px){.grid--cards{grid-template-columns:minmax(0,1fr);
   grid-auto-rows:minmax(min-content,auto)}}
 .g4{grid-template-columns:repeat(4,minmax(0,1fr))}
@@ -591,6 +594,13 @@ body.tv .verdict{font-size:var(--t-lead)}
 /* ── PANEL ── */
 .panel{background:var(--surface);border:1px solid var(--rule);border-radius:var(--radius-lg);
   overflow:hidden;box-shadow:var(--shadow);display:flex;flex-direction:column;min-width:0}
+/* A table under a section is the detail behind the cards, not a second headline, so it
+   stops where its content stops rather than running the width of the screen. Nine columns
+   of last week's productivity stretched across 1600px put "Printing" at one edge and its
+   make-ready target at the other, which is a long way to carry your eye for a number the
+   cards above already summarise. */
+.sec > .panel{max-width:min(100%, 1080px)}
+body.tv .sec > .panel{max-width:none}
 .panel__head .card__ico{font-size:22px}
 .panel__head{display:flex;align-items:center;gap:var(--s2);padding:var(--s2) var(--s4);
   border-bottom:1px solid var(--rule);min-height:44px;flex:none}
@@ -751,6 +761,13 @@ body.tv .finbars{display:none}
    three different card shapes across a five-screen walk. A fixed row and `align-content`
    give the opposite: the same card every time, and the leftover height as margin above and
    below rather than as stretch inside. */
+/* Centred on the wall, and only there. On the page a row of two cards centred in a
+   sixteen-hundred-pixel screen leaves the eye starting somewhere different on every
+   section — Safety's two begin in the middle, Shipping's eight begin at the edge, and
+   scrolling between them the whole page shifts sideways. One left edge for everything is
+   what makes a scroll read as one page. A presentation is the opposite case: one screen at
+   a time, nothing to scan down, and a block of cards pinned left with a third of the
+   screen empty beside it looks like a mistake. */
 body.tv .grid{flex:1 1 auto;align-content:center;justify-content:center;
   grid-auto-rows:var(--card-h);margin:0}
 body.tv .card__mid{flex:0 1 auto}

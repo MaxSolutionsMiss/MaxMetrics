@@ -10,14 +10,14 @@ import {
   openDay, loadDay, loadHistory, loadBudgets, saveField, saveDepartment, saveReview,
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   importHistory,
-} from '../db.js?v=86c7fe61ea6d';
-import { assess, attention, settled, verdicts } from '../assess.js?v=86c7fe61ea6d';
+} from '../db.js?v=aff0484de567';
+import { assess, attention, settled, verdicts } from '../assess.js?v=aff0484de567';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
   spark, bullet, chip, cardTrack, readingOf, derivedShipping, SHIPPING_TARGET,
   volumeLabel, rateLabel, hoursLabel,
-} from '../readings.js?v=86c7fe61ea6d';
+} from '../readings.js?v=aff0484de567';
 
 const $ = selector => document.querySelector(selector);
 
@@ -433,7 +433,7 @@ const SECTIONS = {
         const name = config?.name || row.dept_key;
         return `<div class="revcard revcard--${row.status}" data-pkey="rev-${esc(row.dept_key)}">
           <div class="revcard__head"><span class="rev__dot rev__dot--${row.status}"></span>
-            <span class="card__ico" aria-hidden="true">${config?.icon || iconFor(row.dept_key)}</span>
+            <span class="card__ico" aria-hidden="true">${iconFor(row.dept_key, config?.icon)}</span>
             <h4>${esc(name)}</h4></div>
           <div class="rev__note${row.note ? '' : ' rev__note--none'}">${esc(row.note || 'No issues reported.')}</div>
           <div class="ez">
