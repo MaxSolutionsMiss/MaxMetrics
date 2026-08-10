@@ -298,8 +298,10 @@ export const chip = (tone, text) => `<span class="delta delta--${tone}">${esc(te
 export const varianceTone = pct =>
   !Number.isFinite(pct) ? 'none' : pct >= 0 ? 'ok' : pct > -4 ? 'warn' : 'stop';
 
+// The arrow and the sign say the same thing, and both are wanted: the arrow is what the eye
+// catches from across a room, the sign is what survives being read out loud.
 export const variancePct = (pct, digits = 1) =>
-  `${pct >= 0 ? '+' : '−'}${Math.abs(pct).toFixed(digits)}%`;
+  `${pct >= 0 ? '▲' : '▼'} ${pct >= 0 ? '+' : '−'}${Math.abs(pct).toFixed(digits)}%`;
 
 // `lowerIsBetter` flips which side is green without flipping the sign printed. Cost of
 // quality half its target is "−55%" and green: the number says which way it moved, the
