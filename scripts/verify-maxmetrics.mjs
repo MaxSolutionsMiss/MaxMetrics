@@ -56,6 +56,7 @@ const IMPORTANT_ALLOWED = [
   { match: /prefers-reduced-motion/,   why: 'must beat any animation a component declares' },
   { match: /^\.hide\b/,                why: 'hidden is hidden, whatever the display rule was' },
   { match: /body:not\(\.editing\)/,    why: 'edit fields stay closed regardless of card layout' },
+  { match: /body\.editing \.view-only/,  why: 'a value steps aside for the field that replaces it' },
   { match: /grid-template-columns:1fr!important/, why: 'one column on a phone beats every per-section grid' },
 ];
 for (const path of stylesheets) {

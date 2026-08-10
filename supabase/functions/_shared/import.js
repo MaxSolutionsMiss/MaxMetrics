@@ -736,6 +736,16 @@ export async function readFiles(files, { date, reported = [], operators = [] } =
 
   const span = windowFor(date, reported);
   const departments = rollup(shifts, span.from, span.to);
+  // The same window a week earlier, which is what "last week's productivity" is: the same
+  // weekday, so a Monday is compared with a Monday. It was the one part of the DOR nobody
+  // was reading — the table sat there with four rows of dashes because the only way to fill
+  // it was to type last Monday's numbers in by hand, from the same file this is reading.
+  const before = rollup(shifts, addDays(span.from, -7), addDays(span.to, -7));
+  for (const d of departments) {
+    const was = before.find(b => b.dept_key === d.dept_key);
+    d.pw_qty = was?.qty ?? null;
+    d.pw_hours = was?.hours ?? null;
+  }
   // Shipping is counted on the day it is entered, not shifted: a truck that left yesterday
   // is recorded against yesterday and the morning reads that row directly.
   const ship = (shipping || []).find(d => d.date === span.to) ?? null;

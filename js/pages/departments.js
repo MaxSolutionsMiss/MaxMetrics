@@ -410,6 +410,13 @@ function qualityPane() {
         Unticking a card removes it from the dashboard and from present mode; the section
         rearranges around what is left. Production's cards are the plant's departments and
         are set on the Departments screen. Targets stay on the card itself, in Edit mode.</p>
+        <label class="tog cfg__card" style="margin-top:var(--s2)">
+          <input type="checkbox" data-plant="split_upkeep"${
+            state.plant?.split_upkeep ? ' checked' : ''}${canEdit() ? '' : ' disabled'}>
+          <span>Keep Labour and Maintenance as separate screens</span></label>
+        <p class="cfg__none" style="font-style:normal;color:var(--ink-faint)">
+          Off, they are one screen — four overtime cards and two maintenance ones. On, each
+          gets its own, which suits a plant with a long maintenance list.</p>
       </div></div>
     <div class="grid g3" style="margin-top:var(--s3)">
       ${sections.map(group => `<div class="panel">
