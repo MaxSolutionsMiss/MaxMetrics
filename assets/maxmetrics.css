@@ -205,7 +205,10 @@ html[data-rail="mini"]{--rail-w:62px}
 .btn{font-family:inherit;font-size:var(--t-small);font-weight:600;height:var(--ctl-h);
   padding:0 var(--s3);border-radius:var(--radius);border:1px solid var(--rule-strong);
   background:var(--surface);color:var(--ink);cursor:pointer;display:inline-flex;align-items:center;
-  gap:6px;white-space:nowrap;transition:background .12s}
+  gap:6px;white-space:nowrap;transition:background .12s;
+  /* Some of these are anchors — a link that has been made into a button should stop
+     looking like a link, or it arrives underlined and in link blue. */
+  text-decoration:none;justify-content:center}
 .btn:hover{background:var(--sunk)}
 .btn--primary{background:var(--brand);border-color:var(--brand);color:#fff}
 .btn--primary:hover{background:var(--brand-hover)}
@@ -733,6 +736,13 @@ body.tv .sec > .panel{max-width:none}
   text-transform:uppercase;letter-spacing:.04em;color:var(--ink-muted);margin:0;white-space:nowrap}
 .panel__actions{margin-left:auto;display:flex;gap:var(--s2);align-items:center}
 .panel__body{padding:var(--s2) var(--s4) var(--s3);flex:1;min-width:0;overflow-x:auto}
+/* Three cards, three buttons, one line.
+   Import, Export and Print have descriptions of three different lengths, so each button
+   landed wherever its paragraph happened to stop and the row read as three unrelated
+   cards. The text takes whatever height it takes and the button is pushed to the foot, so
+   the three line up whatever anybody writes above them. */
+.panel__body--act{display:flex;flex-direction:column;gap:var(--s3);overflow-x:visible}
+.panel__body--act .btn{margin-top:auto;align-self:flex-start}
 
 /* The last twenty-four hours, read back as the list they were typed as. It is the body of
    a note card now rather than a block of its own, so it takes the card's own type scale. */
@@ -1442,11 +1452,24 @@ body.tv .content.wall{display:flex;flex-direction:column;gap:var(--s4);
    chips on a narrow screen rather than eating half the width. */
 .sub{display:grid;grid-template-columns:minmax(10rem,14rem) minmax(0,1fr);
   gap:var(--s4);align-items:start}
-.sub__rail{display:flex;flex-direction:column;gap:2px;position:sticky;
+/* The rail is an object, not a list floating on the page.
+   Drawn as bare text against the ground it read as something left over rather than
+   something to use — the one control on the screen with no edges, sitting beside cards that
+   all have them. It is a card now, like everything else, with the items ruled off each
+   other so the eye can count them. */
+.sub__rail{display:flex;flex-direction:column;position:sticky;
   top:calc(var(--topbar-h) + var(--s3));
-  border-right:1px solid var(--rule);padding-right:var(--s3)}
+  background:var(--surface);border:1px solid var(--rule);border-radius:var(--radius-lg);
+  box-shadow:var(--shadow);padding:var(--s1);overflow:hidden}
 .sub__b{background:none;border:none;border-radius:var(--radius);cursor:pointer;font:inherit;
   text-align:left;padding:var(--s2) var(--s3);display:grid;gap:1px;color:var(--ink-muted)}
+.sub__b + .sub__b{
+  /* A hairline between items, inset so it stops short of the rounded corners. The selected
+     item paints over its own edges, so the rule is drawn on the button below and hidden
+     when either side of it is the current one. */
+  box-shadow:inset 0 1px 0 var(--rule)}
+.sub__b[aria-current="true"],.sub__b[aria-current="true"] + .sub__b,.sub__b:hover,
+.sub__b:hover + .sub__b{box-shadow:none}
 .sub__b b{font-family:var(--font-condensed);font-size:calc(15px*var(--scale));font-weight:700;
   text-transform:uppercase;letter-spacing:.05em;color:var(--ink);
   display:flex;align-items:baseline;justify-content:space-between;gap:var(--s2)}
@@ -1459,9 +1482,9 @@ body.tv .content.wall{display:flex;flex-direction:column;gap:var(--s4);
 .sub__b[aria-current="true"] .sub__t{color:var(--brand)}
 @media (max-width:900px){
   .sub{grid-template-columns:minmax(0,1fr)}
-  .sub__rail{flex-direction:row;flex-wrap:wrap;position:static;border-right:0;
-    padding:0 0 var(--s2);border-bottom:1px solid var(--rule)}
+  .sub__rail{flex-direction:row;flex-wrap:wrap;position:static;gap:2px}
   .sub__b span{display:none}
+  .sub__b + .sub__b{box-shadow:none}
 }
 /* A measure, not a width. Sub-panes carry paragraphs explaining what a setting does, and a
    sentence set across a thousand pixels is a sentence nobody finishes. */
@@ -1737,7 +1760,7 @@ body.tv .util{display:none}
    boxes that are two lines each \u2014 which on a screen that is supposed to be filled in
    without scrolling is the most expensive argument on the page. In a column they are as tall
    as they need to be and the screen is a rectangle. */
-.fill__grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--s3);
+.fill__grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--s3);
   align-items:stretch}
 /* One section's worth of boxes, on that section's own screen. Four columns are right for
    the whole morning and wrong for six safety readings — they would come out as one short
@@ -1867,6 +1890,22 @@ body.tv .util{display:none}
   minmax(0,.9fr) 1.3rem;align-items:center;gap:6px;min-height:26px}
 .fr--maint .fr__i--h{padding:0 4px}
 .fr--maint .fr__i{height:24px}
+/* The same six boxes, folded into a column. Department and machine on the first line, what
+   it is for and how long on the second, when and what state on the third — the order
+   somebody says it out loud in. Bookings are ruled off each other because without the
+   column headings the rows would run together. */
+.fr--maint2{grid-template-columns:minmax(0,1fr) minmax(0,1fr) 1.2rem;gap:4px;
+  padding:6px 0;border-bottom:1px solid var(--rule-soft)}
+.fr--maint2:last-child{border-bottom:0}
+.fr--maint2 > :nth-child(1){grid-column:1}
+.fr--maint2 > :nth-child(2){grid-column:2/4}
+.fr--maint2 > :nth-child(3){grid-column:2;grid-row:2}
+.fr--maint2 > :nth-child(4){grid-column:1;grid-row:2}
+.fr--maint2 > :nth-child(5){grid-column:1;grid-row:3}
+.fr--maint2 > :nth-child(6){grid-column:2;grid-row:3}
+.fr--maint2 > :nth-child(7){grid-column:3;grid-row:3;justify-self:end}
+.fr--maint2 .fr__i--h{text-align:right}
+.fg--maint2 .fg__rows{gap:0}
 .fg--wide .fg__rows{gap:1px}
 .fr--head{min-height:0}
 .fr--maint .fr__i{text-align:left}
@@ -1884,9 +1923,20 @@ body.tv .util{display:none}
 .fill__end b{color:var(--warn)}
 body[data-view="fill"] #edit-btn,body[data-view="fill"] #publish-btn{display:none}
 
-@media(max-width:1560px){.fill__grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media(max-width:1200px){.fill__grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:820px){.fill__grid{grid-template-columns:minmax(0,1fr)}
+/* How many columns is a question about the grid, not about the window.
+   These were viewport media queries, which was true while Enter was the whole width. It is
+   not any more — the rail beside it takes a quarter of the screen, so at 1600px the grid
+   had 1130px and still laid down four columns, and every label came out as "Las…" and
+   "Re…". A container query asks the box how wide *it* is, which is the thing that decided
+   the answer all along. */
+.fill .sub__body{container-type:inline-size;container-name:fillbody}
+@container fillbody (max-width:1020px){
+  .fill__grid:not(.fill__grid--one){grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@container fillbody (max-width:660px){
+  .fill__grid:not(.fill__grid--one){grid-template-columns:minmax(0,1fr)}
+}
+@media(max-width:820px){
   .fill__top{grid-template-columns:1fr}
   .fr--maint{grid-template-columns:1fr 1fr;gap:4px}
   .fr--maint .fr--head,.fr--head{display:none}

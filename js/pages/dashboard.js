@@ -13,8 +13,8 @@ import {
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=eb27ec393d66';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=eb27ec393d66';
+} from '../db.js?v=186daccd8adb';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=186daccd8adb';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
@@ -22,7 +22,7 @@ import {
   isNa, isMissing,
   varianceChip, varianceTone, variancePct,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE,
-} from '../readings.js?v=eb27ec393d66';
+} from '../readings.js?v=186daccd8adb';
 
 const $ = selector => document.querySelector(selector);
 
@@ -752,7 +752,13 @@ function fillOvertime() {
 // at the foot of the page, which made it the one thing on the screen that looked like it came
 // from somewhere else — and it is six columns wide, so it takes the full row rather than a
 // third of one.
-function fillMaintenance() {
+// `tight` is the version that lives in a column rather than across the page.
+//
+// Six boxes on a line needs the width of the screen, and on the one-page entry view it took
+// it — leaving Quality and Sales ending a third of the way down with nothing under them and
+// the whole block ragged along the bottom. Narrow, the same six wrap to three short lines
+// per booking and the group drops into a column beside the others.
+function fillMaintenance({ tight = false } = {}) {
   const items = upcomingItems();
   const depts = state.config.filter(c => c.active !== false);
   // Six boxes on a row with the headings above them, which reads perfectly and tells a
@@ -765,7 +771,7 @@ function fillMaintenance() {
   const rows = items.map((m, n) => {
     const machines = machinesIn(deptKeyOf(m.dept)).map(x => x.name);
     const its = what => `${what}, item ${n + 1}`;
-    return `<div class="fr fr--maint" data-pkey="maint-${esc(m.id)}">
+    return `<div class="fr fr--maint${tight ? ' fr--maint2' : ''}" data-pkey="maint-${esc(m.id)}">
       ${pick(`maint:${esc(m.id)}:dept`, depts.map(d => d.name), m.dept, 'Department', its('Department'))}
       ${pick(`maint:${esc(m.id)}:machine`, machines, m.machine, 'Machine', its('Machine'))}
       <input class="inp fr__i fr__i--h" type="number" step="0.5" min="0" placeholder="hrs"
@@ -781,12 +787,15 @@ function fillMaintenance() {
         aria-label="${esc(`Remove item ${n + 1}`)}">×</button>
     </div>`;
   });
-  return `<section class="fg fg--wide">
+  // The column headings are what makes six unlabelled boxes readable in a row. Wrapped to
+  // three lines they label nothing, so narrow drops them — every box carries its own
+  // placeholder and `aria-label` regardless.
+  return `<section class="fg${tight ? ' fg--maint2' : ' fg--wide'}">
     <h3 class="fg__h">Upcoming maintenance
       <button class="btn btn--ghost fg__add" id="maint-add">Add an item</button></h3>
     <div class="fg__rows">
-      <div class="fr fr--maint fr--head"><span>Department</span><span>Machine</span>
-        <span>Hours</span><span>What for</span><span>When</span><span>Status</span><span></span></div>
+      ${tight ? '' : `<div class="fr fr--maint fr--head"><span>Department</span><span>Machine</span>
+        <span>Hours</span><span>What for</span><span>When</span><span>Status</span><span></span></div>`}
       ${rows.join('') || '<p class="fg__note">Nothing booked in.</p>'}
     </div>
   </section>`;
@@ -870,20 +879,22 @@ const SECTIONS = {
     // assessment's own answer rather than a second opinion about it.
     // `order()` already decides whether maintenance is its own screen or part of labour;
     // asking it again here is how the two would come to disagree.
-    const tabs = FILL_TABS.filter(t => t.key === '_all' || order().includes(t.key)).map(t => {
+    const tabs = fillTabs().map(t => {
       const left = t.key === '_all' ? gaps.length
         : gaps.filter(g => g.section === t.key).length;
-      return { ...t, name: t.key === '_all' ? t.name : TITLES[t.key],
-               tag: left ? String(left) : '✓' };
+      return { ...t, name: t.name || TITLES[t.key], tag: left ? String(left) : '✓' };
     });
     const at = tabs.find(t => t.key === state.fillAt) ? state.fillAt : tabs[0].key;
 
     const groups = at === '_all'
-      ? `<div class="fill__col">${fillSafety()}${fillQuality()}</div>
-         <div class="fill__col">${fillProduction()}${fillMoney()}</div>
-         <div class="fill__col">${fillShipping()}${fillOvertime()}</div>
-         <div class="fill__col">${fillNotes()}${fillSupport()}</div>
-         ${fillMaintenance()}`
+      // Three columns, assigned rather than flowed, and balanced by eye against what each
+      // group actually costs in height. It was four, from when Enter was the whole width;
+      // beside the rail four columns leave 270px each and every label comes out as
+      // "Las…". Three is what fits, so three is what it is — and the groups are dealt out
+      // so the columns finish together rather than as a staircase.
+      ? `<div class="fill__col">${fillSafety()}${fillQuality()}${fillMoney()}${fillSupport()}</div>
+         <div class="fill__col">${fillProduction()}${fillMaintenance({ tight: true })}${fillOvertime()}</div>
+         <div class="fill__col">${fillShipping()}${fillNotes()}</div>`
       : FILL_FOR[at]();
     const published = state.metrics?.status === 'published';
     // Two shapes, because two states. Outstanding readings get the big count and the list
@@ -1599,10 +1610,15 @@ function paintPresence() {
 // arranged the way the rail already arranges everything else.
 const FILL_FOR = {
   safety:      () => fillSafety(),
-  // The review is per department, and the departments are Production's — so the last
-  // twenty-four hours belongs on the screen whose cards it draws, not on a screen of its own.
-  production:  () => fillProduction() + fillNotes() + fillSupport(),
   quality:     () => fillQuality(),
+  // Customer service, the die shop and prepress get their own screen rather than a group at
+  // the foot of Production. They are not production, they answer to nobody on that screen,
+  // and buried under four departments and their last twenty-four hours the invitation went
+  // unseen — which for a box nobody is required to fill in means never filled in.
+  support:     () => fillSupport(),
+  // The review is per department, and the departments are Production's — so the last
+  // twenty-four hours belongs on the screen whose cards it draws.
+  production:  () => fillProduction() + fillNotes(),
   shipping:    () => fillShipping(),
   financials:  () => fillMoney(),
   labour:      () => fillOvertime() + (mergedUpkeep() ? fillMaintenance() : ''),
@@ -1622,7 +1638,8 @@ const nextToFill = key => {
 const FILL_TABS = [
   { key: 'safety',      sub: 'Injuries and near-misses' },
   { key: 'quality',     sub: 'Shortages, NCRs, complaints, COQ' },
-  { key: 'production',  sub: 'Output and hours, last 24 hours, support' },
+  { key: 'support',     name: 'Customer service', sub: 'The die shop and prepress too' },
+  { key: 'production',  sub: 'Output and hours, and the last 24 hours' },
   { key: 'shipping',    sub: 'Jobs, cartons, late, short' },
   { key: 'financials',  sub: "Yesterday's sales" },
   { key: 'labour',      sub: 'Overtime, and what is booked in' },
@@ -1630,8 +1647,14 @@ const FILL_TABS = [
   { key: '_all', name: 'All of it', sub: 'The whole morning on one page' },
 ];
 
+// Support is not one of the dashboard's sections — it is one card inside Production's —
+// so it is named here rather than looked up in `order()`, which decides screens and knows
+// nothing about it.
+const fillTabs = () => FILL_TABS.filter(t =>
+  t.key === '_all' || t.key === 'support' || order().includes(t.key));
+
 const nextFillTab = key => {
-  const list = FILL_TABS.filter(t => t.key === '_all' || order().includes(t.key)).map(t => t.key);
+  const list = fillTabs().map(t => t.key);
   const next = list[list.indexOf(key) + 1];
   return next && next !== '_all' ? next : null;
 };
