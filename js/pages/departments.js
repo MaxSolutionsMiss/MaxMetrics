@@ -22,12 +22,12 @@ import {
   currentSession, signOut, myProfile, myLocations,
   loadDepartmentConfig, saveDepartmentConfig, addDepartmentConfig, ensureDepartmentRows,
   loadBudgets, saveBudget, loadPlant, savePlant,
-  peopleAt, grantAccess, revokeAccess, setAdmin,
-} from '../db.js?v=202d1bb295ca';
+  peopleAt, grantAccess, revokeAccess, setAdmin, createPerson,
+} from '../db.js?v=7d7861f55967';
 import {
   esc, num, money, MONTHS, metricCard, footLine, iconFor, cardTrack,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE,
-} from '../readings.js?v=202d1bb295ca';
+} from '../readings.js?v=7d7861f55967';
 
 const $ = selector => document.querySelector(selector);
 
@@ -37,7 +37,8 @@ if (!session) location.replace('../index.html');
 const today = () => new Date().toISOString().slice(0, 10);
 
 const state = { me: null, locations: [], location: null, config: [], draft: null, plant: null,
-                pane: 'departments', budgets: [], year: new Date().getFullYear(), people: null };
+                pane: 'departments', budgets: [], year: new Date().getFullYear(), people: null,
+                madePerson: null };
 
 // ── The panes ───────────────────────────────────────────────────────────────────
 //
@@ -534,30 +535,41 @@ function dataPane() {
 const LEVELS = [['none', 'No access'], ['view', 'View only'], ['edit', 'Can edit']];
 const levelOf = person => !person.has_access ? 'none' : person.can_edit ? 'edit' : 'view';
 
+const initialsOf = person => {
+  const source = person.pending ? person.email : (person.full_name || person.email || '?');
+  return source.split(/[\s.@_-]+/).filter(Boolean).slice(0, 2)
+    .map(word => word[0].toUpperCase()).join('');
+};
+
 function peoplePane() {
   const plant = state.locations.find(l => l.id === state.location);
   const people = state.people || [];
   const withAccess = people.filter(p => p.has_access);
+
+  // One line per person. It was a table row two lines deep with an avatar, a name, a badge
+  // and an email stacked under each other, which is a card pretending to be a row: twenty
+  // people came out three screens long. Name, email, level, admin — four columns, one line,
+  // and the eye runs down the level column looking for the one that is wrong.
   const inRow = person => {
     const level = levelOf(person);
     const key = person.profile_id || `email:${person.email}`;
     return `<tr data-person="${esc(key)}">
-      <td class="dept">
-        <span class="who__a" style="background:${person.pending ? '#8A94A6' : '#5B46D9'}">${
-          esc(initialsOf(person))}</span>
-        ${esc(person.pending ? person.email : person.full_name)}
+      <td class="ppl__n">
+        <span class="who__a who__a--sm" style="background:${
+          person.pending ? '#8A94A6' : '#5B46D9'}">${esc(initialsOf(person))}</span>
+        <b>${esc(person.pending ? person.email.split('@')[0] : person.full_name)}</b>
         ${person.pending ? '<span class="pill pill--info">Invited</span>' : ''}
         ${person.profile_id === state.me?.id ? '<span class="pill pill--ok">You</span>' : ''}
       </td>
-      <td class="soft">${person.pending ? 'has not signed in yet' : esc(person.email)}</td>
-      <td>
+      <td class="soft ppl__e">${esc(person.email)}</td>
+      <td class="ppl__l">
         <select class="inp inp--cell" data-level="${esc(key)}"
           aria-label="Access for ${esc(person.pending ? person.email : person.full_name)}">
           ${LEVELS.map(([value, text]) =>
             `<option value="${value}"${value === level ? ' selected' : ''}>${text}</option>`).join('')}
         </select>
       </td>
-      <td class="num">
+      <td class="num ppl__a">
         <label class="tog" title="Administrators can add people and set access at every plant">
           <input type="checkbox" data-admin="${esc(person.profile_id || '')}"
             aria-label="Administrator"
@@ -567,6 +579,11 @@ function peoplePane() {
     </tr>`;
   };
 
+  // The temporary password, shown once. It is not stored anywhere this screen can read it
+  // back from, which is the point — if the administrator loses it before handing it over,
+  // pressing Add again for the same address issues a new one.
+  const made = state.madePerson;
+
   return `<section class="sec">
     <div class="sec__head"><h2 class="sec__title">People</h2><div class="sec__rule"></div></div>
 
@@ -575,6 +592,8 @@ function peoplePane() {
       <h3 class="panel__title">Add somebody to ${esc(plant?.name || 'this plant')}</h3></div>
       <div class="panel__body">
         <div class="addp">
+          <input class="inp" id="add-name" type="text" placeholder="Full name"
+            aria-label="Full name">
           <input class="inp" id="add-email" type="email" placeholder="name@maxsolutions.ca"
             aria-label="Email address">
           <select class="inp" id="add-level" aria-label="Access level">
@@ -583,11 +602,21 @@ function peoplePane() {
           </select>
           <button class="btn btn--go" id="add-person">Add</button>
         </div>
-        <p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">
-          If they already have a MaxMetrics account, access is granted straight away. If they
-          do not, it waits for them: the moment they sign up with that address they arrive
-          with this plant and this level already set. Either way you do not have to come back.
-        </p>
+        ${made ? `<div class="madep">
+          <div class="madep__t">${esc(made.reused ? 'Password reset for' : 'Account created for')}
+            <b>${esc(made.email)}</b></div>
+          <div class="madep__p"><span>Temporary password</span><code>${esc(made.password)}</code>
+            <button class="btn btn--ghost" id="copy-password">Copy</button></div>
+          <p class="madep__s">Give them this once. MaxMetrics will require them to choose
+            their own password the first time they sign in, and this one stops working the
+            moment they do. It is not stored anywhere you can read it back \u2014 if it is
+            lost, press Add again for the same address and a new one is issued.</p>
+        </div>` : `<p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">
+          MaxMetrics makes the account and hands you a temporary password to pass on. They
+          choose their own the first time they sign in. Nothing is emailed \u2014 this project
+          has no outbound mail set up, and a sign-in that depends on one silently is a
+          sign-in that fails on a Monday. Adding somebody who already has an account resets
+          their password and gives them this plant.</p>`}
       </div></div>
 
     <div class="panel" style="margin-top:var(--s3)"><div class="panel__head">
@@ -597,19 +626,13 @@ function peoplePane() {
         <span class="pill pill--info">${people.length} account${people.length === 1 ? '' : 's'}</span>
       </div></div>
       <div class="panel__body">
-        ${people.length ? `<table class="tbl tbl--tight"><thead><tr>
+        ${people.length ? `<table class="tbl tbl--tight tbl--ppl"><thead><tr>
           <th>Name</th><th>Email</th><th>This plant</th><th class="num">MaxMetrics</th>
         </tr></thead><tbody>${people.map(inRow).join('')}</tbody></table>`
         : '<p class="cfg__none">Nobody yet.</p>'}
       </div></div>
   </section>`;
 }
-
-const initialsOf = person => {
-  const source = person.pending ? person.email : (person.full_name || person.email || '?');
-  return source.split(/[\s.@_-]+/).filter(Boolean).slice(0, 2)
-    .map(word => word[0].toUpperCase()).join('');
-};
 
 const PANE_BODY = {
   departments: departmentsPane, financials: financialsPane, quality: qualityPane,
@@ -773,6 +796,7 @@ document.addEventListener('click', async event => {
   const pane = event.target.closest('[data-pane]');
   if (pane) {
     state.pane = pane.dataset.pane;
+    state.madePerson = null;
     if (state.pane === 'financials' && !state.budgets.length) await loadYear();
     if (state.pane === 'quality' && !state.plant) state.plant = await loadPlant(state.location).catch(() => null);
     if (state.pane === 'people') await loadPeople();
@@ -823,6 +847,12 @@ document.addEventListener('click', async event => {
 
   if (event.target.closest('#add-btn')) await addDepartment();
   if (event.target.closest('#add-person')) await addPerson();
+  if (event.target.closest('#copy-password')) {
+    try {
+      await navigator.clipboard.writeText(state.madePerson?.password || '');
+      toast('Password copied');
+    } catch { toast('Select it and copy — this browser refused the clipboard.'); }
+  }
 });
 
 // ── People ──
@@ -836,19 +866,34 @@ async function loadPeople() {
   catch (error) { state.people = []; toast(error.message); }
 }
 
+// Adding somebody is making an account, not sending an invitation.
+//
+// The first version left the grant waiting in `pending_access` until they signed up, which
+// is a sound mechanism and the wrong product: nobody was ever going to sign up, because
+// nothing told them to and nothing gave them a password. An administrator wants to type a
+// name and hand over credentials, the way they already do for everything else in the plant.
 async function addPerson() {
   const email = $('#add-email').value.trim();
+  const name = $('#add-name').value.trim();
   const level = $('#add-level').value;
   if (!email) return toast('An email address is needed.');
+  const button = $('#add-person');
+  button.disabled = true;
+  button.textContent = 'Adding…';
   try {
-    const outcome = await grantAccess(email, state.location, level === 'edit');
-    $('#add-email').value = '';
+    const made = await createPerson({
+      email, name, location: state.location, canEdit: level === 'edit',
+    });
+    state.madePerson = made;
     await loadPeople();
     render();
-    toast(outcome === 'invited'
-      ? `${email} is not signed up yet — the access is waiting for them`
-      : `${email} can now ${level === 'edit' ? 'edit' : 'see'} this plant`);
-  } catch (error) { toast(error.message); }
+    $('#add-email').value = '';
+    $('#add-name').value = '';
+  } catch (error) {
+    toast(error.message);
+    button.disabled = false;
+    button.textContent = 'Add';
+  }
 }
 
 document.addEventListener('change', async event => {
@@ -940,6 +985,7 @@ async function openPlant(location) {
   state.budgets = [];
   state.plant = null;
   state.people = null;
+  state.madePerson = null;
   $('#content').innerHTML = '<div class="loading">Loading this plant…</div>';
   try {
     state.config = (await loadDepartmentConfig(location)) || [];

@@ -18,7 +18,7 @@
 // to record. Neither is a warning, and neither holds up an import. An alarm that fires
 // every Monday about a Sunday nobody worked is one people learn to close without reading.
 
-import { openWorkbook, serialToISO } from './xlsx.js?v=202d1bb295ca';
+import { openWorkbook, serialToISO } from './xlsx.js?v=7d7861f55967';
 
 // ── Matching a column ───────────────────────────────────────────────────────────
 
@@ -430,9 +430,27 @@ export async function readKpi(workbook, { date }) {
   // split the file cannot support.
   if (metrics.ncr_today != null) metrics.complaints_internal_today = metrics.ncr_today;
   if (metrics.ncr_mtd != null) metrics.complaints_internal_mtd = metrics.ncr_mtd;
-  // The month-to-date NCR figure the roll-up gives is the closed month's; the raw log's is
-  // the real one for a month still running.
-  if (metrics.ncr_mtd == null) put('ncr_mtd', num(latest.row, col.ncrInternal));
+
+  // When the raw log cannot answer, the monthly sheet can — and it was not being asked.
+  //
+  // The raw logs are the right source for a month still running, and they stop the day
+  // somebody last typed into them: this plant's NCR log ends 27 July and its complaints log
+  // 28 July, so from 1 August every month-to-date count was left unknown and three cards
+  // read blank. Correct, and not the whole of what the file knows. The monthly roll-up has a
+  // row per month with the same counts in it, closed off. Falling back to it fills the cards
+  // with the last month the sheet actually has — and the note above already says which month
+  // that was, so nobody is being told August when they are looking at July.
+  //
+  // The order matters: raw log first, always. A closed month standing in for a running one
+  // is a fallback, not a source.
+  const monthInternal = num(latest.row, col.ncrInternal);
+  const monthSupplier = num(latest.row, col.ncrSupplier);
+  const monthComplaints = num(latest.row, col.complaints);
+  if (metrics.ncr_mtd == null && (monthInternal != null || monthSupplier != null)) {
+    put('ncr_mtd', (monthInternal || 0) + (monthSupplier || 0));
+  }
+  if (metrics.complaints_internal_mtd == null) put('complaints_internal_mtd', monthInternal);
+  if (metrics.complaints_external_mtd == null) put('complaints_external_mtd', monthComplaints);
 
   notes.push(`${sheet}: ${MONTH_KEYS[latest.month].toUpperCase()} ${want.year}, `
     + `with the year to date from ${(toDate.length ? toDate : [latest]).length} month(s).`);

@@ -12,15 +12,16 @@ import {
   saveField, saveDepartment, saveReview,
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   importHistory,
-} from '../db.js?v=202d1bb295ca';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=202d1bb295ca';
+} from '../db.js?v=7d7861f55967';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=7d7861f55967';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
-  spark, bullet, chip, cardTrack, readingOf, derivedShipping, otifTarget, isNa, isMissing,
+  spark, bullet, chip, cardTrack, readingOf, derivedShipping, otifTarget, otdTarget,
+  isNa, isMissing,
   varianceChip, varianceTone, variancePct,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE,
-} from '../readings.js?v=202d1bb295ca';
+} from '../readings.js?v=7d7861f55967';
 
 const $ = selector => document.querySelector(selector);
 
@@ -477,7 +478,7 @@ const FROM_FILE = {
   KPI: ['coq', 'coq_ytd', 'coq_target', 'coq_ytd_target', 'ncr_today', 'ncr_mtd', 'ncr_ytd',
         'complaints_internal_today', 'complaints_internal_mtd', 'complaints_internal',
         'complaints_external_today', 'complaints_external_mtd', 'complaints_external',
-        'mtd_otif', 'ytd_otif', 'fin_actual_mtd', 'fin_actual_ytd'],
+        'mtd_otif', 'ytd_otif', 'mtd_otd', 'ytd_otd', 'fin_actual_mtd', 'fin_actual_ytd'],
   OTIF: ['jobs_shipped', 'jobs_on_time', 'late', 'shorts'],
 };
 const sourceOf = name => Object.keys(FROM_FILE).find(file => FROM_FILE[file].includes(name)) || '';
@@ -614,6 +615,10 @@ function fillShipping() {
       frow('Short', 'shorts', `type="number" min="0" value="${state.metrics?.shorts ?? ''}"`),
       frow('Cartons', 'cartons', `type="number" min="0" value="${state.metrics?.cartons ?? ''}"`,
         { echo: jobs && metric('cartons') ? `${num(Math.round(metric('cartons') / jobs))} per job` : '' }),
+      frow('OTD month', 'mtd_otd',
+        `type="number" step="0.01" value="${state.metrics?.mtd_otd ?? ''}"`),
+      frow('OTD year', 'ytd_otd',
+        `type="number" step="0.01" value="${state.metrics?.ytd_otd ?? ''}"`),
       frow('OTIF month', 'mtd_otif',
         `type="number" step="0.01" value="${state.metrics?.mtd_otif ?? ''}"`),
       frow('OTIF year', 'ytd_otif',
@@ -761,6 +766,24 @@ const SECTIONS = {
               monthly KPI workbook, and is shown here so it can be corrected \u2014 not so it
               has to be typed.</p>`}
         ${sourceStrip()}
+        <details class="resets">
+          <summary>What starts blank each morning</summary>
+          <div class="resets__b">
+            <p><b>Blank every morning.</b> The last twenty-four hours \u2014 both the status and
+              the note \u2014 jobs short, today's NCRs and complaints, the whole of shipping,
+              sales, and overtime. A count of what happened yesterday carried into today is a
+              stale incident reported as a fresh one, which is worse than reporting none.</p>
+            <p><b>Carried.</b> Days since the last injury and near-miss and both records; the
+              cost-of-quality targets; the month-to-date counts, but only within a month; the
+              year-to-date counts, but only within a year. On the first of the month the
+              month-to-date figures start again rather than standing in for the last one.</p>
+            <p><b>Pulled from the DOR.</b> Every production figure, by <b>Pull data</b>, and
+              correctable afterwards \u2014 typing over an imported number always wins.</p>
+            <p><b>Kept until closed.</b> Maintenance, because a booking belongs to a date
+              rather than to a morning. One whose date has gone by turns Overdue by itself; it
+              is never marked complete on the plant's behalf.</p>
+          </div>
+        </details>
       </div>
       <div class="fill__grid">${groups}</div>
       <div class="fill__end">
@@ -1132,8 +1155,9 @@ const SECTIONS = {
     // The target comes off the morning, not out of this file — see `otifTarget`. A morning
     // published in January against 98 keeps being judged against 98 when the plant moves to
     // 97 in the spring.
-    const goal = otifTarget(state.metrics);
+    const goals = { otif: otifTarget(state.metrics), otd: otdTarget(state.metrics) };
     const pct = (name, label, sub) => {
+      const goal = /otd/.test(name) ? goals.otd : goals.otif;
       const value = read(name);
       // Nought jobs shipped has no on-time percentage — there is no denominator. It is not
       // nought per cent, and printing a dash would say "nobody entered it", which is a
@@ -1148,7 +1172,7 @@ const SECTIONS = {
       const variance = value == null ? null : varianceChip(Number(value), goal, { digits: 2 });
       // OTD and OTIF follow from jobs, late and short, so they have no field. The two
       // roll-ups do, because nothing on this morning can work them out.
-      const typed = name === 'mtd_otif' || name === 'ytd_otif';
+      const typed = ['mtd_otif', 'ytd_otif', 'mtd_otd', 'ytd_otd'].includes(name);
       return ship(name, label, {
         heroEdit: typed
           ? { field: name, attrs: `type="number" step="0.01" value="${state.metrics?.[name] ?? ''}"` }
@@ -1196,6 +1220,8 @@ const SECTIONS = {
       ${count('shorts', 'Shorts', 'shipments')}
       ${pct('otd', 'OTD', 'on-time delivery')}
       ${pct('otif', 'OTIF', 'on time, in full')}
+      ${pct('mtd_otd', 'MTD OTD', 'month to date')}
+      ${pct('ytd_otd', 'YTD OTD', 'year to date')}
       ${pct('mtd_otif', 'MTD OTIF', 'month to date')}
       ${pct('ytd_otif', 'YTD OTIF', 'year to date')}
     </div>
@@ -2477,7 +2503,7 @@ function importPanel() {
     Quality: ['shortages', 'coq', 'coq_target', 'coq_ytd', 'coq_ytd_target', 'ncr_ytd',
               'ncr_today', 'ncr_mtd', 'complaints_internal', 'complaints_external'],
     Shipping: ['jobs_shipped', 'jobs_on_time', 'cartons', 'late', 'shorts',
-               'mtd_otif', 'ytd_otif'],
+               'mtd_otif', 'ytd_otif', 'mtd_otd', 'ytd_otd'],
     Financials: ['fin_actual_mtd', 'fin_actual_ytd'],
     Notes: ['maintenance_note', 'staffing_note'],
   };
@@ -2827,6 +2853,22 @@ async function applyImport() {
          mornings ? `${mornings} morning${mornings === 1 ? '' : 's'} of history written` : '']
     .filter(Boolean).join(' · ') + '.');
 }
+
+// Pull data.
+//
+// The production coordinator keys the MIS timesheets into the DOR between half past seven
+// and eight, and then wants MaxMetrics to have them. That was three clicks into a
+// configuration screen she has no other reason to open, so it is one button on the bar she
+// is already looking at — and it opens the file chooser rather than a panel about opening
+// the file chooser.
+$('#pull-btn')?.addEventListener('click', () => {
+  if (!state.canEdit) return toast('Your account cannot change this plant.');
+  drawImport();
+  $('#import-sheet').showModal();
+  // The picker opens by itself when there is nothing to look at yet. Coming back to a
+  // preview that is already on screen must not throw it away.
+  if (!importState.preview && !importState.reading) $('#drop-input')?.click();
+});
 
 $('#import-btn')?.addEventListener('click', () => {
   if (!state.canEdit) return toast('Your account cannot change this plant.');

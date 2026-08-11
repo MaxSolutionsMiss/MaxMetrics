@@ -99,9 +99,14 @@ export const myLocations = () =>
 
 // ── A morning ───────────────────────────────────────────────────────────────────
 
+// Opening a morning is three things, in order: make the rows, carry what carries, and age
+// the bookings whose date has gone by. The third is why an item scheduled for last Thursday
+// stops calling itself Scheduled — it is Overdue, and the card says so rather than leaving
+// it on the upcoming list implying it is still to come.
 export const openDay = async (location, date) => {
   await run(() => client.rpc('ensure_day', { loc: location, d: date }));
   await run(() => client.rpc('carry_forward', { loc: location, d: date }));
+  await run(() => client.rpc('age_maintenance', { loc: location, d: date })).catch(() => {});
 };
 
 export function loadDay(location, date) {
@@ -422,3 +427,40 @@ export const revokeAccess = (profileId, email, location) =>
 
 export const setAdmin = (profileId, makeAdmin) =>
   run(() => client.rpc('set_admin', { person: profileId, make_admin: makeAdmin }), { retry: 0 });
+
+// Making an account, which needs the service-role key and therefore cannot happen here.
+//
+// `people/index.ts` runs on Supabase, checks the caller's own token against `is_admin`, and
+// hands back a temporary password for the administrator to pass on. Nothing is emailed:
+// this project has no outbound mail configured, and a flow that silently depends on one is
+// a flow that fails on a Monday with nobody able to say why.
+export async function createPerson({ email, name, location, canEdit }) {
+  const session = await currentSession();
+  if (!session) throw new Error('Sign in first.');
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/people`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: SUPABASE_PUBLISHABLE_KEY,
+      Authorization: `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({ email, name, location, canEdit }),
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(body.error || 'The account could not be created.');
+  return body;
+}
+
+// The first sign-in. `must_change_password` is metadata rather than a column because the
+// page has to see it before it has read anything else.
+export const mustChangePassword = async () => {
+  const session = await currentSession();
+  return !!session?.user?.user_metadata?.must_change_password;
+};
+
+export const chooseOwnPassword = async password => {
+  const { error } = await client.auth.updateUser({
+    password, data: { must_change_password: false },
+  });
+  if (error) throw new Error(error.message);
+};
