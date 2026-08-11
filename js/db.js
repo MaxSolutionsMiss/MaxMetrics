@@ -397,3 +397,28 @@ export function joinDay(location, date, { me, onPresence, onChange }) {
     leave: () => client.removeChannel(channel),
   };
 }
+
+// ── Who has access ──────────────────────────────────────────────────────────────
+//
+// All four go through functions rather than tables, and for two different reasons.
+//
+// Reading the list needs the email, and emails live in `auth.users`, which a page cannot
+// reach and should not be able to. Granting access needs to work for somebody who has not
+// signed up yet — there is no account to grant anything to, so the grant waits in
+// `pending_access` and the signup trigger collects it. Both are administrator-only, checked
+// in the database rather than by hiding a button.
+export const peopleAt = location =>
+  run(() => client.rpc('people_at', { loc: location }));
+
+export const grantAccess = (email, location, canEdit) =>
+  run(() => client.rpc('grant_access', {
+    person_email: email, loc: location, may_edit: canEdit,
+  }), { retry: 0 });
+
+export const revokeAccess = (profileId, email, location) =>
+  run(() => client.rpc('revoke_access', {
+    person: profileId ?? null, person_email: email ?? null, loc: location,
+  }), { retry: 0 });
+
+export const setAdmin = (profileId, makeAdmin) =>
+  run(() => client.rpc('set_admin', { person: profileId, make_admin: makeAdmin }), { retry: 0 });

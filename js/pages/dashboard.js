@@ -12,15 +12,15 @@ import {
   saveField, saveDepartment, saveReview,
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   importHistory,
-} from '../db.js?v=838806e5e136';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=838806e5e136';
+} from '../db.js?v=202d1bb295ca';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=202d1bb295ca';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
   spark, bullet, chip, cardTrack, readingOf, derivedShipping, otifTarget, isNa, isMissing,
   varianceChip, varianceTone, variancePct,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE,
-} from '../readings.js?v=838806e5e136';
+} from '../readings.js?v=202d1bb295ca';
 
 const $ = selector => document.querySelector(selector);
 
@@ -2462,66 +2462,89 @@ function importPanel() {
   }
   if (!p) return drop;
 
-  // Which sections this file will actually fill, and which it will leave exactly as they
-  // are. A list of unrecognised keys is the truth but it is not the answer — the question
-  // somebody is asking after an import is "did Production come in", and the way to answer
-  // that is to say so in the language of the dashboard rather than in the language of the
-  // file. A section with nothing coming is the whole point of the panel: it is what a
-  // silent half-import looks like when it stops being silent.
+  // What arrived, what it will fill, and what it cannot.
+  //
+  // This panel was the weakest thing on the product and it failed in the way that is hardest
+  // to spot: it was correct and useless. Drop a DOR on a Tuesday whose Monday shifts have
+  // not been keyed yet and the screen said "0 shifts across 0 departments", greyed out
+  // Apply, and left somebody to conclude the importer does not work. The file had thirteen
+  // years of production in it.
+  //
+  // Three questions, answered in order: what are these files, what does this morning get
+  // from them, and what else is in them that MaxMetrics has never been told.
   const SECTION_FIELDS = {
     Safety: ['injury_last', 'injury_record', 'near_miss_last', 'near_miss_record'],
     Quality: ['shortages', 'coq', 'coq_target', 'coq_ytd', 'coq_ytd_target', 'ncr_ytd',
-              'complaints_internal', 'complaints_external'],
-    Shipping: ['jobs_shipped', 'jobs_on_time', 'cartons', 'late', 'shorts', 'otd', 'otif',
+              'ncr_today', 'ncr_mtd', 'complaints_internal', 'complaints_external'],
+    Shipping: ['jobs_shipped', 'jobs_on_time', 'cartons', 'late', 'shorts',
                'mtd_otif', 'ytd_otif'],
     Financials: ['fin_actual_mtd', 'fin_actual_ytd'],
     Notes: ['maintenance_note', 'staffing_note'],
   };
-  const coverage = () => {
-    const seen = new Set();
-    for (const day of p.json?.days || []) for (const field of Object.keys(day.metrics)) seen.add(field);
-    const depts = (p.json?.days || []).some(day => Object.keys(day.departments).length)
-      || p.departments.length;
-    const rows = Object.entries(SECTION_FIELDS).map(([name, fields]) =>
-      [name, fields.filter(field => seen.has(field)).length, fields.length]);
-    rows.splice(2, 0, ['Production', depts ? 1 : 0, 1]);
-    return rows;
+  const KIND_NAMES = { production: 'DOR', quality: 'KPI workbook', shipping: 'OTIF sheet',
+                       history: 'old dashboard export', unknown: 'not recognised',
+                       unreadable: 'could not be opened' };
+
+  // Which file each section's readings come from, so a section with nothing coming can say
+  // whether that is because no file carries it or because the files that do are not here.
+  const fromFile = () => {
+    const seen = new Map();
+    const note = (field, kind) => { if (!seen.has(field)) seen.set(field, kind); };
+    for (const day of p.json?.days || []) {
+      const kind = p.sources.find(x => x.kind === 'quality') ? 'quality' : 'history';
+      for (const field of Object.keys(day.metrics)) note(field, kind);
+    }
+    // The OTIF sheet counts as covering Shipping whether or not it happens to carry a row
+    // for the day this morning reports. Saying "not in these files" about a file that is
+    // sitting right there, named on the line above, is the panel arguing with itself.
+    if (p.sources.some(x => x.kind === 'shipping')) {
+      for (const field of ['jobs_shipped', 'jobs_on_time', 'late', 'shorts']) note(field, 'shipping');
+    }
+    const out = Object.entries(SECTION_FIELDS).map(([name, fields]) => {
+      const hits = fields.filter(field => seen.has(field));
+      return { name, got: hits.length, of: fields.length,
+               kind: hits.length ? seen.get(hits[0]) : null };
+    });
+    const depts = p.departments.length || (p.catchup || []).length
+      || (p.json?.days || []).some(day => Object.keys(day.departments).length);
+    out.splice(2, 0, { name: 'Production', got: depts ? 1 : 0, of: 1,
+                       kind: depts ? 'production' : null });
+    return out;
   };
-  const empty = coverage().filter(([, got]) => !got).map(([name]) => name);
+  const cover = fromFile();
 
-  // What a JSON export turned into, and every key it could not place. A file that
-  // half-works has to say which half, or somebody is left diffing two screens.
-  const jsonPanel = !p.json ? '' : `
-    <div class="sheet__sub">From the old dashboard</div>
-    <div class="cover">${coverage().map(([name, got, of]) =>
-      `<span class="cover__s cover__s--${got ? 'on' : 'off'}">${esc(name)}
-        <b>${got ? (of > 1 ? `${got} of ${of}` : 'yes') : 'nothing'}</b></span>`).join('')}</div>
-    ${empty.length ? `<p class="drop__bad">Nothing in this file lands on ${
-      empty.join(', ')}. Either the file does not carry those readings, or it names them
-      something this does not know yet — the unrecognised keys below will say which.</p>` : ''}
-    <p class="drop__note">${p.json.days.length} ${p.json.days.length === 1 ? 'morning' : 'mornings'},
-      ${shortDate(p.json.days[0].date)} to ${shortDate(p.json.days[p.json.days.length - 1].date)}.
-      Only mornings this plant has no reading for are written; anything already entered stays.</p>
-    <table class="tbl"><thead><tr><th>Date</th><th class="num">Readings</th>
-      <th class="num">Departments</th></tr></thead><tbody>${
-      p.json.days.slice(0, 12).map(d => `<tr><td>${shortDate(d.date)}</td>
-        <td class="num">${Object.keys(d.metrics).length}</td>
-        <td class="num">${Object.keys(d.departments).length}</td></tr>`).join('')}
-      ${p.json.days.length > 12 ? `<tr><td colspan="3" class="soft">…and ${p.json.days.length - 12} more</td></tr>` : ''}
+  // One line per file: what it was taken for, and what is in it. A file the reader did not
+  // recognise says so here rather than in a note at the bottom nobody scrolls to.
+  const filePanel = `<div class="sheet__sub">What arrived</div>
+    <table class="tbl tbl--tight"><tbody>${p.sources.map(source => `<tr>
+      <td class="dept">${esc(source.file)}</td>
+      <td><span class="pill pill--${
+        source.kind === 'unknown' || source.kind === 'unreadable' ? 'stop' : 'info'}">${
+        esc(KIND_NAMES[source.kind] || source.kind)}</span></td>
+      <td class="num">${source.kind === 'unreadable' ? '\u2014'
+        : source.kind === 'unknown' ? `${source.rows} sheets`
+        : `${num(source.rows)} ${source.kind === 'history' ? 'mornings' : 'rows'}`}</td>
+      <td class="soft">${
+        source.kind === 'production' && p.production
+          ? `${shortDate(p.production.from)} \u2013 ${shortDate(p.production.to)}`
+        : source.kind === 'shipping' && p.delivery
+          ? `${shortDate(p.delivery.from)} \u2013 ${shortDate(p.delivery.to)}`
+        : source.kind === 'quality' ? 'monthly'
+        : source.kind === 'unknown' ? esc((source.sheets || []).join(', '))
+        : source.kind === 'unreadable' ? esc(source.why || '')
+        : ''}</td></tr>`).join('')}
     </tbody></table>
-    <div class="keys">
-      <div><div class="keys__l">Recognised</div>
-        <div class="keys__v">${p.json.recognised.length
-          ? p.json.recognised.map(k => `<code>${esc(k)}</code>`).join(' ') : '—'}</div></div>
-      <div><div class="keys__l keys__l--bad">Not recognised — tell me these and I will add them</div>
-        <div class="keys__v">${p.json.unknown.length
-          ? p.json.unknown.map(k => `<code>${esc(k)}</code>`).join(' ')
-          : 'Nothing. Every key in the file was placed.'}</div></div>
-    </div>`;
+    <div class="cover">${cover.map(row =>
+      `<span class="cover__s cover__s--${row.got ? 'on' : 'off'}">${esc(row.name)}
+        <b>${row.got ? esc(KIND_NAMES[row.kind] || 'yes') : 'not in these files'}</b></span>`).join('')}</div>
+    <p class="drop__note">A section marked <b>not in these files</b> is not a fault \u2014 a
+      quality workbook does not carry safety, and never did. It is a reminder of what still
+      has to come from somewhere else before this morning is complete.</p>`;
 
+  // ── This morning ──
   const covering = p.covering.length === 1
     ? shortDate(p.covering[0])
-    : `${shortDate(p.covering[0])} – ${shortDate(p.covering[p.covering.length - 1])}`;
+    : `${shortDate(p.covering[0])} \u2013 ${shortDate(p.covering[p.covering.length - 1])}`;
 
   const rows = p.departments.map(d => {
     const config = state.config.find(c => c.key === d.dept_key);
@@ -2531,13 +2554,25 @@ function importPanel() {
       <td class="dept">${esc(config?.name || d.dept_key)}</td>
       <td class="num big">${num(d.qty)}</td>
       <td class="num">${d.hours}<em> h</em></td>
-      <td class="num big">${d.rate ? num(Math.round(d.rate)) : '—'}</td>
-      <td class="num soft">${d.uptime == null ? '—' : (d.uptime * 100).toFixed(1) + '%'}</td>
-      <td class="num soft">${d.make_ready == null ? '—' : d.make_ready.toFixed(2) + ' h'}</td>
-      <td>${esc(d.machines.join(', '))} · ${d.shifts} shift${d.shifts === 1 ? '' : 's'}</td>
+      <td class="num big">${d.rate ? num(Math.round(d.rate)) : '\u2014'}</td>
+      <td class="num soft">${d.uptime == null ? '\u2014' : (d.uptime * 100).toFixed(1) + '%'}</td>
+      <td class="num soft">${d.make_ready == null ? '\u2014' : d.make_ready.toFixed(2) + ' h'}</td>
+      <td>${esc(d.machines.join(', '))} \u00b7 ${d.shifts} shift${d.shifts === 1 ? '' : 's'}</td>
       <td>${changed ? '<span class="pill pill--warn">changes</span>'
                     : '<span class="pill pill--ok">same</span>'}</td></tr>`;
   }).join('');
+
+  // Why this morning got nothing, said in dates rather than in silence. Both reasons are
+  // ordinary and neither means the importer is broken: either the file stops before the day
+  // this morning reports, or the plant did not run that day.
+  const stops = [p.production && ['production', p.production.to],
+                 p.delivery && ['shipping', p.delivery.to]].filter(Boolean);
+  const gap = !p.departments.length && !p.shipping && stops.length ? `
+    <p class="drop__bad">This morning reports <b>${esc(covering)}</b>, and ${
+      stops.map(([what, when]) => `the ${what} in these files stops at <b>${
+        esc(shortDate(when))}</b>`).join(', ')}. Nothing here belongs to the open morning
+      \u2014 either ${esc(covering)} has not been keyed into the files yet, or the plant did
+      not run. Everything the files <em>do</em> cover is below.</p>` : '';
 
   const ship = p.shipping ? `<table class="tbl"><thead><tr>
       <th>Jobs shipped</th><th class="num">Late</th><th class="num">Short</th>
@@ -2548,51 +2583,70 @@ function importPanel() {
       <td class="num">${p.shipping.otif.toFixed(2)}%</td></tr></tbody></table>`
     : `<p class="drop__note">No shipping row for ${shortDate(p.span.to)}.</p>`;
 
-  // A JSON history export carries no shift rows, so the workbook half of the preview is
-  // omitted rather than printed empty. Either half on its own is a valid import.
-  const hasWorkbook = p.departments.length > 0 || p.shipping;
-  if (!hasWorkbook && p.json) {
-    return `${jsonPanel}
-      ${p.notes.length ? `<h3 class="sheet__sub">Notes</h3>
-        <ul class="drop__notes">${p.notes.map(n => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
-      <div class="sheet__foot">
-        <span class="drop__note">${p.sources.map(x => `${esc(x.file)} · ${num(x.rows)} mornings`).join(' · ')}</span>
-        <button class="btn" id="import-again">Choose different files</button>
-        <button class="btn btn--go" id="import-apply">Write ${p.json.days.length} morning${
-          p.json.days.length === 1 ? '' : 's'}</button>
-      </div>`;
-  }
-
-  return `
-    <p class="drop__lead">This morning covers <b>${esc(covering)}</b> — ${p.shiftCount}
-      shift${p.shiftCount === 1 ? '' : 's'} across ${p.departments.length} department${
-      p.departments.length === 1 ? '' : 's'}.</p>
+  const morningPanel = !p.production && !p.delivery ? '' : `
+    <div class="sheet__sub">This morning \u00b7 ${esc(shortDate(state.date))}</div>
+    ${gap}
     <p class="drop__note">A morning reports the production since the last one. On Tuesday to
       Friday that is yesterday; on Monday it is Friday, Saturday and Sunday together.</p>
-    <table class="tbl"><thead><tr><th>Department</th><th class="num">Output</th>
-      <th class="num">Crew hrs</th><th class="num">Per hr</th><th class="num soft">Uptime*</th>
-      <th class="num soft">Make-ready*</th><th>From</th><th></th></tr></thead>
-      <tbody>${rows || '<tr><td colspan="8">Nothing found for these dates.</td></tr>'}</tbody></table>
-    <p class="drop__note">* Uptime and make-ready are shown from the DOR's own columns but
-      are <b>not imported</b>. Rolled the same way, 4 August gives printing 68.2% and 1.03 h
-      where the plant's own figures for that day are 100% and 0.95 h — so these two come
-      from a definition this cannot see. Output and crewed hours reproduce that day exactly.
-      Keep entering uptime and make-ready by hand until the definition is confirmed.</p>
-    <h3 class="sheet__sub">Shipping</h3>
-    ${ship}
-    ${p.unknownNames.length ? `<h3 class="sheet__sub">Names not on the operator list</h3>
-      <p class="drop__note">Imported as typed. Nothing is dropped and nothing is invented —
+    ${p.departments.length ? `<table class="tbl"><thead><tr><th>Department</th>
+      <th class="num">Output</th><th class="num">Crew hrs</th><th class="num">Per hr</th>
+      <th class="num soft">Uptime</th><th class="num soft">Make-ready</th>
+      <th>From</th><th></th></tr></thead><tbody>${rows}</tbody></table>
+      <p class="drop__note">Uptime is (make-ready + run) \u00f7 crewed and make-ready is
+        MR hours \u00f7 number of make-readies, which is what the DOR\u2019s own Formulas tab
+        says. Both are imported.</p>` : ''}
+    ${p.shipping || p.departments.length ? `<div class="sheet__sub">Shipping</div>${ship}` : ''}`;
+
+  // ── Everything else in the file ──
+  const catchup = p.catchup || [];
+  const catchupPanel = !catchup.length ? '' : `
+    <div class="sheet__sub">Mornings this plant has never recorded</div>
+    <p class="drop__note">These files also cover <b>${catchup.length}</b>
+      morning${catchup.length === 1 ? '' : 's'} between
+      <b>${esc(shortDate(catchup[0].date))}</b> and
+      <b>${esc(shortDate(catchup[catchup.length - 1].date))}</b> that MaxMetrics has no
+      reading for. Writing them fills the seven-day lines, last week\u2019s productivity and
+      the year behind every card. Nothing already entered is replaced, on any of them.</p>
+    <label class="tog"><input type="checkbox" id="import-catchup" checked>
+      <span>Write these ${catchup.length} morning${catchup.length === 1 ? '' : 's'} as well</span></label>`;
+
+  const jsonPanel = !p.json?.days.length ? '' : `
+    <div class="sheet__sub">Dated readings</div>
+    <p class="drop__note">${p.json.days.length} ${p.json.days.length === 1 ? 'morning' : 'mornings'},
+      ${shortDate(p.json.days[0].date)} to ${shortDate(p.json.days[p.json.days.length - 1].date)}.
+      Only mornings this plant has no reading for are written; anything already entered stays.</p>
+    <table class="tbl"><thead><tr><th>Date</th><th class="num">Readings</th>
+      <th class="num">Departments</th></tr></thead><tbody>${
+      p.json.days.slice(0, 12).map(d => `<tr><td>${shortDate(d.date)}</td>
+        <td class="num">${Object.keys(d.metrics).length}</td>
+        <td class="num">${Object.keys(d.departments).length}</td></tr>`).join('')}
+      ${p.json.days.length > 12 ? `<tr><td colspan="3" class="soft">\u2026and ${p.json.days.length - 12} more</td></tr>` : ''}
+    </tbody></table>
+    ${p.json.unknown.length ? `<div class="keys"><div>
+      <div class="keys__l keys__l--bad">Not recognised \u2014 tell me these and I will add them</div>
+      <div class="keys__v">${p.json.unknown.map(k => `<code>${esc(k)}</code>`).join(' ')}</div>
+    </div></div>` : ''}`;
+
+  const willWrite = p.departments.length + (p.shipping ? 1 : 0)
+    + (p.json?.days.length || 0) + catchup.length;
+
+  return `
+    ${filePanel}
+    ${morningPanel}
+    ${catchupPanel}
+    ${jsonPanel}
+    ${p.unknownNames.length ? `<div class="sheet__sub">Names not on the operator list</div>
+      <p class="drop__note">Imported as typed. Nothing is dropped and nothing is invented \u2014
       add them to the operator list if they belong there.</p>
       <p class="drop__names">${p.unknownNames.slice(0, 12).map(n =>
-        `<span class="pill pill--info">${esc(n.name)} · ${n.count}</span>`).join(' ')}</p>` : ''}
-    ${jsonPanel}
-    ${p.notes.length ? `<h3 class="sheet__sub">Notes</h3>
+        `<span class="pill pill--info">${esc(n.name)} \u00b7 ${n.count}</span>`).join(' ')}</p>` : ''}
+    ${p.notes.length ? `<div class="sheet__sub">Notes</div>
       <ul class="drop__notes">${p.notes.map(n => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
     <div class="sheet__foot">
-      <span class="drop__note">${p.sources.map(x => `${esc(x.file)} · ${num(x.rows)} rows`).join(' · ')}</span>
+      <span class="drop__note" id="import-say"></span>
       <button class="btn" id="import-again">Choose different files</button>
-      <button class="btn btn--go" id="import-apply"${p.departments.length ? '' : ' disabled'}>
-        Apply to ${esc(shortDate(state.date))}</button>
+      <button class="btn btn--go" id="import-apply"${willWrite ? '' : ' disabled'}>${
+        willWrite ? 'Write what these files say' : 'Nothing to write'}</button>
     </div>`;
 }
 
@@ -2715,19 +2769,46 @@ async function applyImport() {
     await persist('source_seen', stamps);
   }
 
-  // History from the old dashboard goes to the dates it is dated, not to the open morning,
-  // and it never overwrites a reading somebody has already entered. A year of exports
-  // arriving on top of this week's numbers would be the opposite of a favour.
-  let mornings = 0;
-  if (p.json?.days.length) {
-    for (const day of p.json.days) {
-      try {
-        await importHistory(state.location, day.date, day.metrics, day.departments);
-        mornings += 1;
-      } catch (error) {
-        toast(`${shortDate(day.date)}: ${error.message}`);
-        break;
+  // History goes to the dates it is dated, not to the open morning, and it never overwrites
+  // a reading somebody has already entered. A year of exports arriving on top of this week's
+  // numbers would be the opposite of a favour.
+  //
+  // Two sources feed it. A JSON export carries its own dates. A workbook carries shifts, and
+  // every day of shifts belongs to the morning that reports it — which is what turns a DOR
+  // from a one-day file into the plant's whole history. Both go through the same door.
+  const say = message => { const box = $('#import-say'); if (box) box.textContent = message; };
+  const wanted = [];
+  for (const day of p.json?.days || []) {
+    wanted.push({ date: day.date, metrics: day.metrics, departments: day.departments });
+  }
+  if (p.catchup?.length && $('#import-catchup')?.checked !== false) {
+    for (const day of p.catchup) {
+      const departments = {};
+      for (const d of day.departments) {
+        departments[d.dept_key] = {
+          qty: d.qty, hours: d.hours,
+          uptime: d.uptime == null ? null : Number(d.uptime.toFixed(4)),
+          make_ready: d.make_ready == null ? null : Number(d.make_ready.toFixed(3)),
+          mr_count: d.mr_count, pw_qty: d.pw_qty, pw_hours: d.pw_hours,
+        };
       }
+      const metrics = day.shipping ? {
+        jobs_shipped: day.shipping.jobs_shipped, jobs_on_time: day.shipping.jobs_on_time,
+        late: day.shipping.late, shorts: day.shipping.shorts,
+      } : {};
+      wanted.push({ date: day.date, metrics, departments });
+    }
+  }
+
+  let mornings = 0;
+  for (const day of wanted) {
+    try {
+      await importHistory(state.location, day.date, day.metrics, day.departments);
+      mornings += 1;
+      if (mornings % 10 === 0) say(`${mornings} of ${wanted.length} mornings written…`);
+    } catch (error) {
+      toast(`${shortDate(day.date)}: ${error.message}`);
+      break;
     }
   }
 

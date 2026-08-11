@@ -18,7 +18,7 @@
 // to record. Neither is a warning, and neither holds up an import. An alarm that fires
 // every Monday about a Sunday nobody worked is one people learn to close without reading.
 
-import { openWorkbook, serialToISO } from './xlsx.js?v=838806e5e136';
+import { openWorkbook, serialToISO } from './xlsx.js?v=202d1bb295ca';
 
 // ── Matching a column ───────────────────────────────────────────────────────────
 
@@ -119,6 +119,21 @@ export function windowFor(date, reported = []) {
   const previous = earlier.length ? earlier[earlier.length - 1]
                  : weekday(date) === 1 ? addDays(date, -3) : addDays(date, -1);
   return { from: previous, to: addDays(date, -1) };
+}
+
+// Which morning reports a day of production.
+//
+// The inverse of `windowFor`, and the thing that makes a workbook worth more than one day.
+// A DOR carries every shift the plant has ever logged; the open morning wants one window of
+// it, and the other four thousand days are not noise, they are mornings MaxMetrics has
+// never been told about. Monday's meeting reports Friday, Saturday and Sunday together, so
+// production dated Friday, Saturday or Sunday all belongs to the following Monday.
+export function morningFor(productionDate) {
+  const next = addDays(productionDate, 1);
+  const day = weekday(next);
+  if (day === 6) return addDays(next, 2);   // Saturday  → Monday
+  if (day === 0) return addDays(next, 1);   // Sunday    → Monday
+  return next;
 }
 
 export const daysBetweenInclusive = (from, to) => {
@@ -685,6 +700,10 @@ export function readDashboardJson(text, fileName = 'file.json') {
   };
 }
 
+// A file with four thousand mornings in it is a decision, not a drop. Three hundred is
+// about a minute of writes and covers a plant that has been off the product for a year.
+export const CATCHUP_MAX = 300;
+
 export async function readFiles(files, { date, reported = [], operators = [] } = {}) {
   const matchName = nameMatcher(operators);
   const notes = [];
@@ -712,6 +731,7 @@ export async function readFiles(files, { date, reported = [], operators = [] } =
     try {
       workbook = await openWorkbook(await file.arrayBuffer());
     } catch (cause) {
+      sources.push({ file: file.name, kind: 'unreadable', rows: 0, why: cause.message });
       notes.push(`${file.name}: ${cause.message}`);
       continue;
     }
@@ -742,6 +762,11 @@ export async function readFiles(files, { date, reported = [], operators = [] } =
       notes.push(...read.notes.map(n => `${file.name}: ${n}`));
       sources.push({ file: file.name, kind: 'shipping', rows: read.days.length });
     } else {
+      // A file the reader could not place still arrived, so it still appears in the list of
+      // what arrived. Leaving it out of `sources` and mentioning it in a note at the bottom
+      // is how a dropped folder of six workbooks can look like a clean import of three.
+      sources.push({ file: file.name, kind: 'unknown', rows: names.length,
+                     sheets: names.slice(0, 6) });
       notes.push(`${file.name}: nothing recognisable — sheets are ${names.slice(0, 4).join(', ')}.`);
     }
   }
@@ -762,8 +787,50 @@ export async function readFiles(files, { date, reported = [], operators = [] } =
   // is recorded against yesterday and the morning reads that row directly.
   const ship = (shipping || []).find(d => d.date === span.to) ?? null;
 
+  // What the workbook actually holds, whether or not the open morning wants any of it.
+  //
+  // This is the answer to the only question anybody asks after an import that did nothing,
+  // and until now the product could not answer it: the DOR carries thirteen years of shifts
+  // and the screen said "0 departments" because the one day it was looking at happened to be
+  // a Sunday. A file's own range belongs in front of the person before they press Apply.
+  const dates = [...new Set(shifts.map(row => row.date))].sort();
+  const production = dates.length
+    ? { from: dates[0], to: dates[dates.length - 1], days: dates.length, rows: shifts.length }
+    : null;
+  const shipDates = [...new Set((shipping || []).map(row => row.date))].sort();
+  const delivery = shipDates.length
+    ? { from: shipDates[0], to: shipDates[shipDates.length - 1], days: shipDates.length }
+    : null;
+
+  // Mornings this file could fill that the plant has never recorded.
+  //
+  // A morning is a window of production, so the days in the file are turned into the
+  // mornings that report them, the ones already on file are dropped, and what is left is
+  // offered. Newest first, because a plant catching up cares about last month before it
+  // cares about 2013, and capped — three hundred mornings is a minute of writes and four
+  // thousand is a decision somebody should make deliberately rather than by dropping a file.
+  const already = new Set(reported);
+  // Both files count. A plant that keeps its OTD sheet up to date and its DOR a week behind
+  // should still get its shipping history, and the other way round.
+  const wanted = [...new Set([...dates, ...shipDates].map(morningFor))]
+    .filter(day => day <= date && !already.has(day))
+    .sort().reverse().slice(0, CATCHUP_MAX);
+  const catchup = wanted.map(day => {
+    const window = windowFor(day, reported);
+    const rolled = rollup(shifts, window.from, window.to);
+    const ship = (shipping || []).find(row => row.date === window.to) ?? null;
+    if (!rolled.length && !ship) return null;
+    const week = rollup(shifts, addDays(window.from, -7), addDays(window.to, -7));
+    for (const d of rolled) {
+      const was = week.find(b => b.dept_key === d.dept_key);
+      d.pw_qty = was?.qty ?? null;
+      d.pw_hours = was?.hours ?? null;
+    }
+    return { date: day, window, departments: rolled, shipping: ship };
+  }).filter(Boolean).sort((a, b) => a.date.localeCompare(b.date));
+
   return {
-    date, span, sources, departments, shipping: ship, json,
+    date, span, sources, departments, shipping: ship, json, production, delivery, catchup,
     covering: daysBetweenInclusive(span.from, span.to),
     unknownNames: unknownNamesIn(shifts, span.from, span.to),
     notes,

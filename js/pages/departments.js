@@ -22,11 +22,12 @@ import {
   currentSession, signOut, myProfile, myLocations,
   loadDepartmentConfig, saveDepartmentConfig, addDepartmentConfig, ensureDepartmentRows,
   loadBudgets, saveBudget, loadPlant, savePlant,
-} from '../db.js?v=838806e5e136';
+  peopleAt, grantAccess, revokeAccess, setAdmin,
+} from '../db.js?v=202d1bb295ca';
 import {
   esc, num, money, MONTHS, metricCard, footLine, iconFor, cardTrack,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE,
-} from '../readings.js?v=838806e5e136';
+} from '../readings.js?v=202d1bb295ca';
 
 const $ = selector => document.querySelector(selector);
 
@@ -36,7 +37,7 @@ if (!session) location.replace('../index.html');
 const today = () => new Date().toISOString().slice(0, 10);
 
 const state = { me: null, locations: [], location: null, config: [], draft: null, plant: null,
-                pane: 'departments', budgets: [], year: new Date().getFullYear() };
+                pane: 'departments', budgets: [], year: new Date().getFullYear(), people: null };
 
 // ── The panes ───────────────────────────────────────────────────────────────────
 //
@@ -56,6 +57,12 @@ const PANES = [
     icon: 'M3 7h11v9H3zM14 10h4l3 3v3h-7zM7 19a1.6 1.6 0 100-3.2A1.6 1.6 0 007 19zM17.5 19a1.6 1.6 0 100-3.2 1.6 1.6 0 000 3.2z' },
   { key: 'data',        name: 'Data',        sub: 'Getting a morning in and out',
     icon: 'M4 7c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3zM4 7v10c0 1.7 3.6 3 8 3s8-1.3 8-3V7M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3' },
+  // Administrators only, and it is the database that decides that rather than this list:
+  // every call the pane makes checks `is_admin()` for itself, so hiding the door is a
+  // courtesy and not the lock.
+  { key: 'people',      name: 'People',      sub: 'Who may see this plant, and who may change it',
+    admin: true,
+    icon: 'M9 11.5a3.4 3.4 0 100-6.8 3.4 3.4 0 000 6.8M3 20a6 6 0 0112 0M16.4 11.6a2.9 2.9 0 100-5.8M17 14.4a5.4 5.4 0 013.8 5.2' },
 ];
 
 // ── What a plant is likely to be adding ─────────────────────────────────────────
@@ -507,17 +514,116 @@ function dataPane() {
   </section>`;
 }
 
+// ── People ──────────────────────────────────────────────────────────────────────
+//
+// Three levels and no more, because a folding-carton plant does not have a permissions
+// problem, it has a "who covers Thursdays" problem:
+//
+//   No access    the plant is not on their list at all
+//   View only    they read the morning and cannot change a number
+//   Can edit     they fill it in and publish it
+//
+// Administrator is a separate question — it is about MaxMetrics rather than about a plant,
+// so it is a tick on the person rather than a fourth level. An administrator can add people
+// and set levels at every plant; it does not, by itself, give them a plant.
+//
+// Somebody who has never signed in can still be added. There is no account to grant
+// anything to, so the grant waits in `pending_access` and the signup trigger applies it —
+// which means "add the new coordinator" is the same two clicks whether or not they have
+// opened the invitation yet.
+const LEVELS = [['none', 'No access'], ['view', 'View only'], ['edit', 'Can edit']];
+const levelOf = person => !person.has_access ? 'none' : person.can_edit ? 'edit' : 'view';
+
+function peoplePane() {
+  const plant = state.locations.find(l => l.id === state.location);
+  const people = state.people || [];
+  const withAccess = people.filter(p => p.has_access);
+  const inRow = person => {
+    const level = levelOf(person);
+    const key = person.profile_id || `email:${person.email}`;
+    return `<tr data-person="${esc(key)}">
+      <td class="dept">
+        <span class="who__a" style="background:${person.pending ? '#8A94A6' : '#5B46D9'}">${
+          esc(initialsOf(person))}</span>
+        ${esc(person.pending ? person.email : person.full_name)}
+        ${person.pending ? '<span class="pill pill--info">Invited</span>' : ''}
+        ${person.profile_id === state.me?.id ? '<span class="pill pill--ok">You</span>' : ''}
+      </td>
+      <td class="soft">${person.pending ? 'has not signed in yet' : esc(person.email)}</td>
+      <td>
+        <select class="inp inp--cell" data-level="${esc(key)}"
+          aria-label="Access for ${esc(person.pending ? person.email : person.full_name)}">
+          ${LEVELS.map(([value, text]) =>
+            `<option value="${value}"${value === level ? ' selected' : ''}>${text}</option>`).join('')}
+        </select>
+      </td>
+      <td class="num">
+        <label class="tog" title="Administrators can add people and set access at every plant">
+          <input type="checkbox" data-admin="${esc(person.profile_id || '')}"
+            aria-label="Administrator"
+            ${person.is_admin ? ' checked' : ''}${person.pending ? ' disabled' : ''}>
+          <span class="soft">Admin</span></label>
+      </td>
+    </tr>`;
+  };
+
+  return `<section class="sec">
+    <div class="sec__head"><h2 class="sec__title">People</h2><div class="sec__rule"></div></div>
+
+    <div class="panel"><div class="panel__head">
+      <span class="card__ico" aria-hidden="true">\u{1F464}</span>
+      <h3 class="panel__title">Add somebody to ${esc(plant?.name || 'this plant')}</h3></div>
+      <div class="panel__body">
+        <div class="addp">
+          <input class="inp" id="add-email" type="email" placeholder="name@maxsolutions.ca"
+            aria-label="Email address">
+          <select class="inp" id="add-level" aria-label="Access level">
+            <option value="view">View only</option>
+            <option value="edit">Can edit</option>
+          </select>
+          <button class="btn btn--go" id="add-person">Add</button>
+        </div>
+        <p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">
+          If they already have a MaxMetrics account, access is granted straight away. If they
+          do not, it waits for them: the moment they sign up with that address they arrive
+          with this plant and this level already set. Either way you do not have to come back.
+        </p>
+      </div></div>
+
+    <div class="panel" style="margin-top:var(--s3)"><div class="panel__head">
+      <h3 class="panel__title">Everybody</h3>
+      <div class="panel__actions">
+        <span class="pill pill--ok">${withAccess.length} with access</span>
+        <span class="pill pill--info">${people.length} account${people.length === 1 ? '' : 's'}</span>
+      </div></div>
+      <div class="panel__body">
+        ${people.length ? `<table class="tbl tbl--tight"><thead><tr>
+          <th>Name</th><th>Email</th><th>This plant</th><th class="num">MaxMetrics</th>
+        </tr></thead><tbody>${people.map(inRow).join('')}</tbody></table>`
+        : '<p class="cfg__none">Nobody yet.</p>'}
+      </div></div>
+  </section>`;
+}
+
+const initialsOf = person => {
+  const source = person.pending ? person.email : (person.full_name || person.email || '?');
+  return source.split(/[\s.@_-]+/).filter(Boolean).slice(0, 2)
+    .map(word => word[0].toUpperCase()).join('');
+};
+
 const PANE_BODY = {
   departments: departmentsPane, financials: financialsPane, quality: qualityPane,
-  shipping: shippingPane, data: dataPane,
+  shipping: shippingPane, data: dataPane, people: peoplePane,
 };
+
+const panes = () => PANES.filter(pane => !pane.admin || state.me?.is_admin);
 
 function renderNav() {
   $('#nav').innerHTML = `<a class="rail__link" href="dashboard.html" title="Daily dashboard">
       <svg class="rail__ico" viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v4h-7zM13 10h7v10h-7zM4 13h7v7H4z"/></svg>
       <span class="rail__txt">Daily dashboard</span></a>
     <div class="rail__split"></div>`
-    + PANES.map(pane => `<button class="rail__link" data-pane="${pane.key}"
+    + panes().map(pane => `<button class="rail__link" data-pane="${pane.key}"
         aria-current="${state.pane === pane.key}" title="${esc(pane.name)}">
         <svg class="rail__ico" viewBox="0 0 24 24"><path d="${pane.icon}"/></svg>
         <span class="rail__txt">${esc(pane.name)}</span></button>`).join('');
@@ -525,14 +631,15 @@ function renderNav() {
 
 function render() {
   const plant = state.locations.find(l => l.id === state.location);
-  const pane = PANES.find(p => p.key === state.pane) || PANES[0];
+  const pane = panes().find(p => p.key === state.pane) || PANES[0];
   $('#foot-loc').textContent = plant?.name || '—';
   $('#foot-user').textContent = [state.me?.full_name, state.me?.job_title].filter(Boolean).join(' · ');
   $('#loc').value = state.location || '';
   $('#pane-title').textContent = pane.name;
   $('#pane-sub').textContent = pane.sub;
   renderNav();
-  $('#content').innerHTML = (PANE_BODY[state.pane] || departmentsPane)();
+  const allowed = panes().some(p => p.key === state.pane);
+  $('#content').innerHTML = (allowed ? PANE_BODY[state.pane] : departmentsPane)();
 }
 
 // ── Saving ──────────────────────────────────────────────────────────────────────
@@ -668,6 +775,7 @@ document.addEventListener('click', async event => {
     state.pane = pane.dataset.pane;
     if (state.pane === 'financials' && !state.budgets.length) await loadYear();
     if (state.pane === 'quality' && !state.plant) state.plant = await loadPlant(state.location).catch(() => null);
+    if (state.pane === 'people') await loadPeople();
     render();
     scrollTo({ top: 0, behavior: 'smooth' });
     return;
@@ -714,6 +822,62 @@ document.addEventListener('click', async event => {
   }
 
   if (event.target.closest('#add-btn')) await addDepartment();
+  if (event.target.closest('#add-person')) await addPerson();
+});
+
+// ── People ──
+//
+// The list is re-read after every change rather than patched in place. It is one small
+// function call, it is the only screen in the product where being a version behind means
+// telling somebody they have access they do not have, and the read is the same one the
+// database will use to decide.
+async function loadPeople() {
+  try { state.people = await peopleAt(state.location); }
+  catch (error) { state.people = []; toast(error.message); }
+}
+
+async function addPerson() {
+  const email = $('#add-email').value.trim();
+  const level = $('#add-level').value;
+  if (!email) return toast('An email address is needed.');
+  try {
+    const outcome = await grantAccess(email, state.location, level === 'edit');
+    $('#add-email').value = '';
+    await loadPeople();
+    render();
+    toast(outcome === 'invited'
+      ? `${email} is not signed up yet — the access is waiting for them`
+      : `${email} can now ${level === 'edit' ? 'edit' : 'see'} this plant`);
+  } catch (error) { toast(error.message); }
+}
+
+document.addEventListener('change', async event => {
+  const level = event.target.dataset?.level;
+  if (level) {
+    const person = (state.people || []).find(p => (p.profile_id || `email:${p.email}`) === level);
+    if (!person) return;
+    const chosen = event.target.value;
+    try {
+      if (chosen === 'none') {
+        await revokeAccess(person.profile_id, person.pending ? person.email : null, state.location);
+      } else {
+        await grantAccess(person.email, state.location, chosen === 'edit');
+      }
+      await loadPeople();
+      render();
+      noteSaved();
+    } catch (error) { toast(error.message); await loadPeople(); render(); }
+    return;
+  }
+  const admin = event.target.dataset?.admin;
+  if (admin) {
+    try {
+      await setAdmin(admin, event.target.checked);
+      await loadPeople();
+      render();
+      noteSaved();
+    } catch (error) { toast(error.message); await loadPeople(); render(); }
+  }
 });
 
 async function addDepartment() {
@@ -775,6 +939,7 @@ async function openPlant(location) {
   state.draft = blankDraft();
   state.budgets = [];
   state.plant = null;
+  state.people = null;
   $('#content').innerHTML = '<div class="loading">Loading this plant…</div>';
   try {
     state.config = (await loadDepartmentConfig(location)) || [];
@@ -784,6 +949,7 @@ async function openPlant(location) {
   }
   if (state.pane === 'financials') await loadYear();
   if (state.pane === 'quality') state.plant = await loadPlant(location).catch(() => null);
+  if (state.pane === 'people') await loadPeople();
   saved('All changes saved');
   render();
 }
@@ -815,7 +981,7 @@ if (!state.locations.length) {
   // were just reading rather than on the first one they happen to be granted.
   const query = new URLSearchParams(location.search);
   const asked = query.get('loc');
-  if (PANES.some(p => p.key === query.get('pane'))) state.pane = query.get('pane');
+  if (panes().some(p => p.key === query.get('pane'))) state.pane = query.get('pane');
   const start = state.locations.find(plant => plant.id === asked) || state.locations[0];
   $('#loc').value = start.id;
   await openPlant(start.id);
