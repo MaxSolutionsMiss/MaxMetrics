@@ -12,15 +12,15 @@ import {
   saveField, saveDepartment, saveReview,
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   importHistory,
-} from '../db.js?v=6e03269f4b19';
-import { assess, attention, settled, verdicts } from '../assess.js?v=6e03269f4b19';
+} from '../db.js?v=3a9539a91d57';
+import { assess, attention, settled, verdicts } from '../assess.js?v=3a9539a91d57';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
   spark, bullet, chip, cardTrack, readingOf, derivedShipping, SHIPPING_TARGET,
   varianceChip, varianceTone, variancePct,
   volumeLabel, rateLabel, hoursLabel,
-} from '../readings.js?v=6e03269f4b19';
+} from '../readings.js?v=3a9539a91d57';
 
 const $ = selector => document.querySelector(selector);
 
@@ -1116,7 +1116,7 @@ const SECTIONS = {
   // overdue items, open work, today's schedule — answer a question the morning meeting does
   // not ask, so they are off unless a plant turns them on in Configure. What is left is one
   // list: which department, which machine, how many hours, and what for.
-  maintenance: () => maintenanceCards() + maintenancePanel(),
+  maintenance: () => maintenanceCards(),
 
   // ── Labour & overtime ──
   //
@@ -1126,8 +1126,10 @@ const SECTIONS = {
   // apart says so once, in Configure.
   // Maintenance leads. It is the part of this screen the room acts on — somebody has to be
   // told a machine is down on Friday — and overtime is the part it reports.
-  labour: () => (mergedUpkeep() ? maintenanceCards() : '') + labourCards()
-               + (mergedUpkeep() ? maintenancePanel() : '') + labourPanel(),
+  // No tables. "Which departments" and the maintenance list were both entry forms living on
+  // a reading screen, and both are groups on Enter now — the same fields, in the place a
+  // person goes to fill them in. What is left is what the room reads.
+  labour: () => (mergedUpkeep() ? maintenanceCards() : '') + labourCards(),
 
   financials: () => {
     // Billing is reviewed the next morning, so the financial picture reports through the
@@ -1526,6 +1528,9 @@ function wallPages() {
   for (const key of order()) {
     holder.innerHTML = SECTIONS[key]();
     const cards = [...holder.querySelectorAll('.grid--cards > .card')];
+    // Which section a card belongs to, carried on the card. The collage has no headings —
+    // the bar's colour is the heading — so this is the only thing that groups them.
+    for (const card of cards) card.dataset.fam = key;
     // One panel is allowed on the wall, and only one: the upcoming maintenance table. Every
     // other panel on the product is a thing you lean in for, and a five-row table read from
     // ten metres is a slide with nothing on it. This one is the exception because what the
@@ -1533,11 +1538,7 @@ function wallPages() {
     // cannot carry it and a card was never what was being asked for.
     const panel = holder.querySelector('.panel--wall');
     if (!cards.length && !panel) continue;
-    // On one page a section is a band rather than a screen, so the cards are dealt across
-    // the width and the height comes from the card's own ratio. The walk keeps the whole
-    // screen and chooses its arrangement to fill it.
-    const deal = state.wallMode === 'all'
-      ? { cols: Math.min(cards.length, 4), rows: Math.ceil(cards.length / Math.min(cards.length, 4)) }
+    const deal = state.wallMode === 'all' ? { cols: 1, rows: 1 }
       : bestGrid(Math.max(1, cards.length), panel ? 0.52 : 1);
     pages.push({ key, ...deal,
                  html: cards.map(card => card.outerHTML).join(''),
@@ -1549,52 +1550,29 @@ function wallPages() {
 // Two shapes, because two rooms want two different things.
 //
 // The walk is a meeting: one section at a screen, driven by a person, each card as large as
-// the screen allows. One page is a broadcast — the whole plant at once, on a fixed screen
-// nobody is standing at and nobody can scroll. It has to *fit*: a TV in the corridor shows
-// what is on it and nothing else.
+// the screen allows. One page is a corridor TV and a screenshot — it cannot be scrolled and
+// it cannot be paged, so it has one job, which is to fit.
 //
-// So it is a composition rather than a list. Sections take a block of a twelve-by-twelve
-// grid sized to what they carry — Safety is two readings and gets a narrow column, Shipping
-// is eight and gets a quarter of the screen — and each block deals its own cards inside
-// itself. Nothing new is drawn: these are the same cards, at whatever size their block
-// leaves them, because everything on a card is already a share of the card.
-//
-// The blocks are written down rather than packed by an algorithm. A plant walks into this
-// room every morning for a year, and the value of a fixed layout is that Shipping is where
-// Shipping was yesterday. A packer that reflows when a plant adds a department would take
-// that away to save a hand-written table of six lines.
-// Rows are dealt by how much each band is carrying: six readings and eight in the middle
-// band, six across the top, five and a table at the foot.
-const SNAP_AREAS = {
-  safety:      '1 / 1 / 5 / 4',
-  production:  '1 / 4 / 5 / 13',
-  quality:     '5 / 1 / 10 / 6',
-  shipping:    '5 / 6 / 10 / 13',
-  financials:  '10 / 1 / 13 / 4',
-  labour:      '10 / 4 / 13 / 9',
-  upkeep:      '10 / 9 / 13 / 13',
-};
-// With maintenance split out as its own section there is one more block to place, so the
-// bottom row divides four ways instead of three.
-const SNAP_SPLIT = {
-  ...SNAP_AREAS,
-  maintenance: '10 / 4 / 13 / 8',
-  labour:      '10 / 8 / 13 / 13',
-};
+// It is one grid of identical cards. Two earlier attempts gave each section its own block
+// with its own arrangement, and both produced a page where Safety's cards were twice the size
+// of Shipping's and every block set its type at a different scale. On a collage that reads as
+// six dashboards photographed together. Same card, same size, same type, everywhere — and the
+// sections are told apart by the colour of the bar across the top rather than by being drawn
+// bigger, which is what the bar was always for.
+const FAMILY = ['safety', 'quality', 'production', 'shipping', 'financials',
+                'maintenance', 'labour'];
 
-// How many columns a block deals its cards into. The best arrangement is the one whose cells
-// come closest to the shape a card wants to be, which is the same question `bestGrid()`
-// answers for a whole screen — asked here of a block a quarter that size.
+// How many columns put the whole set closest to the shape a card wants to be. Same question
+// `bestGrid()` answers for a section, asked of every card at once.
 function snapCols(count, box) {
   const want = cssNum('--card-r') || 1.132;
   let best = { cols: count, off: Infinity };
   for (let cols = 1; cols <= count; cols++) {
     const rows = Math.ceil(count / cols);
-    // A ragged last row costs a lot. Seven across and one underneath scores well on shape
-    // and looks like a mistake, which is the same lesson the walk learned about five
-    // shipping cards above three.
+    // A ragged last row costs enough that seven across and one underneath never wins — the
+    // same lesson the walk learned about five shipping cards above three.
     const off = Math.abs((box.h / rows) / (box.w / cols) - want)
-              + (1 - count / (cols * rows)) * 2.4;
+              + (1 - count / (cols * rows)) * 1.6;
     if (off < best.off) best = { cols, off };
   }
   return best.cols;
@@ -1603,38 +1581,20 @@ function snapCols(count, box) {
 function renderWallPage(pages) {
   const content = $('#content');
   content.className = 'content wall wall--snap';
-  const split = !!state.plant?.split_upkeep;
-  const areas = split ? SNAP_SPLIT : SNAP_AREAS;
-  // The upcoming maintenance table travels with Labour on a merged plant, and it is the one
-  // block that is a table rather than cards, so it is lifted out into a block of its own.
-  const panel = pages.map(p => p.panel).filter(Boolean).join('');
-  const blocks = pages.map(page => ({ key: page.key, area: areas[page.key] || '', html: page.html }))
-    .filter(b => b.area);
+  const shown = pages.filter(p => p.html);
   content.innerHTML = `
     <div class="wall__top">
       <h2>${esc(state.locations.find(l => l.id === state.location)?.name || '')}</h2>
+      <div class="legend">${shown.map(p =>
+        `<span class="legend__i" data-fam="${esc(p.key)}">${esc(TITLES[p.key])}</span>`).join('')}</div>
       <span class="wall__date">${$('#date-long').textContent}</span>
     </div>
-    <div class="snap">
-      ${blocks.map(b => `<section class="snap__b" data-snap="${esc(b.key)}"
-           style="grid-area:${b.area}">
-        <h3 class="snap__t">${esc(TITLES[b.key])}</h3>
-        <div class="grid grid--cards grid--snap">${b.html}</div>
-      </section>`).join('')}
-      ${!split && panel ? `<section class="snap__b" style="grid-area:${areas.upkeep}">
-        <h3 class="snap__t">${esc(TITLES.maintenance)}</h3>
-        ${panel}</section>` : ''}
-    </div>`;
-  // The columns inside each block depend on the box the layout gave it, which is only known
-  // once it is on the page.
-  // Counted off the page rather than out of the markup: a note card and a list card are
-  // cards too, and a regular expression over the HTML missed both.
-  for (const grid of content.querySelectorAll('.grid--snap')) {
-    const count = grid.querySelectorAll(':scope > .card').length;
-    if (!count) continue;
-    const box = grid.getBoundingClientRect();
-    grid.style.setProperty('--snap-cols', String(snapCols(count, { w: box.width, h: box.height })));
-  }
+    <div class="grid grid--cards grid--snap">${shown.map(p => p.html).join('')}</div>`;
+  const grid = content.querySelector('.grid--snap');
+  const count = grid.querySelectorAll(':scope > .card').length;
+  if (!count) return;
+  const box = grid.getBoundingClientRect();
+  grid.style.setProperty('--snap-cols', String(snapCols(count, { w: box.width, h: box.height })));
 }
 
 function renderWall() {
