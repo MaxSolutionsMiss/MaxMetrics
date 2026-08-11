@@ -663,8 +663,15 @@ function sourcesPanel() {
         This is the \u201cadd them as a user\u201d you have been looking for. MaxMetrics is a
         server, not a person, so there is no mailbox to invite \u2014 it gets an identity in
         your Microsoft tenant instead. Once it has one, <b>every link already pasted above
-        starts working, unchanged.</b> Whoever administers Microsoft 365 for Max Solutions
-        does this once.</p>
+        starts working, unchanged.</b> It is free \u2014 app registrations are part of any
+        Microsoft 365 tenant and cost nothing at this volume.</p>
+      <p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">
+        <b>Can you do it yourself?</b> Steps 1 to 5 usually yes: most tenants let any signed-in
+        person register an application. <b>Steps 6 and 7 need an administrator</b> \u2014
+        granting consent and naming the site are the two acts that hand out access, and
+        Microsoft reserves them for Global, Application or SharePoint administrators. So the
+        realistic ask of IT is two minutes at the end, not the whole job. Try step 1: if
+        <b>New registration</b> opens, keep going and stop where you are refused.</p>
       <ol class="steps">
         <li>Go to <b>entra.microsoft.com</b> \u2192 <b>App registrations</b> \u2192
           <b>New registration</b>.</li>
@@ -698,6 +705,24 @@ function sourcesPanel() {
         <b>Secrets</b>, as <code>MS_TENANT_ID</code>, <code>MS_CLIENT_ID</code> and
         <code>MS_CLIENT_SECRET</code>. A client secret is a password for your tenant, and the
         only safe place for it is somewhere just the server can read.</p>
+    </div></div>
+
+  <div class="panel" style="margin-top:var(--s3)"><div class="panel__head">
+    <h3 class="panel__title">If IT will not do it</h3>
+    <div class="panel__actions"><span class="pill pill--info">No Microsoft permission</span></div></div>
+    <div class="panel__body">
+      <p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">
+        There is a third way, and it asks Microsoft for nothing at all. A small scheduled task
+        on one Windows PC reads the files that PC <i>can already see</i> \u2014 through OneDrive
+        sync or a mapped drive, using the sign-in that person already has \u2014 and posts them
+        here. No app registration, no consent, no administrator, and nothing for anyone to
+        approve. The parser is the same one the Import screen uses and writes go through the
+        same guard, so a figure somebody typed is never overwritten.</p>
+      <p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">
+        It needs one PC that stays on overnight and has the folders \u2014 usually the office
+        machine of whoever assembles the morning. The script and its instructions live in the
+        MaxMetrics repository under <code>tools/hotfolder</code>. Two things have to be switched
+        on first: the <code>ingest</code> endpoint, and a shared key for it.</p>
     </div></div>`;
 }
 
