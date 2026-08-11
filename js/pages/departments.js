@@ -24,12 +24,12 @@ import {
   loadBudgets, saveBudget, loadPlant, savePlant,
   peopleAt, grantAccess, revokeAccess, setAdmin,
   createPerson, updatePerson, resetPersonPassword, removePerson,
-  loadSources, saveSource, addSource, dropSource,
-} from '../db.js?v=c8ec45ac939f';
+  loadSources, saveSource, addSource, dropSource, pullSources,
+} from '../db.js?v=c86fea1368b7';
 import {
   esc, money, MONTHS, iconFor,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE,
-} from '../readings.js?v=c8ec45ac939f';
+} from '../readings.js?v=c86fea1368b7';
 
 const $ = selector => document.querySelector(selector);
 
@@ -552,11 +552,15 @@ function linkShape(raw) {
   if (!url) return null;
   if (!/sharepoint\.com|1drv\.ms|onedrive\.live\.com/i.test(url)) return null;
   if (/\/:[a-z]:\/[sg]\//i.test(url)) return { ok: true, say: 'This is a sharing link.' };
-  if (/\/:[a-z]:\/r\//i.test(url) || /csf=1/i.test(url)) {
+  // Three shapes of the same mistake. `/:x:/r/` is Copy link with the audience left as
+  // "People in Max Solutions"; `_layouts/15/Doc.aspx?sourcedoc=` is what the address bar
+  // shows once the file is open; `csf=1` is the Copy link button's own fingerprint.
+  if (/\/:[a-z]:\/r\//i.test(url) || /_layouts\/\d+\/doc\.aspx/i.test(url)
+      || /csf=1/i.test(url)) {
     return { ok: false, say: 'This is the file\u2019s address inside the library, not a '
       + 'sharing link \u2014 SharePoint will answer 401 to anyone without a Microsoft '
       + 'session. Use Share \u2192 Anyone with the link, or register MaxMetrics in your '
-      + 'tenant (below) and this address will start working as it is.' };
+      + 'tenant (Route 2 below) and this address will start working exactly as it is.' };
   }
   return null;
 }
@@ -598,6 +602,7 @@ function sourcesPanel() {
             aria-label="${esc(source.name)} link"
             placeholder="https://maxsolutionsinc.sharepoint.com/..." value="${esc(source.url || '')}">
           <button class="btn btn--go" data-save-source="${esc(source.id)}">Save</button>
+          <button class="btn" data-test-source="${esc(source.id)}">Test</button>
         </div>
         ${(shape => shape ? `<span class="src__k${shape.ok ? ' src__k--ok' : ''}">${
           shape.ok ? '\u2713 ' : '\u26a0 '}${esc(shape.say)}</span>` : '')(linkShape(source.url))}
@@ -607,27 +612,89 @@ function sourcesPanel() {
     </div></div>
 
   <div class="panel" style="margin-top:var(--s3)"><div class="panel__head">
-    <h3 class="panel__title">Why a link is refused, and the two ways round it</h3></div>
+    <h3 class="panel__title">Telling a good link from a bad one</h3></div>
+    <div class="panel__body">
+      <div class="lnkq">
+        <div class="lnkq__b lnkq__b--no"><b>\u2717 Will always answer 401</b>
+          <code>\u2026/:x:/<b>r</b>/sites/MaxSolutions-Mississauga/Shared%20Documents/\u2026</code>
+          <code>\u2026/_layouts/15/<b>Doc.aspx</b>?sourcedoc=\u2026</code>
+          <span>Both are the file\u2019s address inside the library \u2014 what the address bar
+            shows, and what <i>Copy link</i> gives you while the permission is still
+            <i>People in Max Solutions</i>. <code>csf=1</code> and <code>web=1</code> are that
+            button\u2019s fingerprint. SharePoint refuses these to anything without a Microsoft
+            session, and <code>?download=1</code> changes nothing.</span></div>
+        <div class="lnkq__b lnkq__b--yes"><b>\u2713 A real sharing link</b>
+          <code>\u2026/:x:/<b>s</b>/MaxSolutions-Mississauga/EbT9x\u2026long\u2026?e=Ab12Cd</code>
+          <span><b>/s/</b> or <b>/g/</b>, then a long meaningless token, and no
+            <code>Shared%20Documents</code> anywhere in it. That is a link SharePoint will
+            answer to a stranger \u2014 which is what MaxMetrics is.</span></div>
+      </div>
+    </div></div>
+
+  <div class="panel" style="margin-top:var(--s3)"><div class="panel__head">
+    <h3 class="panel__title">Route 1 \u2014 share the file</h3>
+    <div class="panel__actions"><span class="pill pill--info">Five minutes, try first</span></div></div>
+    <div class="panel__body">
+      <ol class="steps">
+        <li>Open the <b>KPIs</b> folder in SharePoint and select <b>DOR V9.xlsx</b>.</li>
+        <li>Press <b>Share</b>.</li>
+        <li>The top of the dialogue says who the link is for \u2014 usually <i>People in Max
+          Solutions Inc with the link</i>. <b>Click that line.</b></li>
+        <li>Choose <b>Anyone with the link</b>, set it to <b>Can view</b>, clear any expiry
+          date, and press <b>Apply</b>.</li>
+        <li>Press <b>Copy link</b>. Paste it above, press <b>Save</b>, then press
+          <b>Test</b>.</li>
+      </ol>
+      <p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">
+        <b>If \u201cAnyone with the link\u201d is greyed out or missing,</b> Max Solutions has
+        anonymous links switched off for the whole tenant. Nothing in this dialogue will get
+        round it \u2014 that is a setting only a Microsoft 365 administrator can change, and
+        plenty of companies leave it off deliberately. Go to Route 2.</p>
+    </div></div>
+
+  <div class="panel" style="margin-top:var(--s3)"><div class="panel__head">
+    <h3 class="panel__title">Route 2 \u2014 give MaxMetrics its own identity</h3>
+    <div class="panel__actions"><span class="pill pill--ok">Always works</span></div></div>
     <div class="panel__body">
       <p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">
-        A link like <code>\u2026/:x:/r/sites/MaxSolutions-Mississauga/Shared%20Documents/\u2026</code>
-        is not a sharing link \u2014 it is the file\u2019s address inside the library, and
-        SharePoint refuses it to anyone without a Microsoft session. Signed out it answers
-        <b>401</b>, which is exactly what you are seeing. Adding <code>?download=1</code>
-        changes nothing.</p>
+        This is the \u201cadd them as a user\u201d you have been looking for. MaxMetrics is a
+        server, not a person, so there is no mailbox to invite \u2014 it gets an identity in
+        your Microsoft tenant instead. Once it has one, <b>every link already pasted above
+        starts working, unchanged.</b> Whoever administers Microsoft 365 for Max Solutions
+        does this once.</p>
+      <ol class="steps">
+        <li>Go to <b>entra.microsoft.com</b> \u2192 <b>App registrations</b> \u2192
+          <b>New registration</b>.</li>
+        <li>Name it <b>MaxMetrics</b>. Accounts: <b>this organizational directory only</b>.
+          No redirect URI. Press <b>Register</b>.</li>
+        <li>On the Overview page copy the <b>Application (client) ID</b> and the
+          <b>Directory (tenant) ID</b>.</li>
+        <li><b>Certificates &amp; secrets</b> \u2192 <b>New client secret</b> \u2192 24 months.
+          Copy the <b>Value</b> straight away \u2014 it is shown once, and it is not the
+          Secret ID.</li>
+        <li><b>API permissions</b> \u2192 <b>Add a permission</b> \u2192 <b>Microsoft
+          Graph</b> \u2192 <b>Application permissions</b> \u2192 tick <b>Sites.Selected</b>,
+          then <b>Add</b>.</li>
+        <li>Press <b>Grant admin consent for Max Solutions Inc</b> and confirm. The Status
+          column must show a green tick.</li>
+        <li>Give the app read on this one site, in PowerShell as an administrator:<br>
+          <code>Grant-PnPAzureADAppSitePermission -AppId &lt;client id&gt;
+          -DisplayName "MaxMetrics" -Permissions Read
+          -Site https://maxsolutionsinc.sharepoint.com/sites/MaxSolutions-Mississauga</code></li>
+      </ol>
       <p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">
-        <b>The quick way.</b> Open the file in SharePoint, <b>Share</b>, change the permission
-        from <i>People in Max Solutions</i> to <b>Anyone with the link</b>, copy that link and
-        paste it above. Test it by opening it in a private window with no Microsoft session:
-        if the file downloads, MaxMetrics can fetch it. Many tenants have this switched off.</p>
+        <b>Why <code>Sites.Selected</code> rather than <code>Sites.Read.All</code>.</b>
+        <code>Sites.Read.All</code> lets the app read <i>every</i> SharePoint site in the
+        company, which is a fair reason for IT to refuse. <code>Sites.Selected</code> grants
+        nothing by itself \u2014 step 7 gives it read on the Mississauga site and nowhere
+        else. If your administrator would rather skip step 7, <code>Sites.Read.All</code>
+        works too and everything else is the same.</p>
       <p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">
-        <b>The way that always works.</b> Register MaxMetrics as an application in your
-        Microsoft tenant and it signs in as itself \u2014 then the links you have already
-        pasted start working, unchanged. Ask IT for an app registration with the application
-        permission <code>Sites.Read.All</code> (admin consent granted), and send back three
-        things: <b>Directory (tenant) ID</b>, <b>Application (client) ID</b> and a
-        <b>client secret</b>. They go into MaxMetrics\u2019 server settings, never into this
-        page.</p>
+        <b>Where the three values go.</b> Into the server, never into this page and never
+        into a browser: Supabase \u2192 this project \u2192 <b>Edge Functions</b> \u2192
+        <b>Secrets</b>, as <code>MS_TENANT_ID</code>, <code>MS_CLIENT_ID</code> and
+        <code>MS_CLIENT_SECRET</code>. A client secret is a password for your tenant, and the
+        only safe place for it is somewhere just the server can read.</p>
     </div></div>`;
 }
 
@@ -1094,6 +1161,32 @@ document.addEventListener('click', async event => {
       toast(shape && !shape.ok ? 'Saved — but this is a library path, not a sharing link.'
         : 'Saved.');
     } catch (error) { toast(error.message); }
+    return;
+  }
+
+  // Test one link, now.
+  //
+  // Pasting a SharePoint address and finding out tomorrow morning whether it works is not a
+  // feedback loop, and it is why three rounds of links have been tried and lost. This fetches
+  // that one file and says exactly what came back — the size and which route it came by, or
+  // the status and what the server said. Nothing is written to the morning: it is a question,
+  // not an import.
+  const testSrc = event.target.closest('[data-test-source]');
+  if (testSrc) {
+    const id = testSrc.dataset.testSource;
+    testSrc.disabled = true;
+    const was = testSrc.textContent;
+    testSrc.textContent = 'Testing…';
+    try {
+      const out = await pullSources(state.location, today(), id);
+      const got = (out.sources || [])[0];
+      toast(!got ? 'Nothing came back.'
+        : got.ok ? `Works — ${got.note}.`
+        : `${got.name}: ${got.note}`);
+      state.sources = await loadSources(state.location);
+      render();
+    } catch (error) { toast(error.message); }
+    finally { testSrc.disabled = false; testSrc.textContent = was; }
     return;
   }
 
