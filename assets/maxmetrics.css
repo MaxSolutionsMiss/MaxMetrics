@@ -559,6 +559,13 @@ body.tv .verdict{font-size:var(--t-lead)}
 .card__mid>.ctrack{margin-top:auto}
 /* While `fitCards()` is working the zones stop stretching, so a card reports the height its
    contents need rather than the height it was handed. See the note beside `measuring`. */
+/* Titles that are not on this screen, measured anyway.
+   The bar's height is settled against the longest title the product can draw rather than
+   the longest one in front of you, or walking from Safety to Production moves every title
+   on the page. `fitCards()` builds this, measures it and takes it away again inside one
+   frame, so it is never painted. */
+.tprobe{position:fixed;left:-99999px;top:0;width:0;height:0;overflow:visible;
+  visibility:hidden;pointer-events:none;contain:strict}
 .grid--cards.measuring .card__mid{flex:0 0 auto}
 .grid--cards.measuring .card__mid>.ctrack{margin-top:calc(2.6*var(--u))}
 .grid--cards.measuring .card .foot{margin-top:calc(3*var(--u))}
@@ -664,13 +671,6 @@ body.tv .verdict{font-size:var(--t-lead)}
 .tbl .dept{font-family:var(--font-condensed);font-size:calc(16px*var(--scale));font-weight:700;
   text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;color:var(--ink-muted)}
 .tbl .big{font-family:var(--font-condensed);font-size:calc(19px*var(--scale));font-weight:700;letter-spacing:-.01em}
-/* The week table answers three questions per department, so a target sits under the
-   reading it belongs to rather than in a column of its own. */
-.tbl--week th[colspan]{text-align:right;border-bottom:none;padding-bottom:2px;
-  color:var(--ink-muted)}
-.tbl--week thead tr:first-child th{border-bottom:1px solid var(--rule)}
-.wk{display:block;font-family:var(--font);font-size:var(--t-micro);font-weight:600;
-  color:var(--ink-faint);letter-spacing:0;text-transform:none;line-height:1.3;margin-top:1px}
 .pill{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;
   text-transform:uppercase;letter-spacing:.05em}
 .pill--ok{background:var(--ok-wash);color:var(--ok);border:1px solid var(--ok-rule)}
@@ -696,7 +696,7 @@ body.tv .verdict{font-size:var(--t-lead)}
    productivity, which is nine columns of numbers and is the whole reason anyone opens
    Production on a Monday, and the upcoming maintenance list, which is what maintenance is.
    Squeezed to 1080 they set their numbers at half the size of the cards above them. */
-.sec > .panel--full,.sec > .panel--wall{max-width:100%}
+.sec > .panel--full{max-width:100%}
 body.tv .sec > .panel{max-width:none}
 .panel__head .card__ico{font-size:22px}
 .panel__head{display:flex;align-items:center;gap:var(--s2);padding:var(--s2) var(--s4);
@@ -706,15 +706,9 @@ body.tv .sec > .panel{max-width:none}
 .panel__actions{margin-left:auto;display:flex;gap:var(--s2);align-items:center}
 .panel__body{padding:var(--s2) var(--s4) var(--s3);flex:1;min-width:0;overflow-x:auto}
 
-.rev{display:flex;gap:var(--s3);align-items:flex-start;padding:var(--s3) 0;border-bottom:1px solid var(--rule)}
-.rev:last-child{border-bottom:none}
-.rev__dot{width:11px;height:11px;border-radius:50%;flex:none;margin-top:5px}
-.rev__dot--ok{background:var(--ok)}.rev__dot--warn{background:var(--warn)}.rev__dot--stop{background:var(--stop)}
-.rev__body{flex:1;min-width:0}
-.rev__dept .card__ico{font-size:.95em;display:inline-block;vertical-align:-.08em}
-.rev__dept{font-family:var(--font-condensed);font-size:calc(17px*var(--scale));text-transform:uppercase;
-  letter-spacing:.04em;font-weight:700;color:var(--ink-muted);margin-bottom:2px}
-.rev__note{font-size:var(--t-base);line-height:1.5;color:var(--ink)}
+/* The last twenty-four hours, read back as the list they were typed as. It is the body of
+   a note card now rather than a block of its own, so it takes the card's own type scale. */
+.rev__note{font-size:calc(4.6*var(--u,4px));line-height:1.45;color:var(--ink)}
 
 .fin{display:grid;grid-template-columns:1fr 1fr;gap:var(--s5)}
 @media(max-width:880px){.fin{grid-template-columns:1fr}}
@@ -767,16 +761,23 @@ body.tv .sec > .panel{max-width:none}
    It was a number and a free-text "why", and in every morning on file the why is empty —
    the room says "three shifts, Heidelberg and Omega", which is a count and a list, not a
    sentence. */
+/* Two numbers for one department on one line — what it made and the hours it took — which
+   is the same shape the department's own card uses for today. */
+.er--pair{display:grid;grid-template-columns:1fr 1fr 1fr;align-items:center;gap:6px}
+.er--pair label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .er--ot{align-items:center;flex-wrap:wrap}
 .er--ot .inp--n{width:88px;flex:none}
 .ticks{display:flex;flex-wrap:wrap;gap:4px 6px;align-items:center;min-width:0}
-.tick2{display:inline-flex;align-items:center;gap:5px;font-size:var(--t-small);
+/* A machine name is as long as the plant made it — "Die Cutter 2017" — and the column it
+   sits in is a quarter of a quarter of the screen now. The chip gives up a point of type and
+   a couple of pixels of padding rather than the name giving up its last four characters. */
+.tick2{display:inline-flex;align-items:center;gap:4px;font-size:var(--t-micro);
   color:var(--ink);cursor:pointer;white-space:nowrap;
-  padding:2px 8px;border:1px solid var(--rule-strong);border-radius:var(--radius);
+  padding:2px 6px;border:1px solid var(--rule-strong);border-radius:var(--radius);
   background:var(--surface)}
 .tick2:has(input:checked){border-color:var(--warn);background:var(--warn-wash);color:var(--warn);
   font-weight:600}
-.tick2 input{accent-color:var(--warn);width:14px;height:14px;margin:0}
+.tick2 input{accent-color:var(--warn);width:13px;height:13px;margin:0}
 textarea.inp{height:auto;min-height:54px;padding:var(--s2);resize:vertical;line-height:1.5}
 /* The entry screen is always in edit mode, because that is what it is for. Everywhere else
    the fields stay closed until somebody asks for them. */
@@ -894,23 +895,8 @@ body.tv .sec{flex:1;min-height:0;display:flex;flex-direction:column}
    it is which department, which machine and for how many hours, which is five columns wide.
    A card cannot carry five columns, and a card was never what was being asked for. It is
    drawn at wall type, with the entry fields and the row of buttons left behind. */
-body.tv .panel,body.tv .ez,body.tv .edit-only,body.tv .revcard,body.tv .sec__head,
+body.tv .panel,body.tv .ez,body.tv .edit-only,body.tv .sec__head,
 body.tv .tbl,body.tv .today,body.tv .settled{display:none}
-body.tv .panel--wall{display:block;flex:1 1 auto;min-height:0;margin:var(--s4) 0 0;overflow:hidden}
-/* The cards stop stretching when a table shares the screen with them: they take the share
-   of the height `bestGrid` sized them for, and the table takes what is left. The share is
-   the one number both have to agree on, so the script sets it and the stylesheet reads it. */
-body.tv .sec--split > .grid{flex:0 0 auto;align-content:start;--wall-share:.52}
-body.tv .panel--wall .tbl{display:table;width:100%}
-body.tv .panel--wall .panel__title{font-size:calc(20px*var(--scale))}
-body.tv .panel--wall .panel__actions{display:none}
-body.tv .panel--wall th{font-size:calc(11px*var(--scale));padding:0 var(--s3) 6px}
-body.tv .panel--wall td{font-size:calc(15px*var(--scale));padding:8px var(--s3);line-height:1.15}
-body.tv .panel--wall td.dept{font-family:var(--font-condensed);font-weight:700}
-body.tv .panel--wall td.dept .card__ico{display:none}
-/* The delete button, and any column a table marks as detail. A wall reads five columns and
-   stops; the reference numbers beside them are for the person leaning in. */
-body.tv .panel--wall tr > *:last-child,body.tv .panel--wall .tv-hide{display:none}
 /* And a grid whose cards were all hidden takes no room either.
    Production keeps a second grid for the review notes and Labour wraps its table in one;
    both empty out up here, but an empty grid is still `flex:1` with a row the height of a
@@ -984,6 +970,16 @@ body.tv .tvbar{display:flex}
   margin-left:-7px;flex:none;cursor:default}
 .who__a--me{box-shadow:0 0 0 2px var(--brand)}
 [data-pkey]{position:relative}
+/* A card can be picked up and put down. The cursor is the only affordance — a grab handle
+   drawn on every card would be a twenty-eighth thing competing for a two-second glance, and
+   the gesture is one people already try. */
+.grid--cards[data-grid] > .card{cursor:grab}
+.grid--cards[data-grid] > .card:active{cursor:grabbing}
+.grid--cards[data-grid] > .card input,.grid--cards[data-grid] > .card select,
+.grid--cards[data-grid] > .card textarea,.grid--cards[data-grid] > .card button{cursor:auto}
+/* The card being carried stays where the pointer is and gets out of the way of the reading
+   underneath it, so what you watch is the gap opening up rather than the card in your hand. */
+.card.is-dragging{opacity:.35;outline:2px dashed var(--brand);outline-offset:-2px}
 [data-pkey].is-live{box-shadow:0 0 0 2px var(--pres)}
 .pres{position:absolute;top:-10px;left:12px;background:var(--pres);color:#fff;font-size:10px;
   font-weight:700;letter-spacing:.03em;padding:2px 7px;border-radius:4px;white-space:nowrap;
@@ -1064,12 +1060,12 @@ body.no-access .top::before{content:"MaxMetrics";font-size:var(--t-lead);font-we
 .state__body{margin:0;color:var(--ink-muted);line-height:1.55}
 .state__who{margin:0;font-size:var(--t-small);color:var(--ink-faint)}
 
-/* ══ TODAY · THE BOARD · THE WALL ══
-   Three readings of one assessment. None of them decides anything; assess.js has already
-   done that, so a lane cannot be amber while the same number is green on the wall. */
+/* ══ TODAY · THE WALL ══
+   Two readings of one assessment. Neither decides anything; assess.js has already done
+   that, so Today cannot be amber while the same number is green on the wall. */
 
 .content--view{padding-top:var(--s3)}
-body[data-view="line"] .chartpick,body[data-view="board"] .chartpick{display:none}
+body[data-view="line"] .chartpick{display:none}
 .eyebrow{font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.1em;
   font-weight:700;color:var(--ink-faint)}
 .tone--ok{color:var(--ok)}.tone--warn{color:var(--warn)}.tone--stop{color:var(--stop)}
@@ -1122,41 +1118,6 @@ body[data-view="line"] .chartpick,body[data-view="board"] .chartpick{display:non
 .tick__n{font-size:var(--t-lead);font-weight:700;color:var(--ok)}
 .tick__l{color:var(--ink-muted)}
 
-/* ── The board ── */
-.lanes{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--s3)}
-@media(max-width:1240px){.lanes{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:700px){.lanes{grid-template-columns:1fr}}
-.lane{background:var(--surface);border:1px solid var(--rule);border-radius:var(--radius-lg);
-  box-shadow:var(--shadow);display:flex;flex-direction:column;min-width:0;position:relative}
-.lane__head{border-radius:var(--radius-lg) var(--radius-lg) 0 0}
-.lane__foot{border-radius:0 0 var(--radius-lg) var(--radius-lg)}
-.lane__head{padding:var(--s2) var(--s4);border-bottom:1px solid var(--rule);display:flex;
-  align-items:center;gap:var(--s2);background:var(--sunk);min-height:40px}
-.lane__head h3{font-size:var(--t-small);font-weight:800;text-transform:uppercase;
-  letter-spacing:.07em;flex:1;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.lane__owner{font-size:10px;font-weight:700;color:#fff;background:var(--ink-faint);
-  border-radius:20px;width:23px;height:23px;display:grid;place-items:center;flex:none}
-.lane--warn .lane__head{background:var(--warn-wash)}
-.lane--stop .lane__head{background:var(--stop-wash)}
-.lane--ok .lane__owner{background:var(--ok)}
-.lane--warn .lane__owner{background:var(--warn)}
-.lane--stop .lane__owner{background:var(--stop)}
-.lane__body{padding:var(--s4);display:flex;flex-direction:column;gap:6px;flex:1}
-.lane__n{font-size:calc(var(--t-metric)*1.45);font-weight:800;letter-spacing:-.035em;
-  line-height:1;white-space:nowrap;color:var(--ink)}
-.lane__n small{font-size:.34em;font-weight:600;opacity:.6;letter-spacing:0}
-.lane--ok .lane__n{color:var(--ok)}.lane--warn .lane__n{color:var(--warn)}
-.lane--stop .lane__n{color:var(--stop)}
-.lane__sub{font-size:var(--t-small);color:var(--ink-muted)}
-.lane__rest{margin-top:var(--s2);padding-top:var(--s2);border-top:1px solid var(--rule);
-  display:flex;flex-direction:column;gap:3px}
-.lane__row{display:flex;justify-content:space-between;gap:var(--s2);font-size:var(--t-small)}
-.lane__row span{color:var(--ink-muted)}
-.lane__row b{font-weight:700;white-space:nowrap}
-.lane__foot{padding:var(--s2) var(--s4);border-top:1px solid var(--rule);font-size:var(--t-small);
-  color:var(--ink);line-height:1.5;background:var(--sunk);margin-top:auto;min-height:44px}
-.lane__quiet{color:var(--ink-faint)}
-
 /* ── Sparkline and bullet ── */
 .spark{display:block;width:100%;align-self:stretch;height:30px;margin-top:2px}
 .spark__area{fill:currentColor;opacity:.13;stroke:none}
@@ -1192,7 +1153,7 @@ body[data-view="line"] .chartpick,body[data-view="board"] .chartpick{display:non
    in the target". Now it runs the full height of the bar at full ink, carries a shoulder of
    card colour on each side so it reads against green, amber and red alike, and points at
    itself with a notch. Sized in `--u` where there is one, in pixels where there is not: the
-   same mark is drawn on the flag cards and the lanes, which are not cards and have no `--u`. */
+   same mark is drawn on the flag cards, which are not cards and have no `--u`. */
 .bullet__target{position:absolute;top:0;bottom:0;width:var(--u,3px);min-width:3px;
   background:var(--ink);border-radius:0;opacity:1;
   box-shadow:0 0 0 calc(.55*var(--u,2px)) var(--surface)}
@@ -1299,6 +1260,21 @@ body.tv .content.wall{display:flex;flex-direction:column;gap:var(--s4);
 .cfg__card{display:flex;align-items:center;gap:var(--s3);padding:var(--s2) 0;
   border-bottom:1px solid var(--rule);cursor:pointer}
 .cfg__card:last-child{border-bottom:none}
+/* Two answers about one card — does the plant carry it, and does it go on the broadcast
+   screen — so the name takes the room and the two ticks sit in fixed columns under their
+   headings. A tick without a heading over it is a switch nobody dares touch. */
+.cfg__two{display:grid;grid-template-columns:minmax(0,1fr) 5.8rem 5.8rem;align-items:center;
+  gap:var(--s2);padding:5px 0;border-bottom:1px solid var(--rule)}
+.cfg__two:last-child{border-bottom:none}
+.cfg__two-n{font-size:var(--t-small);min-width:0;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap}
+.cfg__two .tog{justify-content:center}
+.cfg__two--head{border-bottom:1px solid var(--ink-faint);padding-bottom:6px}
+.cfg__two--head span{font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.03em;
+  font-weight:700;color:var(--ink-faint);text-align:center;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.cfg__fams{display:grid;grid-template-columns:repeat(auto-fit,minmax(12rem,1fr));
+  gap:6px var(--s3);margin-top:var(--s2)}
 .wall__empty{display:grid;place-items:center;flex:1;color:var(--ink-muted);font-size:var(--t-title)}
 /* The readings that rode along under an area's worst one. Present, so nothing is
    hidden; quiet, so the meeting hears the story once. */
@@ -1311,22 +1287,6 @@ body.tv .content.wall{display:flex;flex-direction:column;gap:var(--s4);
 /* ── The 24-hour review, read across ──
    One card per department in a row, because the room compares departments to each other
    at this point in the meeting, and a stacked list makes that a scroll. */
-.revcard{background:var(--surface);border:1px solid var(--rule);border-radius:var(--radius-lg);
-  padding:var(--s4);box-shadow:var(--shadow);border-top:3px solid var(--rule-strong);
-  display:flex;flex-direction:column;gap:var(--s2);min-width:0;position:relative}
-.revcard--warn{border-top-color:var(--warn)}
-.revcard--stop{border-top-color:var(--stop)}
-.revcard--ok{border-top-color:var(--ok)}
-.revcard__head{display:flex;align-items:center;gap:var(--s2)}
-.revcard__head .card__ico{font-size:22px}
-.revcard__head h4{margin:0;font-family:var(--font-condensed);font-size:calc(19px*var(--scale));
-  font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-muted)}
-.revcard--warn .revcard__head h4{color:var(--warn)}
-.revcard--stop .revcard__head h4{color:var(--stop)}
-/* The plant writes these as short lists — one line per machine — so the line breaks
-   they typed are part of the meaning and must survive to the screen. */
-.rev__note{white-space:pre-line}
-.revcard .rev__note{font-size:var(--t-base);line-height:1.6;min-height:2.6em}
 .rev__note--none{color:var(--ink-faint);font-style:italic}
 /* One problem per line is how the review is written, so one bullet per line is how it is
    read. A paragraph with the breaks collapsed made three problems look like one sentence. */
@@ -1522,13 +1482,17 @@ body.tv .util{display:none}
 .fill__say{margin:0;font-size:var(--t-small);color:var(--ink-muted);max-width:62ch;line-height:1.5}
 .fill__go{display:flex;gap:var(--s2)}
 
-/* Three assigned columns, not a masonry flow.
+/* Four assigned columns, not a masonry flow.
    Flowed, the browser decided where each group landed: Sales came under Shipping one morning
    and under Safety the next, and nobody could learn where anything was. Assigned, the screen
    is the same screen every day \u2014 people and quality, then the floor, then what left the
-   building \u2014 and the two groups that are sentences rather than numbers take the full width
-   underneath, because a note wants a line to write on. */
-.fill__grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--s3);
+   building, then what the room has to say about it.
+   The notes used to take the full width under the three columns on the argument that a note
+   wants a line to write on. True, and it cost two hundred and eighty pixels of height for six
+   boxes that are two lines each \u2014 which on a screen that is supposed to be filled in
+   without scrolling is the most expensive argument on the page. In a column they are as tall
+   as they need to be and the screen is a rectangle. */
+.fill__grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--s3);
   align-items:stretch}
 /* The three columns end on the same line. Left to their contents they finished at three
    different heights and the block of groups came out as a staircase — which is the whole of
@@ -1555,9 +1519,16 @@ body.tv .util{display:none}
 /* Every row on this screen is the same height, in every group. Rows that sized themselves to
    their contents ticked down the page at three different rhythms — the ticks made the overtime
    rows taller than the safety ones, and two groups side by side never lined up. */
-.fr{display:grid;grid-template-columns:1fr 8.2rem minmax(4.5rem,auto);align-items:center;
+/* Four columns rather than three took a third off the width of every one of them, and the
+   first thing to run out of room was the label \u2014 "COQ this month" came out as "C\u2026".
+   The field is the fixed part because a number is at most seven digits; what the label and
+   the echo get is what is left, and both ellipsise rather than pushing the field about. */
+.fr{display:grid;grid-template-columns:minmax(0,1fr) 5.9rem minmax(0,6.2rem);align-items:center;
   gap:var(--s2);min-height:31px}
-/* A date input carries its own picker button, so it needs the room the number fields do not. */
+/* A date input carries its own picker button, so it needs the room the number fields do not
+   \u2014 and the rows that hold one echo a two-word answer, so the room comes out of the echo. */
+.fr:not(.fr--maint):has(> .fr__i[type="date"]){
+  grid-template-columns:minmax(0,1fr) 8rem minmax(0,3.6rem)}
 .fr__i[type="date"]{padding-left:4px;padding-right:2px}
 .fr__l{font-size:var(--t-small);color:var(--ink);min-width:0;overflow:hidden;
   text-overflow:ellipsis;white-space:nowrap}
@@ -1565,7 +1536,7 @@ body.tv .util{display:none}
   font-variant-numeric:tabular-nums}
 .fr__x{font-size:var(--t-micro);color:var(--ink-faint);text-align:right;white-space:nowrap;
   overflow:hidden;text-overflow:ellipsis}
-.fr__x b{font-family:var(--font-condensed);font-size:calc(15px*var(--scale));font-weight:700;
+.fr__x b{font-family:var(--font-condensed);font-size:calc(13.5px*var(--scale));font-weight:700;
   color:var(--ink)}
 .fr__x em{font-style:normal;text-transform:uppercase;letter-spacing:.08em;font-weight:700;
   font-size:calc(9.5px*var(--scale));color:var(--ink-faint)}
@@ -1575,8 +1546,11 @@ body.tv .util{display:none}
 .fr--file .fr__i:focus{background:var(--surface);color:var(--ink);border-style:solid}
 /* And one nobody has filled yet says so, once, in the only colour on the screen. */
 .fr--todo .fr__i{border-color:var(--warn)}
+/* Sales is the one group whose numbers run to eight digits, so it buys its field back out
+   of an echo that is four characters long. */
+.fr--money{grid-template-columns:minmax(0,1fr) 7.4rem minmax(0,4.2rem)}
 .fr__pair{display:contents}
-.fr--ot{grid-template-columns:1fr 4.4rem minmax(0,2fr);min-height:36px}
+.fr--ot{grid-template-columns:minmax(0,1fr) 4.2rem minmax(0,1.9fr);min-height:36px}
 .fr--ot .fr__x{text-align:left;white-space:normal;overflow:visible;padding:4px 0}
 .fr--ot .ticks{justify-content:flex-start}
 .fr--note{grid-template-columns:1fr 6.5rem;row-gap:4px;align-items:start;min-height:0;
@@ -1613,6 +1587,7 @@ body.tv .util{display:none}
 .fill__end b{color:var(--warn)}
 body[data-view="fill"] #edit-btn,body[data-view="fill"] #publish-btn{display:none}
 
+@media(max-width:1560px){.fill__grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:1200px){.fill__grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:820px){.fill__grid{grid-template-columns:minmax(0,1fr)}
   .fill__top{grid-template-columns:1fr}
@@ -1642,23 +1617,41 @@ body.tv.tv-all .wall__top{flex:none;margin:0;align-items:center}
 body.tv.tv-all .wall__dots{display:none}
 body.tv.tv-all #tv-next,body.tv.tv-all #tv-prev{display:none}
 
-/* The families, named once. Same darkness and same saturation so they read as one set and
-   the white knockout works on all of them, and none of them is green, amber or red — those
-   three belong to the verdict and may not be spent on a label. */
-.wall--snap{--fam-safety:#3F6B57;--fam-quality:#4A5162;--fam-production:#5A5470;
-  --fam-shipping:#3E5A72;--fam-financials:#6B5B45;--fam-maintenance:#55606E;
-  --fam-labour:#55606E}
+/* The families, named once — and named loudly.
+   The first set was seven greys with a hint of hue in each, on the argument that colour is
+   the verdict and a label must never borrow it. The argument holds; the execution did not.
+   Side by side at four metres, #3F6B57 and #3E5A72 are the same colour, so a collage that
+   was supposed to be grouped by family read as one grey wall — the room's words were that
+   the colours are not noticeable.
+   These are seven separate hues, spaced around the wheel and held at one darkness so the
+   white knockout works on all of them and no family shouts louder than another. None of
+   them is the green, the amber or the red: those three are the verdict and cannot be spent
+   on a label. Each carries a lit version of itself for the strip under the title, which is
+   what makes the family readable from across a room rather than merely different.
+   Maintenance and Labour are one screen for most plants, so most collages carry six. */
+.wall--snap{
+  --fam-safety:#0E6F5F;      --famlit-safety:#3ECBAC;
+  --fam-quality:#1E5FA8;     --famlit-quality:#6FB0F2;
+  --fam-production:#5240B8;  --famlit-production:#A493F2;
+  --fam-shipping:#8A3AA0;    --famlit-shipping:#D28FE2;
+  --fam-financials:#7A5227;  --famlit-financials:#D6A768;
+  --fam-maintenance:#46586A; --famlit-maintenance:#96AABC;
+  --fam-labour:#A33468;      --famlit-labour:#EE86B4}
+/* One place decides which family a thing belongs to. The bar, the strip, the wash and the
+   legend chip all read `--fam` and `--famlit`, so adding a family is two lines here rather
+   than four rules in four blocks. */
+.wall--snap [data-fam="safety"]{--fam:var(--fam-safety);--famlit:var(--famlit-safety)}
+.wall--snap [data-fam="quality"]{--fam:var(--fam-quality);--famlit:var(--famlit-quality)}
+.wall--snap [data-fam="production"]{--fam:var(--fam-production);--famlit:var(--famlit-production)}
+.wall--snap [data-fam="shipping"]{--fam:var(--fam-shipping);--famlit:var(--famlit-shipping)}
+.wall--snap [data-fam="financials"]{--fam:var(--fam-financials);--famlit:var(--famlit-financials)}
+.wall--snap [data-fam="maintenance"]{--fam:var(--fam-maintenance);--famlit:var(--famlit-maintenance)}
+.wall--snap [data-fam="labour"]{--fam:var(--fam-labour);--famlit:var(--famlit-labour)}
 .legend{display:flex;flex-wrap:wrap;gap:6px 10px;margin-left:var(--s4);min-width:0}
 .legend__i{font-family:var(--font-condensed);font-weight:700;text-transform:uppercase;
   letter-spacing:.09em;font-size:calc(11px*var(--scale));color:#fff;
-  padding:3px 9px;border-radius:3px;white-space:nowrap}
-.legend__i[data-fam="safety"]{background:var(--fam-safety)}
-.legend__i[data-fam="quality"]{background:var(--fam-quality)}
-.legend__i[data-fam="production"]{background:var(--fam-production)}
-.legend__i[data-fam="shipping"]{background:var(--fam-shipping)}
-.legend__i[data-fam="financials"]{background:var(--fam-financials)}
-.legend__i[data-fam="maintenance"]{background:var(--fam-maintenance)}
-.legend__i[data-fam="labour"]{background:var(--fam-labour)}
+  padding:3px 9px;border-radius:3px;white-space:nowrap;background:var(--fam,#55606E);
+  box-shadow:inset 0 -2px 0 var(--famlit,transparent)}
 
 body.tv.tv-all .grid.grid--cards.grid--snap{flex:1 1 auto;min-height:0;display:grid;
   gap:var(--s2);grid-template-columns:repeat(var(--snap-cols,6),minmax(0,1fr));
@@ -1668,14 +1661,17 @@ body.tv.tv-all .grid--snap .card{container-type:size;min-width:0;min-height:0}
 body.tv.tv-all .grid--snap .card *{--cu:min(1cqi,calc(1cqb/1.132));
   --u:calc(var(--cu)*var(--fit,1))}
 body.tv.tv-all .grid--snap .card__head{font-size:min(9cqi,var(--tcap,99px));
-  min-height:1.8em;padding:0 .5em}
-body.tv.tv-all .grid--snap .card[data-fam="safety"] .card__head{background:var(--fam-safety)}
-body.tv.tv-all .grid--snap .card[data-fam="quality"] .card__head{background:var(--fam-quality)}
-body.tv.tv-all .grid--snap .card[data-fam="production"] .card__head{background:var(--fam-production)}
-body.tv.tv-all .grid--snap .card[data-fam="shipping"] .card__head{background:var(--fam-shipping)}
-body.tv.tv-all .grid--snap .card[data-fam="financials"] .card__head{background:var(--fam-financials)}
-body.tv.tv-all .grid--snap .card[data-fam="maintenance"] .card__head{background:var(--fam-maintenance)}
-body.tv.tv-all .grid--snap .card[data-fam="labour"] .card__head{background:var(--fam-labour)}
+  min-height:1.8em;padding:0 .5em;background:var(--fam,var(--card-bar));
+  /* The strip the room asked for: a lit line of the family's own colour along the foot of
+     the bar. The bar itself has to stay dark enough to knock white out of, which caps how
+     loud it can be; the strip is under no such obligation and is what carries across a
+     room. */
+  box-shadow:inset 0 calc(-.13em) 0 var(--famlit,transparent)}
+/* And a breath of the family in the card itself, so a block of six reads as a block before
+   anybody reads a title. Seven per cent: enough to group at four metres, not enough to be
+   mistaken for a verdict — the verdict is the colour of the number and always has been. */
+body.tv.tv-all .grid--snap .card{background:color-mix(in srgb,var(--fam,#888) 7%,var(--surface));
+  border-color:color-mix(in srgb,var(--fam,#888) 26%,var(--rule))}
 body.tv.tv-all .grid--snap .card__flag{display:none}
 
 /* A card sheds what it cannot draw, and it decides for itself.

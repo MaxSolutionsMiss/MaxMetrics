@@ -22,11 +22,11 @@ import {
   currentSession, signOut, myProfile, myLocations,
   loadDepartmentConfig, saveDepartmentConfig, addDepartmentConfig, ensureDepartmentRows,
   loadBudgets, saveBudget, loadPlant, savePlant,
-} from '../db.js?v=3a9539a91d57';
+} from '../db.js?v=18aec8f0da6b';
 import {
   esc, num, money, MONTHS, metricCard, footLine, iconFor, cardTrack,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE,
-} from '../readings.js?v=3a9539a91d57';
+} from '../readings.js?v=18aec8f0da6b';
 
 const $ = selector => document.querySelector(selector);
 
@@ -387,18 +387,36 @@ function shippingPane() {
 // Turning one off removes it rather than blanking it, and the section rearranges around
 // what is left — six quality cards become five and the row re-deals itself, because the
 // arrangement is worked out after the cards are built and not before.
+// The seven families, in the order the meeting walks them, so the one-page switches read in
+// the same order as the screen they govern.
+const FAMILIES = [
+  ['safety', 'Safety'], ['quality', 'Quality'], ['production', 'Production'],
+  ['shipping', 'Shipping'], ['financials', 'Financials'],
+  ['maintenance', 'Maintenance'], ['labour', 'Labour & Overtime'],
+];
+
 function qualityPane() {
   const hidden = new Set(state.plant?.hidden_cards || []);
+  // Two different questions about the same card, so two ticks rather than one.
+  //
+  // The first is whether this plant counts the thing at all; the second is whether it goes
+  // up on a screen the floor walks past. A plant that reads its sales every morning and
+  // does not want them on a corridor TV had no way to say so, and the only workaround —
+  // turning the card off — took it off the dashboard as well.
+  const wallOff = new Set(state.plant?.wall_hidden || []);
   const sections = [];
   for (const card of CARD_CATALOGUE) {
     let group = sections.find(g => g.name === card.section);
     if (!group) sections.push(group = { name: card.section, cards: [] });
     group.cards.push(card);
   }
-  const row = card => `<label class="tog cfg__card">
-    <input type="checkbox" data-card="${esc(card.key)}"${hidden.has(card.key) ? '' : ' checked'}
-      ${canEdit() ? '' : 'disabled'}>
-    <span>${esc(card.name)}</span></label>`;
+  const tick = (attr, key, on) => `<input type="checkbox" data-${attr}="${esc(key)}"${
+    on ? ' checked' : ''}${canEdit() ? '' : ' disabled'}>`;
+  const row = card => `<div class="cfg__two">
+    <span class="cfg__two-n">${esc(card.name)}</span>
+    <label class="tog">${tick('card', card.key, !hidden.has(card.key))}</label>
+    <label class="tog">${tick('wall', card.key, !wallOff.has(card.key))}</label>
+  </div>`;
   const on = sections.reduce((n, g) => n + g.cards.filter(c => !hidden.has(c.key)).length, 0);
   return `<section class="sec">
     <div class="sec__head"><h2 class="sec__title">Cards</h2><div class="sec__rule"></div></div>
@@ -407,23 +425,40 @@ function qualityPane() {
       <h3 class="panel__title">What this plant shows</h3>
       <div class="panel__actions"><span class="pill pill--ok">${on} of ${CARD_CATALOGUE.length} on</span></div></div>
       <div class="panel__body"><p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">
-        Unticking a card removes it from the dashboard and from present mode; the section
-        rearranges around what is left. Production's cards are the plant's departments and
-        are set on the Departments screen. Targets stay on the card itself, in Edit mode.</p>
+        <b>Dashboard</b> is whether this plant carries the card at all — unticked, it is
+        gone from the page and from present mode, and the section rearranges around what is
+        left. <b>One page</b> is whether it goes up on the single broadcast screen, which is
+        a different room: the corridor TV is read by the floor, and sales usually are not.
+        Production's cards are the plant's departments and are set on the Departments
+        screen. Targets stay on the card itself, in Edit mode.</p>
         <label class="tog cfg__card" style="margin-top:var(--s2)">
           <input type="checkbox" data-plant="split_upkeep"${
             state.plant?.split_upkeep ? ' checked' : ''}${canEdit() ? '' : ' disabled'}>
           <span>Keep Labour and Maintenance as separate screens</span></label>
         <p class="cfg__none" style="font-style:normal;color:var(--ink-faint)">
-          Off, they are one screen — four overtime cards and two maintenance ones. On, each
-          gets its own, which suits a plant with a long maintenance list.</p>
+          Off, they are one screen. On, each gets its own, which suits a plant with a long
+          maintenance list.</p>
+      </div></div>
+    <div class="panel" style="margin-top:var(--s3)"><div class="panel__head">
+      <h3 class="panel__title">Whole sections, off the one page</h3>
+      <div class="panel__actions"><span class="pill pill--info">${
+        FAMILIES.filter(([key]) => !wallOff.has(key)).length} of ${FAMILIES.length}</span></div></div>
+      <div class="panel__body">
+        <p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">
+          Faster than unticking a section's cards one at a time, and it takes the family off
+          the legend as well. The walk — one section at a screen — skips it too.</p>
+        <div class="cfg__fams">${FAMILIES.map(([key, name]) => `<label class="tog">
+          ${tick('wall', key, !wallOff.has(key))}<span>${esc(name)}</span></label>`).join('')}</div>
       </div></div>
     <div class="grid g3" style="margin-top:var(--s3)">
       ${sections.map(group => `<div class="panel">
         <div class="panel__head"><h3 class="panel__title">${esc(group.name)}</h3>
           <div class="panel__actions"><span class="pill pill--info">${
             group.cards.filter(c => !hidden.has(c.key)).length} of ${group.cards.length}</span></div></div>
-        <div class="panel__body">${group.cards.map(row).join('')}</div></div>`).join('')}
+        <div class="panel__body">
+          <div class="cfg__two cfg__two--head"><span></span>
+            <span>Dashboard</span><span>One page</span></div>
+          ${group.cards.map(row).join('')}</div></div>`).join('')}
     </div>
   </section>`;
 }
@@ -594,6 +629,17 @@ document.addEventListener('change', async event => {
     state.plant = { ...(state.plant || {}), hidden_cards: list };
     render();
     try { await savePlant(state.location, { hidden_cards: list }); noteSaved(); }
+    catch (error) { toast(error.message); }
+    return;
+  }
+  const wallKey = event.target.dataset?.wall;
+  if (wallKey) {
+    const off = new Set(state.plant?.wall_hidden || []);
+    event.target.checked ? off.delete(wallKey) : off.add(wallKey);
+    const list = [...off];
+    state.plant = { ...(state.plant || {}), wall_hidden: list };
+    render();
+    try { await savePlant(state.location, { wall_hidden: list }); noteSaved(); }
     catch (error) { toast(error.message); }
     return;
   }
