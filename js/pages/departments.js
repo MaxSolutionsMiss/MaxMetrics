@@ -560,7 +560,7 @@ function linkShape(raw) {
     return { ok: false, say: 'This is the file\u2019s address inside the library, not a '
       + 'sharing link \u2014 SharePoint will answer 401 to anyone without a Microsoft '
       + 'session. Use Share \u2192 Anyone with the link, or register MaxMetrics in your '
-      + 'tenant (Route 2 below) and this address will start working exactly as it is.' };
+      + 'tenant (below) and this address will start working exactly as it is.' };
   }
   return null;
 }
@@ -632,29 +632,32 @@ function sourcesPanel() {
     </div></div>
 
   <div class="panel" style="margin-top:var(--s3)"><div class="panel__head">
-    <h3 class="panel__title">Route 1 \u2014 share the file</h3>
-    <div class="panel__actions"><span class="pill pill--info">Five minutes, try first</span></div></div>
+    <h3 class="panel__title">Sharing the file — ruled out here</h3>
+    <div class="panel__actions"><span class="pill pill--stop">Not available</span></div></div>
     <div class="panel__body">
+      <p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">
+        The cheap route is a link SharePoint will answer to anybody: <b>Share</b> → the
+        audience line at the top → <b>Anyone with the link</b>. It has been checked in
+        this tenant and the option is not there. <b>Link settings</b> for DOR V9.xlsx offers
+        exactly three:</p>
       <ol class="steps">
-        <li>Open the <b>KPIs</b> folder in SharePoint and select <b>DOR V9.xlsx</b>.</li>
-        <li>Press <b>Share</b>.</li>
-        <li>The top of the dialogue says who the link is for \u2014 usually <i>People in Max
-          Solutions Inc with the link</i>. <b>Click that line.</b></li>
-        <li>Choose <b>Anyone with the link</b>, set it to <b>Can view</b>, clear any expiry
-          date, and press <b>Apply</b>.</li>
-        <li>Press <b>Copy link</b>. Paste it above, press <b>Save</b>, then press
-          <b>Test</b>.</li>
+        <li><i>People in Max Solutions, Inc</i> — needs a company sign-in.</li>
+        <li><i>Only people with existing access</i> — needs a company sign-in.</li>
+        <li><i>People you choose</i> — named people, by email, inside Max Solutions.</li>
       </ol>
       <p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">
-        <b>If \u201cAnyone with the link\u201d is greyed out or missing,</b> Max Solutions has
-        anonymous links switched off for the whole tenant. Nothing in this dialogue will get
-        round it \u2014 that is a setting only a Microsoft 365 administrator can change, and
-        plenty of companies leave it off deliberately. Go to Route 2.</p>
+        All three require a Microsoft account to be signed in, and MaxMetrics has neither an
+        account nor a mailbox to be invited with, so none of them can work — including
+        <i>People you choose</i>, which is the one that looks closest. Anonymous links are
+        switched off for the whole tenant; that is a Microsoft 365 setting, not a per-file
+        one, and no amount of re-sharing will produce the link. <b>The panel below is the way in.</b>
+        A plant on a tenant that does allow anonymous links can still paste one here and it
+        will be used in preference — the check above will say so.</p>
     </div></div>
 
   <div class="panel" style="margin-top:var(--s3)"><div class="panel__head">
-    <h3 class="panel__title">Route 2 \u2014 give MaxMetrics its own identity</h3>
-    <div class="panel__actions"><span class="pill pill--ok">Always works</span></div></div>
+    <h3 class="panel__title">Give MaxMetrics its own identity</h3>
+    <div class="panel__actions"><span class="pill pill--ok">The way in</span></div></div>
     <div class="panel__body">
       <p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">
         This is the \u201cadd them as a user\u201d you have been looking for. MaxMetrics is a
