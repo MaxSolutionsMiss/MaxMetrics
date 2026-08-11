@@ -1,18 +1,27 @@
 // Signing in. Two panels, one at a time, and no state worth keeping between them.
 
-import { signIn, resetPassword, currentSession } from '../db.js';
+import { signIn, resetPassword, currentSession,
+         mustChangePassword, chooseOwnPassword } from '../db.js';
 
 const $ = selector => document.querySelector(selector);
 
-// Somebody who is already signed in has no business looking at a sign-in form.
+// Somebody who is already signed in has no business looking at a sign-in form — unless they
+// are still carrying the password an administrator handed them, in which case this is
+// exactly where they belong until they have chosen their own.
 const session = await currentSession();
-if (session) location.replace('app/dashboard.html');
+if (session) {
+  if (await mustChangePassword()) showChoose();
+  else location.replace('app/dashboard.html');
+}
 
 function show(panel) {
   $('#sign-in-panel').hidden = panel !== 'sign-in';
   $('#forgot-panel').hidden = panel !== 'forgot';
-  $(panel === 'sign-in' ? '#email' : '#reset-email').focus();
+  $('#choose-panel').hidden = panel !== 'choose';
+  $(panel === 'sign-in' ? '#email' : panel === 'forgot' ? '#reset-email' : '#new-password').focus();
 }
+
+function showChoose() { show('choose'); }
 
 function say(target, text, tone = 'bad') {
   const element = $(target);
@@ -36,6 +45,8 @@ $('#sign-in-form').addEventListener('submit', async event => {
   busy(button, true, 'Sign in');
   try {
     await signIn(email, password);
+    // A temporary password gets you exactly this far.
+    if (await mustChangePassword()) { busy(button, false, 'Sign in'); return showChoose(); }
     location.replace('app/dashboard.html');
   } catch (error) {
     say('#sign-in-message', error.message);
@@ -65,3 +76,25 @@ $('#forgot-link').addEventListener('click', () => {
   show('forgot');
 });
 $('#back-link').addEventListener('click', () => show('sign-in'));
+
+// Choosing your own. There is no way past this panel except through it: the only other
+// thing on the screen is the browser's back button, and going back lands on a session that
+// still has to choose a password.
+$('#choose-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  const password = $('#new-password').value;
+  const again = $('#new-password-again').value;
+  if (password.length < 8) return say('#choose-message', 'Use at least eight characters.');
+  if (password !== again) return say('#choose-message', 'Those two do not match.');
+
+  const button = $('#choose-submit');
+  say('#choose-message', '');
+  busy(button, true, 'Save and continue');
+  try {
+    await chooseOwnPassword(password);
+    location.replace('app/dashboard.html');
+  } catch (error) {
+    say('#choose-message', error.message);
+    busy(button, false, 'Save and continue');
+  }
+});

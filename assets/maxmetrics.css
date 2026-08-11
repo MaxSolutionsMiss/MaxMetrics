@@ -1327,6 +1327,34 @@ body.tv .content.wall{display:flex;flex-direction:column;gap:var(--s4);
 .addp select.inp{flex:0 0 9rem}
 .addp .btn{flex:none}
 .tbl .who__a{margin-right:var(--s2);vertical-align:-3px}
+/* One line per person. It was a row two lines deep with the avatar, the name, a badge and
+   the email stacked, which is a card pretending to be a row — twenty people came out three
+   screens long. Four columns, fixed where they can be, and the eye runs down the access
+   column looking for the one that is wrong. */
+.who__a--sm{width:22px;height:22px;font-size:9.5px}
+.tbl--ppl td{padding-top:5px;padding-bottom:5px}
+.ppl__n{white-space:nowrap;display:flex;align-items:center;gap:var(--s2);min-width:0}
+.ppl__n b{font-weight:600;overflow:hidden;text-overflow:ellipsis}
+.ppl__e{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:18rem}
+.ppl__l{width:9.5rem}
+.ppl__l .inp{height:26px}
+.ppl__a{width:6.5rem}
+.ppl__a .tog{justify-content:flex-end}
+.addp .inp{width:auto;flex:1 1 11rem;min-width:9rem}
+/* The temporary password, shown once and never read back. It is the only thing on the
+   product that has to be copied off a screen, so it is set in a size that survives being
+   read aloud across a desk. */
+.madep{margin-top:var(--s3);padding:var(--s3) var(--s4);border-radius:var(--radius-lg);
+  background:var(--brand-wash);border:1px solid var(--brand)}
+.madep__t{font-size:var(--t-small);color:var(--ink)}
+.madep__p{display:flex;align-items:center;gap:var(--s3);margin-top:var(--s2);flex-wrap:wrap}
+.madep__p span{font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.09em;
+  font-weight:700;color:var(--ink-muted)}
+.madep__p code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:calc(21px*var(--scale));font-weight:600;letter-spacing:.04em;
+  background:var(--surface);border:1px solid var(--rule-strong);border-radius:var(--radius);
+  padding:4px 12px;user-select:all}
+.madep__s{margin:var(--s2) 0 0;font-size:var(--t-micro);color:var(--ink-muted);line-height:1.5}
 .wall__empty{display:grid;place-items:center;flex:1;color:var(--ink-muted);font-size:var(--t-title)}
 /* The readings that rode along under an area's worst one. Present, so nothing is
    hidden; quiet, so the meeting hears the story once. */
@@ -1552,6 +1580,19 @@ body.tv .util{display:none}
 .fr--found .fr__i,.fr--found .fr__t{border-color:var(--brand);
   box-shadow:0 0 0 3px var(--brand-wash)}
 .fill__go{display:flex;gap:var(--s2)}
+/* What resets, written down where somebody filling the morning in can find it. Closed by
+   default: it is the answer to a question asked once and then never again, and a screen
+   that explains itself every day is a screen nobody reads. */
+.resets{grid-column:1/-1;margin-top:var(--s2)}
+.resets summary{font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.08em;
+  font-weight:700;color:var(--ink-faint);cursor:pointer;list-style:none}
+.resets summary::-webkit-details-marker{display:none}
+.resets summary::before{content:"+ ";font-weight:700}
+.resets[open] summary::before{content:"\2212 "}
+.resets__b{display:grid;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));
+  gap:var(--s2) var(--s4);margin-top:var(--s2)}
+.resets__b p{margin:0;font-size:var(--t-micro);color:var(--ink-muted);line-height:1.5}
+.resets__b b{color:var(--ink)}
 
 /* Four assigned columns, not a masonry flow.
    Flowed, the browser decided where each group landed: Sales came under Shipping one morning
@@ -1640,8 +1681,14 @@ body.tv .util{display:none}
 .fg__add{margin-left:auto;height:24px;padding:0 8px;font-size:var(--t-micro)}
 
 /* Maintenance is six things on a line, so it gets six columns rather than a name and a box. */
-.fr--maint{grid-template-columns:minmax(0,1.1fr) minmax(0,1.2fr) 4rem minmax(0,1.7fr) 7.8rem
-  minmax(0,.9fr) 1.5rem;align-items:center;gap:var(--s2);min-height:31px}
+/* Six things on a line, and the line is as short as six things can be made. It was the
+   tallest block on the entry screen for three bookings, which is a poor trade for a table
+   whose whole job is to be glanced at and left alone. */
+.fr--maint{grid-template-columns:minmax(0,1fr) minmax(0,1.1fr) 3.8rem minmax(0,1.7fr) 7.4rem
+  minmax(0,.9fr) 1.3rem;align-items:center;gap:6px;min-height:26px}
+.fr--maint .fr__i--h{padding:0 4px}
+.fr--maint .fr__i{height:24px}
+.fg--wide .fg__rows{gap:1px}
 .fr--head{min-height:0}
 .fr--maint .fr__i{text-align:left}
 .fr--maint .fr__i--h{text-align:right}

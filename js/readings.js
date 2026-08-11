@@ -517,6 +517,8 @@ export const ICONS = {
                     'M8.2 5.6 16.8 10.3']),
   otd:        MARK(TARGET),
   otif:       MARK(TARGET),
+  mtd_otd:    MARK([...CALENDAR, 'M8.6 15.2 11 17.4l4.4-4.4']),
+  ytd_otd:    MARK([...CALENDAR, 'M8.4 16.6v-2.4M12 16.6v-4.6M15.6 16.6v-3.4']),
   mtd_otif:   MARK([...CALENDAR, 'M8.6 15.2 11 17.4l4.4-4.4']),
   ytd_otif:   MARK([...CALENDAR, 'M8.4 16.6v-2.4M12 16.6v-4.6M15.6 16.6v-3.4']),
   // Financials
@@ -608,6 +610,11 @@ export const CARD_CATALOGUE = [
   { section: 'Shipping',    key: 'shorts',        name: 'Shorts' },
   { section: 'Shipping',    key: 'otd',           name: 'OTD' },
   { section: 'Shipping',    key: 'otif',          name: 'OTIF' },
+  // On time, and on time in full. OTIF fails a job that shipped on the day three cartons
+  // short, so a plant can hit every truck in the month and still read ninety-two — which is
+  // an argument the room has been having with one of the two numbers missing from it.
+  { section: 'Shipping',    key: 'mtd_otd',       name: 'MTD OTD' },
+  { section: 'Shipping',    key: 'ytd_otd',       name: 'YTD OTD' },
   { section: 'Shipping',    key: 'mtd_otif',      name: 'MTD OTIF' },
   { section: 'Shipping',    key: 'ytd_otif',      name: 'YTD OTIF' },
   { section: 'Financials',  key: 'fin-mtd',       name: 'Month to date' },
