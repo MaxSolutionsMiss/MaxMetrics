@@ -499,7 +499,10 @@ export const dropSource = id =>
 export const resetMorning = (location, date) =>
   run(() => client.rpc('reset_morning', { loc: location, d: date }), { retry: 0 });
 
-export async function pullSources(location, date) {
+// `only` is one source's id — the Test button beside a link, which asks the one question
+// somebody pasting a link actually has: does this one work? A whole-plant pull to find out
+// takes three fetches and answers about all of them.
+export async function pullSources(location, date, only) {
   const session = await currentSession();
   if (!session) throw new Error('Sign in first.');
   const response = await fetch(`${SUPABASE_URL}/functions/v1/pull`, {
@@ -509,7 +512,7 @@ export async function pullSources(location, date) {
       apikey: SUPABASE_PUBLISHABLE_KEY,
       Authorization: `Bearer ${session.access_token}`,
     },
-    body: JSON.stringify({ location, date }),
+    body: JSON.stringify({ location, date, only }),
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(body.error || 'Nothing could be fetched.');

@@ -1408,6 +1408,26 @@ body.tv .content.wall{display:flex;flex-direction:column;gap:var(--s4);
    here beats saying it three minutes later in a failed pull. */
 .src__k{grid-column:1/-1;font-size:var(--t-micro);color:var(--warn);line-height:1.5}
 .src__k--ok{color:var(--ok)}
+/* Getting a link out of SharePoint has now been attempted four times and lost four times,
+   so the instructions live on the screen where the link is pasted rather than in a message
+   somebody has to go and find. Numbered, because they are steps. */
+.steps{margin:0 0 var(--s2);padding-left:1.4em;display:flex;flex-direction:column;gap:5px;
+  font-size:var(--t-small);color:var(--ink);line-height:1.55}
+.steps code{font-size:var(--t-micro);background:var(--sunk);padding:2px 5px;
+  border-radius:4px;word-break:break-all}
+/* The two shapes of link, side by side. Which one is in your clipboard is the whole
+   question, and it is answerable by looking. */
+.lnkq{display:grid;grid-template-columns:repeat(auto-fit,minmax(17rem,1fr));gap:var(--s3)}
+.lnkq__b{display:flex;flex-direction:column;gap:5px;padding:var(--s3);
+  border-radius:var(--radius);border:1px solid var(--rule)}
+.lnkq__b b{font-family:var(--font-condensed);font-size:calc(15px*var(--scale));
+  text-transform:uppercase;letter-spacing:.05em}
+.lnkq__b code{font-size:var(--t-micro);word-break:break-all;line-height:1.5}
+.lnkq__b span{font-size:var(--t-micro);color:var(--ink-muted);line-height:1.55}
+.lnkq__b--no{background:var(--stop-wash);border-color:var(--stop-rule)}
+.lnkq__b--no b{color:var(--stop)}
+.lnkq__b--yes{background:var(--ok-wash);border-color:var(--ok-rule)}
+.lnkq__b--yes b{color:var(--ok)}
 .src__w{font-size:var(--t-micro);color:var(--ink-faint);white-space:nowrap;
   max-width:26rem;overflow:hidden;text-overflow:ellipsis}
 .src__w--bad{color:var(--stop);white-space:normal;grid-column:1/-1}

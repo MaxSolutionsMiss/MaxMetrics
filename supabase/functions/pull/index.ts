@@ -13,16 +13,16 @@
 // anybody, so a plain fetch works. Cheapest possible integration and it needs nothing from
 // IT — when a tenant allows it.
 //
-// **Microsoft Graph, app-only.** Max Solutions does not allow it. The link pasted into the
-// screen is `…/:x:/r/sites/MaxSolutions-Mississauga/Shared%20Documents/…`, which is not a
-// sharing link at all — it is the file's address inside the library, and SharePoint refuses
-// it to anyone without a session. Signed out, it answers 403 here and 401 from Supabase's
-// egress. No amount of `download=1` changes that.
+// **Microsoft Graph, app-only.** Max Solutions does not allow it. Every link pasted into the
+// screen so far has been `…/:x:/r/sites/…/Shared%20Documents/…` or `…/_layouts/15/Doc.aspx`,
+// which are not sharing links at all — they are the file's address inside the library, and
+// SharePoint refuses them to anyone without a session. Signed out they answer 403 directly
+// and 401 from Supabase's egress. No amount of `download=1` changes that.
 //
 // So when `MS_TENANT_ID`, `MS_CLIENT_ID` and `MS_CLIENT_SECRET` are set, this authenticates
 // as an application and resolves the same URL through Graph's `shares` endpoint, which takes
-// *any* SharePoint address the app is permitted to read — including the one already pasted.
-// Nothing on the screen has to change; the link that was refused starts working.
+// *any* SharePoint address the app is permitted to read — including the ones already pasted.
+// Nothing on the screen has to change; the links that were refused start working.
 
 import { createClient } from 'npm:@supabase/supabase-js@2.52.1';
 
@@ -125,10 +125,12 @@ Deno.serve(async request => {
   const { data: who } = await asCaller.auth.getUser();
   if (!who?.user) return reply({ error: 'Sign in first.' }, 401);
 
-  let body: { location?: string; date?: string };
+  let body: { location?: string; date?: string; only?: string };
   try { body = await request.json(); } catch { return reply({ error: 'Bad request.' }, 400); }
   const location = String(body.location ?? '');
   const date = String(body.date ?? '');
+  // One source, when the screen is asking about one source.
+  const only = String(body.only ?? '');
   if (!location || !date) return reply({ error: 'A plant and a date are needed.' }, 400);
 
   const { data: grant } = await asCaller.from('profile_locations')
@@ -137,12 +139,19 @@ Deno.serve(async request => {
   if (!grant?.can_edit) return reply({ error: 'Your account cannot change this plant.' }, 403);
 
   const admin = createClient(URL_, SERVICE, { auth: { persistSession: false } });
-  const { data: sources } = await admin.from('location_sources')
-    .select('*').eq('location_id', location).eq('enabled', true).order('sort_order');
+  // Testing one file tests it whether or not it is switched on — "Pull it" is about the
+  // morning routine, and somebody checking a link they have just pasted has not decided
+  // about the routine yet.
+  let query = admin.from('location_sources').select('*').eq('location_id', location);
+  if (!only) query = query.eq('enabled', true);
+  const { data: sources } = await query.order('sort_order');
 
-  const live = (sources ?? []).filter((s: { url?: string }) => (s.url ?? '').trim());
+  const live = (sources ?? [])
+    .filter((s: { id?: string }) => !only || s.id === only)
+    .filter((s: { url?: string }) => (s.url ?? '').trim());
   if (!live.length) {
-    return reply({ error: 'No files are linked to this plant yet — Configure, then Data.' }, 400);
+    return reply({ error: only ? 'That file has no link yet.'
+      : 'No files are linked to this plant yet — Configure, then Data.' }, 400);
   }
 
   const out: {
