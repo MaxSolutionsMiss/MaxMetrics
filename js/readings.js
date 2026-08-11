@@ -602,8 +602,9 @@ export const CARD_CATALOGUE = [
   { section: 'Quality',     key: 'cint',          name: 'Internal complaints' },
   { section: 'Quality',     key: 'cext',          name: 'Customer complaints' },
   // The rest of Production is the plant's own departments, set on the Departments screen.
-  // This one is not a department, so it is the one production card that lives here.
+  // These two are not departments, so they are the production cards that live here.
   { section: 'Production',  key: 'pw-week',       name: "Last week's productivity" },
+  { section: 'Production',  key: 'support',       name: 'Customer service, die shop & prepress' },
   { section: 'Shipping',    key: 'jobs_shipped',  name: 'Jobs shipped' },
   { section: 'Shipping',    key: 'cartons',       name: 'Cartons' },
   { section: 'Shipping',    key: 'late',          name: 'Late' },

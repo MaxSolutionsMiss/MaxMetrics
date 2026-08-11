@@ -1725,10 +1725,37 @@ body.tv .util{display:none}
 /* Columns of a readable width, as many as fit, packed from the left — not stretched to fill
    the screen. Four safety readings across 1300px put every box against the right-hand edge
    with a metre of nothing between it and its label. */
-.fill--one .fill__grid{grid-template-columns:repeat(auto-fill,minmax(min(26rem,100%),34rem));
-  justify-content:start;align-items:start}
-.fill--one .fg--wide{grid-column:1/-1;max-width:none}
+/* Cap the group, not the track.
+   `repeat(auto-fill, minmax(26rem, 34rem))` reads like the obvious answer and lays down one
+   column at every width: when a track's maximum is a definite length, auto-fill counts how
+   many of *that* fit, and 34rem plus a gap goes into 1092px exactly once. So the track is
+   `1fr` — which counts by the minimum, as wanted — and the group inside it carries the
+   width limit. One group gets one column the width of a form rather than the width of the
+   screen; three get as many columns as there is room for. */
+.fill--one .fill__grid,.fill__grid--one{
+  grid-template-columns:repeat(auto-fit,minmax(26rem,1fr));
+  justify-items:start;align-items:start}
+.fill--one .fill__grid > *,.fill__grid--one > *{width:100%;max-width:34rem}
+.fill--one .fg--wide,.fill__grid--one .fg--wide{max-width:none}
+@media (max-width:700px){
+  .fill--one .fill__grid,.fill__grid--one{grid-template-columns:minmax(0,1fr)}
+}
+.fill--one .fg--wide,.fill__grid--one .fg--wide{grid-column:1/-1;max-width:none}
 .fill--one .fill__end{max-width:none}
+/* The count beside a section on Enter's rail: a number of things still wanted, or a tick. */
+.sub__t--todo{color:var(--warn);font-weight:800}
+.sub__t--ok{color:var(--ok);font-weight:800}
+/* Enter's own sub-rail is taller than Configure's and sits under a banner, so it gets the
+   banner's height back rather than the top bar's. */
+.fill .sub{margin-top:var(--s1)}
+.fill .sub__body{max-width:none;display:flex;flex-direction:column;gap:var(--s3)}
+/* One of the other two support departments, shown as what it already said rather than as a
+   box — the box is the one the dropdown is pointing at. */
+.fr--quiet .fr__x--said{color:var(--ink-muted);font-size:var(--t-small);white-space:normal}
+/* Who said it, in front of what they said. Not a column: on a card three hundred pixels
+   wide a fixed label width spends half of it on whitespace. */
+.sup__w{color:var(--ink-muted);font-weight:700}
+.sup__w::after{content:" \2014 ";font-weight:400}
 /* Cards or fill-in, in the section's own heading, where the question is being asked. */
 .segs{display:flex;gap:2px;padding:2px;background:var(--sunk);border-radius:var(--radius);
   flex:none}

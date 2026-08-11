@@ -13,8 +13,8 @@ import {
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=7797614a895f';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=7797614a895f';
+} from '../db.js?v=c8ec45ac939f';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=c8ec45ac939f';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
@@ -22,7 +22,7 @@ import {
   isNa, isMissing,
   varianceChip, varianceTone, variancePct,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE,
-} from '../readings.js?v=7797614a895f';
+} from '../readings.js?v=c8ec45ac939f';
 
 const $ = selector => document.querySelector(selector);
 
@@ -51,6 +51,10 @@ const state = {
   // Whether a section screen is showing its cards or asking for its readings. One answer for
   // all of them, because the work it exists for is going down the rail filling each in.
   filling: false,
+  // Which of customer service, the die shop and prepress the comment box is currently on.
+  supportAt: null,
+  // Which screen the entry rail is on.
+  fillAt: 'safety',
 };
 
 // ── Reading the loaded morning ──────────────────────────────────────────────────
@@ -59,6 +63,28 @@ const metric = field => readingOf(state.metrics, field);
 const dept = key => state.departments.find(d => d.dept_key === key) || {};
 const rateOf = row => Number(row?.hours) ? Number(row.qty) / Number(row.hours) : 0;
 const configured = () => state.config.filter(c => c.on_metrics);
+
+// ── The departments that do not make anything ───────────────────────────────────
+//
+// Customer service, the die shop and prepress have no output, no hours and no rate, so they
+// are not departments in the sense the Departments screen means — a plant that added them
+// there would get three production cards asking for sheets per hour. What they have is
+// something to say, occasionally: a job held for a plate, a customer chasing, a die on
+// order. One card, one comment at a time, and whoever is speaking picks which of the three
+// they are. That is the whole of it, because that is the whole of what they asked for.
+//
+// They ride in `daily_review` alongside the production departments — same shape, a note per
+// key per morning — under keys no plant can configure. Everywhere that walks the review
+// rows has to know the difference, which is what `isSupport` is for: these are notes, never
+// readings, so nothing counts them as missing and nothing flags them.
+const SUPPORT = [
+  ['customer_service', 'Customer service'],
+  ['die_shop', 'Die shop'],
+  ['prepress', 'Prepress'],
+];
+const SUPPORT_KEYS = new Set(SUPPORT.map(([key]) => key));
+const isSupport = key => SUPPORT_KEYS.has(key);
+const supportRows = () => (state.review || []).filter(r => isSupport(r.dept_key));
 const budgetFor = month => Number(state.budgets.find(b => b.month === month + 1)?.amount || 0);
 
 // The dot beside a section in the rail and the line at the top of that section are the
@@ -379,6 +405,54 @@ function maintenanceCards() {
         data-field="maintenance_note">${esc(metric('maintenance_note') || '')}</textarea></div>`,
     })}
   `;
+}
+
+// ── Customer service, the die shop and prepress ─────────────────────────────────
+//
+// One card for all three, with whoever has said something named on their own line. Three
+// cards would be three empty cards most mornings, which is a section of the screen spent
+// saying nothing happened.
+//
+// Nothing here is a reading, so nothing is ever "missing": a morning where prepress had
+// nothing to report is a complete morning. The card says so plainly rather than showing a
+// gap, because a gap is a demand and this is an invitation.
+function supportCard() {
+  const said = SUPPORT.map(([key, name]) => {
+    const row = supportRows().find(r => r.dept_key === key);
+    const lines = String(row?.note || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    return lines.length ? { name, lines } : null;
+  }).filter(Boolean);
+
+  return noteCard({
+    pkey: 'support', label: 'Customer service, die shop & prepress',
+    icon: '\u{1F4AC}',
+    html: said.length ? `<ul class="rev__note rev__note--list sup__l">${said.map(s =>
+      s.lines.map(line =>
+        `<li><b class="sup__w">${esc(s.name)}</b>${esc(line)}</li>`).join('')).join('')}</ul>` : '',
+    blank: !said.length,
+    prompt: 'Nothing from customer service, the die shop or prepress.',
+    edit: supportEditor(),
+  });
+}
+
+// The editor, used on the card in Edit mode and on the entry screen alike.
+//
+// A dropdown and one box, because that is what was asked for and it is right: these three
+// speak occasionally, not daily, and three permanent boxes would be two empty ones every
+// morning. Choosing a department loads what that department has already said today, so it
+// is also how yesterday's sentence gets corrected.
+function supportEditor() {
+  const at = state.supportAt || SUPPORT[0][0];
+  const row = supportRows().find(r => r.dept_key === at);
+  return `<div class="er"><label for="sup-who">Who</label>
+      <select class="inp" id="sup-who" aria-label="Which department is commenting">
+        ${SUPPORT.map(([key, name]) =>
+          `<option value="${key}"${key === at ? ' selected' : ''}>${esc(name)}</option>`).join('')}
+      </select></div>
+    <div class="er"><label for="sup-note">Comment</label>
+      <textarea class="inp" id="sup-note" rows="2" placeholder="one per line"
+        aria-label="Comment"
+        data-field="review:${esc(at)}:note">${esc(row?.note || '')}</textarea></div>`;
 }
 
 // The plant names a department "Die Cutting" and the machine list keys it "diecutting".
@@ -718,6 +792,32 @@ function fillMaintenance() {
   </section>`;
 }
 
+function fillSupport() {
+  return fgroup('Customer service, die shop & prepress', () => {
+    const at = state.supportAt || SUPPORT[0][0];
+    const row = supportRows().find(r => r.dept_key === at);
+    return `<div class="fr fr--note fr--wide">
+      <span class="fr__l">Who</span>
+      <select class="inp fr__i fr__i--s" id="sup-who" aria-label="Which department is commenting">
+        ${SUPPORT.map(([key, name]) =>
+          `<option value="${key}"${key === at ? ' selected' : ''}>${esc(name)}</option>`).join('')}
+      </select>
+      <textarea class="inp fr__t" rows="1" placeholder="what they want the room to know"
+        aria-label="Comment"
+        data-field="review:${esc(at)}:note">${esc(row?.note || '')}</textarea>
+    </div>
+    ${SUPPORT.filter(([key]) => key !== at).map(([key, name]) => {
+      const other = supportRows().find(r => r.dept_key === key);
+      const lines = String(other?.note || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      // What the other two have already said, readable without switching to them. Somebody
+      // typing into prepress needs to know the die shop has covered it.
+      return lines.length ? `<div class="fr fr--note fr--wide fr--quiet">
+        <span class="fr__l">${esc(name)}</span>
+        <span class="fr__x fr__x--said">${esc(lines.join(' · '))}</span></div>` : '';
+    }).join('')}`;
+  }, 'One at a time — pick who is speaking. Nothing here is required.');
+}
+
 function fillNotes() {
   const list = configured();
   return fgroup('The last 24 hours', () => {
@@ -755,14 +855,36 @@ const SECTIONS = {
     // DOR had already supplied, and complete because every box had something in it even
     // when four departments had never confirmed their last twenty-four hours.
     const gaps = absent(state.findings);
-    // Three columns of numbers, then the two things that are sentences and take the width.
-    // Assigned rather than flowed: masonry put Sales under Shipping one morning and under
-    // Safety the next, so nobody could learn where anything was.
-    const groups = `<div class="fill__col">${fillSafety()}${fillQuality()}</div>
-      <div class="fill__col">${fillProduction()}${fillMoney()}</div>
-      <div class="fill__col">${fillShipping()}${fillOvertime()}</div>
-      <div class="fill__col">${fillNotes()}</div>
-      ${fillMaintenance()}`;
+    // One section at a time, down a rail.
+    //
+    // Every group of every section on one page was the screen this replaces — four columns
+    // of boxes with no order to them, in the room's word a collage, and the answer to "where
+    // do I put safety" was to hunt. The subject splits down the left exactly the way the
+    // dashboard's own rail splits it, so entering a morning is: click Safety, type, click
+    // Quality, type. The counts ride on the rail, so you can see which sections still want
+    // something without opening any of them.
+    //
+    // All of it is still there, last on the rail, because a plant that has learnt the collage
+    // should not have it taken away and there are mornings where one page is the faster read.
+    // Every finding already knows which section it belongs to, so the rail's counts are the
+    // assessment's own answer rather than a second opinion about it.
+    // `order()` already decides whether maintenance is its own screen or part of labour;
+    // asking it again here is how the two would come to disagree.
+    const tabs = FILL_TABS.filter(t => t.key === '_all' || order().includes(t.key)).map(t => {
+      const left = t.key === '_all' ? gaps.length
+        : gaps.filter(g => g.section === t.key).length;
+      return { ...t, name: t.key === '_all' ? t.name : TITLES[t.key],
+               tag: left ? String(left) : '✓' };
+    });
+    const at = tabs.find(t => t.key === state.fillAt) ? state.fillAt : tabs[0].key;
+
+    const groups = at === '_all'
+      ? `<div class="fill__col">${fillSafety()}${fillQuality()}</div>
+         <div class="fill__col">${fillProduction()}${fillMoney()}</div>
+         <div class="fill__col">${fillShipping()}${fillOvertime()}</div>
+         <div class="fill__col">${fillNotes()}${fillSupport()}</div>
+         ${fillMaintenance()}`
+      : FILL_FOR[at]();
     const published = state.metrics?.status === 'published';
     // Two shapes, because two states. Outstanding readings get the big count and the list
     // of them; a morning with nothing outstanding does not need a banner the height of a
@@ -776,8 +898,8 @@ const SECTIONS = {
         </div>
         ${gaps.length
           ? `<div class="fill__gaps">${gaps.slice(0, 8).map(r =>
-              `<button class="gap gap--sm" data-goto="${esc(r.field || '')}">${
-                esc(r.title)}</button>`).join('')}${
+              `<button class="gap gap--sm" data-goto="${esc(r.field || '')}"
+                 data-goto-at="${esc(r.section || '')}">${esc(r.title)}</button>`).join('')}${
               gaps.length > 8 ? `<span class="fill__more">and ${gaps.length - 8} more</span>` : ''}</div>`
           : `<p class="fill__say">Everything else arrives from the DOR, the OTIF sheet and the
               monthly KPI workbook, and is shown here so it can be corrected \u2014 not so it
@@ -807,17 +929,31 @@ const SECTIONS = {
           </div>
         </details>
       </div>
-      <div class="fill__grid">${groups}</div>
-      <div class="fill__end">
-        <p>${gaps.length ? `<b>${gaps.length}</b> still to fill in. A morning can be published
-              incomplete, but somebody has to say why \u2014 every screen will carry the note.`
-          : published ? 'Published. Every screen is showing this morning.'
-          : 'Nothing left to fill in.'}</p>
-        <div class="fill__go">
-          <button class="btn" data-nav="overview">See the cards</button>
-          ${state.canEdit ? `<button class="btn ${gaps.length ? '' : 'btn--go'}" id="fill-publish">${
-            gaps.length ? `Publish anyway \u2014 ${gaps.length} missing`
-              : published ? 'Publish again' : 'Publish this morning'}</button>` : ''}
+      <div class="sub">
+        <nav class="sub__rail" aria-label="What to fill in">
+          ${tabs.map(t => `<button class="sub__b" data-filltab="${esc(t.key)}"
+            aria-current="${t.key === at}">
+            <b>${esc(t.name)}<i class="sub__t${t.tag === '\u2713' ? ' sub__t--ok' : ' sub__t--todo'}"
+              >${t.tag}</i></b>
+            <span>${esc(t.sub)}</span></button>`).join('')}
+        </nav>
+        <div class="sub__body">
+          <div class="fill__grid${at === '_all' ? '' : ' fill__grid--one'}">${groups}</div>
+          <div class="fill__end">
+            <p>${gaps.length ? `<b>${gaps.length}</b> still to fill in across the morning. It can
+                  be published incomplete, but somebody has to say why \u2014 every screen will
+                  carry the note.`
+              : published ? 'Published. Every screen is showing this morning.'
+              : 'Nothing left to fill in.'}</p>
+            <div class="fill__go">
+              ${at === '_all' || !nextFillTab(at) ? '<button class="btn" data-nav="overview">See the cards</button>'
+                : `<button class="btn" data-filltab="${esc(nextFillTab(at))}">${
+                    esc(TITLES[nextFillTab(at)] || 'Next')} next</button>`}
+              ${state.canEdit ? `<button class="btn ${gaps.length ? '' : 'btn--go'}" id="fill-publish">${
+                gaps.length ? `Publish anyway \u2014 ${gaps.length} missing`
+                  : published ? 'Publish again' : 'Publish this morning'}</button>` : ''}
+            </div>
+          </div>
         </div>
       </div>
     </div>`;
@@ -908,7 +1044,8 @@ const SECTIONS = {
     ${gaps.length ? `<div class="settled">
       <div class="sec__head"><span class="eyebrow">Not entered yet</span><div class="sec__rule"></div></div>
       <div class="gaps">${gaps.map(r =>
-        `<button class="gap" data-goto="${esc(r.field || '')}">
+        `<button class="gap" data-goto="${esc(r.field || '')}"
+            data-goto-at="${esc(r.section || '')}">
            <span class="gap__t">${esc(r.title)}</span>
            <span class="gap__a">${esc(r.area)}</span></button>`).join('')}</div>
     </div>` : ''}
@@ -1116,7 +1253,10 @@ const SECTIONS = {
     // of what made this screen look, in the room's word, unorganised. One shape, one bar,
     // one line for the title, and the status is the border and the flag exactly as it is
     // everywhere else.
-    const review = state.review.map(row => {
+    // Support has its own card and must not turn up here as well: a card headed "Prepress"
+    // in a grid of departments reads as a department, and the next question is why it has
+    // no rate.
+    const review = state.review.filter(row => !isSupport(row.dept_key)).map(row => {
       const config = state.config.find(c => c.key === row.dept_key);
       // Three states, not two. A department that answered "no issue" has said something and
       // the card says it back; a department nobody has asked yet has said nothing, and the
@@ -1141,7 +1281,8 @@ const SECTIONS = {
     // One grid, and the departments and the week they just had are in it together. A plant
     // that adds a fourth and a fifth department wraps onto a second row and the week card
     // wraps with them, which is what the full-width table could never do.
-    return `<div class="grid grid--cards" data-grid="production">${weekCard()}${cards}</div>
+    return `<div class="grid grid--cards" data-grid="production">${weekCard()}${
+      supportCard()}${cards}</div>
     ${review ? `<div class="sec__head" style="margin-top:var(--s3)">
       <h3 class="sec__title" style="font-size:var(--t-lead)">Review \u2014 last 24 hours</h3>
       <div class="sec__rule"></div></div>
@@ -1460,7 +1601,7 @@ const FILL_FOR = {
   safety:      () => fillSafety(),
   // The review is per department, and the departments are Production's — so the last
   // twenty-four hours belongs on the screen whose cards it draws, not on a screen of its own.
-  production:  () => fillProduction() + fillNotes(),
+  production:  () => fillProduction() + fillNotes() + fillSupport(),
   quality:     () => fillQuality(),
   shipping:    () => fillShipping(),
   financials:  () => fillMoney(),
@@ -1472,6 +1613,27 @@ const FILL_FOR = {
 const nextToFill = key => {
   const list = order().filter(k => FILL_FOR[k]);
   return list[list.indexOf(key) + 1] || null;
+};
+
+// The order Enter walks, which is the order the meeting walks — what happened to people,
+// what the plant made, what left the building, what it earned, what needs fixing. The
+// sub-headings are what somebody scanning the rail needs in order to pick, not a description
+// of the section: "jobs, cartons, late, short" beats "shipping figures".
+const FILL_TABS = [
+  { key: 'safety',      sub: 'Injuries and near-misses' },
+  { key: 'quality',     sub: 'Shortages, NCRs, complaints, COQ' },
+  { key: 'production',  sub: 'Output and hours, last 24 hours, support' },
+  { key: 'shipping',    sub: 'Jobs, cartons, late, short' },
+  { key: 'financials',  sub: "Yesterday's sales" },
+  { key: 'labour',      sub: 'Overtime, and what is booked in' },
+  { key: 'maintenance', sub: 'What is booked in' },
+  { key: '_all', name: 'All of it', sub: 'The whole morning on one page' },
+];
+
+const nextFillTab = key => {
+  const list = FILL_TABS.filter(t => t.key === '_all' || order().includes(t.key)).map(t => t.key);
+  const next = list[list.indexOf(key) + 1];
+  return next && next !== '_all' ? next : null;
 };
 
 const modeSwitch = () => `<div class="segs" role="group" aria-label="What this screen shows">
@@ -2162,7 +2324,13 @@ function applyLocally(name, value) {
     else state.labour.push({ dept_key: first, [second]: value });
   } else if (kind === 'review') {
     const row = state.review.find(r => r.dept_key === first);
+    // A row that is not there yet is made, the way labour's is. Opening a morning seeds a
+    // review row for every configured department, so this never came up — until customer
+    // service, the die shop and prepress, which are not configured departments and have no
+    // row until somebody types. Without this the write reached the database and the card
+    // went on saying nobody had spoken until the page was reloaded.
     if (row) row[second] = value;
+    else state.review.push({ dept_key: first, status: null, note: '', [second]: value });
   } else if (kind === 'budget') {
     const month = Number(first);
     const existing = state.budgets.find(b => b.month === month);
@@ -2344,6 +2512,26 @@ document.addEventListener('click', event => {
   if (event.target.closest('#reset-day')) startAgain();
 });
 
+// Moving between the screens of Enter. The box being typed in is flushed on the way out —
+// clicking a rail item is leaving a field, and a field that is left has been finished with.
+document.addEventListener('click', async event => {
+  const tab = event.target.closest('[data-filltab]');
+  if (!tab) return;
+  await flushWrites();
+  state.fillAt = tab.dataset.filltab;
+  render();
+  window.scrollTo(0, 0);
+});
+
+// Switching which of the three support departments is being commented on. It only changes
+// which note is in the box — nothing is written, because nothing has been typed yet.
+document.addEventListener('change', event => {
+  if (event.target.id !== 'sup-who') return;
+  state.supportAt = event.target.value;
+  render();
+  document.querySelector('#sup-note, [data-field^="review:"][id]')?.focus?.();
+});
+
 // Cards or fill-in, and the answer sticks. Somebody working down the rail filling sections
 // in should not have to say so again on every screen.
 document.addEventListener('click', event => {
@@ -2408,8 +2596,15 @@ document.addEventListener('click', event => {
     row.classList.add('fr--found');
     setTimeout(() => row.classList.remove('fr--found'), 1600);
   };
-  if (state.active !== 'fill') { state.active = 'fill'; render(); requestAnimationFrame(land); }
-  else land();
+  // Enter is one section at a screen now, so a missing reading has to say which screen it
+  // is on as well as which box — otherwise the jump lands on Enter and the field is not
+  // there, which reads as the button being broken.
+  const at = jump.dataset.gotoAt;
+  const moved = at && order().includes(at) && state.fillAt !== at;
+  if (moved) state.fillAt = at;
+  if (state.active !== 'fill' || moved) {
+    state.active = 'fill'; render(); requestAnimationFrame(land);
+  } else land();
 });
 
 // Publishing an incomplete morning takes a deliberate act and a reason.
