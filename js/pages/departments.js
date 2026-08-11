@@ -24,12 +24,12 @@ import {
   loadBudgets, saveBudget, loadPlant, savePlant,
   peopleAt, grantAccess, revokeAccess, setAdmin,
   createPerson, updatePerson, resetPersonPassword, removePerson,
-  loadSources, saveSource,
-} from '../db.js?v=8c189b277551';
+  loadSources, saveSource, addSource, dropSource,
+} from '../db.js?v=c00361f88b43';
 import {
   esc, money, MONTHS, iconFor,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE,
-} from '../readings.js?v=8c189b277551';
+} from '../readings.js?v=c00361f88b43';
 
 const $ = selector => document.querySelector(selector);
 
@@ -41,7 +41,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 const state = { me: null, locations: [], location: null, config: [], draft: null, plant: null,
                 pane: 'departments', budgets: [], year: new Date().getFullYear(), people: null,
                 madePerson: null, editing: null, adding: false, editingPerson: null,
-                sources: null };
+                sources: null, dataTab: 'linked' };
 
 // ── The panes ───────────────────────────────────────────────────────────────────
 //
@@ -68,6 +68,11 @@ const PANES = [
     admin: true,
     icon: 'M9 11.5a3.4 3.4 0 100-6.8 3.4 3.4 0 000 6.8M3 20a6 6 0 0112 0M16.4 11.6a2.9 2.9 0 100-5.8M17 14.4a5.4 5.4 0 013.8 5.2' },
 ];
+
+// The rail somebody actually gets. An account that is not an administrator is not shown a
+// door it cannot open — but the filter is a courtesy, not the lock, and the comment above
+// is the load-bearing part: every write the People pane makes is checked in the database.
+const panes = () => PANES.filter(p => !p.admin || state.me?.is_admin);
 
 // ── What a plant is likely to be adding ─────────────────────────────────────────
 //
@@ -498,70 +503,114 @@ function sourcesPanel() {
     return `${source.last_status === 'ok' ? 'pulled' : 'tried'} ${at.toLocaleString('en-US', {
       month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`;
   };
+  const linked = sources.filter(s => (s.url || '').trim()).length;
   return `<div class="panel"><div class="panel__head">
     <span class="card__ico" aria-hidden="true">\u{1F517}</span>
     <h3 class="panel__title">Linked files</h3>
-    <div class="panel__actions"><span class="pill pill--${
-      sources.filter(s => (s.url || '').trim()).length ? 'ok' : 'warn'}">${
-      sources.filter(s => (s.url || '').trim()).length} of ${sources.length} linked</span></div>
+    <div class="panel__actions">
+      <span class="pill pill--${linked ? 'ok' : 'warn'}">${linked} of ${sources.length} linked</span>
+      <button class="btn btn--ghost" id="add-source">Add a file</button></div>
     </div>
     <div class="panel__body">
-      <p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">
-        <b>Pull data</b> on the dashboard goes and gets these. Paste a link that returns the
-        file itself: in SharePoint or OneDrive that is <b>Share \u2192 Anyone with the link
-        \u2192 Copy</b>. A link restricted to people inside Max Solutions needs a Microsoft
-        sign-in, and MaxMetrics is not signed in to your tenant \u2014 it would be handed a
-        sign-in page instead of a workbook, and it will say so here when that happens.</p>
       ${sources.map(source => `<div class="src">
-        <div class="src__h"><b>${esc(source.name)}</b>
-          <span class="src__k">${esc(SOURCE_HELP[source.kind] || '')}</span></div>
+        <div class="src__h">
+          <input class="inp src__n" type="text" data-source-name="${esc(source.id)}"
+            value="${esc(source.name)}" aria-label="What this file is called">
+          <select class="inp src__t" data-source-kind="${esc(source.id)}"
+            aria-label="What kind of file">
+            ${[['dor', 'Production (DOR)'], ['otif', 'Shipping (OTD / OTIF)'],
+               ['kpi', 'Quality and money (KPI)'], ['other', 'Something else']].map(([v, t]) =>
+              `<option value="${v}"${source.kind === v ? ' selected' : ''}>${t}</option>`).join('')}
+          </select>
+          <label class="tog"><input type="checkbox" data-source-on="${esc(source.id)}"${
+            source.enabled ? ' checked' : ''}><span>Pull it</span></label>
+          <button class="lnk src__x" data-drop-source="${esc(source.id)}"
+            aria-label="Remove ${esc(source.name)}">\u00d7</button>
+        </div>
         <input class="inp" type="url" data-source="${esc(source.id)}"
           aria-label="${esc(source.name)} link"
-          placeholder="https://maxsolutions.sharepoint.com/..." value="${esc(source.url || '')}">
-        <label class="tog"><input type="checkbox" data-source-on="${esc(source.id)}"${
-          source.enabled ? ' checked' : ''}><span>Pull this one</span></label>
+          placeholder="https://maxsolutionsinc.sharepoint.com/..." value="${esc(source.url || '')}">
         <span class="src__w${source.last_status === 'failed' ? ' src__w--bad' : ''}">${
           esc(when(source))}${source.last_note ? ` \u00b7 ${esc(source.last_note)}` : ''}</span>
-      </div>`).join('') || '<p class="cfg__none">No sources set up for this plant.</p>'}
+      </div>`).join('') || '<p class="cfg__none">No files linked yet.</p>'}
+    </div></div>
+
+  <div class="panel" style="margin-top:var(--s3)"><div class="panel__head">
+    <h3 class="panel__title">Why a link is refused, and the two ways round it</h3></div>
+    <div class="panel__body">
+      <p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">
+        A link like <code>\u2026/:x:/r/sites/MaxSolutions-Mississauga/Shared%20Documents/\u2026</code>
+        is not a sharing link \u2014 it is the file\u2019s address inside the library, and
+        SharePoint refuses it to anyone without a Microsoft session. Signed out it answers
+        <b>401</b>, which is exactly what you are seeing. Adding <code>?download=1</code>
+        changes nothing.</p>
+      <p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">
+        <b>The quick way.</b> Open the file in SharePoint, <b>Share</b>, change the permission
+        from <i>People in Max Solutions</i> to <b>Anyone with the link</b>, copy that link and
+        paste it above. Test it by opening it in a private window with no Microsoft session:
+        if the file downloads, MaxMetrics can fetch it. Many tenants have this switched off.</p>
+      <p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">
+        <b>The way that always works.</b> Register MaxMetrics as an application in your
+        Microsoft tenant and it signs in as itself \u2014 then the links you have already
+        pasted start working, unchanged. Ask IT for an app registration with the application
+        permission <code>Sites.Read.All</code> (admin consent granted), and send back three
+        things: <b>Directory (tenant) ID</b>, <b>Application (client) ID</b> and a
+        <b>client secret</b>. They go into MaxMetrics\u2019 server settings, never into this
+        page.</p>
     </div></div>`;
 }
 
+// ── Data ────────────────────────────────────────────────────────────────────────
+//
+// Four subjects that happen to share a heading: where the files live, getting a morning in,
+// getting one out, and what the old dashboard's exports are. Drawn as one page they were
+// four panels stacked down a screen with the important one — the linked files — the same
+// size as a paragraph about printing.
+//
+// A second rail, the same shape as the one on the left. It is a pattern the plant already
+// knows from MaxDock, and it means the pane in front of you is about one thing.
+const DATA_TABS = [
+  { key: 'linked', name: 'Linked files', sub: 'Where the numbers come from' },
+  { key: 'inout',  name: 'Import, export, print', sub: 'A morning, by hand' },
+  { key: 'legacy', name: 'The old dashboard', sub: 'Reading its .json exports' },
+];
+
 function dataPane() {
   const back = `dashboard.html?do=`;
-  return `<section class="sec">
-    <div class="sec__head"><h2 class="sec__title">Data</h2><div class="sec__rule"></div></div>
-    ${sourcesPanel()}
-    <p class="verdict verdict--none" style="margin-top:var(--s3)">Everything else that gets a
-      morning in or out. Importing writes into the morning you are looking at, so it opens on
-      the dashboard.</p>
-    <div class="grid g3">
+  const tab = DATA_TABS.find(t => t.key === state.dataTab) || DATA_TABS[0];
+  const body = {
+    linked: () => sourcesPanel(),
+    inout: () => `<div class="grid g3">
       ${[
-        ['📥', 'Import', 'import',
-         'The plant\'s workbooks for this morning — DOR_V9.xlsx and OTDOTIF.xlsx — or a .json export from the old dashboard for its history. Nothing is written until you have seen what the files say.'],
-        ['📤', 'Export', 'export',
+        ['\u{1F4E5}', 'Import', 'import',
+         'The plant\u2019s workbooks for this morning, or a .json export from the old dashboard for its history. Nothing is written until you have seen what the files say.'],
+        ['\u{1F4E4}', 'Export', 'export',
          'The morning as a CSV, exactly as it is on screen. It takes what the room just read rather than re-querying, so an export can never disagree with the dashboard it came from.'],
-        ['🖨️', 'Print', 'print',
+        ['\u{1F5A8}\uFE0F', 'Print', 'print',
          'The morning as paper or a PDF. The rail, the top bar and every control drop out, and the sections run down the page without splitting a card across two sheets.'],
-      ].map(([icon, name, action, body]) => `<div class="panel">
+      ].map(([icon, name, action, says]) => `<div class="panel">
         <div class="panel__head"><span class="card__ico" aria-hidden="true">${icon}</span>
           <h3 class="panel__title">${name}</h3></div>
         <div class="panel__body">
-          <p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">${esc(body)}</p>
-          <a class="btn btn--primary" style="margin-top:var(--s3)"
-             href="${back}${action}">${name} a morning</a>
+          <p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">${says}</p>
+          <a class="btn btn--primary" href="${back}${action}">${name} a morning</a>
         </div></div>`).join('')}
-    </div>
-    <div class="panel" style="margin-top:var(--s3)">
-      <div class="panel__head"><span class="card__ico" aria-hidden="true">🗂️</span>
-        <h3 class="panel__title">The old dashboard's JSON</h3></div>
-      <div class="panel__body">
-        <p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">
-          A <code>.json</code> file written by <code>Daily_Morning_Dashboard_Vr 22.html</code> is
-          read as history: each morning it contains is written to the date it happened on, and
-          a reading somebody has already entered is never replaced. The preview lists every
-          key it recognised <b>and every key it did not</b> — if a field of yours is in the
-          second list, that is the list to send back.</p>
-      </div></div>
+      </div>`,
+    legacy: () => `<div class="panel">
+      <div class="panel__head"><span class="card__ico" aria-hidden="true">\u{1F5C2}\uFE0F</span>
+        <h3 class="panel__title">The old dashboard\u2019s JSON</h3></div>
+      <div class="panel__body"><p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">
+        A <code>.json</code> file written by <code>Daily_Morning_Dashboard_Vr 22.html</code> is
+        read as history: each morning it contains is written to the date it happened on, and a
+        reading somebody has already entered is never replaced. The preview lists every key it
+        recognised <b>and every key it did not</b> \u2014 if a field of yours is in the second
+        list, that is the list to send back.</p></div></div>`,
+  };
+  return `<section class="sec">
+    <div class="tabs">${DATA_TABS.map(t => `<button class="tabs__b" data-datatab="${t.key}"
+      aria-current="${t.key === tab.key}"><b>${esc(t.name)}</b>
+      <span>${esc(t.sub)}</span></button>`).join('')}</div>
+    <div class="tabs__body">${body[tab.key]()}</div>
   </section>`;
 }
 
@@ -576,7 +625,8 @@ function dataPane() {
 //
 // Administrator is a separate question — it is about MaxMetrics rather than about a plant,
 // so it is a tick on the person rather than a fourth level. An administrator can add people
-// and set levels at every plant; it does not, by itself, give them a plant.
+// and set levels at every plant; it does not, by itself, give them a plant. There can be as
+// many as the plant wants: it is a tick, not a seat.
 //
 // Somebody who has never signed in can still be added. There is no account to grant
 // anything to, so the grant waits in `pending_access` and the signup trigger applies it —
@@ -604,7 +654,10 @@ function peoplePane() {
     const level = levelOf(person);
     const key = person.profile_id || `email:${person.email}`;
     // Open for editing: the row becomes the form rather than opening a dialogue over it, so
-    // the person you are changing stays in the list you found them in.
+    // the person you are changing stays in the list you found them in. Everything that can
+    // be done to an account is on this one line — rename, re-address, re-issue the password,
+    // and remove — because a screen that can add somebody and not remove them is a screen
+    // that leaves last year's staff holding a login.
     if (person.profile_id && state.editingPerson === person.profile_id) {
       return `<tr data-person="${esc(key)}" class="ppl--open"><td colspan="5">
         <div class="pplf">
@@ -684,11 +737,11 @@ function peoplePane() {
             <button class="btn btn--ghost" id="copy-password">Copy</button></div>
           <p class="madep__s">Give them this once. MaxMetrics will require them to choose
             their own password the first time they sign in, and this one stops working the
-            moment they do. It is not stored anywhere you can read it back \u2014 if it is
+            moment they do. It is not stored anywhere you can read it back — if it is
             lost, press Add again for the same address and a new one is issued.</p>
         </div>` : `<p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">
           MaxMetrics makes the account and hands you a temporary password to pass on. They
-          choose their own the first time they sign in. Nothing is emailed \u2014 this project
+          choose their own the first time they sign in. Nothing is emailed — this project
           has no outbound mail set up, and a sign-in that depends on one silently is a
           sign-in that fails on a Monday. Adding somebody who already has an account resets
           their password and gives them this plant.</p>`}
@@ -713,8 +766,6 @@ const PANE_BODY = {
   departments: departmentsPane, financials: financialsPane, quality: qualityPane,
   shipping: shippingPane, data: dataPane, people: peoplePane,
 };
-
-const panes = () => PANES.filter(pane => !pane.admin || state.me?.is_admin);
 
 function renderNav() {
   $('#nav').innerHTML = `<a class="rail__link" href="dashboard.html" title="Daily dashboard">
@@ -809,6 +860,16 @@ function redrawSoon() {
 
 let sourceTimer;
 document.addEventListener('input', event => {
+  const sourceName = event.target.dataset?.sourceName;
+  if (sourceName) {
+    const name = event.target.value;
+    clearTimeout(sourceTimer);
+    sourceTimer = setTimeout(async () => {
+      try { await saveSource(sourceName, { name }); noteSaved(); }
+      catch (error) { toast(error.message); }
+    }, 500);
+    return;
+  }
   const source = event.target.dataset?.source;
   if (source) {
     const url = event.target.value.trim();
@@ -932,6 +993,32 @@ document.addEventListener('click', async event => {
     return;
   }
 
+  const dataTab = event.target.closest('[data-datatab]');
+  if (dataTab) {
+    state.dataTab = dataTab.dataset.datatab;
+    render();
+    return;
+  }
+  const addSrc = event.target.closest('#add-source');
+  if (addSrc) {
+    try {
+      const made = await addSource(state.location, 'other', 'Another file',
+        (state.sources || []).length + 1);
+      if (made) state.sources = [...(state.sources || []), made];
+      render();
+    } catch (error) { toast(error.message); }
+    return;
+  }
+  const dropSrc = event.target.closest('[data-drop-source]');
+  if (dropSrc) {
+    try {
+      await dropSource(dropSrc.dataset.dropSource);
+      await loadLinked();
+      render();
+      noteSaved();
+    } catch (error) { toast(error.message); }
+    return;
+  }
   if (event.target.closest('#show-add')) {
     state.adding = !state.adding;
     render();
@@ -1060,6 +1147,14 @@ async function addPerson() {
 }
 
 document.addEventListener('change', async event => {
+  const sourceKind = event.target.dataset?.sourceKind;
+  if (sourceKind) {
+    try {
+      await saveSource(sourceKind, { kind: event.target.value });
+      await loadLinked(); render(); noteSaved();
+    } catch (error) { toast(error.message); }
+    return;
+  }
   const sourceOn = event.target.dataset?.sourceOn;
   if (sourceOn) {
     try {
