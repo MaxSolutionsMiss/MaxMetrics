@@ -11,7 +11,7 @@ import {
   loadUpcoming, addMaintenance, saveMaintenance, removeMaintenance,
   saveField, saveDepartment, saveReview,
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
-  pullSources,
+  pullSources, resetMorning,
   importHistory,
 } from '../db.js';
 import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js';
@@ -493,21 +493,30 @@ const sourceOf = name => Object.keys(FROM_FILE).find(file => FROM_FILE[file].inc
 // that has never been seen says so rather than pretending.
 const SOURCE_NAMES = { DOR: 'DOR', OTIF: 'OTIF sheet', KPI: 'KPI workbook' };
 
+// The clock a person actually reads off a wall: half past seven, not 07:30:00.000Z.
+const clockAt = when =>
+  when.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).toLowerCase();
+const dayAt = when => `${when.getDate()} ${MONTHS[when.getMonth()].slice(0, 3)}`;
+
 function sourceStrip() {
   const seen = state.metrics?.source_seen || {};
+  // A mark and a time, because that is the question being asked: did it come in, and when.
+  // "DOR — not seen" reads like a fault report for the ordinary case of a morning nobody
+  // has pulled yet; a grey dot and "no pull yet" says the same thing without the alarm, and
+  // a tick with a time answers it outright.
   const items = Object.keys(FROM_FILE).map(key => {
     const stamp = seen[key.toLowerCase()] || seen[key];
-    if (!stamp) return [key, 'not seen', 'gap'];
-    const when = new Date(stamp);
-    if (Number.isNaN(+when)) return [key, 'not seen', 'gap'];
+    const when = stamp ? new Date(stamp) : null;
+    if (!when || Number.isNaN(+when)) return [key, '·', 'no pull yet', 'gap'];
     const days = daysBetween(when.toISOString().slice(0, 10), state.date);
-    const said = days <= 0 ? when.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-      : days === 1 ? 'yesterday' : `${days} days ago`;
-    return [key, said, days <= 0 ? 'ok' : days === 1 ? '' : 'warn'];
+    if (days <= 0) return [key, '✓', clockAt(when), 'ok'];
+    if (days === 1) return [key, '✓', `yesterday ${clockAt(when)}`, ''];
+    return [key, '!', `${dayAt(when)} · ${days} days ago`, 'warn'];
   });
-  return `<div class="fsrc">${items.map(([key, said, tone]) =>
+  return `<div class="fsrc">${items.map(([key, mark, said, tone]) =>
     `<span class="fsrc__i${tone ? ` fsrc__i--${tone}` : ''}">
-       <b>${esc(SOURCE_NAMES[key] || key)}</b><i>${esc(said)}</i></span>`).join('')}</div>`;
+       <span class="fsrc__m" aria-hidden="true">${mark}</span
+       ><b>${esc(SOURCE_NAMES[key] || key)}</b><i>${esc(said)}</i></span>`).join('')}</div>`;
 }
 
 // A row: what it is, the box, and what the box does to the morning. The third column is the
@@ -752,11 +761,15 @@ const SECTIONS = {
       <div class="fill__col">${fillNotes()}</div>
       ${fillMaintenance()}`;
     const published = state.metrics?.status === 'published';
+    // Two shapes, because two states. Outstanding readings get the big count and the list
+    // of them; a morning with nothing outstanding does not need a banner the height of a
+    // card to say so \u2014 it needs one line, with the sentence that explains why the rest of
+    // the screen is already filled in sitting on the same line as the tick.
     return `<div class="fill">
-      <div class="fill__top">
+      <div class="fill__top${gaps.length ? '' : ' fill__top--done'}">
         <div class="fill__count">
-          <b class="${gaps.length ? 'tone--warn' : 'tone--ok'}">${gaps.length || 'Nothing'}</b>
-          <span>${gaps.length ? 'still to fill in' : 'left to fill in'}</span>
+          <b class="${gaps.length ? 'tone--warn' : 'tone--ok'}">${gaps.length || '\u2713'}</b>
+          <span>${gaps.length ? 'still to fill in' : 'nothing left to fill in'}</span>
         </div>
         ${gaps.length
           ? `<div class="fill__gaps">${gaps.slice(0, 8).map(r =>
@@ -770,6 +783,11 @@ const SECTIONS = {
         <details class="resets">
           <summary>What starts blank each morning</summary>
           <div class="resets__b">
+            ${state.canEdit ? `<p class="resets__do"><button class="btn btn--quiet btn--sm"
+              id="reset-day">Start
+              this morning again</button> Puts this date back to the state it opens in: everything
+              below that is blank every morning goes blank, everything carried comes back.
+              Nothing that happened on another date is touched.</p>` : ''}
             <p><b>Blank every morning.</b> The last twenty-four hours \u2014 both the status and
               the note \u2014 jobs short, today's NCRs and complaints, the whole of shipping,
               sales, and overtime. A count of what happened yesterday carried into today is a
@@ -1370,6 +1388,19 @@ function renderHeader() {
   $('#date-rel').textContent = difference === 0 ? 'Today' : difference === 1 ? 'Yesterday'
     : difference > 0 ? `${difference} days ago` : 'Upcoming';
   $('#date').value = state.date;
+  // When data was last pulled, next to the button that pulls it. The coordinator's question
+  // at ten to eight is "has this already been done this morning" — usually because somebody
+  // else may have done it — and the answer has to be beside the button, not three screens
+  // away in Configure. The latest of the files is the honest reading of it: a pull fetches
+  // all of them, so the newest stamp is when the last pull ran.
+  const stamps = Object.values(state.metrics?.source_seen || {})
+    .map(v => new Date(v)).filter(d => !Number.isNaN(+d)).sort((a, b) => b - a);
+  const last = stamps[0];
+  $('#pull-when').textContent = !last ? 'Not pulled today'
+    : daysBetween(last.toISOString().slice(0, 10), state.date) <= 0 ? `Pulled ${clockAt(last)}`
+    : `Last pulled ${dayAt(last)}`;
+  $('#pull-when').className = `pullw${last
+    && daysBetween(last.toISOString().slice(0, 10), state.date) <= 0 ? ' pullw--ok' : ''}`;
   $('#loc').value = state.location || '';
   $('#foot-loc').textContent = state.locations.find(l => l.id === state.location)?.name || '—';
   $('#foot-user').textContent = [state.me?.full_name, state.me?.job_title].filter(Boolean).join(' · ');
@@ -2229,7 +2260,36 @@ document.addEventListener('click', event => {
   const go = event.target.closest('.fill [data-nav]');
   if (go) { state.active = go.dataset.nav; render(); window.scrollTo(0, 0); return; }
   if (event.target.closest('#fill-publish')) $('#publish-btn').click();
+  if (event.target.closest('#reset-day')) startAgain();
 });
+
+// Start this morning again.
+//
+// The daily reset is automatic — a morning opens with the last twenty-four hours blank, the
+// counts blank and the streaks carried — but automatic is not the same as recoverable. A
+// pull that read the wrong file, or an hour of typing into yesterday's date, leaves a
+// morning that has to be put back by hand, box by box, and there was no way to do it. This
+// is that way: one date, the same rules the morning opened under, and nothing outside it.
+//
+// It asks, because it throws work away. It asks with the date in the question, because the
+// mistake this exists to undo is having been on the wrong date.
+async function startAgain() {
+  if (!state.canEdit) return toast('Your account cannot change this plant.');
+  const d = dateOf(state.date);
+  const said = `${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`;
+  if (!confirm(`Start ${said} again?\n\nEverything entered for this date is cleared and the `
+    + `morning reopens the way it would have this morning. Other dates are untouched.`)) return;
+  const button = $('#reset-day');
+  if (button) { button.disabled = true; button.textContent = 'Starting again…'; }
+  try {
+    await resetMorning(state.location, state.date);
+    await open(state.location, state.date);
+    toast(`${said} has been started again.`);
+  } catch (error) {
+    toast(error.message);
+    if (button) { button.disabled = false; button.textContent = 'Start this morning again'; }
+  }
+}
 
 // A missing reading names the field that fills it, so the way to fix it is one click rather
 // than a hunt. From the summary it crosses to Enter first; from Enter it just goes there.

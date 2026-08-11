@@ -151,7 +151,7 @@ const GLOBALS = new Set(['Number','String','Boolean','Array','Object','Math','JS
   'Promise','Map','Set','RegExp','Error','parseInt','parseFloat','isNaN','isFinite',
   'setTimeout','clearTimeout','setInterval','clearInterval','fetch','structuredClone',
   'encodeURIComponent','decodeURIComponent','addEventListener','removeEventListener',
-  'getComputedStyle',
+  'getComputedStyle','URL','CSS','FormData','Blob','File','Intl',
   'requestAnimationFrame','queueMicrotask','scrollTo','alert','confirm','prompt','print','atob','btoa',
   'if','for','while','switch','catch','return','typeof','function','await','super','class','of',
   'async','import','yield','new','delete','void','in','instanceof','do','else','try']);
@@ -179,6 +179,21 @@ for (const path of byExtension('.js')) {
   for (const name of called) {
     if (!known.has(name)) fail('Calls a function that is never declared', `${path}  ${name}()`);
   }
+
+  // The same mistake, one letter case over.
+  //
+  // The rule above only looks at names that are called and start lower-case, so a rewrite
+  // that deleted a lookup table left `PANE_BODY[state.pane]` pointing at nothing and this
+  // script said every rule held. The Configure screen threw on load. A table read or called
+  // is the same class of error as a function called; the shape is `NAME[` or `NAME(`, which
+  // is narrow enough not to fire on an object key or a label.
+  const reached = new Set();
+  for (const match of source.matchAll(/(^|[^.\w$])([A-Z][A-Z0-9_]*[A-Z0-9])\s*[[(]/g)) {
+    reached.add(match[2]);
+  }
+  for (const name of reached) {
+    if (!known.has(name)) fail('Reads a table that is never declared', `${path}  ${name}`);
+  }
 }
 
 // The service-role key must never reach a browser. The publishable key is meant to ship;
@@ -200,16 +215,6 @@ for (const path of byExtension('.html')) {
   const firstModule = source.indexOf('type="module"');
   if (library === -1) fail('Page loads the Supabase library', path);
   else if (library > firstModule) fail('Supabase library loads before page modules', path);
-}
-
-// A day is identified by plant and date together. A query missing the plant would read
-// another plant's morning if row-level security ever lapsed; defence in depth.
-const dashboard = read(join('js', 'db.js'));
-for (const table of ['daily_metrics', 'daily_departments', 'daily_review']) {
-  const uses = dashboard.split('\n').filter(l => l.includes(`'${table}'`));
-  for (const line of uses) {
-    if (/\.select\(|\.update\(/.test(line) === false) continue;
-  }
 }
 
 // Every field the product draws says what it is.

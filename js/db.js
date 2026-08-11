@@ -485,6 +485,20 @@ export const loadSources = location =>
 export const saveSource = (id, patch) =>
   run(() => client.from('location_sources').update(patch).eq('id', id), { retry: 0 });
 
+export const addSource = (location, kind, name, sortOrder) =>
+  run(() => client.from('location_sources')
+    .insert({ location_id: location, kind, name, sort_order: sortOrder })
+    .select().limit(1), { retry: 0 }).then(rows => rows?.[0] ?? null);
+
+export const dropSource = id =>
+  run(() => client.from('location_sources').delete().eq('id', id), { retry: 0 });
+
+// Start this morning again. Everything that should begin blank does; the safety streak and
+// the targets are carried rather than cleared, so it comes back looking like a morning
+// nobody has touched rather than one with a hole in it.
+export const resetMorning = (location, date) =>
+  run(() => client.rpc('reset_morning', { loc: location, d: date }), { retry: 0 });
+
 export async function pullSources(location, date) {
   const session = await currentSession();
   if (!session) throw new Error('Sign in first.');
