@@ -122,16 +122,21 @@ department reflows the whole screen correctly without anybody re-tuning anything
 | **Present — one at a time** | the meeting, 8am | a big screen, driven by a person | anything unreadable in four seconds |
 | **Present — one page** | a corridor TV, a screenshot | a fixed screen, nobody driving | scrolling, paging, navigation |
 
-**Enter** is one screen with no charts. Three assigned columns of grouped fields, then the
-day's notes and the maintenance list full width. Every value a file already filled is shown
-greyed with the file named beside it — correctable, but not chased. The counter at the top
-counts only what no file can know: on Mississauga's numbers that is about two boxes and a
-sentence.
+**Enter** is one screen with no charts. Four assigned columns of grouped fields — people and
+quality, the floor, what left the building, then what the room has to say about it — with the
+maintenance list full width underneath. Every value a file already filled is shown greyed with
+the file named beside it: correctable, but not chased. The counter at the top counts only what
+no file can know — on Mississauga's numbers, about two boxes and a sentence.
 
-**Present, one page** is one grid of identical cards — same size, same type — with the
+**Present, one page** is one grid of identical cards — same size, same type scale — with the
 sections told apart by the colour of the bar and a legend. It fits exactly one screen at 1366,
 1920 and 2560. Cards shed detail as they shrink: under 250px tall they drop the seven-day
-line, under 200px the bar, under 150px the foot.
+line, under 200px the whole track, under 150px the foot. Which sections and which cards go on
+it is a separate switch from which cards the plant carries, because a corridor TV is a
+different audience from the laptop somebody opened.
+
+**Cards can be dragged into the order a plant wants**, on any surface, and the order is stored
+against the location rather than the browser — so the room is still looking at one thing.
 
 ---
 
@@ -154,6 +159,13 @@ These are settled decisions, each of which cost at least one round of rework:
 7. **Colour is the verdict.** Green, amber and red mean good, warning and stop, and are never
    spent on decoration or on labelling a category.
 8. **Four kinds of number, four drawings**: a count, a rate, a share, a streak.
+9. **The title bar is the same height on every screen of the product.** It is sized against
+   every title the catalogue can draw, not against the longest one currently visible, or
+   walking from Safety to Production moves every title on the page.
+10. **Colour tells you the family only on the one-page collage**, where there are no headings
+    to do it. Seven hues at one darkness, none of them the green, the amber or the red.
+11. **Nothing but cards reaches a screen.** Two tables used to earn an exception; both are
+    list cards now, and a note card with nothing in it is dropped from the wall entirely.
 
 ---
 
@@ -166,7 +178,13 @@ These are settled decisions, each of which cost at least one round of rework:
 - There is no read-only public link and no JSON/CSV feed, so nothing can reach Power BI.
 - The morning has no lifecycle beyond draft/published: no "agreed", no attribution per value,
   no actions coming out of the meeting.
-- No per-card chart choice; every card is currently a number, a bar and a line.
+- No per-card chart choice; every card is currently a number, a bar and a line. The bar, ring
+  and gauge drawings exist and nothing offers them.
+- **"What to line up" is rules, not a model.** It ranks what the morning implies somebody
+  should do — overdue maintenance, machines about to go down, departments under target,
+  overtime already booked, what a manager flagged — from state the page already holds. There
+  is no language model anywhere in the product, and adding one would mean an edge function and
+  a key, because nothing here has a server.
 
 ---
 
@@ -185,3 +203,8 @@ The author of this system would ask a reviewer to push on:
 - **Provenance.** Is "every value knows its source, who and when" worth the schema cost?
 - **Is the no-build-step constraint** (one stylesheet, one network module, plain ES modules)
   helping or is it now costing more than a small toolchain would?
+- **How much arrangement should a plant own?** Cards can now be reordered and switched off per
+  surface. Is that the right amount of rope, or does a dashboard nine plants can each rearrange
+  stop being one dashboard?
+- **Would an LLM earn its place here**, and if so where — writing the morning's summary,
+  ranking what needs attention, or reading the free-text notes for patterns across weeks?
