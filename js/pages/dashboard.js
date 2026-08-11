@@ -13,8 +13,8 @@ import {
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=c00361f88b43';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=c00361f88b43';
+} from '../db.js?v=7797614a895f';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=7797614a895f';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
@@ -22,7 +22,7 @@ import {
   isNa, isMissing,
   varianceChip, varianceTone, variancePct,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE,
-} from '../readings.js?v=c00361f88b43';
+} from '../readings.js?v=7797614a895f';
 
 const $ = selector => document.querySelector(selector);
 
@@ -48,6 +48,9 @@ const state = {
   machines: [], upcoming: [],
   history: { metrics: [], departments: [] }, year: [], findings: [], verdicts: {}, plant: null,
   team: [], live: null, wallStep: 0, wallMode: 'walk', rotating: false,
+  // Whether a section screen is showing its cards or asking for its readings. One answer for
+  // all of them, because the work it exists for is going down the rail filling each in.
+  filling: false,
 };
 
 // ── Reading the loaded morning ──────────────────────────────────────────────────
@@ -1442,9 +1445,76 @@ function paintPresence() {
 // hundred pixels, which is the wrong thing to put at the top of a screen somebody glances
 // at. `verdicts()` still runs — the rail's status dots are its tones, and that is the one
 // place a one-word summary earns its space.
-const one = key => `<section class="sec"><div class="sec__head">
-  <h2 class="sec__title">${TITLES[key]}</h2><div class="sec__rule"></div></div>
-  ${SECTIONS[key]()}</section>`;
+// ── Filling one section in, on that section's own screen ────────────────────────
+//
+// Enter was a single screen holding every group of every section at once, which is a lot of
+// boxes to hand somebody at ten past seven — and it sat oddly beside a rail whose whole job
+// is to say "one subject at a time". So each section can be filled in where it lives:
+// Safety's own screen either shows Safety's cards or asks for Safety's readings, and the
+// switch stays put as you move down the rail. Click Safety, type, click Quality, type.
+//
+// Enter has not gone anywhere. Somebody who wants the whole morning on one page still has
+// it, and it is still what a new plant should be shown first; this is the same fields,
+// arranged the way the rail already arranges everything else.
+const FILL_FOR = {
+  safety:      () => fillSafety(),
+  // The review is per department, and the departments are Production's — so the last
+  // twenty-four hours belongs on the screen whose cards it draws, not on a screen of its own.
+  production:  () => fillProduction() + fillNotes(),
+  quality:     () => fillQuality(),
+  shipping:    () => fillShipping(),
+  financials:  () => fillMoney(),
+  labour:      () => fillOvertime() + (mergedUpkeep() ? fillMaintenance() : ''),
+  maintenance: () => fillMaintenance(),
+};
+
+// The next screen down the rail, so Save can be Save-and-carry-on rather than Save-and-stop.
+const nextToFill = key => {
+  const list = order().filter(k => FILL_FOR[k]);
+  return list[list.indexOf(key) + 1] || null;
+};
+
+const modeSwitch = () => `<div class="segs" role="group" aria-label="What this screen shows">
+  <button class="segs__b" data-mode="cards" aria-current="${!state.filling}">Cards</button>
+  <button class="segs__b" data-mode="fill" aria-current="${!!state.filling}">Fill in</button>
+</div>`;
+
+function sectionFill(key) {
+  toGo = 0;
+  const body = FILL_FOR[key]();
+  const left = toGo;
+  const next = nextToFill(key);
+  return `<div class="fill fill--one">
+    <div class="fill__top fill__top--done">
+      <div class="fill__count">
+        <b class="${left ? 'tone--warn' : 'tone--ok'}">${left || '✓'}</b>
+        <span>${left ? `to fill in on ${TITLES[key].toLowerCase()}`
+          : `nothing to fill in on ${TITLES[key].toLowerCase()}`}</span>
+      </div>
+      ${sourceStrip()}
+    </div>
+    <div class="fill__grid fill__grid--one">${body}</div>
+    <div class="fill__end">
+      <p>Every box writes as you leave it — Save is here because a screen that saves
+        invisibly gives nobody a reason to believe it did.</p>
+      <div class="fill__go">
+        <button class="btn" data-mode="cards">See the cards</button>
+        ${state.canEdit ? `<button class="btn btn--go" data-save-section="${esc(key)}">${
+          next ? `Save — on to ${TITLES[next]}` : 'Save'}</button>` : ''}
+      </div>
+    </div>
+  </div>`;
+}
+
+const one = (key, solo = false) => {
+  // Only on its own screen. The overview stacks every section, and a page of seven entry
+  // forms one under another is the screen this splits up rather than a second copy of it.
+  const fillable = solo && state.canEdit && !!FILL_FOR[key];
+  return `<section class="sec"><div class="sec__head">
+    <h2 class="sec__title">${TITLES[key]}</h2>
+    ${fillable ? modeSwitch() : ''}<div class="sec__rule"></div></div>
+    ${state.filling && fillable ? sectionFill(key) : SECTIONS[key]()}</section>`;
+};
 
 function renderContent() {
   if (document.body.classList.contains('tv')) return renderWall();
@@ -1456,7 +1526,7 @@ function renderContent() {
   const solo = state.active !== 'overview';
   const content = $('#content');
   content.className = `content${solo && !document.body.classList.contains('tv') ? ' content--solo' : ''}`;
-  content.innerHTML = solo ? one(state.active) : order().map(one).join('');
+  content.innerHTML = solo ? one(state.active, true) : order().map(key => one(key)).join('');
 }
 
 function render() {
@@ -2104,6 +2174,16 @@ function applyLocally(name, value) {
 }
 
 let redrawTimer, sendTimer;
+// The one write that has not gone yet. A field writes 450ms after the last keystroke, so at
+// the instant somebody presses Save the box they are still in is the one thing not saved —
+// which is the only box Save has any business worrying about.
+let waiting = null;
+async function flushWrites() {
+  clearTimeout(sendTimer);
+  const now = waiting;
+  waiting = null;
+  if (now) await persist(now.name, now.value);
+}
 document.addEventListener('input', event => {
   const name = event.target.dataset?.field;
   if (!name) return;
@@ -2111,7 +2191,8 @@ document.addEventListener('input', event => {
   applyLocally(name, value);
 
   clearTimeout(sendTimer);
-  sendTimer = setTimeout(() => persist(name, value), 450);
+  waiting = { name, value };
+  sendTimer = setTimeout(() => { waiting = null; persist(name, value); }, 450);
 
   // Redrawing recalculates every rate and colour, so it waits until typing pauses and
   // then puts the caret back where it was.
@@ -2261,6 +2342,27 @@ document.addEventListener('click', event => {
   if (go) { state.active = go.dataset.nav; render(); window.scrollTo(0, 0); return; }
   if (event.target.closest('#fill-publish')) $('#publish-btn').click();
   if (event.target.closest('#reset-day')) startAgain();
+});
+
+// Cards or fill-in, and the answer sticks. Somebody working down the rail filling sections
+// in should not have to say so again on every screen.
+document.addEventListener('click', event => {
+  const mode = event.target.closest('[data-mode]');
+  if (!mode) return;
+  state.filling = mode.dataset.mode === 'fill';
+  render();
+  window.scrollTo(0, 0);
+});
+
+// Save, and carry on down the rail.
+document.addEventListener('click', async event => {
+  const done = event.target.closest('[data-save-section]');
+  if (!done) return;
+  document.activeElement?.blur();
+  await flushWrites();
+  const next = nextToFill(done.dataset.saveSection);
+  toast(next ? `Saved. ${TITLES[next]} next.` : 'Saved.');
+  if (next) { state.active = next; render(); window.scrollTo(0, 0); }
 });
 
 // Start this morning again.
