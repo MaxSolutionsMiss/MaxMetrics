@@ -702,6 +702,32 @@ stretched to the card's width with `preserveAspectRatio:none`, which is right fo
 and wrong for a letter: at a 120-wide viewBox in a 600px card, a month initial comes out
 five times as wide as it is tall.
 
+## Enter is its own screen
+
+One page was doing three jobs — filling the morning in, reading it, and showing it ten metres
+away — and each wants a different density. Filling it in was losing: you scrolled past a graph
+to reach a box, and the box sat on a card sized for a room.
+
+**Enter** is the fourth door into the same morning. One screen, no charts, no verdict colour
+except where something is wrong, and no card larger than the words in it. Every group is a
+list of rows, and a row is three things: what it is, the box, and what the box does to the
+morning. That third column is the point — you watch the rate move as you type the hours, and
+OTD and OTIF settle as you type the late count.
+
+The number it is measured against is **how many boxes a person has to touch**. Most of a
+morning already exists in a file: the DOR carries production, the monthly KPI workbook carries
+quality and the money, the OTIF sheet carries the shipment counts. `FROM_FILE` names which
+fields those are — a static map, because it is a property of the parsers rather than of any
+one morning. Those rows are drawn quiet, with the file that filled them named beside them, and
+they are still editable because a person who knows better must be able to say so. What they
+are not is *counted*: the "to go" figure chases only the fields nobody can fill from a file —
+whether somebody got hurt, how many jobs went short, who is on overtime, and what went wrong
+overnight.
+
+Nothing else moved. The cards, the graphs and the walk are exactly where they were. This is
+reversible in the truest sense: delete one section and one stylesheet block and the product is
+what it was yesterday.
+
 ## The field is where the number is
 
 Every card grew a block of labelled inputs under its foot. So the person entering a morning

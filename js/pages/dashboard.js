@@ -101,7 +101,7 @@ const ICONS = {
 // Two views over the whole morning, then the five sections for when someone asks a
 // question the views do not answer. Today is first because the meeting is two minutes
 // long and the fastest possible read is the one that says what needs deciding.
-const VIEWS = ['line', 'board'];
+const VIEWS = ['fill', 'line', 'board'];
 // The order the meeting actually walks: what happened to people, what the plant made,
 // what left the building, what it earned, and what needs fixing.
 // Safety and quality were one section because the old dashboard drew them in one row.
@@ -115,11 +115,12 @@ const TITLES = {
   safety: 'Safety', quality: 'Quality', production: 'Production', shipping: 'Shipping',
   maintenance: 'Upcoming maintenance', labour: 'Labour & Overtime', financials: 'Financials',
 };
-const NAV = { labour: 'Labour', line: 'Today', board: 'Board' };
-Object.assign(TITLES, { line: 'Today', board: 'The board' });
+const NAV = { labour: 'Labour', line: 'Today', board: 'Board', fill: 'Enter' };
+Object.assign(TITLES, { line: 'Today', board: 'The board', fill: 'Enter the morning' });
 Object.assign(ICONS, {
   line:  'M4 6h16M4 12h10M4 18h6',
   board: 'M4 4h4v16H4zM10 4h4v16h-4zM16 4h4v16h-4z',
+  fill:  'M4 20h16M6 15.5L15.5 6l2.5 2.5L8.5 18H6z',
 });
 
 // A reading, drawn the way the room reads it: what it is, how big, against what, and
@@ -439,7 +440,236 @@ function labourPanel() {
   </div>`;
 }
 
+// ── Entering the morning ────────────────────────────────────────────────────────
+//
+// One screen, no charts, no colour except where something is wrong.
+//
+// The dashboard was one page doing three jobs — filling it in, reading it, and showing it on
+// a wall — and each wants a different density. Filling it in was losing: you scrolled past a
+// graph to reach a box, and the box was on a card sized for a room ten metres away.
+//
+// The number this screen is measured against is how many boxes a person has to touch. Of the
+// values on a Mississauga morning, most already exist in a file — the DOR carries production,
+// the KPI workbook carries quality and the money. Those are shown, quietly, with the file
+// that filled them named beside them; they can be corrected but nobody has to visit them. The
+// ones nobody can know from a file — whether somebody got hurt, how many jobs went short,
+// who is on overtime, what went wrong overnight — are the ones this counts and chases.
+//
+// Nothing else changed. The cards, the graphs and the walk are exactly where they were: this
+// is a fourth door into the same morning, not a replacement for the room's.
+
+// Which fields arrive in a file, and which file. Static, because the mapping is a property of
+// the parsers rather than of a morning — and a field nobody has to fill is a field this
+// screen must not nag about.
+const FROM_FILE = {
+  DOR: ['qty', 'hours', 'uptime', 'make_ready', 'pw_qty', 'pw_hours'],
+  KPI: ['coq', 'coq_ytd', 'coq_target', 'coq_ytd_target', 'ncr_today', 'ncr_mtd', 'ncr_ytd',
+        'complaints_internal_today', 'complaints_internal_mtd', 'complaints_internal',
+        'complaints_external_today', 'complaints_external_mtd', 'complaints_external',
+        'mtd_otif', 'ytd_otif', 'fin_actual_mtd', 'fin_actual_ytd'],
+  OTIF: ['jobs_shipped', 'jobs_on_time', 'late', 'shorts'],
+};
+const sourceOf = name => Object.keys(FROM_FILE).find(file => FROM_FILE[file].includes(name)) || '';
+
+// A row: what it is, the box, and what the box does to the morning. The third column is the
+// point of the screen — you watch the rate move as you type the hours.
+let toGo = 0;
+function frow(label, name, attrs, { echo = '', source = '', chase = true } = {}) {
+  const file = source || sourceOf(String(name).split(':').pop());
+  const blank = / value=""/.test(attrs) || !/ value="/.test(attrs);
+  if (blank && chase && !file) toGo += 1;
+  return `<label class="fr${file ? ' fr--file' : ''}${blank && chase && !file ? ' fr--todo' : ''}">
+    <span class="fr__l">${esc(label)}</span>
+    <input class="inp fr__i" data-field="${esc(name)}" ${attrs}>
+    <span class="fr__x">${echo || (file ? `<em>${file}</em>` : '')}</span>
+  </label>`;
+}
+
+const fgroup = (title, rows, note) => {
+  const before = toGo;
+  const body = rows();
+  const left = toGo - before;
+  return `<section class="fg">
+    <h3 class="fg__h">${esc(title)}${left ? `<span class="fg__n">${left} to go</span>` : ''}</h3>
+    <div class="fg__rows">${body}</div>
+    ${note ? `<p class="fg__note">${note}</p>` : ''}
+  </section>`;
+};
+
+function fillSafety() {
+  return fgroup('Safety', () => {
+    const out = [];
+    for (const [word, lastField, recordField] of [
+      ['injury', 'injury_last', 'injury_record'],
+      ['near-miss', 'near_miss_last', 'near_miss_record'],
+    ]) {
+      const last = metric(lastField), record = metric(recordField);
+      const days = last ? daysBetween(last, state.date) : null;
+      out.push(frow(`Last ${word}`, lastField, `type="date" value="${last || ''}"`,
+        { echo: days == null ? '' : `<b>${days}</b> days` }));
+      out.push(frow('Record', recordField, `type="number" min="0" value="${record ?? ''}"`,
+        { echo: days != null && record && days >= record ? '<b class="tone--ok">Broken</b>' : '',
+          chase: false }));
+    }
+    return out.join('');
+  });
+}
+
+function fillQuality() {
+  return fgroup('Quality', () => {
+    const shortages = metric('shortages');
+    const rows = [frow('Jobs short today', 'shortages',
+      `type="number" min="0" value="${shortages ?? ''}"`,
+      { echo: shortages == null ? '' : Number(shortages) === 0
+          ? '<b class="tone--ok">None</b>' : '<b class="tone--stop">Chase it</b>' })];
+    for (const [label, name, step] of [
+      ['COQ this month', 'coq', '0.01'], ['COQ this year', 'coq_ytd', '0.01'],
+    ]) {
+      const value = metric(name), target = Number(metric(`${name}_target`) || 0.85);
+      rows.push(frow(label, name, `type="number" step="${step}" value="${value ?? ''}"`,
+        { echo: value == null ? '' : `of sales · target ${target.toFixed(2)}%` }));
+    }
+    for (const [label, base] of [
+      ['NCRs', 'ncr'], ['Internal complaints', 'complaints_internal'],
+      ['Customer complaints', 'complaints_external'],
+    ]) {
+      const today = metric(`${base}_today`), mtd = metric(`${base}_mtd`);
+      rows.push(frow(label, `${base}_today`, `type="number" min="0" value="${today ?? ''}"`,
+        { echo: mtd == null ? '' : `<b>${num(mtd)}</b> this month` }));
+    }
+    return rows.join('');
+  }, 'Counts are for the last twenty-four hours. Cost of quality and the counts come from '
+   + 'the monthly KPI workbook.');
+}
+
+function fillProduction() {
+  const list = configured();
+  return fgroup('Production', () => list.map(config => {
+    const row = dept(config.key), rate = rateOf(row);
+    const target = Number(row.target ?? config.target);
+    return `<div class="fr__pair">
+      ${frow(config.name, `dept:${config.key}:qty`,
+        `type="number" value="${row.qty ?? ''}" placeholder="${volumeLabel(config)}"`,
+        { echo: rate ? `<b class="tone--${band.rate(rate, target) || 'none'}">${
+            num(Math.round(rate))}</b> ${rateLabel(config)}` : '' })}
+      ${frow('Hours', `dept:${config.key}:hours`,
+        `type="number" step="0.1" value="${row.hours ?? ''}" placeholder="crewed"`,
+        { echo: row.uptime ? `${Math.round(row.uptime * 100)}% uptime` : '' })}
+    </div>`;
+  }).join(''), 'Output, hours, uptime and make-ready all come from the DOR.');
+}
+
+function fillShipping() {
+  return fgroup('Shipping', () => {
+    const jobs = metric('jobs_shipped'), onTime = state.metrics?.jobs_on_time;
+    const derived = derivedShipping(state.metrics);
+    return [
+      frow('Jobs shipped', 'jobs_shipped', `type="number" min="0" value="${
+        state.metrics?.jobs_shipped ?? ''}"`,
+        { echo: derived ? `<b>${derived.otd.toFixed(2)}%</b> OTD` : '' }),
+      frow('Of those, on time', 'jobs_on_time', `type="number" min="0" value="${onTime ?? ''}"`),
+      frow('Late', 'late', `type="number" min="0" value="${state.metrics?.late ?? ''}"`,
+        { echo: derived ? `<b>${derived.otif.toFixed(2)}%</b> OTIF` : '' }),
+      frow('Short', 'shorts', `type="number" min="0" value="${state.metrics?.shorts ?? ''}"`),
+      frow('Cartons', 'cartons', `type="number" min="0" value="${state.metrics?.cartons ?? ''}"`,
+        { echo: jobs && metric('cartons') ? `${num(Math.round(metric('cartons') / jobs))} per job` : '' }),
+      frow('OTIF month to date', 'mtd_otif',
+        `type="number" step="0.01" value="${state.metrics?.mtd_otif ?? ''}"`),
+      frow('OTIF year to date', 'ytd_otif',
+        `type="number" step="0.01" value="${state.metrics?.ytd_otif ?? ''}"`),
+    ].join('');
+  }, 'OTD and OTIF for today are worked out from jobs, late and short.');
+}
+
+function fillMoney() {
+  const reportDate = dateOf(state.date);
+  reportDate.setDate(reportDate.getDate() - 1);
+  const month = reportDate.getMonth();
+  const inMonth = new Date(reportDate.getFullYear(), month + 1, 0).getDate();
+  const plan = budgetFor(month) * (Math.max(1, reportDate.getDate()) / inMonth);
+  return fgroup('Sales', () => [
+    frow('Month to date', 'fin_actual_mtd',
+      `type="number" step="0.01" value="${metric('fin_actual_mtd') ?? ''}"`,
+      { echo: metric('fin_actual_mtd')
+          ? `<b>${money(metric('fin_actual_mtd'))}</b>${plan ? ` of ${money(plan)}` : ''}` : '' }),
+    frow('Year to date', 'fin_actual_ytd',
+      `type="number" step="0.01" value="${metric('fin_actual_ytd') ?? ''}"`,
+      { echo: metric('fin_actual_ytd') ? `<b>${money(metric('fin_actual_ytd'))}</b>` : '' }),
+  ].join(''), 'Both come from the monthly KPI workbook.');
+}
+
+function fillOvertime() {
+  const list = state.config.filter(c => c.active !== false);
+  return fgroup('Overtime', () => list.map(c => {
+    const chosen = new Set(labourRow(c.key)?.machines || []);
+    const machines = machinesIn(c.key);
+    return `<div class="fr fr--ot">
+      <span class="fr__l">${esc(c.name)}</span>
+      <input class="inp fr__i fr__i--n" data-field="labour:${esc(c.key)}:ot_shifts"
+        type="number" step="0.5" min="0" placeholder="shifts"
+        value="${labourRow(c.key)?.ot_shifts ?? ''}">
+      <span class="fr__x">${machines.length ? `<span class="ticks">${machines.map(m =>
+        `<label class="tick2"><input type="checkbox" data-field="labour:${esc(c.key)}:machines"
+          data-machine="${esc(m.code)}"${chosen.has(m.code) ? ' checked' : ''}>
+          <span>${esc(m.name)}</span></label>`).join('')}</span>` : ''}</span>
+    </div>`;
+  }).join(''), 'Leave a department blank if it is not running overtime.');
+}
+
+function fillNotes() {
+  const list = configured();
+  return fgroup('What happened overnight', () => {
+    const rows = list.map(config => {
+      const row = state.review.find(r => r.dept_key === config.key) || {};
+      return `<div class="fr fr--note">
+        <span class="fr__l">${esc(config.name)}</span>
+        <select class="inp fr__i fr__i--s" data-field="review:${esc(config.key)}:status">
+          ${[['ok', 'No issue'], ['warn', 'Warning'], ['stop', 'Issue']].map(([v, t]) =>
+            `<option value="${v}"${row.status === v ? ' selected' : ''}>${t}</option>`).join('')}
+        </select>
+        <textarea class="inp fr__t" rows="1" placeholder="one problem per line"
+          data-field="review:${esc(config.key)}:note">${esc(row.note || '')}</textarea>
+      </div>`;
+    });
+    rows.push(`<div class="fr fr--note fr--wide">
+      <span class="fr__l">Staffing</span>
+      <textarea class="inp fr__t" rows="1" placeholder="call-ins, vacation, training"
+        data-field="staffing_note">${esc(metric('staffing_note') || '')}</textarea></div>`);
+    rows.push(`<div class="fr fr--note fr--wide">
+      <span class="fr__l">Maintenance</span>
+      <textarea class="inp fr__t" rows="1" placeholder="anything the room should know"
+        data-field="maintenance_note">${esc(metric('maintenance_note') || '')}</textarea></div>`);
+    return rows.join('');
+  }, 'Each line becomes a bullet on the card.');
+}
+
 const SECTIONS = {
+  // The entry screen. See the block above it for why this is its own surface.
+  fill: () => {
+    toGo = 0;
+    const groups = [fillSafety(), fillQuality(), fillProduction(), fillShipping(),
+                    fillMoney(), fillOvertime(), fillNotes()].join('');
+    const published = state.metrics?.status === 'published';
+    return `<div class="fill">
+      <div class="fill__top">
+        <div class="fill__count">
+          <b class="${toGo ? 'tone--warn' : 'tone--ok'}">${toGo || 'Nothing'}</b>
+          <span>${toGo ? `still to fill in` : 'left to fill in'}</span>
+        </div>
+        <p class="fill__say">Everything else arrives from the DOR, the OTIF sheet and the
+          monthly KPI workbook, and is shown here so it can be corrected \u2014 not so it has to
+          be typed.</p>
+        <div class="fill__go">
+          <button class="btn" data-nav="overview">See the cards</button>
+          ${state.canEdit ? `<button class="btn btn--go" id="fill-publish">${
+            published ? 'Published' : 'Publish this morning'}</button>` : ''}
+        </div>
+      </div>
+      <div class="fill__grid">${groups}</div>
+      ${maintenancePanel()}
+    </div>`;
+  },
+
   // ── Today ──
   // Leads with what is not ok and counts the rest. Two minutes is the whole meeting, so
   // a reading that needs no decision is a tick, not a paragraph.
@@ -1507,6 +1737,13 @@ $('#edit-btn').addEventListener('click', () => {
   $('#edit-btn').textContent = on ? 'Done editing' : 'Edit mode';
   $('#publish-btn').classList.toggle('hide', !on);
   paintPresence();
+});
+
+// The entry screen finishes with Publish, because that is where a person finishes.
+document.addEventListener('click', event => {
+  const go = event.target.closest('.fill [data-nav]');
+  if (go) { state.active = go.dataset.nav; render(); window.scrollTo(0, 0); return; }
+  if (event.target.closest('#fill-publish')) $('#publish-btn').click();
 });
 
 $('#publish-btn').addEventListener('click', async () => {
