@@ -434,7 +434,7 @@ export const setAdmin = (profileId, makeAdmin) =>
 // hands back a temporary password for the administrator to pass on. Nothing is emailed:
 // this project has no outbound mail configured, and a flow that silently depends on one is
 // a flow that fails on a Monday with nobody able to say why.
-export async function createPerson({ email, name, location, canEdit }) {
+async function callPeople(payload) {
   const session = await currentSession();
   if (!session) throw new Error('Sign in first.');
   const response = await fetch(`${SUPABASE_URL}/functions/v1/people`, {
@@ -444,12 +444,19 @@ export async function createPerson({ email, name, location, canEdit }) {
       apikey: SUPABASE_PUBLISHABLE_KEY,
       Authorization: `Bearer ${session.access_token}`,
     },
-    body: JSON.stringify({ email, name, location, canEdit }),
+    body: JSON.stringify(payload),
   });
   const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(body.error || 'The account could not be created.');
+  if (!response.ok) throw new Error(body.error || 'That could not be done.');
   return body;
 }
+
+export const createPerson = ({ email, name, location, canEdit }) =>
+  callPeople({ action: 'create', email, name, location, canEdit });
+export const updatePerson = ({ id, name, email }) =>
+  callPeople({ action: 'update', id, name, email });
+export const resetPersonPassword = id => callPeople({ action: 'reset', id });
+export const removePerson = id => callPeople({ action: 'remove', id });
 
 // The first sign-in. `must_change_password` is metadata rather than a column because the
 // page has to see it before it has read anything else.
@@ -464,3 +471,33 @@ export const chooseOwnPassword = async password => {
   });
   if (error) throw new Error(error.message);
 };
+
+// ── Pull ────────────────────────────────────────────────────────────────────────
+//
+// The server fetches the plant's linked files — SharePoint sends no CORS headers, so the
+// browser cannot — parks them in a private bucket and hands back signed URLs. The page then
+// reads them with the same parser it has always used. One button, no dialogue, and still
+// exactly one parser in the product.
+export const loadSources = location =>
+  run(() => client.from('location_sources').select('*')
+    .eq('location_id', location).order('sort_order'));
+
+export const saveSource = (id, patch) =>
+  run(() => client.from('location_sources').update(patch).eq('id', id), { retry: 0 });
+
+export async function pullSources(location, date) {
+  const session = await currentSession();
+  if (!session) throw new Error('Sign in first.');
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/pull`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: SUPABASE_PUBLISHABLE_KEY,
+      Authorization: `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({ location, date }),
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(body.error || 'Nothing could be fetched.');
+  return body;
+}

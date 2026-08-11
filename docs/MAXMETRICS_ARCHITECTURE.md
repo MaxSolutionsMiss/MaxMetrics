@@ -1382,3 +1382,70 @@ number somebody typed.
 That last part is what turns the DOR from a one-day file into the plant's history: the
 seven-day lines, last week's productivity and the year behind every card fill themselves from
 a file that was already on the network.
+
+## Pull data means pull data
+
+The first version of the button opened a file chooser, which is a different product. The
+coordinator keys the MIS timesheets into the DOR between half past seven and eight and then
+wants the dashboard to go and get it — not to be asked where it lives for the four hundredth
+time.
+
+`location_sources` holds three rows per plant — DOR, OTD/OTIF sheet, monthly KPI workbook —
+each a URL, an on switch, and what happened last time. The `pull` edge function fetches them
+(the browser cannot: SharePoint sends no CORS headers), parks each in a private bucket, and
+hands back signed URLs good for ten minutes. The page downloads those and runs **the same
+parser it has always run**.
+
+That split is not squeamishness. There is one parser and it is `js/import.js`; a copy
+compiled into a function would drift, and then the number the room accepted on Tuesday and
+the number the flow wrote on Wednesday would have come from different code. Supabase's
+bundler refuses an `https` import, so the choice was a copy or a split, and the split is the
+honest one.
+
+The contract with the outside world is the smallest one every place these files live can
+satisfy: **a URL that returns the bytes of a workbook**. A SharePoint or OneDrive share link
+set to *Anyone with the link* is one, once `download=1` is on it. A link restricted to the
+tenant is not: a signed-out server is handed a sign-in page, and a sign-in page is not a
+workbook. The function checks for the ZIP header and records exactly that against the source
+rather than failing silently.
+
+## The open morning is written over
+
+`import_morning` never replaces a value. That is right for a year of history and wrong for
+today.
+
+`carry_forward` copies the month-to-date NCR and complaint counts onto a new morning, so by
+the time anybody pulled a fresher workbook there was already a number in the column — and a
+coalescing import left it exactly where it was. The card then read yesterday's figure and the
+plant quite reasonably said the numbers were not pulling.
+
+So the import splits by date. Anything a file carries for the day being pulled is written
+through `persist`, the same path a typed field takes, and wins. Every other date goes through
+`import_morning` and coalesces, because filling a gap is a favour and taking a number
+somebody typed is not.
+
+## People, and what an administrator can do to an account
+
+Four actions, all in the `people` edge function, all administrators-only, and all checked
+against the caller's own token rather than against anything the caller says about themselves:
+**create** with a temporary password, **update** a name or email, **reset** to a new
+temporary password, **remove** the account entirely.
+
+Nobody can remove their own account or their own administrator flag. It is not a permission
+question — it is that a plant whose last administrator has deleted themselves has no way back
+in without somebody opening the database, and the button sits one row away from every other
+one on the screen.
+
+Removing asks for the word REMOVE typed out. "Are you sure" is a question nobody reads.
+
+## One department at a time
+
+Every department used to be drawn open, one under another, each with a preview card beside it
+built from invented numbers. Four departments came out four screens long, and changing
+Gluing's target meant scrolling past three others to find it.
+
+Nothing about configuring a department benefits from seeing the other three while you do it.
+So: a dropdown picks one, the fields take the full width, and Add is a button rather than a
+permanently open form — it is the rarest thing on the screen and it was taking the most room.
+The preview card is gone; a preview made of numbers that are not real is not worth half a
+screen.

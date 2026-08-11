@@ -1355,6 +1355,37 @@ body.tv .content.wall{display:flex;flex-direction:column;gap:var(--s4);
   background:var(--surface);border:1px solid var(--rule-strong);border-radius:var(--radius);
   padding:4px 12px;user-select:all}
 .madep__s{margin:var(--s2) 0 0;font-size:var(--t-micro);color:var(--ink-muted);line-height:1.5}
+/* Pick one, edit it. Every department used to be drawn open with a preview card beside it,
+   so four came out four screens long and changing Gluing's target meant scrolling past
+   three others to find it. */
+.picker{display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap;
+  background:var(--surface);border:1px solid var(--rule);border-radius:var(--radius-lg);
+  padding:var(--s3) var(--s4);box-shadow:var(--shadow);margin-bottom:var(--s3)}
+.picker__l{font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.08em;
+  font-weight:700;color:var(--ink-muted)}
+.picker__s{width:auto;min-width:14rem;flex:0 1 20rem;height:34px;
+  font-family:var(--font-condensed);font-size:calc(17px*var(--scale));font-weight:600}
+.picker__c{font-size:var(--t-micro);color:var(--ink-faint);margin-right:auto}
+/* A linked file: what it is, where it lives, whether to fetch it, and what happened last
+   time. Four things on two lines, because the URL needs a line of its own and everything
+   else is short. */
+.src{display:grid;grid-template-columns:1fr auto auto;gap:6px var(--s3);align-items:center;
+  padding:var(--s3) 0;border-bottom:1px solid var(--rule)}
+.src:last-child{border-bottom:none}
+.src__h{grid-column:1/-1;display:flex;align-items:baseline;gap:var(--s3);flex-wrap:wrap}
+.src__h b{font-size:var(--t-small);font-weight:700}
+.src__k{font-size:var(--t-micro);color:var(--ink-faint)}
+.src input[type="url"]{font-size:var(--t-small)}
+.src__w{font-size:var(--t-micro);color:var(--ink-faint);white-space:nowrap;
+  max-width:22rem;overflow:hidden;text-overflow:ellipsis}
+.src__w--bad{color:var(--stop);white-space:normal}
+/* The row a person is being edited in. It becomes the form so they stay in the list they
+   were found in. */
+.pplf{display:flex;gap:var(--s2);align-items:center;flex-wrap:wrap;padding:var(--s2) 0}
+.pplf .inp{width:auto;flex:1 1 12rem;min-width:9rem;height:30px}
+.pplf__sp{flex:1 1 var(--s4)}
+.pplf__x{color:var(--stop)}
+.ppl__x{width:4rem}
 .wall__empty{display:grid;place-items:center;flex:1;color:var(--ink-muted);font-size:var(--t-title)}
 /* The readings that rode along under an area's worst one. Present, so nothing is
    hidden; quiet, so the meeting hears the story once. */
@@ -1479,17 +1510,16 @@ body.tv .util{display:none}
   font-size:var(--t-micro);color:var(--ink-faint);background:var(--ground);
   border:1px solid var(--rule);border-radius:4px;padding:2px 7px;white-space:nowrap}
 /* The fields take the width they need to hold a label and a value on one line; the
-   preview takes a card's worth and no more, because a preview twice the size of the card
-   it previews is a lie about what the room will see. */
-.cfg__body{display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,320px);
-  gap:var(--s5);padding:var(--s4)}
-@media(max-width:900px){.cfg__body{grid-template-columns:1fr}}
-/* Label above value, two to a row. The dashboard's edit rows put the label beside the
-   field because they are squeezed into a card; here there is a whole page, and eight
-   stacked full-width rows made configuring one department a scroll of its own. */
-.cfg__fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
-  gap:var(--s2) var(--s3);align-content:start;min-width:0}
+   fields take the whole width now. The other half used to hold a preview card made of
+   invented numbers, which is a poor trade for the room it cost. */
+.cfg__body{display:block;padding:var(--s4)}
+/* Label above value, as many to a row as fit. The dashboard's edit rows put the label
+   beside the field because they are squeezed into a card; here there is a whole page. */
+.cfg__fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(11rem,1fr));
+  gap:var(--s3) var(--s4);align-items:end;align-content:start;min-width:0}
 .cfg__fields .er{flex-direction:column;align-items:stretch;gap:3px;min-width:0}
+.cfg__fields .icons,.cfg__fields .cfg__togs,.cfg__fields .cfg__add{grid-column:1/-1}
+.cfg__fields > button{grid-column:1/-1;justify-self:start}
 .cfg__fields .er label{min-width:0}
 .er__hint{font-size:var(--t-micro);color:var(--ink-faint);line-height:1.4}
 /* The things that are about the whole department rather than one field run the full

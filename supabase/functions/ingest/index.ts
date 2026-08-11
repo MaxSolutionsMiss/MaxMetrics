@@ -17,7 +17,7 @@
 // replaced. A flow that fires twice writes the same morning twice and changes nothing the
 // second time.
 
-import { readFiles } from '../_shared/import.js';
+import { readFiles } from './import.js';
 import { createClient } from 'npm:@supabase/supabase-js@2.52.1';
 
 const SECRET = Deno.env.get('MAXMETRICS_INGEST_KEY') ?? '';

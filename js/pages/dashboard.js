@@ -11,6 +11,7 @@ import {
   loadUpcoming, addMaintenance, saveMaintenance, removeMaintenance,
   saveField, saveDepartment, saveReview,
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
+  pullSources,
   importHistory,
 } from '../db.js';
 import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js';
@@ -2756,7 +2757,10 @@ function drawImport() {
   $('#import-apply')?.addEventListener('click', applyImport);
 }
 
-async function applyImport() {
+// `quiet` is the pull's way in. It is the same write, without the sheet to close, without
+// the "choose different files" affordance, and without a toast that talks about a preview
+// nobody looked at.
+async function applyImport({ quiet = false } = {}) {
   const p = importState.preview;
   if (!p) return;
   const writes = [];
@@ -2773,6 +2777,21 @@ async function applyImport() {
   if (p.shipping) {
     writes.push(['jobs_shipped', p.shipping.jobs_shipped], ['jobs_on_time', p.shipping.jobs_on_time],
                 ['late', p.shipping.late], ['shorts', p.shipping.shorts]);
+  }
+  // The open morning is written over, not coalesced.
+  //
+  // `import_morning` never replaces a value, which is right for a year of history and wrong
+  // for today: the month-to-date NCR count is carried forward from yesterday when the day is
+  // opened, so a coalesced import found something already sitting there and left it alone.
+  // The card then read yesterday's figure, and the plant quite reasonably said the numbers
+  // were not pulling. For the day being pulled, the file is the fresher source and wins.
+  const history = [];
+  for (const day of p.json?.days || []) {
+    if (day.date === state.date) {
+      for (const [name, value] of Object.entries(day.metrics)) writes.push([name, value]);
+    } else {
+      history.push({ date: day.date, metrics: day.metrics, departments: day.departments });
+    }
   }
   for (const [name, value] of writes) {
     applyLocally(name, value);
@@ -2803,11 +2822,8 @@ async function applyImport() {
   // every day of shifts belongs to the morning that reports it — which is what turns a DOR
   // from a one-day file into the plant's whole history. Both go through the same door.
   const say = message => { const box = $('#import-say'); if (box) box.textContent = message; };
-  const wanted = [];
-  for (const day of p.json?.days || []) {
-    wanted.push({ date: day.date, metrics: day.metrics, departments: day.departments });
-  }
-  if (p.catchup?.length && $('#import-catchup')?.checked !== false) {
+  const wanted = [...history];
+  if (p.catchup?.length && (quiet || $('#import-catchup')?.checked !== false)) {
     for (const day of p.catchup) {
       const departments = {};
       for (const d of day.departments) {
@@ -2839,7 +2855,7 @@ async function applyImport() {
   }
 
   importState.preview = null;
-  $('#import-sheet').close();
+  if (!quiet) $('#import-sheet').close();
   if (mornings) {
     const [day, history, months] = await Promise.all([
       loadDay(state.location, state.date),
@@ -2849,9 +2865,11 @@ async function applyImport() {
     Object.assign(state, day, { history, year: months || [] });
   }
   render();
-  toast([writes.length ? `${writes.length} readings imported` : '',
-         mornings ? `${mornings} morning${mornings === 1 ? '' : 's'} of history written` : '']
-    .filter(Boolean).join(' · ') + '.');
+  if (!quiet) {
+    toast([writes.length ? `${writes.length} readings imported` : '',
+           mornings ? `${mornings} morning${mornings === 1 ? '' : 's'} of history written` : '']
+      .filter(Boolean).join(' · ') + '.');
+  }
 }
 
 // Pull data.
@@ -2861,14 +2879,61 @@ async function applyImport() {
 // configuration screen she has no other reason to open, so it is one button on the bar she
 // is already looking at — and it opens the file chooser rather than a panel about opening
 // the file chooser.
-$('#pull-btn')?.addEventListener('click', () => {
+$('#pull-btn')?.addEventListener('click', pullNow);
+
+// The whole of it, in one press.
+//
+// The first version of this button opened a file chooser, which is not what pulling data
+// means: the coordinator has just finished keying the timesheets into the DOR and wants the
+// dashboard to go and get it. So the server fetches the plant's linked files — the browser
+// cannot, because SharePoint sends no CORS headers — and hands back short-lived links; the
+// page reads them with the same parser the drag-and-drop importer uses and writes the
+// morning without asking anything.
+//
+// No preview. A preview is right for a file somebody chose and wrong for a file the plant
+// has already told MaxMetrics to trust: what it needs to say is what changed, afterwards,
+// and it does that in the toast and on the source strip.
+async function pullNow() {
   if (!state.canEdit) return toast('Your account cannot change this plant.');
-  drawImport();
-  $('#import-sheet').showModal();
-  // The picker opens by itself when there is nothing to look at yet. Coming back to a
-  // preview that is already on screen must not throw it away.
-  if (!importState.preview && !importState.reading) $('#drop-input')?.click();
-});
+  const button = $('#pull-btn');
+  if (button.disabled) return;
+  button.disabled = true;
+  button.textContent = 'Pulling…';
+  try {
+    const pulled = await pullSources(state.location, state.date);
+    const got = (pulled.sources || []).filter(s => s.ok && s.url);
+    const failed = (pulled.sources || []).filter(s => !s.ok);
+    if (!got.length) {
+      toast(failed[0] ? `${failed[0].name}: ${failed[0].note}` : 'Nothing could be fetched.');
+      return;
+    }
+    button.textContent = 'Reading…';
+    const files = await Promise.all(got.map(async source => {
+      const blob = await (await fetch(source.url)).blob();
+      return new File([blob], `${source.kind}.xlsx`);
+    }));
+    const { readFiles } = await import('../import.js');
+    const [operators, reported] = await Promise.all([
+      loadOperators(state.location).catch(() => []),
+      loadReportedDates(state.location, addDays(state.date, -400), state.date).catch(() => []),
+    ]);
+    importState.preview = await readFiles(files, {
+      date: state.date, reported: reported.filter(d => d < state.date), operators: operators || [],
+    });
+    button.textContent = 'Writing…';
+    await applyImport({ quiet: true });
+    const said = [
+      failed.length ? `${failed.length} source${failed.length === 1 ? '' : 's'} failed` : '',
+      `pulled ${got.map(s => s.name).join(', ')}`,
+    ].filter(Boolean).join(' · ');
+    toast(said);
+  } catch (error) {
+    toast(error.message);
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Pull data';
+  }
+}
 
 $('#import-btn')?.addEventListener('click', () => {
   if (!state.canEdit) return toast('Your account cannot change this plant.');

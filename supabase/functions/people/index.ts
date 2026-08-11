@@ -1,21 +1,21 @@
-// Creating an account, which is the one thing a browser cannot do.
+// Accounts: making them, changing them, and taking them away.
 //
 // Everything else about access is an ordinary table write behind row-level security, and
-// `grant_access` handles it. Making a *person* is different: it writes to `auth.users`, and
-// the only key that may do that is the service-role key, which must never reach a page. So
-// this is a function, it runs on Supabase, and the key is injected into it rather than
-// shipped anywhere.
+// `grant_access` handles it. Anything that touches `auth.users` is different: it needs the
+// service-role key, which must never reach a page. So this is a function, it runs on
+// Supabase, and the key is injected into it rather than shipped anywhere.
 //
-// The flow the plant asked for, and nothing more than it:
+// Four actions, all administrators-only and all checked against the *caller's own token*
+// rather than against anything the caller says about themselves:
 //
-//   An administrator types a name, an email and picks View only or Can edit.
-//   MaxMetrics makes the account with a temporary password and hands it back on screen.
-//   The administrator passes it on however they normally would.
-//   The person signs in, is required to choose their own password, and is in.
+//   create   make the account, set a temporary password, grant this plant
+//   update   change the name or the email address
+//   reset    issue a new temporary password
+//   remove   delete the account
 //
-// No email is sent. That is deliberate: this plant does not have outbound mail configured
-// against this project, and a flow that silently depends on one is a flow that fails on a
-// Monday morning with nobody able to say why. The password appears on the administrator's
+// No email is sent by any of them. That is deliberate: this project has no outbound mail
+// configured, and a sign-in flow that silently depends on one is a flow that fails on a
+// Monday morning with nobody able to say why. A password appears on the administrator's
 // screen, once, and they hand it over the way they already hand over everything else.
 
 import { createClient } from 'npm:@supabase/supabase-js@2.52.1';
@@ -51,8 +51,6 @@ Deno.serve(async request => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (request.method !== 'POST') return reply({ error: 'POST only' }, 405);
 
-  // Who is asking. The caller's own token is used to answer that, so this function cannot
-  // be talked into believing something the database would not.
   const token = request.headers.get('Authorization') ?? '';
   if (!token) return reply({ error: 'Sign in first.' }, 401);
   const asCaller = createClient(URL_, ANON, { global: { headers: { Authorization: token } } });
@@ -61,23 +59,79 @@ Deno.serve(async request => {
   const { data: profile } = await asCaller
     .from('profiles').select('is_admin').eq('id', who.user.id).single();
   if (!profile?.is_admin) {
-    return reply({ error: 'Only an administrator can add people.' }, 403);
+    return reply({ error: 'Only an administrator can change accounts.' }, 403);
   }
 
-  let body: { email?: string; name?: string; location?: string; canEdit?: boolean };
+  let body: {
+    action?: string; id?: string; email?: string; name?: string;
+    location?: string; canEdit?: boolean;
+  };
   try { body = await request.json(); } catch { return reply({ error: 'Bad request.' }, 400); }
+  const action = String(body.action ?? 'create');
+  const admin = createClient(URL_, SERVICE, { auth: { persistSession: false } });
+
+  // ── Change a name or an email ──
+  if (action === 'update') {
+    if (!body.id) return reply({ error: 'Which account?' }, 400);
+    const email = String(body.email ?? '').trim().toLowerCase();
+    const name = String(body.name ?? '').trim();
+    if (email) {
+      const { error } = await admin.auth.admin.updateUserById(body.id, {
+        email, email_confirm: true,
+      });
+      if (error) return reply({ error: error.message }, 400);
+    }
+    if (name) {
+      const { error } = await admin.from('profiles')
+        .update({
+          full_name: name,
+          initials: name.split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase() ?? '').join(''),
+        }).eq('id', body.id);
+      if (error) return reply({ error: error.message }, 400);
+    }
+    return reply({ ok: true });
+  }
+
+  // ── A new temporary password for somebody who has lost theirs ──
+  if (action === 'reset') {
+    if (!body.id) return reply({ error: 'Which account?' }, 400);
+    const { data: found } = await admin.auth.admin.getUserById(body.id);
+    const password = temporaryPassword();
+    const { error } = await admin.auth.admin.updateUserById(body.id, {
+      password,
+      user_metadata: { ...(found?.user?.user_metadata ?? {}), must_change_password: true },
+    });
+    if (error) return reply({ error: error.message }, 400);
+    return reply({ email: found?.user?.email ?? '', password, reused: true });
+  }
+
+  // ── Take an account away ──
+  //
+  // An administrator cannot delete themselves. It is not a permission question — it is that
+  // a plant whose last administrator has removed their own account has no way back in
+  // without somebody opening the database, and the button is one row away from every other
+  // one on this screen.
+  if (action === 'remove') {
+    if (!body.id) return reply({ error: 'Which account?' }, 400);
+    if (body.id === who.user.id) {
+      return reply({ error: 'You cannot remove your own account.' }, 400);
+    }
+    const { error } = await admin.auth.admin.deleteUser(body.id);
+    if (error) return reply({ error: error.message }, 400);
+    return reply({ ok: true });
+  }
+
+  // ── Make the account ──
   const email = String(body.email ?? '').trim().toLowerCase();
   const name = String(body.name ?? '').trim();
   const location = String(body.location ?? '').trim();
   if (!email || !email.includes('@')) return reply({ error: 'An email address is needed.' }, 400);
   if (!location) return reply({ error: 'A plant is needed.' }, 400);
 
-  const admin = createClient(URL_, SERVICE, { auth: { persistSession: false } });
   const password = temporaryPassword();
-
   // `must_change_password` is the whole of the first-sign-in flow. It is metadata on the
-  // account rather than a column, because the page has to see it before it has read
-  // anything else — it is the reason it is not going to let them past.
+  // account rather than a column, because the page has to see it before it has read anything
+  // else — it is the reason it is not going to let them past.
   const { data: made, error } = await admin.auth.admin.createUser({
     email,
     password,
@@ -88,9 +142,9 @@ Deno.serve(async request => {
   let id = made?.user?.id;
   let reused = false;
   if (error) {
-    // Already there. Reset the password rather than refusing: an administrator pressing
-    // this button for somebody who already exists has told you what they want, which is for
-    // that person to be able to get in.
+    // Already there. Reset the password rather than refusing: an administrator pressing this
+    // button for somebody who already exists has told you what they want, which is for that
+    // person to be able to get in.
     const { data: list } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
     const found = list?.users?.find(u => (u.email ?? '').toLowerCase() === email);
     if (!found) return reply({ error: error.message }, 400);

@@ -5,7 +5,7 @@
 // is protecting does not belong in this file.
 
 import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { join, extname } from 'node:path';
+import { join, extname, sep } from 'node:path';
 
 const failures = [];
 const fail = (rule, detail) => failures.push(`${rule}\n    ${detail}`);
@@ -245,10 +245,12 @@ for (const path of byExtension('.js')) {
 // rather than trusted: run `node scripts/sync-shared.mjs` after editing either module.
 for (const shared of ['import.js', 'xlsx.js']) {
   const source = join('js', shared);
-  const copy = join('supabase', 'functions', '_shared', shared);
-  if (!files.includes(copy)) continue;
-  if (read(source) !== read(copy)) {
-    fail('Edge-function copy matches its source', `${copy} differs from ${source} — run scripts/sync-shared.mjs`);
+  for (const copy of files.filter(path =>
+      path.startsWith(join('supabase', 'functions')) && path.endsWith(`${sep}${shared}`))) {
+    if (read(source) !== read(copy)) {
+      fail('Edge-function copy matches its source',
+           `${copy} differs from ${source} — run scripts/sync-shared.mjs`);
+    }
   }
 }
 
