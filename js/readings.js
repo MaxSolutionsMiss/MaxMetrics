@@ -575,9 +575,7 @@ export const CARD_CATALOGUE = [
   { section: 'Maintenance', key: 'maint-overdue', name: 'Overdue items', off: true },
   { section: 'Maintenance', key: 'maint-open',    name: 'Open work', off: true },
   { section: 'Maintenance', key: 'maint-list',    name: "Today's schedule", off: true },
-  // The upcoming list reaches the wall as a table rather than as a card, because what the
-  // room needs off it is which machine and for how long — five columns, not two.
-  { section: 'Maintenance', key: 'maint-upcoming', name: 'Upcoming maintenance (as a card)', off: true },
+  { section: 'Maintenance', key: 'maint-upcoming', name: 'Upcoming maintenance' },
   { section: 'Maintenance', key: 'maint-note',    name: 'Maintenance notes' },
   // Off by default. "Which departments, how many shifts, which machines" is the whole
   // question, and it is one card; a count of shifts and a count of machines beside it are

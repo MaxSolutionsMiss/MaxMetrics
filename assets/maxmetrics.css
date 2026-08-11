@@ -1510,12 +1510,12 @@ body.tv .util{display:none}
 
    Groups flow into columns rather than sitting in a grid, so a plant with four departments
    and a plant with nine both get a screen with no gaps in it. */
-.fill{display:flex;flex-direction:column;gap:var(--s4)}
-.fill__top{display:grid;grid-template-columns:auto 1fr auto;align-items:center;
-  gap:var(--s3) var(--s5);background:var(--surface);border:1px solid var(--rule);
-  border-radius:var(--radius-lg);padding:var(--s3) var(--s4);box-shadow:var(--shadow)}
+.fill{display:flex;flex-direction:column;gap:var(--s3)}
+.fill__top{display:grid;grid-template-columns:auto 1fr;align-items:center;
+  gap:var(--s2) var(--s4);background:var(--surface);border:1px solid var(--rule);
+  border-radius:var(--radius-lg);padding:var(--s2) var(--s4);box-shadow:var(--shadow)}
 .fill__count{display:flex;align-items:baseline;gap:var(--s2);white-space:nowrap}
-.fill__count b{font-family:var(--font-condensed);font-size:calc(38px*var(--scale));
+.fill__count b{font-family:var(--font-condensed);font-size:calc(30px*var(--scale));
   font-weight:600;line-height:1}
 .fill__count span{font-family:var(--font-condensed);font-size:calc(14px*var(--scale));
   text-transform:uppercase;letter-spacing:.07em;font-weight:700;color:var(--ink-muted)}
@@ -1528,17 +1528,17 @@ body.tv .util{display:none}
    is the same screen every day \u2014 people and quality, then the floor, then what left the
    building \u2014 and the two groups that are sentences rather than numbers take the full width
    underneath, because a note wants a line to write on. */
-.fill__grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--s4);
+.fill__grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--s3);
   align-items:stretch}
 /* The three columns end on the same line. Left to their contents they finished at three
    different heights and the block of groups came out as a staircase — which is the whole of
    what "it looks like Tetris" was about. The last group in each column takes up the slack, so
    the outside of the screen is a rectangle however many departments a plant has. */
-.fill__col{display:flex;flex-direction:column;gap:var(--s4);min-width:0}
+.fill__col{display:flex;flex-direction:column;gap:var(--s3);min-width:0}
 .fill__col > .fg:last-child{flex:1 1 auto}
 .fg--wide{grid-column:1/-1}
 .fg{background:var(--surface);border:1px solid var(--rule);
-  border-radius:var(--radius-lg);padding:var(--s3) var(--s4) var(--s3);margin:0;
+  border-radius:var(--radius-lg);padding:var(--s2) var(--s3) var(--s3);margin:0;
   box-shadow:var(--shadow)}
 .fg__h{margin:0 0 var(--s2);font-family:var(--font-condensed);font-weight:700;
   font-size:calc(15px*var(--scale));text-transform:uppercase;letter-spacing:.09em;
@@ -1546,7 +1546,7 @@ body.tv .util{display:none}
   padding-bottom:var(--s2);border-bottom:1.5px solid var(--rule)}
 .fg__n{margin-left:auto;font-size:calc(11px*var(--scale));letter-spacing:.06em;
   background:var(--warn-wash);color:var(--warn);padding:2px 7px;border-radius:3px}
-.fg__rows{display:flex;flex-direction:column;gap:5px}
+.fg__rows{display:flex;flex-direction:column;gap:2px}
 .fg__note{margin:var(--s2) 0 0;padding-top:var(--s2);border-top:1px solid var(--rule-soft);
   font-size:var(--t-micro);color:var(--ink-faint);line-height:1.45}
 
@@ -1555,11 +1555,13 @@ body.tv .util{display:none}
 /* Every row on this screen is the same height, in every group. Rows that sized themselves to
    their contents ticked down the page at three different rhythms — the ticks made the overtime
    rows taller than the safety ones, and two groups side by side never lined up. */
-.fr{display:grid;grid-template-columns:1fr 8.4rem minmax(5rem,auto);align-items:center;
-  gap:var(--s2);min-height:38px}
+.fr{display:grid;grid-template-columns:1fr 8.2rem minmax(4.5rem,auto);align-items:center;
+  gap:var(--s2);min-height:31px}
+/* A date input carries its own picker button, so it needs the room the number fields do not. */
+.fr__i[type="date"]{padding-left:4px;padding-right:2px}
 .fr__l{font-size:var(--t-small);color:var(--ink);min-width:0;overflow:hidden;
   text-overflow:ellipsis;white-space:nowrap}
-.fr__i{height:30px;font-size:var(--t-small);text-align:right;
+.fr__i{height:26px;font-size:var(--t-small);text-align:right;
   font-variant-numeric:tabular-nums}
 .fr__x{font-size:var(--t-micro);color:var(--ink-faint);text-align:right;white-space:nowrap;
   overflow:hidden;text-overflow:ellipsis}
@@ -1574,7 +1576,7 @@ body.tv .util{display:none}
 /* And one nobody has filled yet says so, once, in the only colour on the screen. */
 .fr--todo .fr__i{border-color:var(--warn)}
 .fr__pair{display:contents}
-.fr--ot{grid-template-columns:1fr 5rem minmax(0,2fr);min-height:44px}
+.fr--ot{grid-template-columns:1fr 4.4rem minmax(0,2fr);min-height:36px}
 .fr--ot .fr__x{text-align:left;white-space:normal;overflow:visible;padding:4px 0}
 .fr--ot .ticks{justify-content:flex-start}
 .fr--note{grid-template-columns:1fr 6.5rem;row-gap:4px;align-items:start;min-height:0;
@@ -1583,8 +1585,8 @@ body.tv .util{display:none}
 .fr--note .fr__t{grid-column:1/-1}
 .fr--wide{grid-template-columns:1fr}
 .fr__i--s{text-align:left;padding:0 4px}
-.fr__t{font-family:inherit;font-size:var(--t-small);min-height:32px;padding:6px var(--s2);
-  line-height:1.45;resize:vertical}
+.fr__t{font-family:inherit;font-size:var(--t-small);min-height:28px;padding:4px var(--s2);
+  line-height:1.4;resize:vertical}
 
 /* A group whose rows are sentences spreads them across the width instead of stacking them
    in a column a third as wide. */
@@ -1593,8 +1595,8 @@ body.tv .util{display:none}
 .fg__add{margin-left:auto;height:24px;padding:0 8px;font-size:var(--t-micro)}
 
 /* Maintenance is six things on a line, so it gets six columns rather than a name and a box. */
-.fr--maint{grid-template-columns:minmax(0,1.1fr) minmax(0,1.2fr) 4.2rem minmax(0,1.6fr) 8.4rem
-  minmax(0,.9fr) 1.6rem;align-items:center;gap:var(--s2);min-height:38px}
+.fr--maint{grid-template-columns:minmax(0,1.1fr) minmax(0,1.2fr) 4rem minmax(0,1.7fr) 7.8rem
+  minmax(0,.9fr) 1.5rem;align-items:center;gap:var(--s2);min-height:31px}
 .fr--head{min-height:0}
 .fr--maint .fr__i{text-align:left}
 .fr--maint .fr__i--h{text-align:right}
@@ -1620,10 +1622,15 @@ body[data-view="fill"] #edit-btn,body[data-view="fill"] #publish-btn{display:non
 
 /* ── One page: the whole plant on one fixed screen ──
    A corridor TV cannot be scrolled and a snapshot cannot be paged, so this shape has one
-   job — fit. It is a composition rather than a list: sections take a block of a twelve-by-
-   twelve grid sized to what they carry, and each block deals its own cards inside itself.
+   job — fit.
 
-   Nothing new is drawn. These are the same cards at whatever size their block leaves them,
+   One grid, one card size, one type scale. Two earlier attempts gave each section its own
+   block with its own arrangement, and both produced a page where Safety's cards were twice
+   the size of Shipping's and every block set its type differently: six dashboards
+   photographed together rather than one. The sections are told apart by the colour of the
+   bar across the top, which is what the bar was always for.
+
+   Nothing new is drawn. These are the same cards at whatever size the grid leaves them,
    which works because everything on a card is already a share of the card — but the share
    has to come from the card's own box here rather than from `--card-h`, since the grid gives
    the card its height and the stylesheet never sees the number. `container-type:size` makes
@@ -1631,64 +1638,60 @@ body[data-view="fill"] #edit-btn,body[data-view="fill"] #publish-btn{display:non
    and it is why a snapshot needed a layout rather than a second set of cards. */
 body.tv.tv-all .content.wall{display:flex;flex-direction:column;gap:var(--s3);
   overflow:hidden;padding:var(--s3) var(--s4) 52px}
-body.tv.tv-all .wall__top{flex:none;margin:0}
+body.tv.tv-all .wall__top{flex:none;margin:0;align-items:center}
 body.tv.tv-all .wall__dots{display:none}
 body.tv.tv-all #tv-next,body.tv.tv-all #tv-prev{display:none}
-.snap{flex:1 1 auto;min-height:0;display:grid;gap:var(--s3);
-  grid-template-columns:repeat(12,minmax(0,1fr));grid-template-rows:repeat(12,minmax(0,1fr))}
-.snap__b{min-width:0;min-height:0;display:flex;flex-direction:column;gap:6px}
-.snap__t{flex:none;margin:0;font-family:var(--font-condensed);font-weight:700;
-  text-transform:uppercase;letter-spacing:.11em;font-size:calc(12px*var(--scale));
-  color:var(--ink-faint);line-height:1;white-space:nowrap;overflow:hidden;
-  text-overflow:ellipsis}
-/* Written at the same weight as the walk's own grid rules, which are equally specific and
-   set a fixed row height — the block's cards took `--card-h` from the walk and spilled out of
-   the bottom of every block on the page. */
-body.tv.tv-all .grid.grid--snap{flex:1 1 auto;min-height:0;display:grid;gap:var(--s2);
-  grid-template-columns:repeat(var(--snap-cols,3),minmax(0,1fr));
+
+/* The families, named once. Same darkness and same saturation so they read as one set and
+   the white knockout works on all of them, and none of them is green, amber or red — those
+   three belong to the verdict and may not be spent on a label. */
+.wall--snap{--fam-safety:#3F6B57;--fam-quality:#4A5162;--fam-production:#5A5470;
+  --fam-shipping:#3E5A72;--fam-financials:#6B5B45;--fam-maintenance:#55606E;
+  --fam-labour:#55606E}
+.legend{display:flex;flex-wrap:wrap;gap:6px 10px;margin-left:var(--s4);min-width:0}
+.legend__i{font-family:var(--font-condensed);font-weight:700;text-transform:uppercase;
+  letter-spacing:.09em;font-size:calc(11px*var(--scale));color:#fff;
+  padding:3px 9px;border-radius:3px;white-space:nowrap}
+.legend__i[data-fam="safety"]{background:var(--fam-safety)}
+.legend__i[data-fam="quality"]{background:var(--fam-quality)}
+.legend__i[data-fam="production"]{background:var(--fam-production)}
+.legend__i[data-fam="shipping"]{background:var(--fam-shipping)}
+.legend__i[data-fam="financials"]{background:var(--fam-financials)}
+.legend__i[data-fam="maintenance"]{background:var(--fam-maintenance)}
+.legend__i[data-fam="labour"]{background:var(--fam-labour)}
+
+body.tv.tv-all .grid.grid--cards.grid--snap{flex:1 1 auto;min-height:0;display:grid;
+  gap:var(--s2);grid-template-columns:repeat(var(--snap-cols,6),minmax(0,1fr));
   grid-auto-rows:minmax(0,1fr);align-content:stretch;justify-content:stretch;margin:0;
   --card-w:auto;--card-h:auto}
-/* The card reads its own box on both axes, so a block that is wide and short and a block
-   that is narrow and tall each get a card sized for the room they actually have. */
 body.tv.tv-all .grid--snap .card{container-type:size;min-width:0;min-height:0}
 body.tv.tv-all .grid--snap .card *{--cu:min(1cqi,calc(1cqb/1.132));
   --u:calc(var(--cu)*var(--fit,1))}
 body.tv.tv-all .grid--snap .card__head{font-size:min(9cqi,var(--tcap,99px));
   min-height:1.8em;padding:0 .5em}
+body.tv.tv-all .grid--snap .card[data-fam="safety"] .card__head{background:var(--fam-safety)}
+body.tv.tv-all .grid--snap .card[data-fam="quality"] .card__head{background:var(--fam-quality)}
+body.tv.tv-all .grid--snap .card[data-fam="production"] .card__head{background:var(--fam-production)}
+body.tv.tv-all .grid--snap .card[data-fam="shipping"] .card__head{background:var(--fam-shipping)}
+body.tv.tv-all .grid--snap .card[data-fam="financials"] .card__head{background:var(--fam-financials)}
+body.tv.tv-all .grid--snap .card[data-fam="maintenance"] .card__head{background:var(--fam-maintenance)}
+body.tv.tv-all .grid--snap .card[data-fam="labour"] .card__head{background:var(--fam-labour)}
 body.tv.tv-all .grid--snap .card__flag{display:none}
+
 /* A card sheds what it cannot draw, and it decides for itself.
    `container-type:size` is already on for the sizing, so each card can be asked how tall it
-   ended up. A block of two gets a whole card; a block of eight in a quarter of the screen
-   gets the title, the number and what it means, which at that size is everything a person
-   ten metres away can read anyway. The rule is written against the card rather than against
-   the block, so a plant with three departments and a plant with nine both get whatever their
-   own cards can carry. */
+   ended up — and on a collage they are all the same height, so they all shed the same things
+   and stay a set. At ten metres the title, the number and what it means is everything anybody
+   can read anyway. */
 @container (max-height:250px){
   .card__body .ctrack .spark,.card__body .months__m{display:none}
   .card__body .ctrack__row{min-height:0}
 }
-@container (max-height:200px){
-  .card__body .ctrack{display:none}
-}
-@container (max-height:150px){
-  .card__body .foot{display:none}
-  .card__body .unit{display:none}
-}
-/* The table keeps its block and loses the row of controls it cannot use up here. */
-body.tv.tv-all .snap__b .panel--wall{flex:1 1 auto;min-height:0;margin:0;
-  display:flex;flex-direction:column}
-body.tv.tv-all .snap__b .panel__body{flex:1;min-height:0;overflow:hidden}
-body.tv.tv-all .snap__b .panel__head{display:none}
-body.tv.tv-all .snap__b td{font-size:calc(9.5px*var(--scale));padding:3px var(--s2);
-  line-height:1.25}
-body.tv.tv-all .snap__b th{font-size:calc(7.5px*var(--scale));padding:0 var(--s2) 3px}
-body.tv.tv-all .snap__b .tbl{table-layout:auto}
-/* Status goes. On a fixed screen the date already says whether something is late, and the
-   column was costing the width that "Belt replacement" needed. */
-body.tv.tv-all .snap__b tr > *:nth-last-child(2){display:none}
+@container (max-height:200px){ .card__body .ctrack{display:none} }
+@container (max-height:150px){ .card__body .foot,.card__body .unit{display:none} }
+
 .tvbar__split{width:1px;align-self:stretch;background:var(--rule);margin:4px 2px}
 
-@media(max-width:1100px){
-  .snap{grid-template-columns:repeat(6,minmax(0,1fr));grid-template-rows:repeat(24,minmax(0,1fr))}
-  .snap__b{grid-area:auto!important;grid-column:1/-1!important}
+@media(max-width:900px){
+  body.tv.tv-all .legend{display:none}
 }

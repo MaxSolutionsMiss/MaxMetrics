@@ -761,16 +761,19 @@ the screen allows and the arrangement chosen to fill it.
 
 **One page** is a corridor TV and a screenshot. It cannot be scrolled and it cannot be paged,
 so it has one job: fit. A first attempt stacked the sections and let the page scroll, which is
-a walk with extra steps and no use at all on a fixed screen.
+a walk with extra steps and no use at all on a fixed screen. A second gave each section its
+own block with its own arrangement, and that produced a page where Safety's cards were twice
+the size of Shipping's and every block set its type at a different scale — six dashboards
+photographed together rather than one.
 
-It is a composition. Sections take a block of a twelve-by-twelve grid sized to what they
-carry — Safety is two readings and gets a narrow column, Shipping is eight and gets a quarter
-of the screen — and each block deals its own cards inside itself, choosing the arrangement
-whose cells come closest to the shape a card wants to be. The blocks are written down rather
-than packed by an algorithm, because a plant walks into that room every morning for a year and
-the value of a fixed layout is that Shipping is where Shipping was yesterday.
+It is one grid of identical cards. Same size, same type, same everything, and the sections
+are told apart by the colour of the bar across the top with a legend beside the plant's name.
+That is what the bar was always for, and it is the only thing on the design that groups the
+cards, so the whole page reads as one set. The family colours share a darkness and a
+saturation so the white knockout works on all of them, and none of them is green, amber or
+red — those three belong to the verdict and may not be spent on a label.
 
-Nothing new is drawn. These are the same cards at whatever size their block leaves them, which
+Nothing new is drawn. These are the same cards at whatever size the grid leaves them, which
 works because everything on a card is already a share of the card — but the share has to come
 from the card's own box here rather than from `--card-h`, since the grid gives the card its
 height and the stylesheet never sees the number. `container-type: size` makes both axes
@@ -778,11 +781,17 @@ queryable, so `--u` reads the card it is actually in. That one line is why a sna
 layout rather than a second set of cards.
 
 And a card sheds what it cannot draw, by asking how tall it ended up. Under 250px it loses the
-seven-day line, under 200 the whole track, under 150 the foot — so a block of two shows a full
-card and a block of eight in a quarter of the screen shows the title, the number and what it
-means, which at ten metres is everything anybody can read anyway. The rule is written against
-the card rather than against the block, so a plant with three departments and a plant with
-nine each get whatever their own cards can carry.
+seven-day line, under 200 the whole track, under 150 the foot. On a collage they are all the
+same height so they shed the same things and stay a set, and at ten metres the title, the
+number and what it means is everything anybody can read anyway.
+
+## Entering a morning happens in one place
+
+Two entry tables lived on reading screens: "Which departments" under Labour and the upcoming
+maintenance list under Maintenance. Both are groups on Enter now — the same fields, in the
+place a person goes to fill them in — and both are gone from the sections, which is most of
+the reason Everything used to scroll. Upcoming maintenance is a card there like everything
+else, with the machine, the hours and what it is for on the quieter line under the department.
 
 ## One table reaches the wall
 
