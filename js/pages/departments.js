@@ -22,12 +22,14 @@ import {
   currentSession, signOut, myProfile, myLocations,
   loadDepartmentConfig, saveDepartmentConfig, addDepartmentConfig, ensureDepartmentRows,
   loadBudgets, saveBudget, loadPlant, savePlant,
-  peopleAt, grantAccess, revokeAccess, setAdmin, createPerson,
-} from '../db.js?v=7d7861f55967';
+  peopleAt, grantAccess, revokeAccess, setAdmin,
+  createPerson, updatePerson, resetPersonPassword, removePerson,
+  loadSources, saveSource,
+} from '../db.js?v=8c189b277551';
 import {
-  esc, num, money, MONTHS, metricCard, footLine, iconFor, cardTrack,
+  esc, money, MONTHS, iconFor,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE,
-} from '../readings.js?v=7d7861f55967';
+} from '../readings.js?v=8c189b277551';
 
 const $ = selector => document.querySelector(selector);
 
@@ -38,7 +40,8 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 const state = { me: null, locations: [], location: null, config: [], draft: null, plant: null,
                 pane: 'departments', budgets: [], year: new Date().getFullYear(), people: null,
-                madePerson: null };
+                madePerson: null, editing: null, adding: false, editingPerson: null,
+                sources: null };
 
 // ── The panes ───────────────────────────────────────────────────────────────────
 //
@@ -151,29 +154,6 @@ const toggle = (label, name, on) =>
   `<label class="tog"><input type="checkbox" data-field="${esc(name)}"${on ? ' checked' : ''}>
    <span>${esc(label)}</span></label>`;
 
-// What the department will look like tomorrow morning, drawn with the same function the
-// dashboard draws it with. The number is the target, because a card showing its target is
-// the one arrangement that is true before any volume has ever been entered — and it puts
-// every label the person is typing in the place they will read it.
-function preview(config) {
-  return metricCard({
-    chart: 'bar', pkey: `preview-${config.key}`, label: config.name || 'Untitled',
-    icon: config.icon || iconFor(config.key), tone: 'ok', medium: true,
-    value: num(Math.round(Number(config.target) || 0)), sub: rateLabel(config),
-    percent: 80, markPercent: 100 / 1.25, markLabel: 'target',
-    track: cardTrack({
-      chart: 'bar', tone: 'ok',
-      series: [0.94, 0.97, 0.95, 1.01, 0.99, 1.03, 1.0].map(f => (Number(config.target) || 1) * f),
-      seriesLabel: 'Last 7 mornings',
-    }),
-    foot: footLine([
-      ['Target', num(Math.round(Number(config.target) || 0))],
-      [volumeLabel(config), '—'],
-      [hoursLabel(config), '—'],
-    ]),
-  });
-}
-
 // Volume, rate and hours describe a department that produces something and is measured
 // per hour. Shipping does not — it is in the 24-hour review for its note and its status —
 // so a review-only entry is not asked what it counts.
@@ -219,12 +199,6 @@ function departmentCard(config) {
         </div>
         <button class="btn btn--quiet" data-retire="${esc(config.id)}">Take out of use</button>
       </div>
-      <div class="cfg__preview">
-        <span class="eyebrow">Tomorrow morning</span>
-        ${config.on_metrics ? preview(config)
-          : `<p class="cfg__none">Review only — this one gets a note and a status in
-             Production, not a card with a rate.</p>`}
-      </div>
     </div>
   </div>`;
 }
@@ -259,11 +233,6 @@ function addPanel() {
                 : `Key <code>${esc(key)}</code> · order ${nextSort()}`}</span>
             </div>
           </div>
-          <div class="cfg__preview">
-            <span class="eyebrow">Tomorrow morning</span>
-            ${draft.on_metrics ? preview(draft)
-              : `<p class="cfg__none">Review only — a note and a status, no rate.</p>`}
-          </div>
         </div>
       </div>
     </div>
@@ -290,22 +259,48 @@ function retiredPanel(retired) {
   </div>`;
 }
 
+// One department at a time, chosen from a list.
+//
+// Every department was drawn open, one under another, each with a preview card beside it
+// made of invented numbers — four departments came out four screens long and the way to
+// change Gluing's target was to scroll past three others looking for it. Nothing about
+// configuring a department benefits from seeing the other three while you do it.
+//
+// So: pick one, edit it, and the rest are a line in a dropdown. Adding is a button rather
+// than a permanently open form, for the same reason — it is the rarest thing on the screen
+// and it was taking the most room.
 function departmentsPane() {
   const plant = state.locations.find(l => l.id === state.location);
   const live = state.config.filter(c => c.active);
   const retired = state.config.filter(c => !c.active);
   if (!canEdit()) return readOnlyList(live, plant);
+
+  const chosen = live.find(c => String(c.id) === String(state.editing)) || live[0];
   return `<section class="sec">
-    <div class="sec__head"><h2 class="sec__title">In use at ${esc(plant?.name || '')}</h2>
+    <div class="sec__head"><h2 class="sec__title">Departments at ${esc(plant?.name || '')}</h2>
       <div class="sec__rule"></div></div>
-    <p class="verdict verdict--none">${live.length
-      ? `${live.length} department${live.length === 1 ? '' : 's'}, in the order the meeting walks them.
-         Every field saves as you type it, and the card beside it is the one the room sees tomorrow.`
-      : `This plant has no departments yet. Add the ones it runs and they appear on tomorrow's
-         dashboard — or on this morning's, as soon as you go back to it.`}</p>
-    ${live.length ? `<div class="cfgs">${live.map(departmentCard).join('')}</div>` : ''}
+
+    <div class="picker">
+      <label class="picker__l" for="dept-pick">Which department</label>
+      <select class="inp picker__s" id="dept-pick" aria-label="Which department to edit"
+        ${live.length ? '' : 'disabled'}>
+        ${live.map(config => `<option value="${esc(config.id)}"${
+          config === chosen ? ' selected' : ''}>${esc(config.name)}</option>`).join('')
+          || '<option>No departments yet</option>'}
+      </select>
+      <span class="picker__c">${live.length} in use${
+        retired.length ? ` · ${retired.length} out of use` : ''}</span>
+      <button class="btn btn--go" id="show-add">${
+        state.adding ? 'Close' : 'Add a department'}</button>
+    </div>
+
+    ${state.adding ? `<section class="sec">${addPanel()}</section>` : ''}
+
+    ${chosen ? `<div class="cfgs">${departmentCard(chosen)}</div>`
+      : `<p class="verdict verdict--none">This plant has no departments yet. Add the ones it
+         runs and they appear on tomorrow's dashboard — or on this morning's, as soon as you
+         go back to it.</p>`}
   </section>
-  <section class="sec">${addPanel()}</section>
   ${retired.length ? `<section class="sec">${retiredPanel(retired)}</section>` : ''}`;
 }
 
@@ -478,12 +473,67 @@ function qualityPane() {
 // not part of a morning; they are things done to one, a few times a month. The import
 // itself still runs on the dashboard because it writes into the morning being looked at —
 // so this pane is the door to it rather than a second copy of it.
+// ── Linked files ────────────────────────────────────────────────────────────────
+//
+// The three places this plant's numbers live, named once, so that Pull data on the dashboard
+// means what it says. A source is a URL that returns the bytes of a workbook — that is
+// deliberately the whole contract, because it is the one thing every place these files live
+// can do.
+//
+// SharePoint and OneDrive: open the file, Share, change the permission to **Anyone with the
+// link**, copy, and paste it here. A link that says "People in Max Solutions" needs a
+// Microsoft sign-in, and a signed-out server gets a sign-in page rather than a workbook —
+// the pull records exactly that against the source rather than failing quietly.
+const SOURCE_HELP = {
+  dor: 'DOR_V9.xlsx — production. Everything on the Production cards, and last week\u2019s.',
+  otif: 'OTD / OTIF sheet — jobs shipped, late, short.',
+  kpi: 'Monthly KPI workbook — cost of quality, NCRs, complaints, sales, OTIF roll-ups.',
+};
+
+function sourcesPanel() {
+  const sources = state.sources || [];
+  const when = source => {
+    if (!source.last_pulled_at) return 'never pulled';
+    const at = new Date(source.last_pulled_at);
+    return `${source.last_status === 'ok' ? 'pulled' : 'tried'} ${at.toLocaleString('en-US', {
+      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`;
+  };
+  return `<div class="panel"><div class="panel__head">
+    <span class="card__ico" aria-hidden="true">\u{1F517}</span>
+    <h3 class="panel__title">Linked files</h3>
+    <div class="panel__actions"><span class="pill pill--${
+      sources.filter(s => (s.url || '').trim()).length ? 'ok' : 'warn'}">${
+      sources.filter(s => (s.url || '').trim()).length} of ${sources.length} linked</span></div>
+    </div>
+    <div class="panel__body">
+      <p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">
+        <b>Pull data</b> on the dashboard goes and gets these. Paste a link that returns the
+        file itself: in SharePoint or OneDrive that is <b>Share \u2192 Anyone with the link
+        \u2192 Copy</b>. A link restricted to people inside Max Solutions needs a Microsoft
+        sign-in, and MaxMetrics is not signed in to your tenant \u2014 it would be handed a
+        sign-in page instead of a workbook, and it will say so here when that happens.</p>
+      ${sources.map(source => `<div class="src">
+        <div class="src__h"><b>${esc(source.name)}</b>
+          <span class="src__k">${esc(SOURCE_HELP[source.kind] || '')}</span></div>
+        <input class="inp" type="url" data-source="${esc(source.id)}"
+          aria-label="${esc(source.name)} link"
+          placeholder="https://maxsolutions.sharepoint.com/..." value="${esc(source.url || '')}">
+        <label class="tog"><input type="checkbox" data-source-on="${esc(source.id)}"${
+          source.enabled ? ' checked' : ''}><span>Pull this one</span></label>
+        <span class="src__w${source.last_status === 'failed' ? ' src__w--bad' : ''}">${
+          esc(when(source))}${source.last_note ? ` \u00b7 ${esc(source.last_note)}` : ''}</span>
+      </div>`).join('') || '<p class="cfg__none">No sources set up for this plant.</p>'}
+    </div></div>`;
+}
+
 function dataPane() {
   const back = `dashboard.html?do=`;
   return `<section class="sec">
     <div class="sec__head"><h2 class="sec__title">Data</h2><div class="sec__rule"></div></div>
-    <p class="verdict verdict--none">Everything that gets a morning in or out. Importing
-      writes into the morning you are looking at, so it opens on the dashboard.</p>
+    ${sourcesPanel()}
+    <p class="verdict verdict--none" style="margin-top:var(--s3)">Everything else that gets a
+      morning in or out. Importing writes into the morning you are looking at, so it opens on
+      the dashboard.</p>
     <div class="grid g3">
       ${[
         ['📥', 'Import', 'import',
@@ -553,6 +603,26 @@ function peoplePane() {
   const inRow = person => {
     const level = levelOf(person);
     const key = person.profile_id || `email:${person.email}`;
+    // Open for editing: the row becomes the form rather than opening a dialogue over it, so
+    // the person you are changing stays in the list you found them in.
+    if (person.profile_id && state.editingPerson === person.profile_id) {
+      return `<tr data-person="${esc(key)}" class="ppl--open"><td colspan="5">
+        <div class="pplf">
+          <input class="inp" id="ed-name" type="text" value="${esc(person.full_name || '')}"
+            placeholder="Full name" aria-label="Full name">
+          <input class="inp" id="ed-email" type="email" value="${esc(person.email || '')}"
+            placeholder="Email" aria-label="Email address">
+          <button class="btn btn--go" data-save-person="${esc(person.profile_id)}">Save</button>
+          <button class="btn" data-cancel-person="1">Cancel</button>
+          <span class="pplf__sp"></span>
+          <button class="btn btn--quiet" data-reset-person="${esc(person.profile_id)}">
+            New temporary password</button>
+          ${person.profile_id === state.me?.id ? ''
+            : `<button class="btn btn--quiet pplf__x"
+                 data-remove-person="${esc(person.profile_id)}">Remove account</button>`}
+        </div>
+      </td></tr>`;
+    }
     return `<tr data-person="${esc(key)}">
       <td class="ppl__n">
         <span class="who__a who__a--sm" style="background:${
@@ -576,6 +646,11 @@ function peoplePane() {
             ${person.is_admin ? ' checked' : ''}${person.pending ? ' disabled' : ''}>
           <span class="soft">Admin</span></label>
       </td>
+      <td class="num ppl__x">${person.profile_id
+        ? `<button class="lnk" data-edit-person="${esc(person.profile_id)}"
+             aria-label="Edit ${esc(person.full_name)}">Edit</button>`
+        : `<button class="lnk" data-drop-invite="${esc(person.email)}"
+             aria-label="Cancel the invitation for ${esc(person.email)}">Cancel</button>`}</td>
     </tr>`;
   };
 
@@ -627,7 +702,7 @@ function peoplePane() {
       </div></div>
       <div class="panel__body">
         ${people.length ? `<table class="tbl tbl--tight tbl--ppl"><thead><tr>
-          <th>Name</th><th>Email</th><th>This plant</th><th class="num">MaxMetrics</th>
+          <th>Name</th><th>Email</th><th>This plant</th><th class="num">MaxMetrics</th><th></th>
         </tr></thead><tbody>${people.map(inRow).join('')}</tbody></table>`
         : '<p class="cfg__none">Nobody yet.</p>'}
       </div></div>
@@ -732,7 +807,18 @@ function redrawSoon() {
   }, 700);
 }
 
+let sourceTimer;
 document.addEventListener('input', event => {
+  const source = event.target.dataset?.source;
+  if (source) {
+    const url = event.target.value.trim();
+    clearTimeout(sourceTimer);
+    sourceTimer = setTimeout(async () => {
+      try { await saveSource(source, { url }); noteSaved(); }
+      catch (error) { toast(error.message); }
+    }, 500);
+    return;
+  }
   const name = event.target.dataset?.field;
   // A checkbox raises both `input` and `change`. It is answered on `change`, where the
   // page redraws immediately rather than after a typing pause.
@@ -800,6 +886,7 @@ document.addEventListener('click', async event => {
     if (state.pane === 'financials' && !state.budgets.length) await loadYear();
     if (state.pane === 'quality' && !state.plant) state.plant = await loadPlant(state.location).catch(() => null);
     if (state.pane === 'people') await loadPeople();
+    if (state.pane === 'data') await loadLinked();
     render();
     scrollTo({ top: 0, behavior: 'smooth' });
     return;
@@ -845,8 +932,79 @@ document.addEventListener('click', async event => {
     return;
   }
 
+  if (event.target.closest('#show-add')) {
+    state.adding = !state.adding;
+    render();
+    return;
+  }
   if (event.target.closest('#add-btn')) await addDepartment();
-  if (event.target.closest('#add-person')) await addPerson();
+  if (event.target.closest('#add-person')) { await addPerson(); return; }
+
+  const openPerson = event.target.closest('[data-edit-person]');
+  if (openPerson) {
+    state.editingPerson = openPerson.dataset.editPerson;
+    state.madePerson = null;
+    render();
+    return;
+  }
+  if (event.target.closest('[data-cancel-person]')) {
+    state.editingPerson = null;
+    render();
+    return;
+  }
+  const savePerson = event.target.closest('[data-save-person]');
+  if (savePerson) {
+    try {
+      await updatePerson({
+        id: savePerson.dataset.savePerson,
+        name: $('#ed-name').value.trim(),
+        email: $('#ed-email').value.trim(),
+      });
+      state.editingPerson = null;
+      await loadPeople();
+      render();
+      noteSaved();
+    } catch (error) { toast(error.message); }
+    return;
+  }
+  const resetPerson = event.target.closest('[data-reset-person]');
+  if (resetPerson) {
+    try {
+      state.madePerson = await resetPersonPassword(resetPerson.dataset.resetPerson);
+      state.editingPerson = null;
+      await loadPeople();
+      render();
+    } catch (error) { toast(error.message); }
+    return;
+  }
+  // Removing an account takes the person out of MaxMetrics everywhere, not just off this
+  // plant, so it asks — and it names them, because "are you sure" is a question nobody reads.
+  const dropPerson = event.target.closest('[data-remove-person]');
+  if (dropPerson) {
+    const person = (state.people || []).find(x => x.profile_id === dropPerson.dataset.removePerson);
+    const said = prompt(`Remove ${person?.full_name || 'this account'} from MaxMetrics `
+      + `entirely? They lose access to every plant and their sign-in stops working.\n\n`
+      + `Type REMOVE to confirm.`);
+    if (said !== 'REMOVE') return;
+    try {
+      await removePerson(dropPerson.dataset.removePerson);
+      state.editingPerson = null;
+      await loadPeople();
+      render();
+      toast(`${person?.full_name || 'That account'} is gone`);
+    } catch (error) { toast(error.message); }
+    return;
+  }
+  const dropInvite = event.target.closest('[data-drop-invite]');
+  if (dropInvite) {
+    try {
+      await revokeAccess(null, dropInvite.dataset.dropInvite, state.location);
+      await loadPeople();
+      render();
+      noteSaved();
+    } catch (error) { toast(error.message); }
+    return;
+  }
   if (event.target.closest('#copy-password')) {
     try {
       await navigator.clipboard.writeText(state.madePerson?.password || '');
@@ -861,6 +1019,11 @@ document.addEventListener('click', async event => {
 // function call, it is the only screen in the product where being a version behind means
 // telling somebody they have access they do not have, and the read is the same one the
 // database will use to decide.
+async function loadLinked() {
+  try { state.sources = await loadSources(state.location); }
+  catch (error) { state.sources = []; toast(error.message); }
+}
+
 async function loadPeople() {
   try { state.people = await peopleAt(state.location); }
   catch (error) { state.people = []; toast(error.message); }
@@ -897,6 +1060,19 @@ async function addPerson() {
 }
 
 document.addEventListener('change', async event => {
+  const sourceOn = event.target.dataset?.sourceOn;
+  if (sourceOn) {
+    try {
+      await saveSource(sourceOn, { enabled: event.target.checked });
+      await loadLinked(); render(); noteSaved();
+    } catch (error) { toast(error.message); }
+    return;
+  }
+  if (event.target.id === 'dept-pick') {
+    state.editing = event.target.value;
+    render();
+    return;
+  }
   const level = event.target.dataset?.level;
   if (level) {
     const person = (state.people || []).find(p => (p.profile_id || `email:${p.email}`) === level);
@@ -939,7 +1115,12 @@ async function addDepartment() {
       sort_order: nextSort(), on_metrics: draft.on_metrics, on_review: draft.on_review,
       active: true,
     });
-    if (created) state.config.push(created);
+    if (created) {
+      state.config.push(created);
+      // The one somebody just made is the one they want in front of them.
+      state.editing = String(created.id);
+      state.adding = false;
+    }
     // The morning is already open, so the new department has no row on today's date.
     // Asking for the day again is idempotent and means the card can be typed into now
     // rather than tomorrow.
@@ -986,6 +1167,9 @@ async function openPlant(location) {
   state.plant = null;
   state.people = null;
   state.madePerson = null;
+  state.editing = null;
+  state.adding = false;
+  state.sources = null;
   $('#content').innerHTML = '<div class="loading">Loading this plant…</div>';
   try {
     state.config = (await loadDepartmentConfig(location)) || [];
@@ -996,6 +1180,7 @@ async function openPlant(location) {
   if (state.pane === 'financials') await loadYear();
   if (state.pane === 'quality') state.plant = await loadPlant(location).catch(() => null);
   if (state.pane === 'people') await loadPeople();
+  if (state.pane === 'data') await loadLinked();
   saved('All changes saved');
   render();
 }
