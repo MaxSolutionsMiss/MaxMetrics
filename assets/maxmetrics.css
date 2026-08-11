@@ -1418,6 +1418,23 @@ body.tv .content.wall{display:flex;flex-direction:column;gap:var(--s4);
    here beats saying it three minutes later in a failed pull. */
 .src__k{grid-column:1/-1;font-size:var(--t-micro);color:var(--warn);line-height:1.5}
 .src__k--ok{color:var(--ok)}
+/* Four screens of SharePoint explanation, closed.
+   It is the right writing and it was the wrong amount of screen: somebody who has already
+   read it wants the file list, not the essay under it every time. One line, and it opens.
+   Deleting it would have been the other way to make it short, and then the next time a link
+   is refused nobody knows why. */
+.help{display:block;margin-top:var(--s3)}
+.help__s{cursor:pointer;list-style:none;border-bottom:0}
+.help__s::-webkit-details-marker{display:none}
+.help__s::after{content:"+";margin-left:auto;font-family:var(--font-condensed);
+  font-weight:700;font-size:calc(18px*var(--scale));color:var(--ink-faint)}
+.help[open] .help__s{border-bottom:1px solid var(--rule)}
+.help[open] .help__s::after{content:"\2212"}
+.help__b{display:flex;flex-direction:column;gap:var(--s4);padding-top:var(--s3)}
+.hp{display:flex;flex-direction:column;gap:var(--s2)}
+.hp__h{display:flex;align-items:center;gap:var(--s2)}
+.hp__h .panel__title{font-size:calc(15px*var(--scale));color:var(--ink)}
+.hp__b{display:flex;flex-direction:column;gap:var(--s2)}
 /* Getting a link out of SharePoint has now been attempted four times and lost four times,
    so the instructions live on the screen where the link is pasted rather than in a message
    somebody has to go and find. Numbered, because they are steps. */
@@ -1761,7 +1778,7 @@ body.tv .util{display:none}
    without scrolling is the most expensive argument on the page. In a column they are as tall
    as they need to be and the screen is a rectangle. */
 .fill__grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--s3);
-  align-items:stretch}
+  align-items:start}
 /* One section's worth of boxes, on that section's own screen. Four columns are right for
    the whole morning and wrong for six safety readings — they would come out as one short
    column and three empty ones — so the groups take what they need and wrap. */
@@ -1812,8 +1829,12 @@ body.tv .util{display:none}
    different heights and the block of groups came out as a staircase — which is the whole of
    what "it looks like Tetris" was about. The last group in each column takes up the slack, so
    the outside of the screen is a rectangle however many departments a plant has. */
-.fill__col{display:flex;flex-direction:column;gap:var(--s3);min-width:0}
-.fill__col > .fg:last-child{flex:1 1 auto}
+/* Columns end where their content ends.
+   The last group in each column used to stretch to close the gap, which turned a ragged
+   bottom edge into a card with four hundred pixels of nothing inside it - a worse answer to
+   the same problem, and the one that looks like a mistake rather than like a column that
+   finished. The groups are dealt out to make the columns close in height instead. */
+.fill__col{display:flex;flex-direction:column;gap:var(--s3);min-width:0;align-self:start}
 .fg--wide{grid-column:1/-1}
 .fg{background:var(--surface);border:1px solid var(--rule);
   border-radius:var(--radius-lg);padding:var(--s2) var(--s3) var(--s3);margin:0;
@@ -1837,18 +1858,24 @@ body.tv .util{display:none}
    first thing to run out of room was the label \u2014 "COQ this month" came out as "C\u2026".
    The field is the fixed part because a number is at most seven digits; what the label and
    the echo get is what is left, and both ellipsise rather than pushing the field about. */
-.fr{display:grid;grid-template-columns:minmax(0,1fr) 5.9rem minmax(0,6.2rem);align-items:center;
-  gap:var(--s2);min-height:31px}
+/* Label, then the box, then whatever the box means. Packed to the left.
+   The label column was `1fr`, so it took every pixel the row had spare and pushed the input
+   against the right-hand edge: "Last injury" sat four inches from the date it was labelling,
+   and reading one figure meant crossing the width of a card. The label gets the width of the
+   longest label and no more, the box follows it, and the slack goes where slack belongs -
+   the empty end of the row. */
+.fr{display:grid;grid-template-columns:minmax(0,8.4rem) 5.9rem minmax(0,1fr);align-items:center;
+  gap:var(--s2);min-height:28px}
 /* A date input carries its own picker button, so it needs the room the number fields do not
    \u2014 and the rows that hold one echo a two-word answer, so the room comes out of the echo. */
 .fr:not(.fr--maint):has(> .fr__i[type="date"]){
-  grid-template-columns:minmax(0,1fr) 8rem minmax(0,3.6rem)}
+  grid-template-columns:minmax(0,8.4rem) 8rem minmax(0,1fr)}
 .fr__i[type="date"]{padding-left:4px;padding-right:2px}
 .fr__l{font-size:var(--t-small);color:var(--ink);min-width:0;overflow:hidden;
   text-overflow:ellipsis;white-space:nowrap}
 .fr__i{height:26px;font-size:var(--t-small);text-align:right;
   font-variant-numeric:tabular-nums}
-.fr__x{font-size:var(--t-micro);color:var(--ink-faint);text-align:right;white-space:nowrap;
+.fr__x{font-size:var(--t-micro);color:var(--ink-faint);text-align:left;white-space:nowrap;
   overflow:hidden;text-overflow:ellipsis}
 .fr__x b{font-family:var(--font-condensed);font-size:calc(13.5px*var(--scale));font-weight:700;
   color:var(--ink)}
@@ -1863,14 +1890,43 @@ body.tv .util{display:none}
 /* Sales is the one group whose numbers run to eight digits, so it buys its field back out
    of an echo that is four characters long. */
 .fr--money{grid-template-columns:minmax(0,1fr) 7.4rem minmax(0,4.2rem)}
-.fr__pair{display:contents}
-.fr--ot{grid-template-columns:minmax(0,1fr) 4.2rem minmax(0,1.9fr);min-height:36px}
+/* A department is one line, not two.
+   Output and hours were a row each, so four departments came to eight rows with the
+   department named on one and "Hours" on the other - twice the height to say one thing.
+   Both boxes sit on the line with the department's name, and a hairline separates one
+   department from the next because that is now the only thing that does. */
+.fr__pair{display:grid;grid-template-columns:minmax(0,8.4rem) minmax(0,5.9rem) minmax(0,5.2rem);
+  align-items:center;gap:1px var(--s2);padding:4px 0;border-bottom:1px solid var(--rule-soft)}
+.fr__pair:last-child{border-bottom:0}
+.fr__pair > .fr{display:contents}
+.fr__pair > .fr:last-child > .fr__l{display:none}
+.fr__pair > .fr:last-child > .fr__i{grid-column:3;grid-row:1}
+/* The rate and the uptime go under the boxes they come from rather than beside them: a
+   fourth column for them collapsed to nothing at a third of the entry screen's width, which
+   is how "3,000 sheets/hr" disappeared. Each sits under what produced it. */
+.fr__pair > .fr:first-child > .fr__x{grid-column:1/3;grid-row:2}
+.fr__pair > .fr:last-child > .fr__x{grid-column:3;grid-row:2}
+.fr__pair .fr__l{font-weight:600}
+.fr__pair .fr__x:empty{display:none}
+.fr--ot{grid-template-columns:minmax(0,7rem) 4.2rem minmax(0,1fr);min-height:0;
+  padding:3px 0;border-bottom:1px solid var(--rule-soft)}
+.fr--ot:last-child{border-bottom:0}
+/* Machines stay on the department's line. Wrapped, Die Cutting took two rows and Gluing
+   three, so the block was as tall as the plant has machines rather than as tall as it has
+   departments. */
+/* One line where there is room for one line - on a section's own screen the group is 34rem
+   and every machine fits. Squeezed into a third of the one-page view they wrap rather than
+   being cut in half, which is what `nowrap` did: "41" and "Die Cutter 2017" with their ends
+   sliced off. */
+.fr--ot .ticks{flex-wrap:wrap;row-gap:3px}
+.fr--ot .tick2{padding:1px 5px}
 .fr--ot .fr__x{text-align:left;white-space:normal;overflow:visible;padding:4px 0}
 .fr--ot .ticks{justify-content:flex-start}
 .fr--note{grid-template-columns:1fr 6.5rem;row-gap:4px;align-items:start;min-height:0;
   padding:5px 0}
 .fr--note .fr__l{padding-top:6px}
 .fr--note .fr__t{grid-column:1/-1}
+.fr--bare{grid-template-columns:minmax(0,1fr);padding-top:0}
 .fr--wide{grid-template-columns:1fr}
 .fr__i--s{text-align:left;padding:0 4px}
 .fr__t{font-family:inherit;font-size:var(--t-small);min-height:28px;padding:4px var(--s2);
@@ -1916,10 +1972,14 @@ body.tv .util{display:none}
 
 /* Publishing belongs where a person finishes, not where they start \u2014 and the top bar's own
    Publish and Edit buttons say nothing here that this screen does not already say. */
-.fill__end{display:flex;align-items:center;justify-content:space-between;gap:var(--s4);
-  flex-wrap:wrap;background:var(--surface);border:1px solid var(--rule);
-  border-radius:var(--radius-lg);padding:var(--s3) var(--s4);box-shadow:var(--shadow)}
-.fill__end p{margin:0;font-size:var(--t-small);color:var(--ink-muted);max-width:60ch}
+/* The foot is two buttons and a count, not a paragraph.
+   It carried three lines explaining that an incomplete morning can be published with a
+   reason - which is true, and is said again in the dialogue that asks for the reason, and
+   was taking a band the width of the screen to say it in advance. The count is the count;
+   the rail above already names which sections it is in. */
+.fill__end{display:flex;align-items:center;justify-content:flex-end;gap:var(--s3);
+  flex-wrap:wrap;padding:0}
+.fill__end p{margin:0 auto 0 0;font-size:var(--t-small);color:var(--ink-muted)}
 .fill__end b{color:var(--warn)}
 body[data-view="fill"] #edit-btn,body[data-view="fill"] #publish-btn{display:none}
 

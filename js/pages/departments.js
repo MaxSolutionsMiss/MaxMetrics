@@ -476,12 +476,12 @@ function qualityPane() {
         Production's cards are the plant's departments and are set on the Departments
         screen. Targets stay on the card itself, in Edit mode.</p>
         <label class="tog cfg__card" style="margin-top:var(--s2)">
-          <input type="checkbox" data-plant="split_upkeep"${
-            state.plant?.split_upkeep ? ' checked' : ''}${canEdit() ? '' : ' disabled'}>
-          <span>Keep Labour and Maintenance as separate screens</span></label>
+          <input type="checkbox" data-plant="merge_upkeep"${
+            state.plant?.merge_upkeep ? ' checked' : ''}${canEdit() ? '' : ' disabled'}>
+          <span>Put Labour and Maintenance on one screen</span></label>
         <p class="cfg__none" style="font-style:normal;color:var(--ink-faint)">
-          Off, they are one screen. On, each gets its own, which suits a plant with a long
-          maintenance list.</p>
+          Off, each gets its own screen. On, they share one, which suits a plant with two
+          bookings a week and nothing else to say about either.</p>
       </div></div>
     <div class="panel" style="margin-top:var(--s3)"><div class="panel__head">
       <h3 class="panel__title">Whole sections, off the one page</h3>
@@ -611,9 +611,12 @@ function sourcesPanel() {
       </div>`).join('') || '<p class="cfg__none">No files linked yet.</p>'}
     </div></div>
 
-  <div class="panel" style="margin-top:var(--s3)"><div class="panel__head">
+  <details class="panel help"><summary class="panel__head help__s">
+    <h3 class="panel__title">Why a link is refused, and how to fix it</h3></summary>
+    <div class="panel__body help__b">
+  <div class="hp"><div class="hp__h">
     <h3 class="panel__title">Telling a good link from a bad one</h3></div>
-    <div class="panel__body">
+    <div class="hp__b">
       <div class="lnkq">
         <div class="lnkq__b lnkq__b--no"><b>\u2717 Will always answer 401</b>
           <code>\u2026/:x:/<b>r</b>/sites/MaxSolutions-Mississauga/Shared%20Documents/\u2026</code>
@@ -631,10 +634,10 @@ function sourcesPanel() {
       </div>
     </div></div>
 
-  <div class="panel" style="margin-top:var(--s3)"><div class="panel__head">
+  <div class="hp"><div class="hp__h">
     <h3 class="panel__title">Sharing the file — ruled out here</h3>
     <div class="panel__actions"><span class="pill pill--stop">Not available</span></div></div>
-    <div class="panel__body">
+    <div class="hp__b">
       <p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">
         The cheap route is a link SharePoint will answer to anybody: <b>Share</b> → the
         audience line at the top → <b>Anyone with the link</b>. It has been checked in
@@ -655,10 +658,10 @@ function sourcesPanel() {
         will be used in preference — the check above will say so.</p>
     </div></div>
 
-  <div class="panel" style="margin-top:var(--s3)"><div class="panel__head">
+  <div class="hp"><div class="hp__h">
     <h3 class="panel__title">Give MaxMetrics its own identity</h3>
     <div class="panel__actions"><span class="pill pill--ok">The way in</span></div></div>
-    <div class="panel__body">
+    <div class="hp__b">
       <p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">
         This is the \u201cadd them as a user\u201d you have been looking for. MaxMetrics is a
         server, not a person, so there is no mailbox to invite \u2014 it gets an identity in
@@ -707,10 +710,10 @@ function sourcesPanel() {
         only safe place for it is somewhere just the server can read.</p>
     </div></div>
 
-  <div class="panel" style="margin-top:var(--s3)"><div class="panel__head">
+  <div class="hp"><div class="hp__h">
     <h3 class="panel__title">If IT will not do it</h3>
     <div class="panel__actions"><span class="pill pill--info">No Microsoft permission</span></div></div>
-    <div class="panel__body">
+    <div class="hp__b">
       <p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">
         There is a third way, and it asks Microsoft for nothing at all. A small scheduled task
         on one Windows PC reads the files that PC <i>can already see</i> \u2014 through OneDrive
@@ -723,7 +726,8 @@ function sourcesPanel() {
         machine of whoever assembles the morning. The script and its instructions live in the
         MaxMetrics repository under <code>tools/hotfolder</code>. Two things have to be switched
         on first: the <code>ingest</code> endpoint, and a shared key for it.</p>
-    </div></div>`;
+    </div></div>
+    </div></details>`;
 }
 
 // ── Data ────────────────────────────────────────────────────────────────────────
