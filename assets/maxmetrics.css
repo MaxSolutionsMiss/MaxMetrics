@@ -140,19 +140,35 @@ html[data-rail="mini"]{--rail-w:62px}
 .rail__dot{width:7px;height:7px;border-radius:50%;flex:none}
 .rail__dot--ok{background:#4FBF85}.rail__dot--warn{background:#E09A42}.rail__dot--stop{background:#F0736A}
 .rail__dot--none{background:currentColor;opacity:.3}
+/* Plant, person, sign out — three lines, in that order.
+   These were laid out as one nowrap line under `overflow:hidden`, so the name pushed the
+   button off the edge and it was clipped away: the only way out of MaxMetrics was invisible
+   at every width that mattered. Each part gets its own line and the long ones ellipsise,
+   which is the right thing to lose — a name you can still hover for is worth more than a
+   button you cannot reach. */
 .rail__foot{margin-top:auto;padding:var(--s3) var(--s4);border-top:1px solid var(--rail-rule);
-  font-size:var(--t-small);color:var(--rail-label);white-space:nowrap;overflow:hidden}
-.rail__foot strong{color:#fff;font-weight:600;display:block}
+  display:flex;flex-direction:column;align-items:stretch;gap:3px;
+  font-size:var(--t-small);color:var(--rail-label)}
+.rail__foot strong,.rail__foot>span{display:block;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rail__foot strong{color:#fff;font-weight:600}
 .rail__out{margin-top:var(--s2);background:none;border:1px solid var(--rail-rule);
   color:var(--rail-ink);font-family:inherit;font-size:var(--t-micro);font-weight:600;
-  padding:5px 10px;border-radius:var(--radius);cursor:pointer;width:100%}
+  padding:5px 10px;border-radius:var(--radius);cursor:pointer;width:100%;flex:none}
 .rail__out:hover{background:rgba(255,255,255,.09);color:#fff}
-@container rail (max-width:110px){.rail__out{display:none}}
+/* Collapsed, the way out is still there — it is the one control that must never depend on
+   the rail being open, because somebody signing out of a shared floor PC is in a hurry. */
+@container rail (max-width:110px){
+  .rail__foot{padding:var(--s2) var(--s2)}
+  .rail__foot strong,.rail__foot>span{display:none}
+  .rail__out{margin-top:0;padding:5px 0;font-size:0}
+  .rail__out::after{content:"\21AA";font-size:15px;line-height:1}
+}
 /* Collapsed: marks only, same places, same spacing — the muscle memory survives.
    The status dot rides the corner of the icon so a closed rail still reports health. */
 @container rail (max-width:110px){
   .rail__brand{padding:0;justify-content:center}
-  .rail__name,.rail__label,.rail__txt,.rail__foot{display:none}
+  .rail__name,.rail__label,.rail__txt{display:none}
   .rail__link{justify-content:center;padding:0;gap:0}
   .rail__labelrow{justify-content:center}
   .rail__dot{position:absolute;top:9px;right:9px;width:8px;height:8px;
@@ -1385,23 +1401,51 @@ body.tv .content.wall{display:flex;flex-direction:column;gap:var(--s4);
 .src__t{width:auto;flex:0 0 13rem;height:28px}
 .src__x{color:var(--stop);font-size:18px;line-height:1;margin-left:auto}
 .src input[type="url"]{font-size:var(--t-small);height:28px}
+.src__u{grid-column:1/-1;display:flex;gap:var(--s2);align-items:center}
+.src__u .inp{flex:1 1 auto;min-width:0}
+.src__u .btn{flex:none;height:28px}
+/* What kind of link this is, judged from its shape as soon as it is in the box. Saying it
+   here beats saying it three minutes later in a failed pull. */
+.src__k{grid-column:1/-1;font-size:var(--t-micro);color:var(--warn);line-height:1.5}
+.src__k--ok{color:var(--ok)}
 .src__w{font-size:var(--t-micro);color:var(--ink-faint);white-space:nowrap;
   max-width:26rem;overflow:hidden;text-overflow:ellipsis}
 .src__w--bad{color:var(--stop);white-space:normal;grid-column:1/-1}
 /* A second rail inside a pane, the shape MaxDock uses for its settings. A pane about four
    subjects at once is four panels stacked down a screen with the important one the same
    size as a paragraph. */
-.tabs{display:flex;gap:var(--s2);border-bottom:1px solid var(--rule);margin-bottom:var(--s4);
-  flex-wrap:wrap}
-.tabs__b{background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;
-  font:inherit;text-align:left;padding:var(--s2) var(--s3);display:flex;flex-direction:column;
-  gap:1px;color:var(--ink-muted);margin-bottom:-1px}
-.tabs__b b{font-family:var(--font-condensed);font-size:calc(16px*var(--scale));font-weight:700;
-  text-transform:uppercase;letter-spacing:.05em}
-.tabs__b span{font-size:var(--t-micro);color:var(--ink-faint)}
-.tabs__b:hover{color:var(--ink)}
-.tabs__b[aria-current="true"]{color:var(--brand);border-bottom-color:var(--brand)}
-.tabs__b[aria-current="true"] b{color:var(--brand)}
+/* A second rail, inside the pane.
+   Configure's panes were each one long scrolling page — Cards ran to twenty-four rows of
+   tick boxes across nine sections, which is the settings screen this product exists to
+   avoid. The subject splits down the left the same way the plant already knows from
+   MaxDock, and what is in front of you is one subject at a time. It falls back to a row of
+   chips on a narrow screen rather than eating half the width. */
+.sub{display:grid;grid-template-columns:minmax(10rem,14rem) minmax(0,1fr);
+  gap:var(--s4);align-items:start}
+.sub__rail{display:flex;flex-direction:column;gap:2px;position:sticky;
+  top:calc(var(--topbar-h) + var(--s3));
+  border-right:1px solid var(--rule);padding-right:var(--s3)}
+.sub__b{background:none;border:none;border-radius:var(--radius);cursor:pointer;font:inherit;
+  text-align:left;padding:var(--s2) var(--s3);display:grid;gap:1px;color:var(--ink-muted)}
+.sub__b b{font-family:var(--font-condensed);font-size:calc(15px*var(--scale));font-weight:700;
+  text-transform:uppercase;letter-spacing:.05em;color:var(--ink);
+  display:flex;align-items:baseline;justify-content:space-between;gap:var(--s2)}
+.sub__b span{font-size:var(--t-micro);color:var(--ink-faint)}
+.sub__b:hover{background:var(--sunk)}
+.sub__b[aria-current="true"]{background:var(--brand-wash)}
+.sub__b[aria-current="true"] b{color:var(--brand-deep)}
+.sub__t{font-style:normal;font-size:var(--t-micro);font-weight:700;letter-spacing:0;
+  color:var(--ink-faint);font-family:var(--font)}
+.sub__b[aria-current="true"] .sub__t{color:var(--brand)}
+@media (max-width:900px){
+  .sub{grid-template-columns:minmax(0,1fr)}
+  .sub__rail{flex-direction:row;flex-wrap:wrap;position:static;border-right:0;
+    padding:0 0 var(--s2);border-bottom:1px solid var(--rule)}
+  .sub__b span{display:none}
+}
+/* A measure, not a width. Sub-panes carry paragraphs explaining what a setting does, and a
+   sentence set across a thousand pixels is a sentence nobody finishes. */
+.sub__body{max-width:64rem}
 /* The row a person is being edited in. It becomes the form so they stay in the list they
    were found in. */
 .pplf{display:flex;gap:var(--s2);align-items:center;flex-wrap:wrap;padding:var(--s2) 0}
@@ -1675,6 +1719,25 @@ body.tv .util{display:none}
    as they need to be and the screen is a rectangle. */
 .fill__grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--s3);
   align-items:stretch}
+/* One section's worth of boxes, on that section's own screen. Four columns are right for
+   the whole morning and wrong for six safety readings — they would come out as one short
+   column and three empty ones — so the groups take what they need and wrap. */
+/* Columns of a readable width, as many as fit, packed from the left — not stretched to fill
+   the screen. Four safety readings across 1300px put every box against the right-hand edge
+   with a metre of nothing between it and its label. */
+.fill--one .fill__grid{grid-template-columns:repeat(auto-fill,minmax(min(26rem,100%),34rem));
+  justify-content:start;align-items:start}
+.fill--one .fg--wide{grid-column:1/-1;max-width:none}
+.fill--one .fill__end{max-width:none}
+/* Cards or fill-in, in the section's own heading, where the question is being asked. */
+.segs{display:flex;gap:2px;padding:2px;background:var(--sunk);border-radius:var(--radius);
+  flex:none}
+.segs__b{background:none;border:none;cursor:pointer;font:inherit;
+  font-size:var(--t-micro);font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+  color:var(--ink-muted);padding:4px 12px;border-radius:calc(var(--radius) - 2px)}
+.segs__b:hover{color:var(--ink)}
+.segs__b[aria-current="true"]{background:var(--surface);color:var(--brand);
+  box-shadow:var(--shadow)}
 /* The three columns end on the same line. Left to their contents they finished at three
    different heights and the block of groups came out as a staircase — which is the whole of
    what "it looks like Tetris" was about. The last group in each column takes up the slack, so

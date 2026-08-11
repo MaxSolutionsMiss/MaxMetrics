@@ -41,7 +41,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 const state = { me: null, locations: [], location: null, config: [], draft: null, plant: null,
                 pane: 'departments', budgets: [], year: new Date().getFullYear(), people: null,
                 madePerson: null, editing: null, adding: false, editingPerson: null,
-                sources: null, dataTab: 'linked' };
+                sources: null, dataTab: 'linked', cardTab: '_screens', peopleTab: 'all' };
 
 // ── The panes ───────────────────────────────────────────────────────────────────
 //
@@ -73,6 +73,30 @@ const PANES = [
 // door it cannot open — but the filter is a courtesy, not the lock, and the comment above
 // is the load-bearing part: every write the People pane makes is checked in the database.
 const panes = () => PANES.filter(p => !p.admin || state.me?.is_admin);
+
+// ── A second rail, inside the pane ──────────────────────────────────────────────
+//
+// Every Configure pane was one long scrolling page. Cards was the worst of them: twenty-four
+// rows of tick boxes over nine sections, all of it on screen at once, which is exactly the
+// settings screen the rest of this product exists to avoid. So the subject splits down the
+// left — the same shape as the rail outside it, the same shape the plant already knows from
+// MaxDock — and what is in front of you is one subject.
+//
+// `tag` is the count that belongs on the rail rather than in the body: "6 of 7 on" is the
+// answer somebody came to this screen for, and putting it next to the name means they often
+// do not have to open the section at all.
+function subRail(tabs, current, attr, body) {
+  const now = tabs.find(t => t.key === current) || tabs[0];
+  return `<div class="sub">
+    <nav class="sub__rail" aria-label="Sections">
+      ${tabs.map(t => `<button class="sub__b" data-${attr}="${esc(t.key)}"
+        aria-current="${t.key === now.key}">
+        <b>${esc(t.name)}${t.tag ? `<i class="sub__t">${esc(t.tag)}</i>` : ''}</b>
+        ${t.sub ? `<span>${esc(t.sub)}</span>` : ''}</button>`).join('')}
+    </nav>
+    <div class="sub__body">${body(now)}</div>
+  </div>`;
+}
 
 // ── What a plant is likely to be adding ─────────────────────────────────────────
 //
@@ -428,12 +452,22 @@ function qualityPane() {
     <label class="tog">${tick('wall', card.key, !wallOff.has(card.key))}</label>
   </div>`;
   const on = sections.reduce((n, g) => n + g.cards.filter(c => !hidden.has(c.key)).length, 0);
-  return `<section class="sec">
-    <div class="sec__head"><h2 class="sec__title">Cards</h2><div class="sec__rule"></div></div>
-    <div class="panel"><div class="panel__head">
+
+  // One entry per section, plus the two questions that are about the screens rather than
+  // about any one card. The count rides on the rail because "6 of 7 on" is usually the whole
+  // answer somebody came here for.
+  const tabs = [
+    { key: '_screens', name: 'Screens', sub: 'How the sections are laid out',
+      tag: `${on} of ${CARD_CATALOGUE.length}` },
+    ...sections.map(group => ({
+      key: group.name, name: group.name, sub: `${group.cards.length} card${
+        group.cards.length === 1 ? '' : 's'}`,
+      tag: `${group.cards.filter(c => !hidden.has(c.key)).length} of ${group.cards.length}` })),
+  ];
+
+  const screens = () => `<div class="panel"><div class="panel__head">
       <span class="card__ico" aria-hidden="true">\u{1F3AF}</span>
-      <h3 class="panel__title">What this plant shows</h3>
-      <div class="panel__actions"><span class="pill pill--ok">${on} of ${CARD_CATALOGUE.length} on</span></div></div>
+      <h3 class="panel__title">What this plant shows</h3></div>
       <div class="panel__body"><p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">
         <b>Dashboard</b> is whether this plant carries the card at all — unticked, it is
         gone from the page and from present mode, and the section rearranges around what is
@@ -459,17 +493,25 @@ function qualityPane() {
           the legend as well. The walk — one section at a screen — skips it too.</p>
         <div class="cfg__fams">${FAMILIES.map(([key, name]) => `<label class="tog">
           ${tick('wall', key, !wallOff.has(key))}<span>${esc(name)}</span></label>`).join('')}</div>
-      </div></div>
-    <div class="grid g3" style="margin-top:var(--s3)">
-      ${sections.map(group => `<div class="panel">
-        <div class="panel__head"><h3 class="panel__title">${esc(group.name)}</h3>
-          <div class="panel__actions"><span class="pill pill--info">${
-            group.cards.filter(c => !hidden.has(c.key)).length} of ${group.cards.length}</span></div></div>
-        <div class="panel__body">
-          <div class="cfg__two cfg__two--head"><span></span>
-            <span>Dashboard</span><span>One page</span></div>
-          ${group.cards.map(row).join('')}</div></div>`).join('')}
-    </div>
+      </div></div>`;
+
+  const one = tab => {
+    const group = sections.find(g => g.name === tab.key);
+    if (!group) return screens();
+    return `<div class="panel"><div class="panel__head">
+        <h3 class="panel__title">${esc(group.name)}</h3>
+        <div class="panel__actions"><span class="pill pill--info">${
+          group.cards.filter(c => !hidden.has(c.key)).length} of ${group.cards.length} on the
+          dashboard</span></div></div>
+      <div class="panel__body">
+        <div class="cfg__two cfg__two--head"><span></span>
+          <span>Dashboard</span><span>One page</span></div>
+        ${group.cards.map(row).join('')}</div></div>`;
+  };
+
+  return `<section class="sec">
+    <div class="sec__head"><h2 class="sec__title">Cards</h2><div class="sec__rule"></div></div>
+    ${subRail(tabs, state.cardTab, 'cardtab', one)}
   </section>`;
 }
 
@@ -494,6 +536,30 @@ const SOURCE_HELP = {
   otif: 'OTD / OTIF sheet — jobs shipped, late, short.',
   kpi: 'Monthly KPI workbook — cost of quality, NCRs, complaints, sales, OTIF roll-ups.',
 };
+
+// What shape of SharePoint address this is, judged before anybody waits on a pull.
+//
+// `/:x:/r/sites/…/Shared Documents/…` is the file's own path inside the library. It is what
+// the address bar shows and what Copy link hands you when the permission is still "People in
+// Max Solutions" — the `csf=1&web=1` flags are that button's fingerprint. SharePoint refuses
+// it to anything without a Microsoft session, which is the 401.
+//
+// A real "Anyone with the link" share is a different URL entirely: `/:x:/s/` or `/:x:/g/`
+// followed by an opaque token. So the shape alone answers the question, and answering it in
+// the box beats answering it three minutes later in a failed pull.
+function linkShape(raw) {
+  const url = (raw || '').trim();
+  if (!url) return null;
+  if (!/sharepoint\.com|1drv\.ms|onedrive\.live\.com/i.test(url)) return null;
+  if (/\/:[a-z]:\/[sg]\//i.test(url)) return { ok: true, say: 'This is a sharing link.' };
+  if (/\/:[a-z]:\/r\//i.test(url) || /csf=1/i.test(url)) {
+    return { ok: false, say: 'This is the file\u2019s address inside the library, not a '
+      + 'sharing link \u2014 SharePoint will answer 401 to anyone without a Microsoft '
+      + 'session. Use Share \u2192 Anyone with the link, or register MaxMetrics in your '
+      + 'tenant (below) and this address will start working as it is.' };
+  }
+  return null;
+}
 
 function sourcesPanel() {
   const sources = state.sources || [];
@@ -527,9 +593,14 @@ function sourcesPanel() {
           <button class="lnk src__x" data-drop-source="${esc(source.id)}"
             aria-label="Remove ${esc(source.name)}">\u00d7</button>
         </div>
-        <input class="inp" type="url" data-source="${esc(source.id)}"
-          aria-label="${esc(source.name)} link"
-          placeholder="https://maxsolutionsinc.sharepoint.com/..." value="${esc(source.url || '')}">
+        <div class="src__u">
+          <input class="inp" type="url" data-source="${esc(source.id)}"
+            aria-label="${esc(source.name)} link"
+            placeholder="https://maxsolutionsinc.sharepoint.com/..." value="${esc(source.url || '')}">
+          <button class="btn btn--go" data-save-source="${esc(source.id)}">Save</button>
+        </div>
+        ${(shape => shape ? `<span class="src__k${shape.ok ? ' src__k--ok' : ''}">${
+          shape.ok ? '\u2713 ' : '\u26a0 '}${esc(shape.say)}</span>` : '')(linkShape(source.url))}
         <span class="src__w${source.last_status === 'failed' ? ' src__w--bad' : ''}">${
           esc(when(source))}${source.last_note ? ` \u00b7 ${esc(source.last_note)}` : ''}</span>
       </div>`).join('') || '<p class="cfg__none">No files linked yet.</p>'}
@@ -607,10 +678,8 @@ function dataPane() {
         list, that is the list to send back.</p></div></div>`,
   };
   return `<section class="sec">
-    <div class="tabs">${DATA_TABS.map(t => `<button class="tabs__b" data-datatab="${t.key}"
-      aria-current="${t.key === tab.key}"><b>${esc(t.name)}</b>
-      <span>${esc(t.sub)}</span></button>`).join('')}</div>
-    <div class="tabs__body">${body[tab.key]()}</div>
+    <div class="sec__head"><h2 class="sec__title">Data</h2><div class="sec__rule"></div></div>
+    ${subRail(DATA_TABS, tab.key, 'datatab', now => body[now.key]())}
   </section>`;
 }
 
@@ -712,10 +781,20 @@ function peoplePane() {
   // pressing Add again for the same address issues a new one.
   const made = state.madePerson;
 
-  return `<section class="sec">
-    <div class="sec__head"><h2 class="sec__title">People</h2><div class="sec__rule"></div></div>
+  const everybody = () => `<div class="panel"><div class="panel__head">
+      <h3 class="panel__title">Everybody</h3>
+      <div class="panel__actions">
+        <span class="pill pill--ok">${withAccess.length} with access</span>
+        <span class="pill pill--info">${people.length} account${people.length === 1 ? '' : 's'}</span>
+      </div></div>
+      <div class="panel__body">
+        ${people.length ? `<table class="tbl tbl--tight tbl--ppl"><thead><tr>
+          <th>Name</th><th>Email</th><th>This plant</th><th class="num">MaxMetrics</th><th></th>
+        </tr></thead><tbody>${people.map(inRow).join('')}</tbody></table>`
+        : '<p class="cfg__none">Nobody yet.</p>'}
+      </div></div>`;
 
-    <div class="panel"><div class="panel__head">
+  const add = () => `<div class="panel"><div class="panel__head">
       <span class="card__ico" aria-hidden="true">\u{1F464}</span>
       <h3 class="panel__title">Add somebody to ${esc(plant?.name || 'this plant')}</h3></div>
       <div class="panel__body">
@@ -745,20 +824,20 @@ function peoplePane() {
           has no outbound mail set up, and a sign-in that depends on one silently is a
           sign-in that fails on a Monday. Adding somebody who already has an account resets
           their password and gives them this plant.</p>`}
-      </div></div>
+      </div></div>`;
 
-    <div class="panel" style="margin-top:var(--s3)"><div class="panel__head">
-      <h3 class="panel__title">Everybody</h3>
-      <div class="panel__actions">
-        <span class="pill pill--ok">${withAccess.length} with access</span>
-        <span class="pill pill--info">${people.length} account${people.length === 1 ? '' : 's'}</span>
-      </div></div>
-      <div class="panel__body">
-        ${people.length ? `<table class="tbl tbl--tight tbl--ppl"><thead><tr>
-          <th>Name</th><th>Email</th><th>This plant</th><th class="num">MaxMetrics</th><th></th>
-        </tr></thead><tbody>${people.map(inRow).join('')}</tbody></table>`
-        : '<p class="cfg__none">Nobody yet.</p>'}
-      </div></div>
+  const tabs = [
+    { key: 'all', name: 'Everybody', sub: 'Who may see this plant',
+      tag: `${withAccess.length} of ${people.length}` },
+    { key: 'add', name: 'Add somebody', sub: 'Make an account and hand over a password' },
+  ];
+  // A temporary password has just been issued, so that is the screen to be on: it is shown
+  // once and never again, and landing back on the list would throw it away.
+  const at = made ? 'add' : (state.peopleTab || 'all');
+
+  return `<section class="sec">
+    <div class="sec__head"><h2 class="sec__title">People</h2><div class="sec__rule"></div></div>
+    ${subRail(tabs, at, 'peopletab', now => now.key === 'add' ? add() : everybody())}
   </section>`;
 }
 
@@ -993,9 +1072,40 @@ document.addEventListener('click', async event => {
     return;
   }
 
-  const dataTab = event.target.closest('[data-datatab]');
-  if (dataTab) {
-    state.dataTab = dataTab.dataset.datatab;
+  // Save a linked file.
+  //
+  // The box already writes half a second after the last keystroke, so this button is not
+  // what makes the link stick — but a URL is pasted, not typed, and a field that saves
+  // invisibly gives somebody pasting a long SharePoint address no reason to believe it
+  // landed. It commits immediately, redraws so the link's shape is judged against what was
+  // actually stored, and says so.
+  const saveSrc = event.target.closest('[data-save-source]');
+  if (saveSrc) {
+    const id = saveSrc.dataset.saveSource;
+    const box = document.querySelector(`[data-source="${CSS.escape(id)}"]`);
+    const url = (box?.value || '').trim();
+    clearTimeout(sourceTimer);
+    try {
+      await saveSource(id, { url });
+      const row = (state.sources || []).find(s => s.id === id);
+      if (row) row.url = url;
+      render();
+      const shape = linkShape(url);
+      toast(shape && !shape.ok ? 'Saved — but this is a library path, not a sharing link.'
+        : 'Saved.');
+    } catch (error) { toast(error.message); }
+    return;
+  }
+
+  // The three sub-rails. Each remembers where it was, so leaving Cards for Data and coming
+  // back lands on the section you were working in rather than at the top.
+  for (const [attr, key] of [['datatab', 'dataTab'], ['cardtab', 'cardTab'],
+                             ['peopletab', 'peopleTab']]) {
+    const hit = event.target.closest(`[data-${attr}]`);
+    if (!hit) continue;
+    state[key] = hit.dataset[attr];
+    // Moving off the screen that showed a temporary password is what dismisses it.
+    if (key === 'peopleTab') state.madePerson = null;
     render();
     return;
   }
