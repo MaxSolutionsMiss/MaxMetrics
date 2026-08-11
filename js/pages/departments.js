@@ -22,11 +22,11 @@ import {
   currentSession, signOut, myProfile, myLocations,
   loadDepartmentConfig, saveDepartmentConfig, addDepartmentConfig, ensureDepartmentRows,
   loadBudgets, saveBudget, loadPlant, savePlant,
-} from '../db.js?v=18aec8f0da6b';
+} from '../db.js?v=838806e5e136';
 import {
   esc, num, money, MONTHS, metricCard, footLine, iconFor, cardTrack,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE,
-} from '../readings.js?v=18aec8f0da6b';
+} from '../readings.js?v=838806e5e136';
 
 const $ = selector => document.querySelector(selector);
 
@@ -132,9 +132,11 @@ function toast(message) {
   toastTimer = setTimeout(() => element.classList.remove('on'), 2600);
 }
 
+// The caption and the box are two elements, so the caption is repeated as the box's own
+// name — a `<label>` that does not wrap and has no `for` labels nothing.
 const row = (label, name, attrs = '', hint = '') =>
   `<div class="er"><label>${esc(label)}</label>
-   <input class="inp" data-field="${esc(name)}" ${attrs}>
+   <input class="inp" aria-label="${esc(label)}" data-field="${esc(name)}" ${attrs}>
    ${hint ? `<span class="er__hint">${esc(hint)}</span>` : ''}</div>`;
 
 const toggle = (label, name, on) =>

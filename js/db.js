@@ -319,12 +319,27 @@ export async function importHistory(location, date, metrics, departments) {
   }), { retry: 0 });
 }
 
-export async function publish(location, date) {
-  const session = await currentSession();
-  return run(() => client.from('daily_metrics').update({
-    status: 'published', published_at: new Date().toISOString(), published_by: session?.user?.id ?? null,
-  }).eq('location_id', location).eq('metric_date', date), { retry: 0 });
+// Publishing appends a revision rather than overwriting one.
+//
+// It used to be an update to a status column, so republishing silently replaced whatever the
+// room had already read and there was no way to ask what a morning said when it went up.
+// `publish_morning` sets the same status — every screen reads it and a second source of
+// truth for one boolean would be worse than the problem — and beside it records who
+// published, at which revision, whether the morning was incomplete, and why they published
+// it anyway. It keeps a snapshot of the morning as it stood, which is what makes "a target
+// change must not alter a published dashboard" true by construction.
+export async function publish(location, date, { incomplete = false, note = null } = {}) {
+  return run(() => client.rpc('publish_morning', {
+    loc: location, d: date, incomplete, note,
+  }), { retry: 0 });
 }
+
+// Every time this morning went up, and what was outstanding when it did.
+export const loadPublications = (location, date) =>
+  run(() => client.from('publications')
+    .select('revision, published_at, incomplete, override_note')
+    .eq('location_id', location).eq('metric_date', date)
+    .order('revision', { ascending: false }));
 
 // Attribution is recorded beside the value rather than inside it, so a number stays a
 // number and the question "who entered this" still has an answer.

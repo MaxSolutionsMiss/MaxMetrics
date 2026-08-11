@@ -12,15 +12,15 @@ import {
   saveField, saveDepartment, saveReview,
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   importHistory,
-} from '../db.js?v=18aec8f0da6b';
-import { assess, attention, settled, verdicts } from '../assess.js?v=18aec8f0da6b';
+} from '../db.js?v=838806e5e136';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=838806e5e136';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
-  spark, bullet, chip, cardTrack, readingOf, derivedShipping, SHIPPING_TARGET,
+  spark, bullet, chip, cardTrack, readingOf, derivedShipping, otifTarget, isNa, isMissing,
   varianceChip, varianceTone, variancePct,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE,
-} from '../readings.js?v=18aec8f0da6b';
+} from '../readings.js?v=838806e5e136';
 
 const $ = selector => document.querySelector(selector);
 
@@ -45,7 +45,7 @@ const state = {
   metrics: null, departments: [], review: [], maintenance: [], labour: [], config: [], budgets: [],
   machines: [], upcoming: [],
   history: { metrics: [], departments: [] }, year: [], findings: [], verdicts: {}, plant: null,
-  team: [], live: null, wallStep: 0, wallMode: 'walk',
+  team: [], live: null, wallStep: 0, wallMode: 'walk', rotating: false,
 };
 
 // ── Reading the loaded morning ──────────────────────────────────────────────────
@@ -62,9 +62,12 @@ const budgetFor = month => Number(state.budgets.find(b => b.month === month + 1)
 const sectionTone = key => state.verdicts[key]?.tone || 'ok';
 
 // The seven days behind a metric, for the trend line under its card.
+// A day with nought jobs shipped has no OTIF, and a line drawn through it would either
+// break or invent a nought. It is left out of the seven days, the same way a day nobody
+// entered is.
 const metricSeries = field => (state.history?.metrics || [])
   .map(row => readingOf(row, field))
-  .filter(value => value !== null && value !== undefined && value !== '')
+  .filter(value => !isMissing(value) && !isNa(value))
   .map(Number);
 // Twelve slots, one per month, filled with the largest month-to-date count written in each.
 // Months the year has not reached are left out by the caller rather than zeroed here.
@@ -121,8 +124,8 @@ const TITLES = {
   safety: 'Safety', quality: 'Quality', production: 'Production', shipping: 'Shipping',
   maintenance: 'Upcoming maintenance', labour: 'Labour & Overtime', financials: 'Financials',
 };
-const NAV = { labour: 'Labour', line: 'Today', fill: 'Enter' };
-Object.assign(TITLES, { line: 'Today', fill: 'Enter the morning' });
+const NAV = { labour: 'Labour', line: 'Summary', fill: 'Enter' };
+Object.assign(TITLES, { line: 'Morning summary', fill: 'Enter the morning' });
 Object.assign(ICONS, {
   line:  'M4 6h16M4 12h10M4 18h6',
   fill:  'M4 20h16M6 15.5L15.5 6l2.5 2.5L8.5 18H6z',
@@ -140,9 +143,11 @@ function readingBody(r, { showSpark = true } = {}) {
   return { line, bar };
 }
 
+// The caption and the box are two elements, so the caption is repeated as the box's own
+// name — a `<label>` that does not wrap and has no `for` labels nothing.
 const field = (label, name, attrs = '') =>
   `<div class="er"><label>${esc(label)}</label>
-   <input class="inp" data-field="${name}" ${attrs}></div>`;
+   <input class="inp" aria-label="${esc(label)}" data-field="${name}" ${attrs}></div>`;
 
 function streakCard(kind, label, lastField, recordField, word) {
   const last = metric(lastField), record = Number(metric(recordField) || 0);
@@ -230,6 +235,21 @@ function bullets(text) {
 // A cell shows its value and holds its field. In edit mode the value steps aside and the
 // input takes the same square of the table, so the form is the table and nothing moves.
 // Nothing needs more than seven digits, so nothing is wider than seven digits either.
+// The four answers a department can give about its last twenty-four hours, and the first of
+// them is that it has not answered. It used to default to "No issue", so the morning opened
+// with every department already reporting itself clear — a statement nobody had made, on a
+// screen twenty people read. Blank is now a real option and it is where a morning starts.
+const REVIEW_ANSWERS = [['', 'Not confirmed'], ['ok', 'No issue'], ['warn', 'Warning'],
+                        ['stop', 'Issue']];
+const reviewOptions = chosen => REVIEW_ANSWERS.map(([value, text]) =>
+  `<option value="${value}"${(chosen || '') === value ? ' selected' : ''}>${text}</option>`).join('');
+
+// Every field on the product carries its own name. Thirty-two of the sixty-six controls on
+// Enter had no label, no `aria-label` and no id — the maintenance table and the notes rows
+// use a `<span>` where a `<label>` belongs — which breaks a screen reader, and also breaks
+// voice control and the browser's own autofill for everybody else. A cell is told what it
+// is by its caller, because only the caller knows whether this box is Printing's hours or
+// Gluing's.
 const cell = (shown, name, attrs = '', klass = '') =>
   `<span class="view-only">${shown ?? '—'}</span>` +
   `<input class="inp inp--cell edit-only${klass ? ` ${klass}` : ''}" data-field="${name}" ${attrs}>`;
@@ -350,6 +370,7 @@ function maintenanceCards() {
       text: metric('maintenance_note'),
       prompt: 'No notes entered.',
       edit: `<div class="er"><label>Notes</label><textarea class="inp"
+        aria-label="Maintenance notes"
         data-field="maintenance_note">${esc(metric('maintenance_note') || '')}</textarea></div>`,
     })}
   `;
@@ -414,6 +435,7 @@ function labourCards() {
       text: metric('staffing_note'),
       prompt: 'Call-ins, vacation, training — nothing entered.',
       edit: `<div class="er"><label>Staffing</label><textarea class="inp"
+        aria-label="Staffing notes"
         data-field="staffing_note">${esc(metric('staffing_note') || '')}</textarea></div>`,
     })}
   `;
@@ -459,6 +481,32 @@ const FROM_FILE = {
   OTIF: ['jobs_shipped', 'jobs_on_time', 'late', 'shorts'],
 };
 const sourceOf = name => Object.keys(FROM_FILE).find(file => FROM_FILE[file].includes(name)) || '';
+
+// When each file last arrived, said out loud.
+//
+// A figure that came out of the DOR six days ago and a figure entered this morning look
+// exactly the same on a card, and that is the whole of how a stale number sits on a screen
+// for a week without anybody noticing. The importer stamps `source_seen` per file; this
+// reads it back. A file that has not been seen since before this morning is amber, and one
+// that has never been seen says so rather than pretending.
+const SOURCE_NAMES = { DOR: 'DOR', OTIF: 'OTIF sheet', KPI: 'KPI workbook' };
+
+function sourceStrip() {
+  const seen = state.metrics?.source_seen || {};
+  const items = Object.keys(FROM_FILE).map(key => {
+    const stamp = seen[key.toLowerCase()] || seen[key];
+    if (!stamp) return [key, 'not seen', 'gap'];
+    const when = new Date(stamp);
+    if (Number.isNaN(+when)) return [key, 'not seen', 'gap'];
+    const days = daysBetween(when.toISOString().slice(0, 10), state.date);
+    const said = days <= 0 ? when.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+      : days === 1 ? 'yesterday' : `${days} days ago`;
+    return [key, said, days <= 0 ? 'ok' : days === 1 ? '' : 'warn'];
+  });
+  return `<div class="fsrc">${items.map(([key, said, tone]) =>
+    `<span class="fsrc__i${tone ? ` fsrc__i--${tone}` : ''}">
+       <b>${esc(SOURCE_NAMES[key] || key)}</b><i>${esc(said)}</i></span>`).join('')}</div>`;
+}
 
 // A row: what it is, the box, and what the box does to the morning. The third column is the
 // point of the screen — you watch the rate move as you type the hours.
@@ -598,6 +646,7 @@ function fillOvertime() {
       <span class="fr__l">${esc(c.name)}</span>
       <input class="inp fr__i fr__i--n" data-field="labour:${esc(c.key)}:ot_shifts"
         type="number" step="0.5" min="0" placeholder="shifts"
+        aria-label="${esc(c.name)} overtime shifts"
         value="${labourRow(c.key)?.ot_shifts ?? ''}">
       <span class="fr__x">${machines.length ? `<span class="ticks">${machines.map(m =>
         `<label class="tick2"><input type="checkbox" data-field="labour:${esc(c.key)}:machines"
@@ -614,22 +663,30 @@ function fillOvertime() {
 function fillMaintenance() {
   const items = upcomingItems();
   const depts = state.config.filter(c => c.active !== false);
-  const pick = (name, list, chosen, blank) => `<select class="inp fr__i fr__i--s" data-field="${name}">
-    <option value="">${blank}</option>${list.map(o =>
-      `<option value="${esc(o)}"${o === chosen ? ' selected' : ''}>${esc(o)}</option>`).join('')}</select>`;
-  const rows = items.map(m => {
+  // Six boxes on a row with the headings above them, which reads perfectly and tells a
+  // screen reader nothing: the heading is in a different element and there is no `for` to
+  // tie them. Each box says what it is and which item it belongs to.
+  const pick = (name, list, chosen, blank, said) =>
+    `<select class="inp fr__i fr__i--s" data-field="${name}" aria-label="${esc(said)}">
+      <option value="">${blank}</option>${list.map(o =>
+        `<option value="${esc(o)}"${o === chosen ? ' selected' : ''}>${esc(o)}</option>`).join('')}</select>`;
+  const rows = items.map((m, n) => {
     const machines = machinesIn(deptKeyOf(m.dept)).map(x => x.name);
+    const its = what => `${what}, item ${n + 1}`;
     return `<div class="fr fr--maint" data-pkey="maint-${esc(m.id)}">
-      ${pick(`maint:${esc(m.id)}:dept`, depts.map(d => d.name), m.dept, 'Department')}
-      ${pick(`maint:${esc(m.id)}:machine`, machines, m.machine, 'Machine')}
+      ${pick(`maint:${esc(m.id)}:dept`, depts.map(d => d.name), m.dept, 'Department', its('Department'))}
+      ${pick(`maint:${esc(m.id)}:machine`, machines, m.machine, 'Machine', its('Machine'))}
       <input class="inp fr__i fr__i--h" type="number" step="0.5" min="0" placeholder="hrs"
+        aria-label="${esc(its('Hours'))}"
         data-field="maint:${esc(m.id)}:hours" value="${m.hours ?? ''}">
       <input class="inp fr__i" type="text" placeholder="what for"
+        aria-label="${esc(its('What for'))}"
         data-field="maint:${esc(m.id)}:note" value="${esc(m.note || m.item_type || '')}">
-      <input class="inp fr__i fr__i--d" type="date"
+      <input class="inp fr__i fr__i--d" type="date" aria-label="${esc(its('When'))}"
         data-field="maint:${esc(m.id)}:scheduled_on" value="${m.scheduled_on || ''}">
-      ${pick(`maint:${esc(m.id)}:status`, MAINT_STATUS, m.status, m.status)}
-      <button class="lnk" data-drop-maint="${esc(m.id)}" aria-label="Remove this item">×</button>
+      ${pick(`maint:${esc(m.id)}:status`, MAINT_STATUS, m.status, m.status, its('Status'))}
+      <button class="lnk" data-drop-maint="${esc(m.id)}"
+        aria-label="${esc(`Remove item ${n + 1}`)}">×</button>
     </div>`;
   });
   return `<section class="fg fg--wide">
@@ -650,21 +707,22 @@ function fillNotes() {
       const row = state.review.find(r => r.dept_key === config.key) || {};
       return `<div class="fr fr--note">
         <span class="fr__l">${esc(config.name)}</span>
-        <select class="inp fr__i fr__i--s" data-field="review:${esc(config.key)}:status">
-          ${[['ok', 'No issue'], ['warn', 'Warning'], ['stop', 'Issue']].map(([v, t]) =>
-            `<option value="${v}"${row.status === v ? ' selected' : ''}>${t}</option>`).join('')}
-        </select>
+        <select class="inp fr__i fr__i--s" aria-label="${esc(config.name)} status"
+          data-field="review:${esc(config.key)}:status">${reviewOptions(row.status)}</select>
         <textarea class="inp fr__t" rows="1" placeholder="what happened \u2014 one per line"
+          aria-label="${esc(config.name)} \u2014 what happened"
           data-field="review:${esc(config.key)}:note">${esc(row.note || '')}</textarea>
       </div>`;
     });
     rows.push(`<div class="fr fr--note fr--wide">
       <span class="fr__l">Staffing</span>
       <textarea class="inp fr__t" rows="1" placeholder="call-ins, vacation, training"
+        aria-label="Staffing notes"
         data-field="staffing_note">${esc(metric('staffing_note') || '')}</textarea></div>`);
     rows.push(`<div class="fr fr--note fr--wide">
       <span class="fr__l">Maintenance</span>
       <textarea class="inp fr__t" rows="1" placeholder="anything the room should know"
+        aria-label="Maintenance notes"
         data-field="maintenance_note">${esc(metric('maintenance_note') || '')}</textarea></div>`);
     return rows.join('');
   }, 'Each line becomes a bullet on the card.');
@@ -674,6 +732,11 @@ const SECTIONS = {
   // The entry screen. See the block above it for why this is its own surface.
   fill: () => {
     toGo = 0;
+    // What is outstanding is the assessment's answer, not this screen's. Counting blank
+    // boxes made a morning look incomplete because somebody had not retyped a figure the
+    // DOR had already supplied, and complete because every box had something in it even
+    // when four departments had never confirmed their last twenty-four hours.
+    const gaps = absent(state.findings);
     // Three columns of numbers, then the two things that are sentences and take the width.
     // Assigned rather than flowed: masonry put Sales under Shipping one morning and under
     // Safety the next, so nobody could learn where anything was.
@@ -686,44 +749,96 @@ const SECTIONS = {
     return `<div class="fill">
       <div class="fill__top">
         <div class="fill__count">
-          <b class="${toGo ? 'tone--warn' : 'tone--ok'}">${toGo || 'Nothing'}</b>
-          <span>${toGo ? 'still to fill in' : 'left to fill in'}</span>
+          <b class="${gaps.length ? 'tone--warn' : 'tone--ok'}">${gaps.length || 'Nothing'}</b>
+          <span>${gaps.length ? 'still to fill in' : 'left to fill in'}</span>
         </div>
-        <p class="fill__say">Everything else arrives from the DOR, the OTIF sheet and the
-          monthly KPI workbook, and is shown here so it can be corrected \u2014 not so it has to
-          be typed.</p>
+        ${gaps.length
+          ? `<div class="fill__gaps">${gaps.slice(0, 8).map(r =>
+              `<button class="gap gap--sm" data-goto="${esc(r.field || '')}">${
+                esc(r.title)}</button>`).join('')}${
+              gaps.length > 8 ? `<span class="fill__more">and ${gaps.length - 8} more</span>` : ''}</div>`
+          : `<p class="fill__say">Everything else arrives from the DOR, the OTIF sheet and the
+              monthly KPI workbook, and is shown here so it can be corrected \u2014 not so it
+              has to be typed.</p>`}
+        ${sourceStrip()}
       </div>
       <div class="fill__grid">${groups}</div>
       <div class="fill__end">
-        <p>${toGo ? `<b>${toGo}</b> still to fill in. Publishing shows this morning on every
-              screen \u2014 you can keep editing afterwards.`
+        <p>${gaps.length ? `<b>${gaps.length}</b> still to fill in. A morning can be published
+              incomplete, but somebody has to say why \u2014 every screen will carry the note.`
           : published ? 'Published. Every screen is showing this morning.'
           : 'Nothing left to fill in.'}</p>
         <div class="fill__go">
           <button class="btn" data-nav="overview">See the cards</button>
-          ${state.canEdit ? `<button class="btn btn--go" id="fill-publish">${
-            published ? 'Publish again' : 'Publish this morning'}</button>` : ''}
+          ${state.canEdit ? `<button class="btn ${gaps.length ? '' : 'btn--go'}" id="fill-publish">${
+            gaps.length ? `Publish anyway \u2014 ${gaps.length} missing`
+              : published ? 'Publish again' : 'Publish this morning'}</button>` : ''}
         </div>
       </div>
     </div>`;
   },
 
-  // ── Today ──
-  // Leads with what is not ok and counts the rest. Two minutes is the whole meeting, so
-  // a reading that needs no decision is a tick, not a paragraph.
+  // ── The morning summary ──
+  //
+  // The first thing on the screen is how complete the morning is, because until this release
+  // the screen could say "Everything is on target · All 9 readings within target" on a
+  // morning where eleven readings had not been entered. Four counts, side by side: what is
+  // critical, what is warning, what nobody has entered, and what is genuinely fine. Missing
+  // sits beside the other three rather than under them, because on most mornings before
+  // seven o'clock it is the largest of the four and the only one anybody can act on.
+  //
+  // "Everything is on target" is now a sentence with a precondition. It may be printed only
+  // when the missing count is nought.
   line: () => {
-    const flags = attention(state.findings), fine = settled(state.findings);
-    const worst = flags.some(f => f.tone === 'stop') ? 'stop' : flags.length ? 'warn' : 'ok';
+    const flags = attention(state.findings);
+    const fine = settled(state.findings);
+    const gaps = absent(state.findings);
+    const worst = flags.some(f => f.tone === 'stop') ? 'stop'
+      : gaps.length ? 'warn' : flags.length ? 'warn' : 'ok';
     const headline = !state.findings.length
-      ? ['Nothing entered yet', 'Open Enter data and fill in this morning.']
-      : flags.length
-        ? [`${flags.length} thing${flags.length > 1 ? 's need' : ' needs'} the room today`,
-           `${fine.length} other reading${fine.length === 1 ? ' is' : 's are'} on target.`]
-        : ['Everything is on target', `All ${fine.length} readings within target this morning.`];
+      ? ['Nothing entered yet', 'Open Enter and fill in this morning.']
+      : gaps.length
+        ? [`${gaps.length} reading${gaps.length === 1 ? ' is' : 's are'} missing`,
+           flags.length
+             ? `${flags.length} thing${flags.length === 1 ? '' : 's'} here need${
+                 flags.length === 1 ? 's' : ''} the room. This morning is not complete.`
+             : 'Everything entered so far is on target. This morning is not complete.']
+        : flags.length
+          ? [`${flags.length} thing${flags.length > 1 ? 's need' : ' needs'} the room today`,
+             `${fine.length} other reading${fine.length === 1 ? ' is' : 's are'} on target.`]
+          : ['Everything is on target',
+             `All ${fine.length} readings entered, current and within target.`];
+
+    const tally = (n, label, tone) => `<div class="tally tally--${tone}${n ? '' : ' tally--none'}">
+      <b>${n}</b><span>${esc(label)}</span></div>`;
+
+    // The manager's own words, which are the only part of the morning a number cannot
+    // carry. They were on four cards two sections away; on the screen the meeting opens
+    // with, they are the agenda.
+    const points = state.review
+      .filter(row => row.note && String(row.note).trim())
+      .flatMap(row => {
+        const config = state.config.find(c => c.key === row.dept_key);
+        return String(row.note).split(/\r?\n/).map(line => line.trim()).filter(Boolean)
+          .map(line => [config?.name || row.dept_key, line, row.status]);
+      });
+    for (const [field, who] of [['maintenance_note', 'Maintenance'], ['staffing_note', 'Staffing']]) {
+      const text = metric(field);
+      if (text && String(text).trim()) {
+        for (const line of String(text).split(/\r?\n/).map(l => l.trim()).filter(Boolean)) {
+          points.push([who, line, '']);
+        }
+      }
+    }
 
     return `<div class="today today--${worst}">
-      <span class="today__n">${flags.length}</span>
       <div class="today__t"><h2>${esc(headline[0])}</h2><p>${esc(headline[1])}</p></div>
+      <div class="tallies">
+        ${tally(flags.filter(f => f.tone === 'stop').length, 'critical', 'stop')}
+        ${tally(flags.filter(f => f.tone === 'warn').length, 'warning', 'warn')}
+        ${tally(gaps.length, 'missing', 'gap')}
+        ${tally(fine.length, 'on target', 'ok')}
+      </div>
     </div>
 
     ${flags.length ? `<div class="grid g3 flags">${flags.map(r => {
@@ -744,6 +859,22 @@ const SECTIONS = {
         </div>` : ''}
       </div>`;
     }).join('')}</div>` : ''}
+
+    ${gaps.length ? `<div class="settled">
+      <div class="sec__head"><span class="eyebrow">Not entered yet</span><div class="sec__rule"></div></div>
+      <div class="gaps">${gaps.map(r =>
+        `<button class="gap" data-goto="${esc(r.field || '')}">
+           <span class="gap__t">${esc(r.title)}</span>
+           <span class="gap__a">${esc(r.area)}</span></button>`).join('')}</div>
+    </div>` : ''}
+
+    ${points.length ? `<div class="settled">
+      <div class="sec__head"><span class="eyebrow">Talking points \u00b7 last 24 hours</span>
+        <div class="sec__rule"></div></div>
+      <ul class="points">${points.slice(0, 10).map(([who, line, tone]) =>
+        `<li class="points__i${tone && tone !== 'ok' ? ` points__i--${tone}` : ''}">
+           <b>${esc(who)}</b><span>${esc(line)}</span></li>`).join('')}</ul>
+    </div>` : ''}
 
     ${fine.length ? `<div class="settled">
       <div class="sec__head"><span class="eyebrow">On target</span><div class="sec__rule"></div></div>
@@ -926,8 +1057,10 @@ const SECTIONS = {
         const row = dept(config.key);
         return `<div class="er er--pair"><label>${esc(config.name)}</label>
           <input class="inp" type="number" data-field="dept:${config.key}:pw_qty"
+            aria-label="${esc(config.name)} \u2014 last week's ${esc(volumeLabel(config))}"
             placeholder="${esc(volumeLabel(config))}" value="${row.pw_qty ?? ''}">
           <input class="inp" type="number" step="0.1" data-field="dept:${config.key}:pw_hours"
+            aria-label="${esc(config.name)} \u2014 last week's hours"
             placeholder="hours" value="${row.pw_hours ?? ''}"></div>`;
       }).join(''),
     });
@@ -940,18 +1073,23 @@ const SECTIONS = {
     // everywhere else.
     const review = state.review.map(row => {
       const config = state.config.find(c => c.key === row.dept_key);
+      // Three states, not two. A department that answered "no issue" has said something and
+      // the card says it back; a department nobody has asked yet has said nothing, and the
+      // card has to say *that* rather than putting words in its mouth.
+      const answered = !!row.status;
       return noteCard({
         pkey: `rev-${row.dept_key}`, label: config?.name || row.dept_key,
-        icon: iconFor(row.dept_key, config?.icon), tone: row.status === 'ok' ? '' : row.status,
-        html: row.note ? bullets(row.note) : '', prompt: 'No issues reported.',
+        icon: iconFor(row.dept_key, config?.icon),
+        tone: !answered ? 'gap' : row.status === 'ok' ? '' : row.status,
+        html: row.note ? bullets(row.note) : '',
+        blank: answered && !row.note,
+        prompt: answered ? 'No issues reported.' : 'Not confirmed yet.',
         edit: `<div class="er"><label>Status</label>
-            <select class="inp" data-field="review:${esc(row.dept_key)}:status">
-              ${[['ok', 'No issue'], ['warn', 'Warning'], ['stop', 'Issue']].map(([v, t]) =>
-                `<option value="${v}"${row.status === v ? ' selected' : ''}>${t}</option>`).join('')}
-            </select></div>
+            <select class="inp" data-field="review:${esc(row.dept_key)}:status"
+              aria-label="Status">${reviewOptions(row.status)}</select></div>
           <div class="er"><label>Note</label>
-            <textarea class="inp" data-field="review:${esc(row.dept_key)}:note">${
-              esc(row.note)}</textarea></div>`,
+            <textarea class="inp" aria-label="What happened"
+              data-field="review:${esc(row.dept_key)}:note">${esc(row.note)}</textarea></div>`,
       });
     }).join('');
 
@@ -991,11 +1129,23 @@ const SECTIONS = {
     // share of it, in the same chip the money uses. It used to read "\u22120.13 pts", which
     // is a unit the room does not think in \u2014 asked what it meant, nobody was sure
     // whether it was a percentage of the target or a percentage of a percentage.
+    // The target comes off the morning, not out of this file — see `otifTarget`. A morning
+    // published in January against 98 keeps being judged against 98 when the plant moves to
+    // 97 in the spring.
+    const goal = otifTarget(state.metrics);
     const pct = (name, label, sub) => {
       const value = read(name);
-      const tone = value == null ? '' : band.pct(Number(value), SHIPPING_TARGET);
-      const variance = value == null ? null
-        : varianceChip(Number(value), SHIPPING_TARGET, { digits: 2 });
+      // Nought jobs shipped has no on-time percentage — there is no denominator. It is not
+      // nought per cent, and printing a dash would say "nobody entered it", which is a
+      // different morning and a different job for somebody.
+      if (isNa(value)) {
+        return ship(name, label, {
+          value: 'N/A', unit: '', sub: 'no jobs shipped', tone: '',
+          foot: [['Target', `\u2265 ${goal}%`]],
+        });
+      }
+      const tone = value == null ? '' : band.pct(Number(value), goal);
+      const variance = value == null ? null : varianceChip(Number(value), goal, { digits: 2 });
       // OTD and OTIF follow from jobs, late and short, so they have no field. The two
       // roll-ups do, because nothing on this morning can work them out.
       const typed = name === 'mtd_otif' || name === 'ytd_otif';
@@ -1004,8 +1154,8 @@ const SECTIONS = {
           ? { field: name, attrs: `type="number" step="0.01" value="${state.metrics?.[name] ?? ''}"` }
           : null,
         value: value == null ? '\u2014' : Number(value).toFixed(2), unit: value == null ? '' : '%',
-        sub, tone, target: SHIPPING_TARGET, floor: 90, ceiling: 100, series: metricSeries(name),
-        foot: [['Target', `\u2265 ${SHIPPING_TARGET}%`], ['Variance', variance]],
+        sub, tone, target: goal, floor: 90, ceiling: 100, series: metricSeries(name),
+        foot: [['Target', `\u2265 ${goal}%`], ['Variance', variance]],
       });
     };
     const count = (name, label, sub) => {
@@ -1706,9 +1856,91 @@ function renderWallPage(pages) {
   grid.style.setProperty('--snap-cols', String(snapCols(count, { w: box.width, h: box.height })));
 }
 
+// ── The overview ────────────────────────────────────────────────────────────────
+//
+// Six numbers, one per family, and nothing else. It is the third shape because it answers a
+// third question: not "walk me through the morning" and not "show me everything at once",
+// but "is the plant all right" — asked by somebody who is thirty feet away and walking.
+//
+// The number a family gets is the one that would be said out loud if you had one sentence
+// for that family. It is chosen rather than derived: the assessment's worst reading in a
+// family is the right answer on a bad morning and the wrong one on a good one, where it
+// picks whatever happens to be nearest a threshold and the screen changes shape daily. A
+// fixed choice is learnable, which is the whole point of a screen you glance at.
+const BRIEF = [
+  { fam: 'safety',      label: 'Days injury-free',  key: 'injury' },
+  { fam: 'quality',     label: 'Cost of quality',   key: 'coq' },
+  { fam: 'production',  label: 'Against target',    key: 'production' },
+  { fam: 'shipping',    label: 'OTIF today',        key: 'otif' },
+  { fam: 'labour',      label: 'Overtime shifts',   key: 'overtime' },
+  { fam: 'financials',  label: 'Month to date',     key: 'fin' },
+];
+
+// Production has no single reading — it has one per department — so its tile is the whole
+// floor against target, weighted by the hours each department actually ran. A plant that
+// ran one press for two hours and its gluers all day is not half a per cent under.
+function floorAgainstTarget() {
+  let hours = 0, weighted = 0;
+  for (const config of state.config.filter(c => c.on_metrics)) {
+    const row = dept(config.key), rate = rateOf(row);
+    const target = Number(row.target ?? config.target);
+    if (!rate || !target || !Number(row.hours)) continue;
+    hours += Number(row.hours);
+    weighted += Number(row.hours) * ((rate - target) / target * 100);
+  }
+  return hours ? weighted / hours : null;
+}
+
+function briefTiles() {
+  const off = wallHidden();
+  const find = key => state.findings.find(r => r.key === key);
+  const out = [];
+  for (const tile of BRIEF) {
+    if (off.has(tile.fam)) continue;
+    if (tile.key === 'production') {
+      const pct = floorAgainstTarget();
+      out.push({ ...tile,
+        value: pct == null ? '\u2014' : `${pct >= 0 ? '+' : '\u2212'}${Math.abs(pct).toFixed(1)}%`,
+        tone: pct == null ? '' : pct >= 0 ? 'ok' : pct > -10 ? 'warn' : 'stop' });
+      continue;
+    }
+    const found = find(tile.key);
+    if (!found) { out.push({ ...tile, value: '\u2014', tone: '', state: 'missing' }); continue; }
+    out.push({ ...tile, value: `${found.value}${found.unit === '%' ? '%' : ''}`,
+               tone: found.tone || '', state: found.state });
+  }
+  return out;
+}
+
+// One line of what is wrong, under the tiles. Three at most, because a fourth is not read
+// from thirty feet and a screen with a list on it has stopped being a glance.
+function briefWorst() {
+  return attention(state.findings).slice(0, 3).map(r =>
+    `<span class="brief__w brief__w--${r.tone}">${esc(r.area)} \u00b7 ${esc(r.value)}${
+      r.unit === '%' ? '%' : ''}</span>`).join('');
+}
+
+function renderBrief() {
+  const content = $('#content');
+  content.className = 'content wall wall--brief';
+  const tiles = briefTiles();
+  const gaps = absent(state.findings).length;
+  content.innerHTML = `
+    <div class="wall__top">
+      <h2>${esc(state.locations.find(l => l.id === state.location)?.name || '')}</h2>
+      ${gaps ? `<span class="brief__gap">${gaps} reading${gaps === 1 ? '' : 's'} not entered</span>` : ''}
+      <span class="wall__date">${$('#date-long').textContent}</span>
+    </div>
+    <div class="brief">${tiles.map(t => `<div class="brief__t" data-fam="${esc(t.fam)}">
+      <div class="brief__n tone--${t.tone || 'none'}">${esc(t.value)}</div>
+      <div class="brief__l">${esc(t.label)}</div></div>`).join('')}</div>
+    <div class="brief__bar">${briefWorst() || '<span class="brief__w">Nothing outstanding</span>'}</div>`;
+}
+
 function renderWall() {
   const pages = wallPages();
   if (!pages.length) return;
+  if (state.wallMode === 'brief') return renderBrief();
   if (state.wallMode === 'all') return renderWallPage(pages);   // one fixed screen
   const at = ((state.wallStep % pages.length) + pages.length) % pages.length;
   const page = pages[at];
@@ -1766,11 +1998,15 @@ async function persist(name, value) {
     else await saveField(state.location, state.date, name, value);
     if (['jobs_shipped', 'late', 'shorts'].includes(name)) {
       const derived = derivedShipping(state.metrics);
-      if (derived) {
-        state.metrics.otd = derived.otd;
-        state.metrics.otif = derived.otif;
-        await saveField(state.location, state.date, 'otd', derived.otd);
-        await saveField(state.location, state.date, 'otif', derived.otif);
+      // A morning with nought jobs shipped has no percentage to store. The columns are
+      // numeric, so the only honest thing to put in them is nothing — the card works out
+      // "N/A" from the jobs figure itself and does not need a sentinel in the database.
+      const write = derived?.na ? { otd: null, otif: null } : derived;
+      if (write) {
+        state.metrics.otd = write.otd;
+        state.metrics.otif = write.otif;
+        await saveField(state.location, state.date, 'otd', write.otd);
+        await saveField(state.location, state.date, 'otif', write.otif);
       }
     }
     noteSaved();
@@ -1968,14 +2204,54 @@ document.addEventListener('click', event => {
   if (event.target.closest('#fill-publish')) $('#publish-btn').click();
 });
 
+// A missing reading names the field that fills it, so the way to fix it is one click rather
+// than a hunt. From the summary it crosses to Enter first; from Enter it just goes there.
+document.addEventListener('click', event => {
+  const jump = event.target.closest('[data-goto]');
+  if (!jump) return;
+  const field = jump.dataset.goto;
+  const land = () => {
+    const box = document.querySelector(`.fill [data-field="${CSS.escape(field)}"]`);
+    if (!box) return;
+    box.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    box.focus({ preventScroll: true });
+    const row = box.closest('.fr') || box;
+    row.classList.add('fr--found');
+    setTimeout(() => row.classList.remove('fr--found'), 1600);
+  };
+  if (state.active !== 'fill') { state.active = 'fill'; render(); requestAnimationFrame(land); }
+  else land();
+});
+
+// Publishing an incomplete morning takes a deliberate act and a reason.
+//
+// It used to take one click whatever the morning contained, which is how a screen twenty
+// people read could go up with four departments never asked and nobody the wiser. The guard
+// is not a refusal — a plant that has to start the meeting at eight is going to publish what
+// it has, and it is right to — it is that the room is told what is missing, and that the
+// person who decided to go anyway says why. The note travels with the publication.
 $('#publish-btn').addEventListener('click', async () => {
+  const gaps = absent(state.findings);
+  let note = null;
+  if (gaps.length) {
+    const names = gaps.slice(0, 4).map(r => r.title).join(', ');
+    note = prompt(
+      `${gaps.length} reading${gaps.length === 1 ? ' has' : 's have'} not been entered — ${
+        names}${gaps.length > 4 ? `, and ${gaps.length - 4} more` : ''}.\n\n` +
+      'Publishing now is allowed. Say briefly why, and the note goes up with the morning.');
+    // Cancel means cancel. An empty box means somebody pressed OK without reading it.
+    if (note === null) return;
+    if (!note.trim()) { toast('A reason is needed to publish an incomplete morning'); return; }
+  }
   try {
-    await publish(state.location, state.date);
+    await publish(state.location, state.date, { incomplete: gaps.length > 0, note });
     if (state.metrics) state.metrics.status = 'published';
     document.body.classList.remove('editing');
     $('#edit-btn').textContent = 'Edit mode';
     $('#publish-btn').classList.add('hide');
-    toast('Published — every screen shows this now');
+    toast(gaps.length
+      ? `Published with ${gaps.length} missing — the note is on the record`
+      : 'Published — every screen shows this now');
     render();
   } catch (error) { toast(error.message); }
 });
@@ -2005,26 +2281,74 @@ function toast(message) {
 // meeting waiting for the page to come back round. Arrows, space and the two buttons —
 // that is the whole control surface.
 const step = direction => {
+  if (state.wallMode !== 'walk') return;
   const total = wallPages().length || 1;
   state.wallStep = ((state.wallStep + direction) % total + total) % total;
   renderWall();
   fitCards();
 };
+// Three shapes, in the order a room grows into them: the walk, the collage, the glance.
+//
+// The walk is the meeting, one section at a screen, driven by a person. The collage is the
+// snapshot — everything at once, for a screenshot or a wall somebody passes twice a day.
+// The overview is the glance: six numbers, one per family, large enough to read from ten
+// metres, for a screen nobody is standing at.
+//
+// The button names the shape you are *going* to, because a button that names where you are
+// is a label rather than a control.
+const WALL_MODES = ['walk', 'all', 'brief'];
+const MODE_NAMES = { walk: 'One at a time', all: 'One page', brief: 'Overview' };
+const nextMode = mode => WALL_MODES[(WALL_MODES.indexOf(mode) + 1) % WALL_MODES.length];
+
+function paintMode() {
+  document.body.classList.toggle('tv-all', state.wallMode === 'all');
+  document.body.classList.toggle('tv-brief', state.wallMode === 'brief');
+  $('#tv-mode').textContent = MODE_NAMES[nextMode(state.wallMode)];
+  // Only the walk has anywhere to step. The collage and the overview are each one screen.
+  const walking = state.wallMode === 'walk';
+  $('#tv-next').classList.toggle('hide', !walking);
+  $('#tv-prev').classList.toggle('hide', !walking);
+  $('#tv-play').classList.toggle('hide', !walking);
+}
+
+// Rotation, off until somebody asks for it.
+//
+// The walk had a timer once and it was removed for a good reason: a screen that moves while
+// somebody is mid-sentence about what was on it makes a meeting wait for the page to come
+// back round. That reason holds for the meeting and not for the corridor, where there is
+// nobody to press anything and a screen that never changes is a poster. So the timer is
+// still not the default — it is a button, it lives only on the walk, which is the only
+// shape with anywhere to go, and pause stops it dead.
+const ROTATE_SECONDS = 18;
+let rotateTimer = null;
+function rotate(on) {
+  clearInterval(rotateTimer);
+  rotateTimer = null;
+  state.rotating = on;
+  if (on) rotateTimer = setInterval(() => step(1), ROTATE_SECONDS * 1000);
+  $('#tv-play').textContent = on ? '\u23f8' : '\u25b6';
+  $('#tv-play').setAttribute('aria-label', on ? 'Pause rotation' : 'Rotate every 18 seconds');
+}
+
 $('#tv-btn').addEventListener('click', () => {
   document.body.classList.add('tv');
-  document.body.classList.toggle('tv-all', state.wallMode === 'all');
-  $('#tv-mode').textContent = state.wallMode === 'all' ? 'One at a time' : 'One page';
   state.wallStep = 0;
+  paintMode();
   render();
 });
-$('#tv-exit').addEventListener('click', () => { document.body.classList.remove('tv'); render(); });
+$('#tv-exit').addEventListener('click', () => {
+  rotate(false);
+  document.body.classList.remove('tv');
+  render();
+});
 $('#tv-next').addEventListener('click', () => step(1));
 $('#tv-prev').addEventListener('click', () => step(-1));
+$('#tv-play').addEventListener('click', () => rotate(!state.rotating));
 $('#tv-mode').addEventListener('click', () => {
-  state.wallMode = state.wallMode === 'all' ? 'walk' : 'all';
-  document.body.classList.toggle('tv-all', state.wallMode === 'all');
-  $('#tv-mode').textContent = state.wallMode === 'all' ? 'One at a time' : 'One page';
+  state.wallMode = nextMode(state.wallMode);
+  if (state.wallMode !== 'walk') rotate(false);
   state.wallStep = 0;
+  paintMode();
   renderWall();
   fitCards();
 });
@@ -2373,6 +2697,22 @@ async function applyImport() {
   for (const [name, value] of writes) {
     applyLocally(name, value);
     await persist(name, value);
+  }
+
+  // Which files this morning has actually seen, and when.
+  //
+  // A figure that came out of the DOR six days ago and a figure typed this morning look
+  // identical on a card, and that is how a stale number sits on a screen for a week without
+  // anybody noticing. Enter says so along the top; this is what it reads.
+  const stamps = { ...(state.metrics?.source_seen || {}) };
+  const now = new Date().toISOString();
+  const kinds = new Set((p.sources || []).map(source => source.kind));
+  if (kinds.has('production')) stamps.dor = now;
+  if (kinds.has('shipping')) stamps.otif = now;
+  if (kinds.has('quality')) stamps.kpi = now;
+  if (Object.keys(stamps).length) {
+    applyLocally('source_seen', stamps);
+    await persist('source_seen', stamps);
   }
 
   // History from the old dashboard goes to the dates it is dated, not to the open morning,

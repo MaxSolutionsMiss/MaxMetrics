@@ -60,7 +60,38 @@ export const hoursLabel  = config => config?.hours_label || 'Hours';
 // The plant's on-time target, in one place. `band.pct` is told what to compare against
 // rather than knowing it, so the number belongs beside the bands that read it — and the
 // conformance check exists to stop a copy of it appearing on a card.
+//
+// It is the *fallback* now rather than the answer. A morning opened from August 2026 carries
+// the target it is going to be judged against in `daily_metrics.otif_target`, because a
+// constant in a browser means that moving the target to 97 next January restates every
+// morning back to 2025 — green mornings turning amber, retrospectively, with nothing on the
+// screen to say why. Mornings published before the column existed have nothing stored and
+// fall back to this, which is what they were actually judged against at the time.
 export const SHIPPING_TARGET = 98;
+export const otifTarget = metrics => Number(metrics?.otif_target ?? SHIPPING_TARGET);
+export const otdTarget  = metrics => Number(metrics?.otd_target ?? SHIPPING_TARGET);
+
+// ── The five states a reading can be in ─────────────────────────────────────────
+//
+// Nought and nothing are different statements, and for three releases this product only had
+// one way of saying either: an em dash. That is survivable on a card, where a dash reads as
+// "no number", and it is not survivable in a count — a morning with nine of twenty readings
+// entered printed "Everything is on target · All 9 readings within target", which is a
+// sentence nobody in the room can act on and everybody in the room believes.
+//
+//   missing  nobody entered it and no file supplied one
+//   stale    a file supplied it, but that file has not arrived since before this morning
+//   na       the arithmetic has no denominator — nought jobs shipped has no OTIF
+//   ok/warn/stop  present, current, and judged
+//
+// `na` is a value rather than an absence, so it travels as one. Anything that formats a
+// reading has to know about it, which is the point: a percentage of nothing must never be
+// drawn as a hundred per cent and must never be drawn as a blank either.
+export const NA = 'n/a';
+export const isNa = value => value === NA;
+export const isMissing = value => value === null || value === undefined || value === '';
+export const stateOf = (value, tone) =>
+  isMissing(value) ? 'missing' : isNa(value) ? 'na' : (tone || 'ok');
 
 export const MONTHS = ['January','February','March','April','May','June',
                        'July','August','September','October','November','December'];
@@ -107,12 +138,19 @@ export function trend(current, previous, lowerIsBetter = false) {
 // It lives here, next to band(), for the same reason band() does. The page derived these
 // and the assessment did not, so for the few seconds between a keystroke and the write
 // landing, a card could print one OTIF and the section beside it judge another.
+// Nought jobs and no jobs figure are two different mornings, and they used to produce the
+// same em dash. A plant that shipped nothing on a statutory holiday has an OTIF that does
+// not exist — there is no denominator — and that is a fact worth printing as one. A plant
+// where nobody has entered the jobs figure has an OTIF nobody knows yet, which is a job for
+// somebody before the meeting.
 export function derivedShipping(metrics) {
-  const jobs = Number(metrics?.jobs_shipped);
-  if (!jobs) return null;
+  const jobs = metrics?.jobs_shipped;
+  if (isMissing(jobs)) return null;
+  if (Number(jobs) === 0) return { otd: NA, otif: NA, na: true };
+  const count = Number(jobs);
   const late = Number(metrics?.late || 0), short = Number(metrics?.shorts || 0);
   const round = value => Math.round(value * 10000) / 100;
-  return { otd: round((jobs - late) / jobs), otif: round((jobs - late - short) / jobs) };
+  return { otd: round((count - late) / count), otif: round((count - late - short) / count) };
 }
 
 // A reading of the day, with derived shipping folded in. Every part of MaxMetrics that
@@ -419,7 +457,8 @@ export const footLine = pairs => {
     `<span class="fs"><span class="fs__l" style="--lc:${chars(label)}">${esc(label)}</span>` +
     `<span class="fs__v" style="--fc:${chars(value ?? '—')}">${
       edit ? `<span class="view-only">${value ?? '—'}</span>` +
-             `<input class="inp inp--foot edit-only" data-field="${esc(edit.field)}" ${edit.attrs || ''}>`
+             `<input class="inp inp--foot edit-only" aria-label="${esc(label)}"
+                data-field="${esc(edit.field)}" ${edit.attrs || ''}>`
            : value}</span></span>`
   ).join('')}</div>`;
 };
@@ -652,15 +691,20 @@ export function listCard({ pkey, icon, label, tone, rows, empty = 'Nothing to re
 // last twenty-four hours are entered a line at a time and read back as bullets, and that is
 // the only reading on the product whose body is markup rather than a string — everything
 // else that takes markup takes it as a whole card.
-export function noteCard({ pkey, icon, label, text, html, tone = '',
+export function noteCard({ pkey, icon, label, text, html, tone = '', blank,
                            prompt = 'Nothing entered.', edit }) {
   if (hidden.has(pkey)) return '';
   // A note nobody wrote says so on the page, where the prompt is an invitation to write one,
   // and says nothing at all on a wall. Four cards reading "No issues reported" on a screen
   // the floor walks past is four cards of nothing where four readings could have been, so
   // the wall drops them — and it can only do that if the card admits it is empty.
+  // `blank` is "there is nothing here worth a slot on a wall", which is not always the same
+  // as "there is no text". A department that has answered and had no issues is blank; a
+  // department nobody has asked yet has an answer outstanding, and the meeting wants to see
+  // that even though the card carries no sentence.
+  const nothing = blank ?? !(text || html);
   return `<div class="card card--${tone}" data-pkey="${esc(pkey)}"${
-    text || html ? '' : ' data-empty="1"'}>
+    nothing ? ' data-empty="1"' : ''}>
     <div class="card__head">
       <span class="card__ico" aria-hidden="true">${icon || iconFor(pkey)}</span>
       <span class="card__label">${esc(label)}</span>
@@ -703,8 +747,8 @@ export function metricCard({ chart, pkey, icon, label, tone, value, unit, percen
             heroEdit ? ' view-only' : ''}" style="--chars:${
           heroChars(value, unit)}">${esc(value)}${
           unit ? `<i>${esc(unit)}</i>` : ''}</div>${
-          heroEdit ? `<input class="inp inp--hero edit-only" data-field="${esc(heroEdit.field)}" ${
-            heroEdit.attrs || ''}>` : ''}${caption}${drawn}` : `${drawn}${caption}`}
+          heroEdit ? `<input class="inp inp--hero edit-only" aria-label="${esc(label)}"
+            data-field="${esc(heroEdit.field)}" ${heroEdit.attrs || ''}>` : ''}${caption}${drawn}` : `${drawn}${caption}`}
         ${track || ''}
       </div>
       ${foot || '<div class="foot foot--0"></div>'}
