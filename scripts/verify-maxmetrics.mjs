@@ -57,6 +57,7 @@ const IMPORTANT_ALLOWED = [
   { match: /^\.hide\b/,                why: 'hidden is hidden, whatever the display rule was' },
   { match: /body:not\(\.editing\)/,    why: 'edit fields stay closed regardless of card layout' },
   { match: /^body\[data-view="fill"\]/, why: 'the entry screen is always open for entry' },
+  { match: /^\.snap__b\{grid-area:auto/,  why: 'one column on a phone beats a hand-placed block' },
   { match: /\.view-only\{display:none/,  why: 'a value steps aside for the field that replaces it' },
   { match: /grid-template-columns:1fr!important/, why: 'one column on a phone beats every per-section grid' },
 ];

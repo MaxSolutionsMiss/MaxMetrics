@@ -242,9 +242,16 @@ const upcomingItems = () => (state.upcoming || []).length
   ? state.upcoming
   : state.maintenance.filter(m => !m.scheduled_on || m.scheduled_on >= state.date);
 
-const whenText = row => row.scheduled_on
-  ? (row.scheduled_on === state.date ? 'Today' : shortDate(row.scheduled_on))
-  : (row.scheduled || '—');
+const whenText = (row, brief) => {
+  if (!row.scheduled_on) return row.scheduled || '—';
+  if (row.scheduled_on === state.date) return 'Today';
+  const d = dateOf(row.scheduled_on);
+  // The year is noise on a list that never runs more than a few weeks out, and on the
+  // snapshot the column is a fifth of a block.
+  return brief || d.getFullYear() === dateOf(state.date).getFullYear()
+    ? `${d.getDate()} ${MONTHS[d.getMonth()].slice(0, 3)}`
+    : shortDate(row.scheduled_on);
+};
 
 function maintenanceCards() {
   const items = upcomingItems();
@@ -1542,31 +1549,98 @@ function wallPages() {
 // Two shapes, because two rooms want two different things.
 //
 // The walk is a meeting: one section at a screen, driven by a person, each card as large as
-// the screen allows. One page is a broadcast: the whole plant at once on a screen nobody is
-// standing at, scrolling if it must, which is what the dashboard this replaces has always
-// been and what the floor is used to reading. Same cards, same judgement, same sizing rules
-// — the only difference is how many are on screen at once and who is driving.
+// the screen allows. One page is a broadcast — the whole plant at once, on a fixed screen
+// nobody is standing at and nobody can scroll. It has to *fit*: a TV in the corridor shows
+// what is on it and nothing else.
+//
+// So it is a composition rather than a list. Sections take a block of a twelve-by-twelve
+// grid sized to what they carry — Safety is two readings and gets a narrow column, Shipping
+// is eight and gets a quarter of the screen — and each block deals its own cards inside
+// itself. Nothing new is drawn: these are the same cards, at whatever size their block
+// leaves them, because everything on a card is already a share of the card.
+//
+// The blocks are written down rather than packed by an algorithm. A plant walks into this
+// room every morning for a year, and the value of a fixed layout is that Shipping is where
+// Shipping was yesterday. A packer that reflows when a plant adds a department would take
+// that away to save a hand-written table of six lines.
+// Rows are dealt by how much each band is carrying: six readings and eight in the middle
+// band, six across the top, five and a table at the foot.
+const SNAP_AREAS = {
+  safety:      '1 / 1 / 5 / 4',
+  production:  '1 / 4 / 5 / 13',
+  quality:     '5 / 1 / 10 / 6',
+  shipping:    '5 / 6 / 10 / 13',
+  financials:  '10 / 1 / 13 / 4',
+  labour:      '10 / 4 / 13 / 9',
+  upkeep:      '10 / 9 / 13 / 13',
+};
+// With maintenance split out as its own section there is one more block to place, so the
+// bottom row divides four ways instead of three.
+const SNAP_SPLIT = {
+  ...SNAP_AREAS,
+  maintenance: '10 / 4 / 13 / 8',
+  labour:      '10 / 8 / 13 / 13',
+};
+
+// How many columns a block deals its cards into. The best arrangement is the one whose cells
+// come closest to the shape a card wants to be, which is the same question `bestGrid()`
+// answers for a whole screen — asked here of a block a quarter that size.
+function snapCols(count, box) {
+  const want = cssNum('--card-r') || 1.132;
+  let best = { cols: count, off: Infinity };
+  for (let cols = 1; cols <= count; cols++) {
+    const rows = Math.ceil(count / cols);
+    // A ragged last row costs a lot. Seven across and one underneath scores well on shape
+    // and looks like a mistake, which is the same lesson the walk learned about five
+    // shipping cards above three.
+    const off = Math.abs((box.h / rows) / (box.w / cols) - want)
+              + (1 - count / (cols * rows)) * 2.4;
+    if (off < best.off) best = { cols, off };
+  }
+  return best.cols;
+}
+
 function renderWallPage(pages) {
   const content = $('#content');
-  content.className = 'content wall wall--all';
+  content.className = 'content wall wall--snap';
+  const split = !!state.plant?.split_upkeep;
+  const areas = split ? SNAP_SPLIT : SNAP_AREAS;
+  // The upcoming maintenance table travels with Labour on a merged plant, and it is the one
+  // block that is a table rather than cards, so it is lifted out into a block of its own.
+  const panel = pages.map(p => p.panel).filter(Boolean).join('');
+  const blocks = pages.map(page => ({ key: page.key, area: areas[page.key] || '', html: page.html }))
+    .filter(b => b.area);
   content.innerHTML = `
     <div class="wall__top">
-      <h2>${esc(state.locations.find(l => l.id === state.location)?.name || '')} \u00b7 the morning</h2>
+      <h2>${esc(state.locations.find(l => l.id === state.location)?.name || '')}</h2>
       <span class="wall__date">${$('#date-long').textContent}</span>
     </div>
-    ${pages.map(page => `<section class="sec">
-      <div class="sec__head"><h3 class="sec__title">${esc(TITLES[page.key])}</h3>
-        <div class="sec__rule"></div></div>
-      ${page.html ? `<div class="grid grid--cards"
-           style="--wall-cols:${page.cols};--wall-rows:${page.rows}">${page.html}</div>` : ''}
-      ${page.panel || ''}
-    </section>`).join('')}`;
+    <div class="snap">
+      ${blocks.map(b => `<section class="snap__b" data-snap="${esc(b.key)}"
+           style="grid-area:${b.area}">
+        <h3 class="snap__t">${esc(TITLES[b.key])}</h3>
+        <div class="grid grid--cards grid--snap">${b.html}</div>
+      </section>`).join('')}
+      ${!split && panel ? `<section class="snap__b" style="grid-area:${areas.upkeep}">
+        <h3 class="snap__t">${esc(TITLES.maintenance)}</h3>
+        ${panel}</section>` : ''}
+    </div>`;
+  // The columns inside each block depend on the box the layout gave it, which is only known
+  // once it is on the page.
+  // Counted off the page rather than out of the markup: a note card and a list card are
+  // cards too, and a regular expression over the HTML missed both.
+  for (const grid of content.querySelectorAll('.grid--snap')) {
+    const count = grid.querySelectorAll(':scope > .card').length;
+    if (!count) continue;
+    const box = grid.getBoundingClientRect();
+    grid.style.setProperty('--snap-cols', String(snapCols(count, { w: box.width, h: box.height })));
+  }
 }
 
 function renderWall() {
   const pages = wallPages();
   if (!pages.length) return;
-  if (state.wallMode === 'all') return renderWallPage(pages);
+  if (state.wallMode === 'all') return renderWallPage(pages);   // one fixed screen
   const at = ((state.wallStep % pages.length) + pages.length) % pages.length;
   const page = pages[at];
   const content = $('#content');

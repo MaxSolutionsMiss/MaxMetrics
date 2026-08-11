@@ -1618,35 +1618,77 @@ body[data-view="fill"] #edit-btn,body[data-view="fill"] #publish-btn{display:non
   .fr--maint .fr--head,.fr--head{display:none}
   .fill__go{justify-content:flex-start}}
 
-/* ── One page ──
-   The other shape of present mode: the whole plant at once, on a screen nobody is standing
-   at. It is what the dashboard this replaces has always been and what the floor is used to
-   reading, so it is an option rather than a replacement for the walk. Sections stack, each
-   one a band with its own heading, and the page scrolls if it must. */
-body.tv.tv-all .content.wall{overflow-y:auto;overflow-x:hidden;display:block;
-  padding:var(--s4) var(--s5) var(--s6);scrollbar-width:thin}
-body.tv.tv-all .sec{display:block;flex:none;margin-bottom:var(--s5)}
-body.tv.tv-all .sec:last-child{margin-bottom:0}
-body.tv.tv-all .sec__head{display:flex;align-items:center;gap:var(--s3);margin:0 0 var(--s3)}
-body.tv.tv-all .sec__title{font-family:var(--font-condensed);font-weight:700;
-  text-transform:uppercase;letter-spacing:.1em;font-size:calc(15px*var(--scale));
-  color:var(--ink-muted);margin:0;white-space:nowrap}
-body.tv.tv-all .sec__rule{flex:1;height:1.5px;background:var(--rule)}
-body.tv.tv-all .sec__head::before{display:none}
-/* A band, not a screen: the card takes its height from its own ratio rather than from
-   whatever is left of the viewport. */
-/* Smaller cards than the walk uses, and one left edge for every band.
-   A walk gives one section the whole screen; a page gives it a band, and a band that fills
-   the screen is a walk with extra scrolling. Twenty per cent of the width puts three bands in
-   view at once, which is what the plant's own screen has always shown. Bands share a left
-   edge rather than centring, because a row of two and a row of eight centred on the same page
-   read as two different pages. */
-body.tv.tv-all{--wall-cap:20}
-body.tv.tv-all .grid.grid--cards{--card-w:min(var(--cell-w),calc(var(--wall-cap)*1vw));
-  --card-h:calc(var(--card-w)*var(--card-r));
-  grid-auto-rows:var(--card-h);align-content:start;justify-content:start;
-  margin:0;flex:none}
-body.tv.tv-all .panel--wall{margin-top:var(--s4)}
-body.tv.tv-all .wall__top{margin-bottom:var(--s4)}
-/* Nobody is driving, so the arrows step aside and the mode button stays. */
+/* ── One page: the whole plant on one fixed screen ──
+   A corridor TV cannot be scrolled and a snapshot cannot be paged, so this shape has one
+   job — fit. It is a composition rather than a list: sections take a block of a twelve-by-
+   twelve grid sized to what they carry, and each block deals its own cards inside itself.
+
+   Nothing new is drawn. These are the same cards at whatever size their block leaves them,
+   which works because everything on a card is already a share of the card — but the share
+   has to come from the card's own box here rather than from `--card-h`, since the grid gives
+   the card its height and the stylesheet never sees the number. `container-type:size` makes
+   both axes queryable, so `--u` reads the card it is actually in. That is the whole trick,
+   and it is why a snapshot needed a layout rather than a second set of cards. */
+body.tv.tv-all .content.wall{display:flex;flex-direction:column;gap:var(--s3);
+  overflow:hidden;padding:var(--s3) var(--s4) 52px}
+body.tv.tv-all .wall__top{flex:none;margin:0}
+body.tv.tv-all .wall__dots{display:none}
 body.tv.tv-all #tv-next,body.tv.tv-all #tv-prev{display:none}
+.snap{flex:1 1 auto;min-height:0;display:grid;gap:var(--s3);
+  grid-template-columns:repeat(12,minmax(0,1fr));grid-template-rows:repeat(12,minmax(0,1fr))}
+.snap__b{min-width:0;min-height:0;display:flex;flex-direction:column;gap:6px}
+.snap__t{flex:none;margin:0;font-family:var(--font-condensed);font-weight:700;
+  text-transform:uppercase;letter-spacing:.11em;font-size:calc(12px*var(--scale));
+  color:var(--ink-faint);line-height:1;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis}
+/* Written at the same weight as the walk's own grid rules, which are equally specific and
+   set a fixed row height — the block's cards took `--card-h` from the walk and spilled out of
+   the bottom of every block on the page. */
+body.tv.tv-all .grid.grid--snap{flex:1 1 auto;min-height:0;display:grid;gap:var(--s2);
+  grid-template-columns:repeat(var(--snap-cols,3),minmax(0,1fr));
+  grid-auto-rows:minmax(0,1fr);align-content:stretch;justify-content:stretch;margin:0;
+  --card-w:auto;--card-h:auto}
+/* The card reads its own box on both axes, so a block that is wide and short and a block
+   that is narrow and tall each get a card sized for the room they actually have. */
+body.tv.tv-all .grid--snap .card{container-type:size;min-width:0;min-height:0}
+body.tv.tv-all .grid--snap .card *{--cu:min(1cqi,calc(1cqb/1.132));
+  --u:calc(var(--cu)*var(--fit,1))}
+body.tv.tv-all .grid--snap .card__head{font-size:min(9cqi,var(--tcap,99px));
+  min-height:1.8em;padding:0 .5em}
+body.tv.tv-all .grid--snap .card__flag{display:none}
+/* A card sheds what it cannot draw, and it decides for itself.
+   `container-type:size` is already on for the sizing, so each card can be asked how tall it
+   ended up. A block of two gets a whole card; a block of eight in a quarter of the screen
+   gets the title, the number and what it means, which at that size is everything a person
+   ten metres away can read anyway. The rule is written against the card rather than against
+   the block, so a plant with three departments and a plant with nine both get whatever their
+   own cards can carry. */
+@container (max-height:250px){
+  .card__body .ctrack .spark,.card__body .months__m{display:none}
+  .card__body .ctrack__row{min-height:0}
+}
+@container (max-height:200px){
+  .card__body .ctrack{display:none}
+}
+@container (max-height:150px){
+  .card__body .foot{display:none}
+  .card__body .unit{display:none}
+}
+/* The table keeps its block and loses the row of controls it cannot use up here. */
+body.tv.tv-all .snap__b .panel--wall{flex:1 1 auto;min-height:0;margin:0;
+  display:flex;flex-direction:column}
+body.tv.tv-all .snap__b .panel__body{flex:1;min-height:0;overflow:hidden}
+body.tv.tv-all .snap__b .panel__head{display:none}
+body.tv.tv-all .snap__b td{font-size:calc(9.5px*var(--scale));padding:3px var(--s2);
+  line-height:1.25}
+body.tv.tv-all .snap__b th{font-size:calc(7.5px*var(--scale));padding:0 var(--s2) 3px}
+body.tv.tv-all .snap__b .tbl{table-layout:auto}
+/* Status goes. On a fixed screen the date already says whether something is late, and the
+   column was costing the width that "Belt replacement" needed. */
+body.tv.tv-all .snap__b tr > *:nth-last-child(2){display:none}
+.tvbar__split{width:1px;align-self:stretch;background:var(--rule);margin:4px 2px}
+
+@media(max-width:1100px){
+  .snap{grid-template-columns:repeat(6,minmax(0,1fr));grid-template-rows:repeat(24,minmax(0,1fr))}
+  .snap__b{grid-area:auto!important;grid-column:1/-1!important}
+}

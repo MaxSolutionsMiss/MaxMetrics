@@ -757,16 +757,32 @@ morning meeting, not for the two minutes somebody is filling it in.
 Two rooms want two different things from the same morning, so present mode asks which.
 
 **The walk** is a meeting: one section a screen, driven by a person, each card as large as
-the screen allows and the arrangement chosen to fill it. **One page** is a broadcast: the
-whole plant at once on a screen nobody is standing at, sections stacked as bands with their
-own headings, scrolling if it must. That is what the dashboard this replaces has always been
-and what the floor is used to reading, so it is an option rather than a replacement.
+the screen allows and the arrangement chosen to fill it.
 
-The cards, the judgement and the sizing rules are identical. What differs is how many are on
-screen at once and who is driving: a band deals up to four across at a fifth of the width and
-takes its height from the card's own ratio, where a screen deals whatever `bestGrid` says
-fills it. Bands share a left edge, because a row of two and a row of eight centred on the
-same page read as two different pages. And with nobody driving, the arrows step aside.
+**One page** is a corridor TV and a screenshot. It cannot be scrolled and it cannot be paged,
+so it has one job: fit. A first attempt stacked the sections and let the page scroll, which is
+a walk with extra steps and no use at all on a fixed screen.
+
+It is a composition. Sections take a block of a twelve-by-twelve grid sized to what they
+carry — Safety is two readings and gets a narrow column, Shipping is eight and gets a quarter
+of the screen — and each block deals its own cards inside itself, choosing the arrangement
+whose cells come closest to the shape a card wants to be. The blocks are written down rather
+than packed by an algorithm, because a plant walks into that room every morning for a year and
+the value of a fixed layout is that Shipping is where Shipping was yesterday.
+
+Nothing new is drawn. These are the same cards at whatever size their block leaves them, which
+works because everything on a card is already a share of the card — but the share has to come
+from the card's own box here rather than from `--card-h`, since the grid gives the card its
+height and the stylesheet never sees the number. `container-type: size` makes both axes
+queryable, so `--u` reads the card it is actually in. That one line is why a snapshot needed a
+layout rather than a second set of cards.
+
+And a card sheds what it cannot draw, by asking how tall it ended up. Under 250px it loses the
+seven-day line, under 200 the whole track, under 150 the foot — so a block of two shows a full
+card and a block of eight in a quarter of the screen shows the title, the number and what it
+means, which at ten metres is everything anybody can read anyway. The rule is written against
+the card rather than against the block, so a plant with three departments and a plant with
+nine each get whatever their own cards can carry.
 
 ## One table reaches the wall
 
