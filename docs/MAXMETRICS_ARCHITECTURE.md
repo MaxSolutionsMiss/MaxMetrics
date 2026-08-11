@@ -1201,3 +1201,122 @@ It was a GitHub Actions workflow. The organisation has no runners, so the workfl
 ran, which meant the checks in it never ran either and a deploy depended on nobody noticing
 that a queued job was queued forever. A script on the machine of whoever is publishing is
 slower to type and honest about when it happened.
+
+## Missing is a reading
+
+A morning with nine of twenty readings entered used to print **"Everything is on target ·
+All 9 readings within target this morning."** Every clause was true and the sentence was a
+lie: `assess()` only produced a reading when the value was present, so eleven readings
+nobody had entered were not wrong, they were absent, and absence was invisible.
+
+Absence is a reading now. `REQUIRED` in `assess.js` lists what a complete morning contains —
+the fixed metrics, plus one per department for output and hours, plus one per department for
+the last twenty-four hours — and anything not there is emitted with `state: 'missing'`, a
+title, a section and the field that would fill it. It has no tone: a missing number is not
+amber, because amber means somebody looked and it fell short.
+
+`settled()` excludes it, so it cannot be swept into the on-target strip. `attention()`
+excludes it, so it is not an exception. `counts()` reports all four numbers at once, which
+is what the summary's header draws, and `isComplete()` is the one question Publish asks.
+
+Five states, named once in `readings.js`:
+
+| | |
+|---|---|
+| `missing` | nobody entered it and no file supplied one |
+| `stale` | a file supplied it and that file has not arrived since before this morning |
+| `na` | the arithmetic has no denominator — nought jobs shipped has no OTIF |
+| `ok` `warn` `stop` | present, current, and judged |
+
+`na` travels as a value (`'n/a'`) rather than as an absence, because everything that formats
+a reading has to know about it: a percentage of nothing must never be drawn as a hundred per
+cent and must never be drawn as a blank either. It is stored as null — the columns are
+numeric and a sentinel in the database would be a second way of saying the same thing.
+
+## A department has not said it is fine until it says so
+
+`daily_review.status` defaulted to `'ok'` in Postgres. The moment a morning was opened, every
+department was already reporting "No issues reported" — a statement nobody had made, on a
+screen twenty people read.
+
+Unanswered is null now. The card draws "Not confirmed yet" against a dashed violet border,
+the entry screen's dropdown starts on **Not confirmed**, the reading appears in the missing
+count, and `verdicts()` leaves it out of the section's colour rather than counting it as
+clear. Rows that already existed keep whatever they say: a row saying `'ok'` today was either
+answered or defaulted and there is no way to tell which, so history keeps its answer and only
+mornings opened from August 2026 start blank.
+
+## A morning keeps the targets it was judged against
+
+Three targets lived outside the day. `SHIPPING_TARGET` was a constant in `readings.js`, and
+uptime and make-ready were read from the department's *current* configuration. Move the OTIF
+target to 97 next January and every morning back to 2025 restates itself — green mornings
+turning amber, retrospectively, with nothing on the screen to say why.
+
+`ensure_day` now writes `otif_target`, `otd_target`, `uptime_target` and `mr_target` onto the
+day when it is opened, beside the rate target it already wrote. `otifTarget(metrics)` reads
+the day's and falls back to the constant, which is what mornings published before the column
+existed were actually judged against.
+
+## Publishing appends a revision
+
+Publishing was an update to a status column, so republishing silently replaced whatever the
+room had already read. `publish_morning()` sets the same status — every screen reads it, and
+a second source of truth for one boolean would be worse than the problem — and appends a row
+to `publications` carrying the revision number, who published, whether the morning was
+incomplete, the reason they gave, and a JSON snapshot of the morning as it stood.
+
+The snapshot is what makes "a target change must not alter a published dashboard" true by
+construction rather than by discipline.
+
+An incomplete morning can still be published, because a plant that has to start at eight is
+going to publish what it has and is right to. What it cannot do is happen quietly: the button
+reads **"Publish anyway — 2 missing"**, the dialogue names what is outstanding, and a reason
+is required before the write goes through.
+
+## The entry screen says what is outstanding, and where
+
+Two things were true of Enter at once: sixty-six controls, and two of them actually
+outstanding. The counter said "2 still to fill in" and gave nobody a way to find either.
+
+The banner names them — each a button that scrolls to the field, focuses it and holds a ring
+on it for a second and a half — and the count is now the assessment's answer rather than a
+count of blank boxes. Counting boxes made a morning look incomplete because somebody had not
+retyped a figure the DOR had supplied, and complete because every box had something in it
+when four departments had never been asked.
+
+Along the foot of the banner, when each file last arrived. A figure from the DOR six days ago
+and a figure typed this morning look identical on a card; `source_seen` is stamped per source
+by the importer and read back here, amber past a day and violet when a file has never been
+seen.
+
+## Present has three shapes
+
+The walk is the meeting: one section at a screen, driven by a person. The collage is the
+snapshot: everything at once, for a screenshot or a wall somebody passes twice a day. The
+**overview** is the glance: six numbers, one per family, at about 110px on a 1080p display
+against a 33px label — roughly four times the ratio the cards use, which is what the distance
+costs.
+
+The number a family gets is chosen rather than derived. The worst reading in a family is the
+right answer on a bad morning and the wrong one on a good one, where it picks whatever
+happens to be nearest a threshold and the screen changes shape daily. A fixed choice is
+learnable, which is the whole point of a screen you glance at. Production has no single
+reading, so its tile is the whole floor against target weighted by the hours each department
+ran.
+
+Rotation exists and is off by default. The walk had a timer once and it was removed because a
+screen that moves while somebody is mid-sentence makes a meeting wait for the page to come
+back round. That reason holds for the meeting and not for the corridor, so the timer is a
+button, it lives only on the walk, and pause stops it dead.
+
+## Every field says what it is
+
+Thirty-two of the sixty-six controls on the entry screen had no label, no `aria-label` and no
+id: the maintenance table and the notes rows put a `<span>` where a `<label>` belongs, which
+reads perfectly and ties nothing to it. That breaks a screen reader, and it also breaks voice
+control and the browser's own autofill for everybody else.
+
+Every input, select and textarea on the product now carries one of the three ways of saying
+what it is, and `verify-maxmetrics.mjs` fails the build if a new one does not — so it cannot
+come back the next time somebody adds a row.

@@ -132,9 +132,11 @@ function toast(message) {
   toastTimer = setTimeout(() => element.classList.remove('on'), 2600);
 }
 
+// The caption and the box are two elements, so the caption is repeated as the box's own
+// name — a `<label>` that does not wrap and has no `for` labels nothing.
 const row = (label, name, attrs = '', hint = '') =>
   `<div class="er"><label>${esc(label)}</label>
-   <input class="inp" data-field="${esc(name)}" ${attrs}>
+   <input class="inp" aria-label="${esc(label)}" data-field="${esc(name)}" ${attrs}>
    ${hint ? `<span class="er__hint">${esc(hint)}</span>` : ''}</div>`;
 
 const toggle = (label, name, on) =>

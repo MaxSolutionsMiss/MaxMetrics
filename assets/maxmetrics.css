@@ -299,6 +299,10 @@ body.tv .verdict{font-size:var(--t-lead)}
    direction: the number read as though it had been pushed up against the title, with all the
    air of the card pooled underneath it. */
 .card__mid{padding-top:calc(9*var(--cu))}
+/* A fourth border, and it is not a verdict. `gap` means nobody has answered yet — the
+   colour is the brand's violet rather than amber, because amber says somebody looked and it
+   fell short, and a card nobody has touched has not been looked at. */
+.card--gap{border-color:var(--brand);border-style:dashed}
 .card--ok{border-color:var(--ok-rule)}
 .card--warn{border-color:var(--warn-rule)}
 .card--stop{border-color:var(--stop-rule)}
@@ -1071,19 +1075,59 @@ body[data-view="line"] .chartpick{display:none}
 .tone--ok{color:var(--ok)}.tone--warn{color:var(--warn)}.tone--stop{color:var(--stop)}
 .tone--none{color:var(--ink-muted)}
 
-/* ── Today ── */
-.today{display:flex;align-items:center;gap:var(--s4);background:var(--surface);
+/* ── The morning summary ── */
+/* One number used to lead this bar: how many things needed the room. It was the wrong
+   number on its own, because it could be nought on a morning where half the readings had
+   never been entered — and the sentence beside it then said everything was on target.
+   Four counts instead, all four always drawn, so the absence of a number is as visible as
+   the number itself. A count of nought is greyed rather than hidden: a row that changes
+   shape between mornings cannot be read at a glance. */
+.today{display:flex;align-items:center;gap:var(--s5);background:var(--surface);
   border:1px solid var(--rule);border-radius:var(--radius-lg);padding:var(--s4) var(--s5);
-  box-shadow:var(--shadow);margin-bottom:var(--s4);border-left:6px solid var(--ink-faint)}
+  box-shadow:var(--shadow);margin-bottom:var(--s4);border-left:6px solid var(--ink-faint);
+  flex-wrap:wrap}
 .today--ok{border-left-color:var(--ok)}
 .today--warn{border-left-color:var(--warn)}
 .today--stop{border-left-color:var(--stop)}
-.today__n{font-family:var(--font-condensed);font-size:calc(var(--t-metric)*2.2);font-weight:500;
-  letter-spacing:-.01em;line-height:1;color:var(--ink-faint)}
-.today--ok .today__n{color:var(--ok)}.today--warn .today__n{color:var(--warn)}
-.today--stop .today__n{color:var(--stop)}
+.today__t{flex:1 1 22rem;min-width:0}
 .today__t h2{font-size:var(--t-lead);font-weight:700;letter-spacing:-.01em;margin:0}
 .today__t p{margin:2px 0 0;color:var(--ink-muted);font-size:var(--t-small)}
+.tallies{display:flex;gap:var(--s5);flex-wrap:wrap}
+.tally{display:flex;flex-direction:column;gap:1px;min-width:4.5rem}
+.tally b{font-family:var(--font-condensed);font-size:calc(var(--t-metric)*1.5);font-weight:500;
+  line-height:1;letter-spacing:-.01em}
+.tally span{font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.09em;
+  font-weight:700;color:var(--ink-muted)}
+.tally--stop b{color:var(--stop)}
+.tally--warn b{color:var(--warn)}
+.tally--ok b{color:var(--ok)}
+/* Missing is its own colour and it is deliberately not amber. Amber means somebody looked
+   and it fell short; a reading nobody has entered has not been looked at, and colouring the
+   two the same is how "nine of twenty" came to read as "nine". */
+.tally--gap b{color:var(--brand)}
+.tally--none b{color:var(--ink-faint)}
+.tally--none span{color:var(--ink-faint)}
+
+/* A missing reading, and the way back to the field that fills it. */
+.gaps{display:flex;flex-wrap:wrap;gap:var(--s2)}
+.gap{display:flex;flex-direction:column;align-items:flex-start;gap:1px;cursor:pointer;
+  background:var(--surface);border:1px dashed var(--brand);border-radius:var(--radius);
+  padding:6px var(--s3);font:inherit;text-align:left}
+.gap:hover{background:var(--brand-wash)}
+.gap__t{font-size:var(--t-small);font-weight:600;color:var(--ink)}
+.gap__a{font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.08em;
+  font-weight:700;color:var(--ink-faint)}
+
+/* What a number cannot carry. The manager's own sentences, on the screen the meeting opens
+   with rather than four cards and two sections away. */
+.points{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.points__i{display:flex;gap:var(--s3);align-items:baseline;font-size:var(--t-base);
+  line-height:1.5;padding-left:var(--s3);border-left:3px solid var(--rule-strong)}
+.points__i--warn{border-left-color:var(--warn)}
+.points__i--stop{border-left-color:var(--stop)}
+.points__i b{font-family:var(--font-condensed);font-size:calc(15px*var(--scale));
+  text-transform:uppercase;letter-spacing:.06em;color:var(--ink-muted);flex:none;
+  min-width:8rem}
 
 /* Each exception is as tall as what it has to say. A one-line shortage next to a
    department with a note, a trend and a shortfall would otherwise be stretched to match
@@ -1480,6 +1524,25 @@ body.tv .util{display:none}
 .fill__count span{font-family:var(--font-condensed);font-size:calc(14px*var(--scale));
   text-transform:uppercase;letter-spacing:.07em;font-weight:700;color:var(--ink-muted)}
 .fill__say{margin:0;font-size:var(--t-small);color:var(--ink-muted);max-width:62ch;line-height:1.5}
+/* What is outstanding, named, and one click from the box that fills it. A counter saying
+   2 still to fill in is a fact; it is not a way of finding either of them. */
+.fill__gaps{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.fill__more{font-size:var(--t-micro);color:var(--ink-faint)}
+.gap--sm{flex-direction:row;padding:4px var(--s2);font-size:var(--t-small)}
+/* When each file last arrived. A figure from six days ago and a figure typed this morning
+   look identical on a card, which is how a stale number sits on a screen for a week. */
+.fsrc{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px var(--s3);
+  padding-top:var(--s2);margin-top:var(--s2);border-top:1px solid var(--rule)}
+.fsrc__i{display:inline-flex;align-items:baseline;gap:5px;font-size:var(--t-micro)}
+.fsrc__i b{font-family:var(--font-condensed);text-transform:uppercase;letter-spacing:.08em;
+  font-weight:700;color:var(--ink-muted)}
+.fsrc__i i{font-style:normal;color:var(--ink-faint)}
+.fsrc__i--ok i{color:var(--ok)}
+.fsrc__i--warn i{color:var(--warn);font-weight:700}
+.fsrc__i--gap i{color:var(--brand);font-weight:700}
+/* The row somebody was just sent to, held for a moment so the eye can find it. */
+.fr--found .fr__i,.fr--found .fr__t{border-color:var(--brand);
+  box-shadow:0 0 0 3px var(--brand-wash)}
 .fill__go{display:flex;gap:var(--s2)}
 
 /* Four assigned columns, not a masonry flow.
@@ -1691,3 +1754,56 @@ body.tv.tv-all .grid--snap .card__flag{display:none}
 @media(max-width:900px){
   body.tv.tv-all .legend{display:none}
 }
+
+/* ══ THE OVERVIEW ══
+   The third shape, and the one for a screen nobody is standing at. Six numbers, one per
+   family, sized for a person thirty feet away rather than for a person leaning in: about
+   70px of figure on a 1080p display against 26px of label, which is roughly four times the
+   ratio the cards use and is what the distance costs.
+
+   It borrows the family colours from the collage and nothing else. No bars, no seven-day
+   lines, no footers — every one of those is a thing you walk over to read, and if you are
+   close enough to read them you are close enough to open the page. */
+body.tv.tv-brief .content.wall{display:flex;flex-direction:column;gap:var(--s4);
+  overflow:hidden;padding:var(--s4) var(--s5) 56px}
+body.tv.tv-brief .wall__top{flex:none;margin:0;align-items:center}
+body.tv.tv-brief .wall__dots{display:none}
+.brief{flex:1 1 auto;min-height:0;display:grid;gap:var(--s3);
+  grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-rows:minmax(0,1fr)}
+@media(max-width:900px){.brief{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.brief__t{display:flex;flex-direction:column;justify-content:center;align-items:center;
+  gap:.35em;min-width:0;background:var(--surface);border:1px solid var(--rule);
+  border-radius:var(--radius-lg);box-shadow:var(--shadow);container-type:size;
+  border-top:6px solid var(--fam,var(--ink-faint))}
+/* Sized off the tile rather than off the page, for the same reason a card is: three across
+   on a laptop and three across on a 55" panel are the same drawing at two sizes. */
+.brief__n{font-family:var(--font-condensed);font-weight:500;letter-spacing:-.02em;
+  line-height:.95;font-size:min(26cqb,18cqi)}
+.brief__l{font-family:var(--font-condensed);font-weight:700;text-transform:uppercase;
+  letter-spacing:.09em;color:var(--ink-muted);font-size:min(8cqb,5.6cqi);text-align:center;
+  padding:0 .6em}
+/* The three worst things, on one line under the tiles. A fourth is not read from thirty
+   feet, and a screen with a list on it has stopped being a glance. */
+.brief__bar{flex:none;display:flex;flex-wrap:wrap;gap:var(--s3) var(--s5);
+  align-items:center;justify-content:center}
+.brief__w{font-family:var(--font-condensed);font-weight:700;text-transform:uppercase;
+  letter-spacing:.06em;font-size:calc(19px*var(--scale));color:var(--ink-muted);
+  display:inline-flex;align-items:center;gap:.5em}
+.brief__w::before{content:"";width:.6em;height:.6em;border-radius:50%;background:currentColor}
+.brief__w--warn{color:var(--warn)}
+.brief__w--stop{color:var(--stop)}
+/* How complete the morning is, on the broadcast screen too. A glance that cannot say "four
+   of these have not been entered" is a glance that can mislead. */
+.brief__gap{font-family:var(--font-condensed);font-weight:700;text-transform:uppercase;
+  letter-spacing:.08em;font-size:calc(15px*var(--scale));color:#fff;background:var(--brand);
+  padding:4px 12px;border-radius:4px;margin-left:var(--s4)}
+.wall--brief{--fam-safety:#0E6F5F;--fam-quality:#1E5FA8;--fam-production:#5240B8;
+  --fam-shipping:#8A3AA0;--fam-financials:#7A5227;--fam-maintenance:#46586A;
+  --fam-labour:#A33468}
+.wall--brief [data-fam="safety"]{--fam:var(--fam-safety)}
+.wall--brief [data-fam="quality"]{--fam:var(--fam-quality)}
+.wall--brief [data-fam="production"]{--fam:var(--fam-production)}
+.wall--brief [data-fam="shipping"]{--fam:var(--fam-shipping)}
+.wall--brief [data-fam="financials"]{--fam:var(--fam-financials)}
+.wall--brief [data-fam="maintenance"]{--fam:var(--fam-maintenance)}
+.wall--brief [data-fam="labour"]{--fam:var(--fam-labour)}

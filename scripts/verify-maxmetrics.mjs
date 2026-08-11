@@ -152,7 +152,7 @@ const GLOBALS = new Set(['Number','String','Boolean','Array','Object','Math','JS
   'setTimeout','clearTimeout','setInterval','clearInterval','fetch','structuredClone',
   'encodeURIComponent','decodeURIComponent','addEventListener','removeEventListener',
   'getComputedStyle',
-  'requestAnimationFrame','queueMicrotask','scrollTo','alert','confirm','print','atob','btoa',
+  'requestAnimationFrame','queueMicrotask','scrollTo','alert','confirm','prompt','print','atob','btoa',
   'if','for','while','switch','catch','return','typeof','function','await','super','class','of',
   'async','import','yield','new','delete','void','in','instanceof','do','else','try']);
 
@@ -209,6 +209,30 @@ for (const table of ['daily_metrics', 'daily_departments', 'daily_review']) {
   const uses = dashboard.split('\n').filter(l => l.includes(`'${table}'`));
   for (const line of uses) {
     if (/\.select\(|\.update\(/.test(line) === false) continue;
+  }
+}
+
+// Every field the product draws says what it is.
+//
+// Thirty-two of the sixty-six controls on the entry screen had no label, no `aria-label` and
+// no id — a `<span>` above a box reads perfectly and ties nothing to it. That breaks a
+// screen reader, and it also breaks voice control and the browser's own autofill for
+// everybody else. An `<input>` or `<select>` or `<textarea>` in a page module is checked for
+// one of the three ways of saying what it is.
+for (const path of byExtension('.js')) {
+  if (path.includes('verify-maxmetrics')) continue;
+  const source = read(path);
+  for (const match of source.matchAll(/<(input|select|textarea)\b([^>]*)>/g)) {
+    const attrs = match[2];
+    if (/aria-label|\bid=|type="(hidden|checkbox|radio)"/.test(attrs)) continue;
+    // A control wrapped in its own `<label>` is labelled by it. The wrapper opens on an
+    // earlier line, so the test is whether one is open where this control is written.
+    const before = source.slice(0, match.index);
+    const opened = (before.match(/<label\b/g) || []).length;
+    const closed = (before.match(/<\/label>/g) || []).length;
+    if (opened > closed) continue;
+    fail('Every field says what it is',
+         `${path}  <${match[1]}${attrs.replace(/\s+/g, ' ').slice(0, 60)}>`);
   }
 }
 

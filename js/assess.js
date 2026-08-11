@@ -12,7 +12,53 @@
 // green on the Wall would destroy trust in both, and the only way to guarantee that
 // cannot happen is for the verdict to be reached once, here, before any view sees it.
 
-import { band, daysBetween, num, money, readingOf, rateLabel, MONTHS, SHIPPING_TARGET } from './readings.js';
+import { band, daysBetween, num, money, readingOf, rateLabel, MONTHS,
+         otifTarget, otdTarget, isNa } from './readings.js';
+
+// ── What a complete morning contains ────────────────────────────────────────────
+//
+// This list is the difference between "everything is on target" being a statement and being
+// a lie. Until now a reading that was absent was simply not assessed: a morning with nine of
+// twenty readings entered produced nine findings, every one of them within target, and Today
+// printed "Everything is on target · All 9 readings within target this morning". Eleven
+// readings nobody had entered were not wrong, they were not there — and not being there is
+// exactly the thing the room needed to be told before the meeting started.
+//
+// So absence is a reading now. It has a title, a section and an owner like every other one,
+// it appears in the count at the top of the summary, and it stops the sentence being
+// printed. What it does not have is a tone: a missing number is not amber, because amber
+// means somebody looked and it was short.
+//
+// Departments and the last twenty-four hours are not in the table because they are not
+// fixed — they come from the plant's own configuration and are added below.
+const REQUIRED = [
+  { key: 'injury',    section: 'safety',     area: 'Safety',    owner: 'JR',
+    title: 'Days since last injury', field: 'injury_last' },
+  { key: 'nearmiss',  section: 'safety',     area: 'Safety',    owner: 'JR',
+    title: 'Days since near-miss',   field: 'near_miss_last' },
+  { key: 'shortages', section: 'quality',    area: 'Quality',   owner: 'QA',
+    title: 'Jobs short today',       field: 'shortages' },
+  { key: 'coq',       section: 'quality',    area: 'Quality',   owner: 'QA',
+    title: 'Cost of quality',        field: 'coq' },
+  { key: 'jobs',      section: 'shipping',   area: 'Shipping',  owner: 'CS',
+    title: 'Jobs shipped',           field: 'jobs_shipped' },
+  { key: 'cartons',   section: 'shipping',   area: 'Shipping',  owner: 'CS',
+    title: 'Cartons',                field: 'cartons' },
+  { key: 'late',      section: 'shipping',   area: 'Shipping',  owner: 'CS',
+    title: 'Late shipments',         field: 'late' },
+  { key: 'shorts',    section: 'shipping',   area: 'Shipping',  owner: 'CS',
+    title: 'Short shipments',        field: 'shorts' },
+  { key: 'fin',       section: 'financials', area: 'Financial', owner: 'FN',
+    title: 'Sales month to date',    field: 'fin_actual_mtd' },
+];
+
+// One shape for a reading nobody has entered, wherever the absence was noticed.
+const notEntered = ({ key, section, area, owner, title, field, say }) => ({
+  key, section, area, owner, title, field,
+  state: 'missing', tone: '', value: '—', quiet: false,
+  say: say || 'has not been entered yet',
+  note: null,
+});
 
 // The meeting runs two to three minutes, so a reading earns its place by being either
 // off target or genuinely load-bearing. Everything else is a tick in a strip.
@@ -30,8 +76,11 @@ export function assess({ date, metrics, departments, review, maintenance, labour
   const seriesFor = (key, field = null) => (history?.departments || [])
     .filter(r => r.dept_key === key && (field ? has(r[field]) : Number(r.hours)))
     .map(r => field ? Number(r[field]) : Number(r.qty) / Number(r.hours));
+  // A day with nought jobs shipped has no OTIF; it is left out of the line rather than
+  // drawn as a nought that never happened.
   const metricSeries = field => (history?.metrics || [])
-    .map(r => readingOf(r, field)).filter(v => v !== null && v !== undefined).map(Number);
+    .map(r => readingOf(r, field))
+    .filter(v => v !== null && v !== undefined && v !== '' && !isNa(v)).map(Number);
   // How long the streak stood on each of the mornings behind this one. A counter that only
   // goes up draws a staircase, and the step down is the day something happened.
   const streakSeries = field => (history?.metrics || [])
@@ -100,8 +149,11 @@ export function assess({ date, metrics, departments, review, maintenance, labour
 
     // Uptime and make-ready ride with the department they belong to, so a press running
     // at rate but losing an hour a shift to setup still shows up.
-    if (row.uptime != null && c.uptime_target) {
-      const up = Number(row.uptime) * 100, target = Number(c.uptime_target) * 100;
+    // The target the morning was opened with, not the one Configure holds today.
+    const upT = row.uptime_target ?? c.uptime_target;
+    const mrT = row.mr_target ?? c.mr_target;
+    if (row.uptime != null && upT) {
+      const up = Number(row.uptime) * 100, target = Number(upT) * 100;
       out.push({ key:`${c.key}-uptime`, section:'production', area:c.name, owner:'ML',
         title:`${c.name} uptime`,
         tone: band.rate(up, target), value: up.toFixed(1), unit:'%',
@@ -109,8 +161,8 @@ export function assess({ date, metrics, departments, review, maintenance, labour
         series: seriesFor(c.key, 'uptime').map(v => v * 100),
         say: `${c.name} ran ${up.toFixed(1)}% of its crewed hours against ${target.toFixed(0)}%` });
     }
-    if (row.make_ready != null && c.mr_target) {
-      const mr = Number(row.make_ready), target = Number(c.mr_target);
+    if (row.make_ready != null && mrT) {
+      const mr = Number(row.make_ready), target = Number(mrT);
       out.push({ key:`${c.key}-mr`, section:'production', area:c.name, owner:'ML',
         title:`${c.name} make-ready`,
         tone: band.lower(mr, target), value: mr.toFixed(2), unit:'hrs',
@@ -144,21 +196,35 @@ export function assess({ date, metrics, departments, review, maintenance, labour
       series: metricSeries('shorts'),
       say: `${short} shipment${short === 1 ? '' : 's'} went short` });
   }
-  if (has(m('otd'))) {
-    const value = Number(m('otd'));
+  // Both targets come off the morning rather than out of the browser — see `otifTarget`.
+  // A day with nought jobs shipped has no OTD and no OTIF to judge; it is not nought per
+  // cent and it is not a blank, it is arithmetic with no denominator, and it says so.
+  const otdT = otdTarget(metrics), otifT = otifTarget(metrics);
+  const shipped = m('otd');
+  if (isNa(shipped)) {
     out.push({ key:'otd', section:'shipping', area:'Shipping', owner:'CS', title:'OTD today',
-      tone: band.pct(value, SHIPPING_TARGET), value: value.toFixed(2), unit:'%',
-      target: SHIPPING_TARGET, targetLabel:`target \u2265 ${SHIPPING_TARGET}%`,
+      state:'na', tone:'', value:'N/A', unit:'', quiet: true,
+      targetLabel:'no jobs shipped', say: null });
+  } else if (has(shipped)) {
+    const value = Number(shipped);
+    out.push({ key:'otd', section:'shipping', area:'Shipping', owner:'CS', title:'OTD today',
+      tone: band.pct(value, otdT), value: value.toFixed(2), unit:'%',
+      target: otdT, targetLabel:`target \u2265 ${otdT}%`,
       floor: 90, ceiling: 100, percent: value, series: metricSeries('otd'),
-      say: `on-time delivery is ${value.toFixed(2)}% against ${SHIPPING_TARGET}%` });
+      say: `on-time delivery is ${value.toFixed(2)}% against ${otdT}%` });
   }
-  if (has(m('otif'))) {
-    const value = Number(m('otif'));
+  const full = m('otif');
+  if (isNa(full)) {
     out.push({ key:'otif', section:'shipping', area:'Shipping', owner:'CS', title:'OTIF today',
-      tone: band.pct(value, SHIPPING_TARGET), value: value.toFixed(2), unit:'%',
-      target: SHIPPING_TARGET, targetLabel:`target \u2265 ${SHIPPING_TARGET}%`,
+      state:'na', tone:'', value:'N/A', unit:'', quiet: true,
+      targetLabel:'no jobs shipped', say: null });
+  } else if (has(full)) {
+    const value = Number(full);
+    out.push({ key:'otif', section:'shipping', area:'Shipping', owner:'CS', title:'OTIF today',
+      tone: band.pct(value, otifT), value: value.toFixed(2), unit:'%',
+      target: otifT, targetLabel:`target \u2265 ${otifT}%`,
       floor: 90, ceiling: 100, percent: value, series: metricSeries('otif'),
-      say: `OTIF is ${value.toFixed(2)}% against ${SHIPPING_TARGET}%`,
+      say: `OTIF is ${value.toFixed(2)}% against ${otifT}%`,
       note: has(m('mtd_otif')) ? `Month to date ${Number(m('mtd_otif')).toFixed(2)}%.` : null });
   }
   if (has(m('jobs_shipped'))) {
@@ -248,6 +314,33 @@ export function assess({ date, metrics, departments, review, maintenance, labour
     }
   }
 
+  // ── What is not here ──
+  //
+  // Run last, so it can see what the passes above produced rather than repeating their
+  // conditions. A reading that made it into the list is present by definition.
+  const drawn = new Set(out.map(r => r.key));
+  for (const want of REQUIRED) {
+    if (drawn.has(want.key) || has(m(want.field))) continue;
+    out.push(notEntered(want));
+  }
+  for (const c of (config || []).filter(x => x.on_metrics)) {
+    if (drawn.has(c.key)) continue;
+    out.push(notEntered({ key: c.key, section: 'production', area: c.name, owner: 'ML',
+      title: c.name, field: `dept:${c.key}:qty`,
+      say: 'has no output or hours entered yet' }));
+  }
+  // A department that has not answered has not said it is fine. `daily_review.status` used
+  // to default to 'ok', so every department reported "No issues reported" the moment the
+  // morning was opened — twenty people reading a statement nobody had made. Unanswered is
+  // null now, and null is a missing reading like any other.
+  for (const c of (config || []).filter(x => x.on_review !== false)) {
+    const said = (review || []).find(r => r.dept_key === c.key);
+    if (said?.status) continue;
+    out.push(notEntered({ key: `rev-${c.key}`, section: 'production', area: c.name, owner: 'ML',
+      title: `${c.name} — last 24 hours`, field: `review:${c.key}:status`,
+      say: 'has not confirmed the last twenty-four hours' }));
+  }
+
   return out;
 }
 
@@ -262,7 +355,8 @@ export function assess({ date, metrics, departments, review, maintenance, labour
 const severity = tone => tone === 'stop' ? 2 : tone === 'warn' ? 1 : 0;
 
 export function attention(list) {
-  const live = (list || []).filter(r => !r.quiet && r.tone && r.tone !== 'ok');
+  const live = (list || []).filter(r =>
+    !r.quiet && r.state !== 'missing' && r.tone && r.tone !== 'ok');
   const byArea = new Map();
   for (const reading of live) {
     const held = byArea.get(reading.area);
@@ -276,7 +370,31 @@ export function attention(list) {
   }
   return [...byArea.values()].sort((a, b) => severity(b.tone) - severity(a.tone));
 }
-export const settled  = list => list.filter(r => r.quiet || !r.tone || r.tone === 'ok');
+// A missing reading is not settled. It has no tone, so the old test — "no tone means it is
+// fine" — swept every absent number into the on-target strip and into the count beside it.
+// Nor is a reading that does not apply: a day with nought jobs shipped has no OTIF, and
+// counting "no OTIF" among the readings that are within target is the same class of lie in
+// a smaller font. It appears on its own card saying N/A and in none of the four counts.
+export const settled = list => (list || []).filter(r =>
+  r.state !== 'missing' && r.state !== 'na' && (r.quiet || !r.tone || r.tone === 'ok'));
+
+export const absent = list => (list || []).filter(r => r.state === 'missing');
+
+// The four numbers the morning is summarised by, counted once so no two screens can
+// disagree about how complete a morning is.
+export const counts = list => {
+  const flags = attention(list);
+  return {
+    stop:    flags.filter(r => r.tone === 'stop').length,
+    warn:    flags.filter(r => r.tone === 'warn').length,
+    missing: absent(list).length,
+    ok:      settled(list).length,
+  };
+};
+
+// The one question Publish has to ask, and the one Today has to answer before it may say
+// everything is fine.
+export const isComplete = list => absent(list).length === 0;
 
 // ── What a section amounts to, in one line ──────────────────────────────────────
 //
@@ -360,7 +478,10 @@ export function verdictFor(section, readings, extraTones = []) {
 // a section whose dot went green while somebody had written "Bobst down since 3am" under
 // it would be lying.
 export function verdicts(state, readings) {
-  const reviewTones = (state.review || []).map(r => r.status);
+  // An unanswered department is not a green one. It used to arrive here as 'ok' from a
+  // column default; it arrives as null now and is left out of the verdict rather than
+  // counted as clear — the missing count on the summary is where it is reported.
+  const reviewTones = (state.review || []).map(r => r.status).filter(Boolean);
   const maintTones = (state.maintenance || []).map(r => {
     const tone = band.maint(r.status);
     return tone === 'info' ? 'ok' : tone;
