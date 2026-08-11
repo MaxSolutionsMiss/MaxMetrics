@@ -19,6 +19,18 @@
      system-ui and draw a different product. One variable file covers every weight used. */
   src:url(fonts/ibm-plex-sans.woff2) format('woff2');
 }
+/* Barlow Condensed, for figures and nothing else.
+   The system says one family, and for every word on the screen it is right. It is not right
+   for the number in the middle of a card: that figure is read at eight feet off a corridor
+   TV, it can be six digits wide, and Plex at that size is a wall of even-width strokes.
+   Barlow's condensed numerals are narrower, rounder and easier to take in at a glance, which
+   is the whole job of that one element. Every label, title and sentence around it is Plex. */
+@font-face{font-family:'Barlow Condensed';font-style:normal;font-weight:500;font-display:swap;
+  src:url(fonts/barlow-condensed-500.woff2) format('woff2')}
+@font-face{font-family:'Barlow Condensed';font-style:normal;font-weight:600;font-display:swap;
+  src:url(fonts/barlow-condensed-600.woff2) format('woff2')}
+@font-face{font-family:'Barlow Condensed';font-style:normal;font-weight:700;font-display:swap;
+  src:url(fonts/barlow-condensed-700.woff2) format('woff2')}
 :root{
   /* THE ACCENT - the five values MaxMetrics changes, and the only ones. */
   --brand:#6C4BB6; --brand-hover:#583D96; --brand-wash:#EFEAF8; --brand-deep:#3F2A6E;
@@ -49,6 +61,8 @@
      decision lives on one line rather than in forty. */
   --font:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
   --font-condensed:var(--font);
+  /* The face for figures only. Everything that is a word uses --font. */
+  --font-num:'Barlow Condensed','Arial Narrow',var(--font);
   --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
 
   --scale:1;
@@ -447,7 +461,7 @@ body.tv .verdict{font-size:var(--t-lead)}
 /* Numbers are the reason the page exists, so they get the condensed face and the room to
    be large. Weight 500 rather than 700: at fifty pixels a condensed bold closes its own
    counters and a 6 starts to read as an 8. */
-.hero{font-family:var(--font-condensed);
+.hero{font-family:var(--font-num);
   font-size:min(calc(var(--t-metric)*3),30cqi,calc(205cqi/var(--chars,3)));
   font-weight:500;line-height:.95;letter-spacing:-.01em;color:var(--ink);
   display:flex;align-items:baseline;justify-content:center;gap:5px;white-space:nowrap;
@@ -533,7 +547,7 @@ body.tv .verdict{font-size:var(--t-lead)}
 .fs__l{font-family:var(--font-condensed);font-size:calc(11.5px*var(--scale));
   text-transform:uppercase;letter-spacing:.06em;font-weight:700;color:var(--ink-faint);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
-.fs__v{font-family:var(--font-condensed);font-size:calc(19px*var(--scale));
+.fs__v{font-family:var(--font-num);font-size:calc(19px*var(--scale));
   font-weight:600;line-height:1.2;letter-spacing:-.01em;color:var(--ink);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 /* One fact keeps the same two-line shape as the rest, centred.
@@ -712,7 +726,7 @@ body.tv .verdict{font-size:var(--t-lead)}
 /* No nowrap. A card narrow enough that "Nov 20, 2025" does not fit beside "136 days"
    should break the date over two lines, not run it through its neighbour. Sized against
    the card's own width so the same rule holds on a laptop and on the TV. */
-.fstat__v{font-family:var(--font-condensed);font-size:min(calc(var(--t-metric)*.8),8.6cqi);
+.fstat__v{font-family:var(--font-num);font-size:min(calc(var(--t-metric)*.8),8.6cqi);
   font-weight:600;line-height:1.15;letter-spacing:-.01em;color:var(--ink);
   overflow-wrap:anywhere}
 .fstat__v em{font-style:normal;font-size:.55em;font-weight:600;opacity:.75}
@@ -744,7 +758,7 @@ body.tv .verdict{font-size:var(--t-lead)}
 .tbl tr:last-child td{border-bottom:none}
 .tbl .dept{font-size:var(--t-base);font-weight:600;text-transform:none;
   letter-spacing:0;white-space:nowrap;color:var(--ink)}
-.tbl .big{font-family:var(--font-condensed);font-size:calc(19px*var(--scale));font-weight:700;letter-spacing:-.01em}
+.tbl .big{font-family:var(--font-num);font-size:calc(19px*var(--scale));font-weight:700;letter-spacing:-.01em}
 .pill{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;
   text-transform:uppercase;letter-spacing:.05em}
 .pill--ok{background:var(--ok-wash);color:var(--ok);border:1px solid var(--ok-rule)}
@@ -813,9 +827,9 @@ body.tv .sec > .panel{max-width:none}
    a label; side by side each can be the size it deserves. */
 .fin__line{display:flex;align-items:baseline;justify-content:center;gap:var(--s3);
   flex-wrap:wrap;margin-bottom:var(--s3)}
-.fin__v{font-family:var(--font-condensed);font-size:min(calc(var(--t-metric)*2),20cqi);
+.fin__v{font-family:var(--font-num);font-size:min(calc(var(--t-metric)*2),20cqi);
   font-weight:500;line-height:1;letter-spacing:-.01em;white-space:nowrap;color:var(--ink)}
-.fin__pct{font-family:var(--font-condensed);font-size:min(calc(var(--t-metric)*1.2),12cqi);
+.fin__pct{font-family:var(--font-num);font-size:min(calc(var(--t-metric)*1.2),12cqi);
   font-weight:600;line-height:1;white-space:nowrap;color:var(--ink-muted)}
 .fin__pct i{font-family:var(--font);font-style:normal;font-size:.34em;font-weight:600;
   letter-spacing:0;margin-left:2px}
@@ -826,7 +840,7 @@ body.tv .sec > .panel{max-width:none}
   border-bottom:1px solid var(--rule);font-size:var(--t-base)}
 .fin__row:last-child{border-bottom:none}
 .fin__row span{color:var(--ink-muted)}
-.fin__row strong{font-family:var(--font-condensed);font-size:calc(21px*var(--scale));font-weight:700;white-space:nowrap}
+.fin__row strong{font-family:var(--font-num);font-size:calc(21px*var(--scale));font-weight:700;white-space:nowrap}
 
 /* ── EDIT ── */
 .ez{margin-top:var(--s3);padding-top:var(--s3);border-top:1px dashed var(--rule-strong);
@@ -1171,7 +1185,7 @@ body[data-view="line"] .chartpick{display:none}
 .today__t p{margin:2px 0 0;color:var(--ink-muted);font-size:var(--t-small)}
 .tallies{display:flex;gap:var(--s5);flex-wrap:wrap}
 .tally{display:flex;flex-direction:column;gap:1px;min-width:4.5rem}
-.tally b{font-family:var(--font-condensed);font-size:calc(var(--t-metric)*1.5);font-weight:500;
+.tally b{font-family:var(--font-num);font-size:calc(var(--t-metric)*1.5);font-weight:500;
   line-height:1;letter-spacing:-.01em}
 .tally span{font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.09em;
   font-weight:700;color:var(--ink-muted)}
@@ -1220,7 +1234,7 @@ body[data-view="line"] .chartpick{display:none}
   letter-spacing:.06em;font-weight:700;color:var(--ink-muted)}
 .flagcard--warn .flagcard__who{color:var(--warn)}
 .flagcard--stop .flagcard__who{color:var(--stop)}
-.flagcard__n{font-family:var(--font-condensed);font-size:calc(var(--t-metric)*2.3);font-weight:500;
+.flagcard__n{font-family:var(--font-num);font-size:calc(var(--t-metric)*2.3);font-weight:500;
   letter-spacing:-.01em;line-height:1;white-space:nowrap}
 .flagcard__n small{font-family:var(--font);font-size:.24em;font-weight:400;opacity:.7;letter-spacing:0}
 .flagcard--warn .flagcard__n{color:var(--warn)}
@@ -1229,7 +1243,7 @@ body[data-view="line"] .chartpick{display:none}
 .flagcard__meta{display:flex;gap:var(--s4);flex-wrap:wrap;padding-top:var(--s2);
   border-top:1px solid var(--rule);margin-top:auto}
 .a-meta__l{font-size:9.5px;text-transform:uppercase;letter-spacing:.09em;font-weight:700;color:var(--ink-faint)}
-.a-meta__v{font-family:var(--font-condensed);font-size:calc(20px*var(--scale));font-weight:600}
+.a-meta__v{font-family:var(--font-num);font-size:calc(20px*var(--scale));font-weight:600}
 
 .settled{background:var(--surface);border:1px solid var(--rule);border-radius:var(--radius-lg);
   padding:var(--s3) var(--s5) var(--s4);box-shadow:var(--shadow);margin-top:var(--s4)}
@@ -1304,7 +1318,7 @@ body.tv .content.wall{display:flex;flex-direction:column;gap:var(--s4);
 .wall__l{font-family:var(--font-condensed);font-size:calc(var(--t-base)*1.5);text-transform:uppercase;
   letter-spacing:.1em;font-weight:700;
   color:var(--ink-muted);margin-bottom:var(--s2)}
-.wall__n{font-family:var(--font-condensed);font-size:min(18vw,260px);font-weight:500;
+.wall__n{font-family:var(--font-num);font-size:min(18vw,260px);font-weight:500;
   letter-spacing:-.01em;line-height:.86;white-space:nowrap}
 .wall__n small{font-family:var(--font);font-size:.16em;font-weight:400;color:var(--ink-muted);letter-spacing:0}
 .wall__say{font-size:var(--t-title);color:var(--ink-muted);margin:var(--s3) 0 0;line-height:1.45}
@@ -1321,7 +1335,7 @@ body.tv .content.wall{display:flex;flex-direction:column;gap:var(--s4);
 .wall__rl{font-family:var(--font-condensed);font-size:calc(var(--t-lead)*1.25);text-transform:uppercase;
   letter-spacing:.06em;font-weight:700;
   color:var(--ink-muted)}
-.wall__rn{font-family:var(--font-condensed);font-size:calc(var(--t-metric)*1.5);font-weight:500;
+.wall__rn{font-family:var(--font-num);font-size:calc(var(--t-metric)*1.5);font-weight:500;
   letter-spacing:-.01em;line-height:1}
 /* One dot per screen, with a wider gap where a new section starts. Shipping over two
    screens is two dots, and without the grouping the row of them stops saying how far
@@ -1361,7 +1375,7 @@ body.tv .content.wall{display:flex;flex-direction:column;gap:var(--s4);
 .clist__l i{font-style:normal;font-family:var(--font-condensed);font-size:calc(4.4*var(--cu));
   font-weight:600;color:var(--ink-faint);white-space:nowrap;overflow:hidden;
   text-overflow:ellipsis;letter-spacing:.02em}
-.clist__r{font-family:var(--font-condensed);font-size:calc(5*var(--u));font-weight:700;
+.clist__r{font-family:var(--font-num);font-size:calc(5*var(--u));font-weight:700;
   color:var(--ink-muted);white-space:nowrap;flex:none}
 .clist__more{font-size:calc(3.8*var(--u));color:var(--ink-faint);padding-top:calc(1.2*var(--u))}
 .clist__none,.cnote{font-size:calc(4.6*var(--u));line-height:1.4;color:var(--ink);
@@ -1833,10 +1847,15 @@ body.tv .util{display:none}
    `1fr` — which counts by the minimum, as wanted — and the group inside it carries the
    width limit. One group gets one column the width of a form rather than the width of the
    screen; three get as many columns as there is room for. */
+/* Columns the width of a form, packed left - not stretched across the screen.
+   `1fr` tracks divided the whole width between however many groups there were and then the
+   34rem cap pulled each group back to the left of its track, so two groups on Production
+   sat with four hundred pixels of nothing between them. A definite max means the track *is*
+   the column: as many as fit, each the width of the thing in it, side by side. */
 .fill--one .fill__grid,.fill__grid--one{
-  grid-template-columns:repeat(auto-fit,minmax(26rem,1fr));
-  justify-items:start;align-items:start}
-.fill--one .fill__grid > *,.fill__grid--one > *{width:100%;max-width:34rem}
+  grid-template-columns:repeat(auto-fit,minmax(26rem,34rem));
+  justify-content:start;align-items:start}
+.fill--one .fill__grid > *,.fill__grid--one > *{width:100%}
 .fill--one .fg--wide,.fill__grid--one .fg--wide{max-width:none}
 @media (max-width:700px){
   .fill--one .fill__grid,.fill__grid--one{grid-template-columns:minmax(0,1fr)}
@@ -2017,8 +2036,8 @@ body.tv .util{display:none}
    reason - which is true, and is said again in the dialogue that asks for the reason, and
    was taking a band the width of the screen to say it in advance. The count is the count;
    the rail above already names which sections it is in. */
-.fill__end{display:flex;align-items:center;justify-content:flex-end;gap:var(--s3);
-  flex-wrap:wrap;padding:0}
+.fill__end{grid-column:1/-1;display:flex;align-items:center;justify-content:flex-end;
+  gap:var(--s3);flex-wrap:wrap;padding:0}
 .fill__end p{margin:0 auto 0 0;font-size:var(--t-small);color:var(--ink-muted)}
 .fill__end b{color:var(--warn)}
 body[data-view="fill"] #edit-btn,body[data-view="fill"] #publish-btn{display:none}
@@ -2161,7 +2180,7 @@ body.tv.tv-brief .wall__dots{display:none}
   border-top:6px solid var(--fam,var(--ink-faint))}
 /* Sized off the tile rather than off the page, for the same reason a card is: three across
    on a laptop and three across on a 55" panel are the same drawing at two sizes. */
-.brief__n{font-family:var(--font-condensed);font-weight:500;letter-spacing:-.02em;
+.brief__n{font-family:var(--font-num);font-weight:500;letter-spacing:-.02em;
   line-height:.95;font-size:min(26cqb,18cqi)}
 .brief__l{font-family:var(--font-condensed);font-weight:700;text-transform:uppercase;
   letter-spacing:.09em;color:var(--ink-muted);font-size:min(8cqb,5.6cqi);text-align:center;
