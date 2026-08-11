@@ -6,7 +6,7 @@
 // write to one column, so two people filling in two readings never overwrite each other.
 
 import {
-  currentSession, signOut, myProfile, myLocations, savePreference,
+  currentSession, signOut, myProfile, myLocations, savePreference, savePlant,
   openDay, loadDay, loadHistory, loadBudgets, loadYearCounts, loadMachines,
   loadUpcoming, addMaintenance, saveMaintenance, removeMaintenance,
   saveField, saveDepartment, saveReview,
@@ -19,7 +19,7 @@ import {
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
   spark, bullet, chip, cardTrack, readingOf, derivedShipping, SHIPPING_TARGET,
   varianceChip, varianceTone, variancePct,
-  volumeLabel, rateLabel, hoursLabel,
+  volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE,
 } from '../readings.js';
 
 const $ = selector => document.querySelector(selector);
@@ -98,10 +98,16 @@ const ICONS = {
   financials:  'M12 3v18M8.5 7.5h6M8.5 7.5a2.6 2.6 0 000 5.2h3a2.6 2.6 0 010 5.2h-6',
   configure:   'M12 15.2a3.2 3.2 0 100-6.4 3.2 3.2 0 000 6.4M19.4 15a1.6 1.6 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.6 1.6 0 00-2.7 1.1v.3a2 2 0 11-4 0v-.2a1.6 1.6 0 00-2.8-1.1l-.1.1a2 2 0 11-2.8-2.8l.1-.1A1.6 1.6 0 004 15H3.7a2 2 0 110-4h.2A1.6 1.6 0 005 8.6L4.9 8.5a2 2 0 112.8-2.8l.1.1A1.6 1.6 0 0010.6 4.7V4.4a2 2 0 114 0v.2a1.6 1.6 0 002.7 1.2l.1-.1a2 2 0 112.8 2.8l-.1.1a1.6 1.6 0 001.1 2.7h.3a2 2 0 110 4h-.2a1.6 1.6 0 00-1.4 1z',
 };
-// Two views over the whole morning, then the five sections for when someone asks a
-// question the views do not answer. Today is first because the meeting is two minutes
-// long and the fastest possible read is the one that says what needs deciding.
-const VIEWS = ['fill', 'line', 'board'];
+// Two surfaces over the whole morning, then the sections for when someone asks a question
+// they do not answer. Enter is where a morning is typed; Today is the fastest possible
+// read, which is the one that says what needs deciding.
+//
+// There were three. The Board was a third arrangement of the same readings — one lane per
+// area, one owner per lane — and it was the one nobody opened: it answered "who owns this"
+// on a product where the rail already says so, and it was a fourth card shape to keep in
+// step with the other three. A surface that has to be maintained and is never read is a
+// cost with no reader, so it is gone rather than tidied.
+const VIEWS = ['fill', 'line'];
 // The order the meeting actually walks: what happened to people, what the plant made,
 // what left the building, what it earned, and what needs fixing.
 // Safety and quality were one section because the old dashboard drew them in one row.
@@ -115,16 +121,15 @@ const TITLES = {
   safety: 'Safety', quality: 'Quality', production: 'Production', shipping: 'Shipping',
   maintenance: 'Upcoming maintenance', labour: 'Labour & Overtime', financials: 'Financials',
 };
-const NAV = { labour: 'Labour', line: 'Today', board: 'Board', fill: 'Enter' };
-Object.assign(TITLES, { line: 'Today', board: 'The board', fill: 'Enter the morning' });
+const NAV = { labour: 'Labour', line: 'Today', fill: 'Enter' };
+Object.assign(TITLES, { line: 'Today', fill: 'Enter the morning' });
 Object.assign(ICONS, {
   line:  'M4 6h16M4 12h10M4 18h6',
-  board: 'M4 4h4v16H4zM10 4h4v16h-4zM16 4h4v16h-4z',
   fill:  'M4 20h16M6 15.5L15.5 6l2.5 2.5L8.5 18H6z',
 });
 
 // A reading, drawn the way the room reads it: what it is, how big, against what, and
-// which way it has been going. Used by both Today and the Board so the two cannot drift.
+// which way it has been going.
 function readingBody(r, { showSpark = true } = {}) {
   const line = showSpark && r.series?.length > 1 ? spark(r.series, r.tone) : '';
   const bar = r.target
@@ -134,8 +139,6 @@ function readingBody(r, { showSpark = true } = {}) {
     : '';
   return { line, bar };
 }
-
-const capitalised = text => text ? text[0].toUpperCase() + text.slice(1) : '';
 
 const field = (label, name, attrs = '') =>
   `<div class="er"><label>${esc(label)}</label>
@@ -253,6 +256,62 @@ const whenText = (row, brief) => {
     : shortDate(row.scheduled_on);
 };
 
+// What the morning implies somebody should do.
+//
+// Every other card on the product answers "what happened". This one answers the question the
+// room asks straight afterwards and then writes on a whiteboard: what are we lining up. It
+// is not a forecast and it is not a language model — it is the readings already on the page,
+// sorted by how soon they bite and said as an instruction rather than as a number.
+//
+// The rules are the plant's own, in the order the room would say them: something breaking
+// today, then a machine that is going to be down, then the departments that missed target,
+// then the overtime that is already booked, then what a department manager flagged in the
+// last twenty-four hours. Six lines, because a list nobody can read across a room is a list
+// nobody reads.
+//
+// It is a card, so it can be switched off in Configure like any other, and it is worked out
+// on the client from state the page already holds — nothing is stored, so it cannot go stale
+// against the readings it is drawn from.
+function planRows() {
+  const rows = [];
+  const soon = new Date(dateOf(state.date)); soon.setDate(soon.getDate() + 1);
+  const tomorrow = soon.toISOString().slice(0, 10);
+  for (const m of upcomingItems()) {
+    const due = !m.scheduled_on || m.scheduled_on <= tomorrow;
+    if (!due && m.status !== 'Overdue') continue;
+    rows.push([m.machine || m.dept || 'Maintenance',
+               m.hours ? `${m.hours} h` : whenText(m, true),
+               m.status === 'Overdue' ? 'stop' : 'warn',
+               [m.dept, m.note || m.item_type, whenText(m, true)].filter(Boolean).join(' · ')]);
+  }
+  for (const config of state.config.filter(c => c.active !== false)) {
+    const row = dept(config.key), rate = rateOf(row);
+    const target = Number(row.target ?? config.target);
+    if (!rate || !target || rate >= target) continue;
+    rows.push([config.name, `${(100 * (rate - target) / target).toFixed(1)}%`,
+               band.rate(rate, target) || 'warn',
+               `${num(Math.round(rate))} against ${num(Math.round(target))} ${rateLabel(config)}`]);
+  }
+  for (const config of state.config.filter(c => otShifts(c.key) > 0)) {
+    rows.push([config.name, `${otShifts(config.key)} shifts`, 'warn',
+               otMachines(config.key).map(m => m.name).join(', ') || 'overtime booked']);
+  }
+  for (const row of state.review.filter(r => r.status === 'stop' || r.status === 'warn')) {
+    const config = state.config.find(c => c.key === row.dept_key);
+    const first = String(row.note || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean)[0];
+    if (!first) continue;
+    rows.push([config?.name || row.dept_key, row.status === 'stop' ? 'Issue' : 'Watch',
+               row.status, first]);
+  }
+  return rows;
+}
+
+// A screen is one grid of cards. The key is what an arrangement the plant drags into is
+// stored against, so it has to name the screen rather than the group of cards — two grids on
+// one screen is two arrangements and a row that ends early.
+const cardGrid = (key, cards) =>
+  `<div class="grid grid--cards" data-grid="${esc(key)}">${cards}</div>`;
+
 function maintenanceCards() {
   const items = upcomingItems();
   const today = state.maintenance;
@@ -260,8 +319,7 @@ function maintenanceCards() {
   const open = today.filter(m => m.status !== 'Complete').length;
   const done = today.filter(m => m.status === 'Complete').length;
   const any = today.length;
-  return `<div class="grid grid--cards">
-    ${metricCard({
+  return `${metricCard({
       chart: 'number', pkey: 'maint-overdue', label: 'Overdue items',
       tone: any ? band.maint(overdue ? 'Overdue' : 'Complete') : '',
       value: any ? String(overdue) : '—',
@@ -294,55 +352,7 @@ function maintenanceCards() {
       edit: `<div class="er"><label>Notes</label><textarea class="inp"
         data-field="maintenance_note">${esc(metric('maintenance_note') || '')}</textarea></div>`,
     })}
-  </div>`;
-}
-
-// Department, machine, hours, what for, when. Five things, five columns, and the fields are
-// the columns — which is the whole difference between a form and a table you can type into.
-function maintenancePanel() {
-  const items = upcomingItems();
-  const depts = state.config.filter(c => c.active !== false);
-  const options = (list, chosen, blank) => `<option value="">${blank}</option>` + list
-    .map(o => `<option value="${esc(o.value)}"${o.value === chosen ? ' selected' : ''}>${esc(o.label)}</option>`)
-    .join('');
-  const row = m => {
-    const machines = (state.machines || [])
-      .filter(x => x.active !== false && (!m.dept || deptKeyOf(m.dept) === x.dept_key));
-    return `<tr data-pkey="maint-${esc(m.id)}">
-      <td class="dept">
-        <span class="view-only">${esc(m.dept || '—')}</span>
-        <select class="inp inp--cell edit-only" data-field="maint:${esc(m.id)}:dept">${
-          options(depts.map(d => ({ value: d.name, label: d.name })), m.dept, 'Department')}</select></td>
-      <td>
-        <span class="view-only">${esc(m.machine || '—')}</span>
-        <select class="inp inp--cell edit-only" data-field="maint:${esc(m.id)}:machine">${
-          options(machines.map(x => ({ value: x.name, label: x.name })), m.machine, 'Machine')}</select></td>
-      <td class="num">${cell(m.hours ? `${m.hours} h` : '—', `maint:${esc(m.id)}:hours`,
-        `type="number" step="0.5" min="0" value="${m.hours ?? ''}"`, 'inp--h')}</td>
-      <td>${cell(esc(m.note || m.item_type || '—'), `maint:${esc(m.id)}:note`,
-        `type="text" value="${esc(m.note || m.item_type || '')}" placeholder="what for"`, 'inp--wide')}</td>
-      <td class="num">${cell(esc(whenText(m)), `maint:${esc(m.id)}:scheduled_on`,
-        `type="date" value="${m.scheduled_on || ''}"`, 'inp--d')}</td>
-      <td class="num">
-        <span class="view-only"><span class="pill pill--${band.maint(m.status)}">${esc(m.status)}</span></span>
-        <select class="inp inp--cell edit-only" data-field="maint:${esc(m.id)}:status">${
-          options(MAINT_STATUS.map(v => ({ value: v, label: v })), m.status, m.status)}</select></td>
-      <td class="num"><button class="lnk edit-only" data-drop-maint="${esc(m.id)}"
-        aria-label="Remove this item">×</button></td>
-    </tr>`;
-  };
-  return `<div class="panel panel--wall" style="margin-top:var(--s3)">
-    <div class="panel__head"><span class="card__ico" aria-hidden="true">${iconFor('maintenance')}</span>
-      <h3 class="panel__title">Upcoming maintenance</h3>
-      <div class="panel__actions">
-        <span class="pill pill--info">${items.length} booked</span>
-        <button class="btn btn--ghost edit-only" id="maint-add">Add an item</button></div></div>
-    <div class="panel__body"><table class="tbl tbl--tight"><thead><tr>
-      <th>Department</th><th>Machine</th><th class="num">Hours</th><th>What for</th>
-      <th class="num">When</th><th class="num">Status</th><th></th>
-    </tr></thead><tbody>${items.length ? items.map(row).join('')
-      : `<tr><td colspan="7" style="color:var(--ink-faint)">Nothing booked in.</td></tr>`}</tbody></table></div>
-  </div>`;
+  `;
 }
 
 // The plant names a department "Die Cutting" and the machine list keys it "diecutting".
@@ -367,8 +377,7 @@ function labourCards() {
       ? ['0', 'No overtime this morning']
       : [String(total), `${running.length} department${running.length === 1 ? '' : 's'} on overtime`];
 
-  return `<div class="grid grid--cards">
-    ${metricCard({
+  return `${metricCard({
       chart: 'number', pkey: 'ot-total', label: 'Overtime shifts',
       tone: total > 0 ? 'warn' : entered ? 'ok' : '',
       value: headline[0], sub: `shifts · ${headline[1]}`,
@@ -391,6 +400,15 @@ function labourCards() {
         otShifts(c.key) > 0 ? 'warn' : '', machineNames(c.key) || null]),
       empty: 'No departments configured.',
     })}
+    ${listCard({
+      pkey: 'plan', label: 'What to line up', icon: iconFor('week'),
+      tone: (rows => rows.some(r => r[2] === 'stop') ? 'stop'
+        : rows.length ? 'warn' : 'ok')(planRows()),
+      rows: planRows().map(([left, right, tone, sub]) =>
+        [left, right, tone === 'ok' ? '' : tone, sub]),
+      empty: 'Nothing outstanding from this morning.',
+      cap: 6,
+    })}
     ${noteCard({
       pkey: 'staffing', label: 'Staffing notes',
       text: metric('staffing_note'),
@@ -398,7 +416,7 @@ function labourCards() {
       edit: `<div class="er"><label>Staffing</label><textarea class="inp"
         data-field="staffing_note">${esc(metric('staffing_note') || '')}</textarea></div>`,
     })}
-  </div>`;
+  `;
 }
 
 const labourRow = key => state.labour.find(l => l.dept_key === key);
@@ -410,42 +428,6 @@ const otMachines = key => {
   return machinesIn(key).filter(m => chosen.has(m.code));
 };
 const machineNames = key => otMachines(key).map(m => m.name).join(', ');
-
-function labourPanel() {
-  const list = state.config.filter(c => c.active !== false);
-  const total = list.reduce((sum, c) => sum + otShifts(c.key), 0);
-  return `<div class="panel" style="margin-top:var(--s3)">
-    <div class="panel__head"><span class="card__ico" aria-hidden="true">${iconFor('labour')}</span>
-      <h3 class="panel__title">Which departments</h3>
-      <div class="panel__actions">
-        <span class="pill pill--${total > 0 ? 'warn' : 'ok'}">${total} shift${total === 1 ? '' : 's'}</span>
-      </div></div>
-    <div class="panel__body">
-      <table class="tbl tbl--tight"><thead><tr><th>Department</th>
-        <th class="num">OT shifts</th><th>Machines</th></tr></thead>
-        <tbody>${list.map(c => {
-          const shifts = otShifts(c.key), names = machineNames(c.key);
-          const chosen = new Set(labourRow(c.key)?.machines || []);
-          const machines = machinesIn(c.key);
-          return `<tr data-pkey="ot-${esc(c.key)}">
-            <td class="dept"><span class="card__ico" aria-hidden="true"
-              style="font-size:1em">${iconFor(c.key, c.icon)}</span> ${esc(c.name)}</td>
-            <td class="num">${cell(shifts > 0 ? `<b class="tone--warn">${shifts}</b>` : '—',
-              `labour:${esc(c.key)}:ot_shifts`,
-              `type="number" step="0.5" min="0" placeholder="shifts" value="${
-                labourRow(c.key)?.ot_shifts ?? ''}"`, 'inp--h')}</td>
-            <td>
-              <span class="view-only">${names ? esc(names) : '—'}</span>
-              ${machines.length ? `<div class="ticks edit-only">${machines.map(m => `<label class="tick2">
-                <input type="checkbox" data-field="labour:${esc(c.key)}:machines"
-                  data-machine="${esc(m.code)}"${chosen.has(m.code) ? ' checked' : ''}>
-                <span>${esc(m.name)}</span></label>`).join('')}</div>`
-                : '<span class="edit-only lane__quiet">No machines listed.</span>'}
-            </td></tr>`;
-        }).join('')}</tbody></table>
-    </div>
-  </div>`;
-}
 
 // ── Entering the morning ────────────────────────────────────────────────────────
 //
@@ -481,11 +463,12 @@ const sourceOf = name => Object.keys(FROM_FILE).find(file => FROM_FILE[file].inc
 // A row: what it is, the box, and what the box does to the morning. The third column is the
 // point of the screen — you watch the rate move as you type the hours.
 let toGo = 0;
-function frow(label, name, attrs, { echo = '', source = '', chase = true } = {}) {
+function frow(label, name, attrs, { echo = '', source = '', chase = true, wide = false } = {}) {
   const file = source || sourceOf(String(name).split(':').pop());
   const blank = / value=""/.test(attrs) || !/ value="/.test(attrs);
   if (blank && chase && !file) toGo += 1;
-  return `<label class="fr${file ? ' fr--file' : ''}${blank && chase && !file ? ' fr--todo' : ''}">
+  return `<label class="fr${wide ? ' fr--money' : ''}${file ? ' fr--file' : ''}${
+    blank && chase && !file ? ' fr--todo' : ''}">
     <span class="fr__l">${esc(label)}</span>
     <input class="inp fr__i" data-field="${esc(name)}" ${attrs}>
     <span class="fr__x">${echo || (file ? `<em>${file}</em>` : '')}</span>
@@ -528,20 +511,20 @@ function fillSafety() {
 function fillQuality() {
   return fgroup('Quality', () => {
     const shortages = metric('shortages');
-    const rows = [frow('Jobs short today', 'shortages',
+    const rows = [frow('Jobs short', 'shortages',
       `type="number" min="0" value="${shortages ?? ''}"`,
       { echo: shortages == null ? '' : Number(shortages) === 0
           ? '<b class="tone--ok">None</b>' : '<b class="tone--stop">Chase it</b>' })];
     for (const [label, name, step] of [
-      ['COQ this month', 'coq', '0.01'], ['COQ this year', 'coq_ytd', '0.01'],
+      ['COQ month', 'coq', '0.01'], ['COQ year', 'coq_ytd', '0.01'],
     ]) {
       const value = metric(name), target = Number(metric(`${name}_target`) || 0.85);
       rows.push(frow(label, name, `type="number" step="${step}" value="${value ?? ''}"`,
-        { echo: value == null ? '' : `of sales · target ${target.toFixed(2)}%` }));
+        { echo: value == null ? '' : `target ${target.toFixed(2)}%` }));
     }
     for (const [label, base] of [
-      ['NCRs', 'ncr'], ['Internal complaints', 'complaints_internal'],
-      ['Customer complaints', 'complaints_external'],
+      ['NCRs', 'ncr'], ['Internal', 'complaints_internal'],
+      ['Customer', 'complaints_external'],
     ]) {
       const today = metric(`${base}_today`), mtd = metric(`${base}_mtd`);
       rows.push(frow(label, `${base}_today`, `type="number" min="0" value="${today ?? ''}"`,
@@ -577,34 +560,32 @@ function fillShipping() {
       frow('Jobs shipped', 'jobs_shipped', `type="number" min="0" value="${
         state.metrics?.jobs_shipped ?? ''}"`,
         { echo: derived ? `<b>${derived.otd.toFixed(2)}%</b> OTD` : '' }),
-      frow('Of those, on time', 'jobs_on_time', `type="number" min="0" value="${onTime ?? ''}"`),
+      frow('On time', 'jobs_on_time', `type="number" min="0" value="${onTime ?? ''}"`),
       frow('Late', 'late', `type="number" min="0" value="${state.metrics?.late ?? ''}"`,
         { echo: derived ? `<b>${derived.otif.toFixed(2)}%</b> OTIF` : '' }),
       frow('Short', 'shorts', `type="number" min="0" value="${state.metrics?.shorts ?? ''}"`),
       frow('Cartons', 'cartons', `type="number" min="0" value="${state.metrics?.cartons ?? ''}"`,
         { echo: jobs && metric('cartons') ? `${num(Math.round(metric('cartons') / jobs))} per job` : '' }),
-      frow('OTIF month to date', 'mtd_otif',
+      frow('OTIF month', 'mtd_otif',
         `type="number" step="0.01" value="${state.metrics?.mtd_otif ?? ''}"`),
-      frow('OTIF year to date', 'ytd_otif',
+      frow('OTIF year', 'ytd_otif',
         `type="number" step="0.01" value="${state.metrics?.ytd_otif ?? ''}"`),
     ].join('');
   }, 'OTD and OTIF for today are worked out from jobs, late and short.');
 }
 
 function fillMoney() {
-  const reportDate = dateOf(state.date);
-  reportDate.setDate(reportDate.getDate() - 1);
-  const month = reportDate.getMonth();
-  const inMonth = new Date(reportDate.getFullYear(), month + 1, 0).getDate();
-  const plan = budgetFor(month) * (Math.max(1, reportDate.getDate()) / inMonth);
   return fgroup('Sales', () => [
     frow('Month to date', 'fin_actual_mtd',
       `type="number" step="0.01" value="${metric('fin_actual_mtd') ?? ''}"`,
-      { echo: metric('fin_actual_mtd')
-          ? `<b>${money(metric('fin_actual_mtd'))}</b>${plan ? ` of ${money(plan)}` : ''}` : '' }),
+      // The plan it is measured against is on the card; here it was "of $484K" and it was
+      // the one echo on the screen that never fitted its column.
+      { wide: true,
+        echo: metric('fin_actual_mtd') ? `<b>${money(metric('fin_actual_mtd'))}</b>` : '' }),
     frow('Year to date', 'fin_actual_ytd',
       `type="number" step="0.01" value="${metric('fin_actual_ytd') ?? ''}"`,
-      { echo: metric('fin_actual_ytd') ? `<b>${money(metric('fin_actual_ytd'))}</b>` : '' }),
+      { wide: true,
+        echo: metric('fin_actual_ytd') ? `<b>${money(metric('fin_actual_ytd'))}</b>` : '' }),
   ].join(''), 'Both come from the monthly KPI workbook.');
 }
 
@@ -664,7 +645,7 @@ function fillMaintenance() {
 
 function fillNotes() {
   const list = configured();
-  return fgroupWide('The last 24 hours', () => {
+  return fgroup('The last 24 hours', () => {
     const rows = list.map(config => {
       const row = state.review.find(r => r.dept_key === config.key) || {};
       return `<div class="fr fr--note">
@@ -699,7 +680,8 @@ const SECTIONS = {
     const groups = `<div class="fill__col">${fillSafety()}${fillQuality()}</div>
       <div class="fill__col">${fillProduction()}${fillMoney()}</div>
       <div class="fill__col">${fillShipping()}${fillOvertime()}</div>
-      ${fillNotes()}${fillMaintenance()}`;
+      <div class="fill__col">${fillNotes()}</div>
+      ${fillMaintenance()}`;
     const published = state.metrics?.status === 'published';
     return `<div class="fill">
       <div class="fill__top">
@@ -771,41 +753,7 @@ const SECTIONS = {
     </div>` : ''}`;
   },
 
-  // ── The board ──
-  // One lane per area, one owner per lane, in the order the meeting walks them.
-  board: () => {
-    if (!state.findings.length) return `<div class="panel"><div class="panel__body">
-      Nothing entered for this morning yet.</div></div>`;
-    const areas = [];
-    for (const r of state.findings) {
-      let lane = areas.find(a => a.name === r.area);
-      if (!lane) areas.push(lane = { name: r.area, owner: r.owner, readings: [] });
-      lane.readings.push(r);
-    }
-    return `<div class="lanes">${areas.map(lane => {
-      const head = lane.readings[0];
-      const tone = band.worst(lane.readings.filter(r => !r.quiet && r.tone).map(r => r.tone));
-      const { line, bar } = readingBody(head);
-      const rest = lane.readings.slice(1);
-      const note = lane.readings.map(r => r.note).find(Boolean);
-      return `<div class="lane lane--${tone}" data-pkey="${esc(head.key)}">
-        <div class="lane__head"><h3>${esc(lane.name)}</h3>
-          <span class="lane__owner">${esc(lane.owner || '')}</span></div>
-        <div class="lane__body">
-          <div class="lane__n">${esc(head.value)}<small> ${esc(head.unit || '')}</small></div>
-          <div class="lane__sub">${esc(head.targetLabel || '')}${
-            head.delta ? ` · ${chip(head.deltaTone || tone, head.delta)}` : ''}</div>
-          ${bar}${line}
-          ${rest.length ? `<div class="lane__rest">${rest.map(r =>
-            `<div class="lane__row"><span>${esc(r.title)}</span>
-             <b class="tone--${r.tone || 'none'}">${esc(r.value)}</b></div>`).join('')}</div>` : ''}
-        </div>
-        <div class="lane__foot">${note ? esc(note) : '<span class="lane__quiet">Nothing reported.</span>'}</div>
-      </div>`;
-    }).join('')}</div>`;
-  },
-
-  safety: () => `<div class="grid grid--cards">
+  safety: () => `<div class="grid grid--cards" data-grid="safety">
       ${streakCard('injury', 'Days since last injury', 'injury_last', 'injury_record', 'injury')}
       ${streakCard('nearmiss', 'Days since near-miss', 'near_miss_last', 'near_miss_record', 'near-miss')}
     </div>`,
@@ -866,7 +814,7 @@ const SECTIONS = {
         ]),
       });
     };
-    return `<div class="grid grid--cards">
+    return `<div class="grid grid--cards" data-grid="quality">
       ${metricCard({
         chart: 'number', pkey: 'shortages', label: 'Shortage count', tone: shortTone,
         value: shortages ?? '\u2014', sub: 'jobs short today',
@@ -942,85 +890,79 @@ const SECTIONS = {
       });
     }).join('');
 
-    const unitsInPlay = [...new Set(list.map(c => volumeLabel(c)))];
-
-    // Last week's productivity, against the targets the plant set — not against today.
+    // Last week's productivity, on a card in the row with the departments.
     //
-    // The table used to run today's rate, today's uptime and today's make-ready beside the
-    // previous week's, each with a seven-day movement. That is four comparisons per
-    // department on a table nobody reads mid-sentence, and three of them are already on
-    // the card above it. What is left is the thing the card cannot say: what the same
-    // weekday produced, and how that sat against target.
-    const weekRow = config => {
-      const row = dept(config.key);
-      const rate = Number(row.pw_hours) ? Number(row.pw_qty) / Number(row.pw_hours) : 0;
-      const target = Number(row.target ?? config.target);
-      const upTarget = Number(config.uptime_target || 0) * 100;
-      const mrTarget = Number(config.mr_target || 0);
-      return `<tr><td class="dept"><span class="card__ico" aria-hidden="true"
-          style="font-size:1em">${iconFor(config.key, config.icon)}</span> ${esc(config.name)}</td>
-        <td class="num">${cell(row.pw_qty ? num(row.pw_qty) : '—', `dept:${config.key}:pw_qty`,
-          `type="number" value="${row.pw_qty ?? ''}" aria-label="${esc(config.name)} volume"`)}</td>
-        <td class="num">${cell(row.pw_hours ? `${row.pw_hours} h` : '—', `dept:${config.key}:pw_hours`,
-          `type="number" step="0.1" value="${row.pw_hours ?? ''}" aria-label="${esc(config.name)} hours"`,
-          'inp--h')}</td>
-        <td class="num big tone--${band.rate(rate, target) || 'none'}">${
-          rate ? num(Math.round(rate)) : '—'}</td>
-        <td class="num">${num(Math.round(target))}</td>
-        <td class="num">${rate && target ? trend(rate, target) : '—'}</td>
-        <td class="num tv-hide">${upTarget ? `${upTarget.toFixed(0)}%` : '—'}</td>
-        <td class="num tv-hide">${mrTarget ? `${mrTarget.toFixed(2)} h` : '—'}</td>
-      </tr>`;
-    };
+    // It was a nine-column table across the full width under the cards, which is how it
+    // arrived from the old dashboard and it never belonged there: on a Production screen of
+    // three cards it took more height than all three together, and the room's word for it
+    // was the right one — it goes in front of Printing, Die Cutting and Gluing, not
+    // underneath them. Four of the nine columns were already on the cards above it and two
+    // more were targets that never change.
+    //
+    // What is left is the thing the cards cannot say, which is one line per department: what
+    // the same weekday produced, and how that sat against the target. That is a list, and a
+    // list is a card. Volume and hours are still typed where they are read, in the card's
+    // own edit zone, for the mornings the DOR has not been imported.
+    const weekCard = () => listCard({
+      pkey: 'pw-week', icon: iconFor('week'), label: "Last week's productivity",
+      // `band.worst([])` is 'ok', which would put a green border on a card that has nothing
+      // in it — a verdict on a week nobody has logged.
+      tone: (tones => tones.length ? band.worst(tones) : '')(list.map(config => {
+        const row = dept(config.key);
+        const rate = Number(row.pw_hours) ? Number(row.pw_qty) / Number(row.pw_hours) : 0;
+        return rate ? band.rate(rate, Number(row.target ?? config.target)) : '';
+      }).filter(Boolean)),
+      empty: 'Nothing logged for the same weekday last week.',
+      rows: list.map(config => {
+        const row = dept(config.key);
+        const rate = Number(row.pw_hours) ? Number(row.pw_qty) / Number(row.pw_hours) : 0;
+        const target = Number(row.target ?? config.target);
+        return [config.name,
+          rate ? `${num(Math.round(rate))} ${rate && target ? trend(rate, target) : ''}` : '\u2014',
+          rate ? band.rate(rate, target) : '',
+          rate ? `against ${num(Math.round(target))} ${rateLabel(config)}` : 'not logged'];
+      }).filter(row => row),
+      edit: list.map(config => {
+        const row = dept(config.key);
+        return `<div class="er er--pair"><label>${esc(config.name)}</label>
+          <input class="inp" type="number" data-field="dept:${config.key}:pw_qty"
+            placeholder="${esc(volumeLabel(config))}" value="${row.pw_qty ?? ''}">
+          <input class="inp" type="number" step="0.1" data-field="dept:${config.key}:pw_hours"
+            placeholder="hours" value="${row.pw_hours ?? ''}"></div>`;
+      }).join(''),
+    });
 
-    // The cards used to share a row with this table, sized by counting the departments.
-    // That worked while there were three and stopped the moment a plant could add its own.
-    // The cards wrap on their own now and the table takes the full width underneath.
-    return `<div class="grid grid--cards">${cards}</div>
-    ${/* On a Monday it goes up on the wall as well. The week just gone is the thing the
-          Monday meeting is actually about, and it is nine columns of numbers — a table, not
-          a card. Every other morning it stays on the page, where it is read leaning in. */''}
-    <div class="panel panel--full${dateOf(state.date).getDay() === 1 ? ' panel--wall' : ''}"
-         style="margin-top:var(--s3)">
-      <div class="panel__head"><span class="card__ico" aria-hidden="true">${iconFor('calendar')}</span>
-        <h3 class="panel__title">Last week&rsquo;s productivity</h3>
-        <span class="panel__actions chip">Same weekday</span></div>
-      <div class="panel__body">
-        <table class="tbl tbl--week tbl--tight"><thead><tr>
-          <th>Department</th>
-          <th class="num">${esc(unitsInPlay.length === 1 ? capitalised(unitsInPlay[0]) : 'Volume')}</th>
-          <th class="num">Hours</th>
-          <th class="num">Per hour</th>
-          <th class="num">Target</th>
-          <th class="num">vs target</th>
-          <th class="num tv-hide">Uptime target</th>
-          <th class="num tv-hide">Make-ready target</th>
-        </tr></thead><tbody>${list.map(weekRow).join('')}</tbody></table>
-      </div>
-    </div>
-    <div class="sec__head" style="margin-top:var(--s3)">
-      <h3 class="sec__title" style="font-size:var(--t-lead)">Review — last 24 hours</h3>
+    // The review notes are cards now, drawn by the same function every other note on the
+    // product is drawn by. They were a fourth card shape — their own head, their own dot,
+    // their own border colour — sitting in a `grid--cards` beside real cards, which is most
+    // of what made this screen look, in the room's word, unorganised. One shape, one bar,
+    // one line for the title, and the status is the border and the flag exactly as it is
+    // everywhere else.
+    const review = state.review.map(row => {
+      const config = state.config.find(c => c.key === row.dept_key);
+      return noteCard({
+        pkey: `rev-${row.dept_key}`, label: config?.name || row.dept_key,
+        icon: iconFor(row.dept_key, config?.icon), tone: row.status === 'ok' ? '' : row.status,
+        html: row.note ? bullets(row.note) : '', prompt: 'No issues reported.',
+        edit: `<div class="er"><label>Status</label>
+            <select class="inp" data-field="review:${esc(row.dept_key)}:status">
+              ${[['ok', 'No issue'], ['warn', 'Warning'], ['stop', 'Issue']].map(([v, t]) =>
+                `<option value="${v}"${row.status === v ? ' selected' : ''}>${t}</option>`).join('')}
+            </select></div>
+          <div class="er"><label>Note</label>
+            <textarea class="inp" data-field="review:${esc(row.dept_key)}:note">${
+              esc(row.note)}</textarea></div>`,
+      });
+    }).join('');
+
+    // One grid, and the departments and the week they just had are in it together. A plant
+    // that adds a fourth and a fifth department wraps onto a second row and the week card
+    // wraps with them, which is what the full-width table could never do.
+    return `<div class="grid grid--cards" data-grid="production">${weekCard()}${cards}</div>
+    ${review ? `<div class="sec__head" style="margin-top:var(--s3)">
+      <h3 class="sec__title" style="font-size:var(--t-lead)">Review \u2014 last 24 hours</h3>
       <div class="sec__rule"></div></div>
-    <div class="grid grid--cards">
-      ${state.review.map(row => {
-        const config = state.config.find(c => c.key === row.dept_key);
-        const name = config?.name || row.dept_key;
-        return `<div class="revcard revcard--${row.status}" data-pkey="rev-${esc(row.dept_key)}">
-          <div class="revcard__head"><span class="rev__dot rev__dot--${row.status}"></span>
-            <span class="card__ico" aria-hidden="true">${iconFor(row.dept_key, config?.icon)}</span>
-            <h4>${esc(name)}</h4></div>
-          ${bullets(row.note)}
-          <div class="ez">
-            <div class="er"><label>Status</label>
-              <select class="inp" data-field="review:${esc(row.dept_key)}:status">
-                ${[['ok','No issue'],['warn','Warning'],['stop','Issue']].map(([v, t]) =>
-                  `<option value="${v}"${row.status === v ? ' selected' : ''}>${t}</option>`).join('')}
-              </select></div>
-            <div class="er"><label>Note</label>
-              <textarea class="inp" data-field="review:${esc(row.dept_key)}:note">${esc(row.note)}</textarea></div>
-          </div></div>`;
-      }).join('')}
-    </div>`;
+    <div class="grid grid--cards" data-grid="review">${review}</div>` : ''}`;
   },
 
   shipping: () => {
@@ -1079,7 +1021,7 @@ const SECTIONS = {
       });
     };
 
-    return `<div class="grid grid--cards">
+    return `<div class="grid grid--cards" data-grid="shipping">
       ${/* No `medium` on these two. It was here because four and five figures at full size
             ran the width of the card — which the length cap already prevents — and all it
             achieved was four shipping cards drawn at one size and four at another. The room
@@ -1116,7 +1058,7 @@ const SECTIONS = {
   // overdue items, open work, today's schedule — answer a question the morning meeting does
   // not ask, so they are off unless a plant turns them on in Configure. What is left is one
   // list: which department, which machine, how many hours, and what for.
-  maintenance: () => maintenanceCards(),
+  maintenance: () => cardGrid('maintenance', maintenanceCards()),
 
   // ── Labour & overtime ──
   //
@@ -1129,7 +1071,11 @@ const SECTIONS = {
   // No tables. "Which departments" and the maintenance list were both entry forms living on
   // a reading screen, and both are groups on Enter now — the same fields, in the place a
   // person goes to fill them in. What is left is what the room reads.
-  labour: () => (mergedUpkeep() ? maintenanceCards() : '') + labourCards(),
+  // One grid, not two. Merged, Maintenance and Labour used to render a grid each, so
+  // Upcoming Maintenance sat alone on a row of four with three empty cells beside it and the
+  // labour cards started a new row underneath — which is the staircase the room kept
+  // calling Tetris, in the one place it survived.
+  labour: () => cardGrid('labour', (mergedUpkeep() ? maintenanceCards() : '') + labourCards()),
 
   financials: () => {
     // Billing is reviewed the next morning, so the financial picture reports through the
@@ -1199,7 +1145,7 @@ const SECTIONS = {
       });
     };
 
-    return `<div class="grid grid--cards">
+    return `<div class="grid grid--cards" data-grid="financials">
       ${pane('fin-mtd', 'Month to date', actualMtd, planMtd, toneMtd,
         varianceMtd, percentMtd, [`${MONTHS[month]} budget`, money(monthBudget)],
         // How far into the month the plant is, which is the whole reason the budget is
@@ -1313,6 +1259,10 @@ function render() {
   state.verdicts = verdicts(state, state.findings);
   document.body.dataset.view = state.active;
   renderHeader(); renderNav(); renderContent(); renderWho(); paintPresence();
+  // The plant's own arrangement, put back before anything is measured — a card moved into a
+  // different row is a different shape of screen, and `fitCards()` has to see the screen
+  // that is going to be looked at.
+  applyCardOrder();
   fitCards();
 }
 
@@ -1339,6 +1289,114 @@ function render() {
 const FIT_MAX = 2.6;
 const FIT_MIN = 0.7;
 const FIT_STEPS = [0.32, 0.16, 0.08, 0.04, 0.02];
+
+// ── Rearranging the cards ───────────────────────────────────────────────────────
+//
+// Which reading matters most is a plant's opinion, not the product's. Mississauga wants
+// Printing first because Printing is where its mornings go wrong; another plant runs on its
+// gluers and reads that row first. Until now the order was whatever the code emitted, and
+// the only way to change it was to change the code.
+//
+// So a card can be picked up and put down somewhere else, in the row or along the page, and
+// the plant's arrangement is remembered for everybody rather than for the browser that did
+// it — the whole point of this screen is that the room is looking at the same thing.
+//
+// The order is stored as a list of card keys per grid. A key the list does not name keeps
+// its place at the end, which is what makes a card added in a later release appear rather
+// than vanish, and a key naming a card that is now switched off is simply skipped.
+const orderFor = key => state.plant?.card_order?.[key] || [];
+
+function applyCardOrder(root = document) {
+  for (const grid of root.querySelectorAll('.grid--cards[data-grid]')) {
+    const list = orderFor(grid.dataset.grid);
+    if (!list.length) continue;
+    const cards = [...grid.children].filter(card => card.classList.contains('card'));
+    const rank = card => {
+      const at = list.indexOf(card.dataset.pkey);
+      return at === -1 ? list.length : at;
+    };
+    // Stable: two cards the list does not name stay in the order the section built them.
+    const sorted = cards.map((card, i) => ({ card, i }))
+      .sort((a, b) => rank(a.card) - rank(b.card) || a.i - b.i);
+    for (const { card } of sorted) grid.append(card);
+  }
+}
+
+// Native drag rather than a pointer-driven one, because a card is full of inputs and a
+// pointer handler that starts a drag on mousedown makes it impossible to select the text in
+// any of them. `draggable` is switched on only for the press that is about to become a drag,
+// and off again the moment the mouse comes up — so a card behaves like a card until somebody
+// takes hold of it.
+let dragCard = null;
+
+const canReorder = () => state.canEdit;
+
+// The card the dragged one should land in front of: the first one whose left half the
+// pointer has not yet passed, reading the grid the way the eye does.
+function landsBefore(grid, x, y) {
+  for (const card of grid.children) {
+    if (!card.classList.contains('card') || card === dragCard) continue;
+    const box = card.getBoundingClientRect();
+    if (y < box.bottom && x < box.left + box.width / 2) return card;
+  }
+  return null;
+}
+
+document.addEventListener('pointerdown', event => {
+  if (!canReorder() || event.button) return;
+  const card = event.target.closest('.grid--cards[data-grid] > .card');
+  if (!card || event.target.closest('input,select,textarea,button,a,label')) return;
+  card.draggable = true;
+});
+
+const dropDrag = () => {
+  for (const card of document.querySelectorAll('.card[draggable="true"]')) card.draggable = false;
+};
+document.addEventListener('pointerup', () => { if (!dragCard) dropDrag(); });
+
+document.addEventListener('dragstart', event => {
+  const card = event.target.closest?.('.card[draggable="true"]');
+  if (!card) return;
+  dragCard = card;
+  card.classList.add('is-dragging');
+  event.dataTransfer.effectAllowed = 'move';
+  // Firefox refuses to start a drag with nothing on the clipboard.
+  event.dataTransfer.setData('text/plain', card.dataset.pkey || '');
+});
+
+document.addEventListener('dragover', event => {
+  if (!dragCard) return;
+  const grid = event.target.closest?.('.grid--cards[data-grid]');
+  // Within its own grid only. Dragging Safety's streak into Shipping would ask the section
+  // to draw a card it does not build, and it would be gone again on the next render.
+  if (grid !== dragCard.parentElement) return;
+  event.preventDefault();
+  const before = landsBefore(grid, event.clientX, event.clientY);
+  if (before !== dragCard.nextElementSibling) grid.insertBefore(dragCard, before);
+});
+
+document.addEventListener('drop', event => { if (dragCard) event.preventDefault(); });
+
+document.addEventListener('dragend', () => {
+  if (!dragCard) return;
+  const grid = dragCard.parentElement;
+  dragCard.classList.remove('is-dragging');
+  dragCard = null;
+  dropDrag();
+  const keys = [...grid.children].filter(card => card.classList.contains('card'))
+    .map(card => card.dataset.pkey).filter(Boolean);
+  const order = { ...(state.plant?.card_order || {}), [grid.dataset.grid]: keys };
+  state.plant = { ...(state.plant || {}), card_order: order };
+  savePlant(state.location, { card_order: order }).then(noteSaved)
+    .catch(error => toast(error.message));
+});
+
+// Measured before Barlow Condensed arrived, every title is measured in Arial, which is much
+// wider — so the first paint of the morning settled on a bar a third shorter than the one
+// every re-render afterwards produced. Nobody could see it in a screenshot of one screen;
+// what they saw was that clicking from Everything into a section moved the titles. The fit
+// is asked again once the faces are in.
+if (document.fonts?.ready) document.fonts.ready.then(() => fitCards());
 
 // What a card is actually using, top of its first row to bottom of its last. `scrollHeight`
 // cannot answer this: the contents are centred, so a card with room to spare reports its own
@@ -1374,6 +1432,40 @@ function overflows(card) {
     if (part.scrollWidth > part.clientWidth + 1) return true;
   }
   return false;
+}
+
+// Every title the product can draw, whether or not it is on the screen being measured.
+//
+// The bar is sized by the longest title that has to fit in it, and until now "the longest
+// title" meant the longest one in front of you. On the Everything page that is the whole
+// catalogue and the bar came out at 32px; on the Production section on its own the longest
+// title is "Die Cutting" and the same bar came out at 45. Two screens of the same product,
+// two bar heights — which is exactly what the room reported, and it is the one thing the
+// bar was introduced to stop.
+//
+// So the cap is settled against every title at once. A screen showing two short-titled
+// cards draws the bar it would draw if "Upcoming maintenance" were beside them, which is
+// the point: walking from Safety to Production must not move the titles.
+const allTitles = () => [
+  ...CARD_CATALOGUE.map(card => card.name),
+  ...(state.config || []).map(config => config.name),
+  ...(state.review || []).map(row =>
+    (state.config || []).find(c => c.key === row.dept_key)?.name || row.dept_key),
+];
+
+// A card with nothing in it but a title bar, off the side of the screen, at the width the
+// real cards are. Measured rather than calculated: how wide a title needs to be depends on
+// which letters are in it, and a formula from the character count put "COQ — month to
+// date" two pixels over.
+function titleProbe(width, height) {
+  const probe = document.createElement('div');
+  probe.className = 'tprobe';
+  probe.innerHTML = allTitles().map(name =>
+    `<div class="card" style="width:${width}px;--card-h:${height}px">
+       <div class="card__head"><span class="card__ico" aria-hidden="true">${iconFor('none')}</span>
+         <span class="card__label">${esc(name)}</span></div></div>`).join('');
+  document.body.append(probe);
+  return probe;
 }
 
 function fitCards() {
@@ -1413,9 +1505,15 @@ function fitCards() {
     // on a morning when nothing anywhere is flagged.
     const flagged = group.some(grid => grid.querySelector('.card .flag'));
     for (const grid of group) grid.classList.toggle('flagged', flagged);
-    const titles = cards.map(card => card.querySelector('.card__label')).filter(Boolean);
-    const capTitle = value => group.forEach(grid =>
-      grid.style.setProperty('--tcap', `${value.toFixed(2)}px`));
+    const box = cards[0].getBoundingClientRect();
+    const probe = titleProbe(box.width || 300, box.height || 340);
+    const titles = [...cards, ...probe.children]
+      .map(card => card.querySelector('.card__label')).filter(Boolean);
+    const capTitle = value => {
+      const px = `${value.toFixed(2)}px`;
+      probe.style.setProperty('--tcap', px);
+      group.forEach(grid => grid.style.setProperty('--tcap', px));
+    };
     const ceilingPx = 0.09 * (cards[0].clientWidth || 300);
     let cap = ceilingPx;
     capTitle(cap);
@@ -1424,6 +1522,7 @@ function fitCards() {
       cap *= 0.94;
       capTitle(cap);
     }
+    probe.remove();
     set(1);
     // The fullest card sets the ceiling. Reading each card's own headroom first means one
     // measurement pass rather than one per step of the climb.
@@ -1519,30 +1618,40 @@ function bestGrid(count, share = 1) {
   return best;
 }
 
+// What present mode leaves out.
+//
+// A dashboard and a broadcast are not the same audience. The office reads sales on the
+// screen it opened; the corridor TV the floor walks past is a different room, and a plant
+// is entitled to say so without taking the card off the dashboard. The list holds section
+// keys and card keys alike, so it is "not the money" or "not that one card", whichever the
+// plant meant.
+const wallHidden = () => new Set(state.plant?.wall_hidden || []);
+
 function wallPages() {
   const pages = [];
+  const off = wallHidden();
   // The sections render themselves, once, and their cards are read back out. Doing it this
   // way rather than keeping a parallel list of readings is what stops the wall drifting
   // from the page: there is one definition of a Shipping card and this is reading it.
   const holder = document.createElement('div');
   for (const key of order()) {
+    if (off.has(key)) continue;
     holder.innerHTML = SECTIONS[key]();
-    const cards = [...holder.querySelectorAll('.grid--cards > .card')];
+    // The plant's arrangement applies to the wall too. A room that put Gluing first on the
+    // page and second on the screen is looking at two dashboards.
+    applyCardOrder(holder);
+    const cards = [...holder.querySelectorAll('.grid--cards > .card')]
+      .filter(card => !off.has(card.dataset.pkey) && card.dataset.empty !== '1');
     // Which section a card belongs to, carried on the card. The collage has no headings —
     // the bar's colour is the heading — so this is the only thing that groups them.
     for (const card of cards) card.dataset.fam = key;
-    // One panel is allowed on the wall, and only one: the upcoming maintenance table. Every
-    // other panel on the product is a thing you lean in for, and a five-row table read from
-    // ten metres is a slide with nothing on it. This one is the exception because what the
-    // room needs off it — which machine, for how long — is five columns wide, so a card
-    // cannot carry it and a card was never what was being asked for.
-    const panel = holder.querySelector('.panel--wall');
-    if (!cards.length && !panel) continue;
-    const deal = state.wallMode === 'all' ? { cols: 1, rows: 1 }
-      : bestGrid(Math.max(1, cards.length), panel ? 0.52 : 1);
-    pages.push({ key, ...deal,
-                 html: cards.map(card => card.outerHTML).join(''),
-                 panel: panel ? panel.outerHTML : '' });
+    // Nothing but cards goes on the wall now. Two tables used to be allowed up — the
+    // maintenance schedule and last week's productivity — each on the argument that what the
+    // room needed off it was five columns wide. Both are cards, so the exception has nothing
+    // left to except, and a screen is one grid again.
+    if (!cards.length) continue;
+    const deal = state.wallMode === 'all' ? { cols: 1, rows: 1 } : bestGrid(cards.length);
+    pages.push({ key, ...deal, html: cards.map(card => card.outerHTML).join('') });
   }
   return pages;
 }
@@ -1589,7 +1698,7 @@ function renderWallPage(pages) {
         `<span class="legend__i" data-fam="${esc(p.key)}">${esc(TITLES[p.key])}</span>`).join('')}</div>
       <span class="wall__date">${$('#date-long').textContent}</span>
     </div>
-    <div class="grid grid--cards grid--snap">${shown.map(p => p.html).join('')}</div>`;
+    <div class="grid grid--cards grid--snap" data-grid="wall">${shown.map(p => p.html).join('')}</div>`;
   const grid = content.querySelector('.grid--snap');
   const count = grid.querySelectorAll(':scope > .card').length;
   if (!count) return;
@@ -1610,10 +1719,9 @@ function renderWall() {
       <h2>${esc(TITLES[page.key])} · ${esc(state.locations.find(l => l.id === state.location)?.name || '')}</h2>
       <span class="wall__date">${$('#date-long').textContent}</span>
     </div>
-    <section class="sec${page.panel ? ' sec--split' : ''}">
-      ${page.html ? `<div class="grid grid--cards"
-           style="--wall-cols:${page.cols};--wall-rows:${page.rows}">${page.html}</div>` : ''}
-      ${page.panel || ''}
+    <section class="sec">
+      <div class="grid grid--cards" data-grid="${esc(page.key)}"
+           style="--wall-cols:${page.cols};--wall-rows:${page.rows}">${page.html}</div>
     </section>
     <div class="wall__dots">${pages.map((p, i) =>
       `<span class="wall__dot${i === at ? ' wall__dot--on' : ''}"
@@ -1627,7 +1735,7 @@ let wallResize;
 addEventListener('resize', () => {
   if (!document.body.classList.contains('tv')) return;
   clearTimeout(wallResize);
-  wallResize = setTimeout(() => { renderWall(); fitCards(); }, 120);
+  wallResize = setTimeout(() => { renderWall(); applyCardOrder(); fitCards(); }, 120);
 });
 
 // ── Saving ──────────────────────────────────────────────────────────────────────

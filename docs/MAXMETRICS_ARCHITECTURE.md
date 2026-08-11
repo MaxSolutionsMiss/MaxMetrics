@@ -192,7 +192,7 @@ number on a wall may not do.
 ## Reading against a target, on the card
 
 Every card carries a bar showing the reading against its target and a line showing its last
-seven mornings. Before that, only Today and the Board answered the two questions the room
+seven mornings. Before that, only Today answered the two questions the room
 asks after "what is it" — "against what" and "which way is it going" — and the sections
 themselves printed a figure, a caption and a row of foot stats over two thirds of an empty
 page.
@@ -370,6 +370,8 @@ while somebody is mid-sentence about what was on it. Arrows, space, and two butt
 **Only cards reach the wall.** The overlap this replaced was not a sizing bug: the wall was
 rendering the whole section — cards, the week table, the review notes, the edit fields —
 into a box with `overflow:hidden`, so on Production the table printed on top of the cards.
+The week table and the review notes are cards themselves now, so there is nothing left in a
+section that a wall has to refuse.
 A wall is not a smaller version of the page. It is the cards, at the size a room reads.
 
 Safety and Quality are two pages because they are two subjects with two owners, and six
@@ -555,13 +557,18 @@ direction, and are two cards each now.
 a second row, so a production card spent a whole line on "HOURS 8.5 h". It divides by what
 it holds; one fact reads as a sentence — "Target 0" — rather than as a lonely column.
 
-## What the week table is for
+## What the week card is for
 
 It reports **last week's productivity against the standing targets**, and nothing else. It
 used to run today's rate, today's uptime and today's make-ready beside the previous week's,
 each with a seven-day movement — four comparisons per department, three of which are on the
-card directly above it. What is left is the one thing the card cannot say: what the same
+card directly beside it. What is left is the one thing those cards cannot say: what the same
 weekday produced, and how that sat against target.
+
+It is a list card in the same grid as the departments, first, so with three departments the
+row is Week, Printing, Die Cutting, Gluing and a plant that adds a fourth wraps. Volume and
+hours are still typed where they are read — in the card's own edit zone — for the mornings
+the DOR has not been imported.
 
 ## A wall is the page's card, larger
 
@@ -793,21 +800,114 @@ place a person goes to fill them in — and both are gone from the sections, whi
 the reason Everything used to scroll. Upcoming maintenance is a card there like everything
 else, with the machine, the hours and what it is for on the quieter line under the department.
 
-## One table reaches the wall
+## Nothing but cards reaches the wall
 
-Only cards go up on the wall. A five-row table read from ten metres is a slide with nothing
-on it, which is why every panel is hidden under `body.tv`.
+A five-row table read from ten metres is a slide with nothing on it, which is why every
+panel is hidden under `body.tv`.
 
-Two earn an exception, and both for the same reason: what the room needs off them is five
-columns wide, so a card cannot carry it. **Upcoming maintenance** — which department, which
-machine, for how many hours, and what for — goes up every morning. **Last week's
-productivity** goes up on Mondays, because the week just gone is what the Monday meeting is
-about and on every other morning it is a thing you lean in for.
+Two used to earn an exception on the grounds that what the room needs off them is five
+columns wide, so a card could not carry it. Both are cards now. **Upcoming maintenance** is
+a list card — department, machine, hours, what for, when — and **last week's productivity**
+is another, one line per department: what the same weekday produced and how it sat against
+target. The nine-column table it replaced took more height on the Production screen than all
+the department cards together, and four of its nine columns were already on those cards.
 
-A page carrying one of these splits: `bestGrid()` is told the cards get 52% of the height so
-it chooses an arrangement for the height they will actually have, the stylesheet reads the
-same share, and the table takes what is left. The delete buttons and the reference columns
-are dropped up there — a wall reads five columns and stops.
+So a wall screen is one grid again, `bestGrid()` gets the whole height rather than 52% of
+it, and `sec--split` is gone.
+
+## The bar is the same height on every screen
+
+The title bar sizes itself to the longest title that has to fit in it, and for three
+releases "the longest title" meant the longest one currently on screen. On the Everything
+page that is the whole catalogue and the bar came out at 32px; on Production alone the
+longest title is "Die Cutting" and the same bar came out at 45. Walking from Safety to
+Production moved every title on the page.
+
+`fitCards()` now measures against every title the product can draw, on screen or not:
+`titleProbe()` builds a hidden strip of bare title bars at the real card width, the shrink
+loop measures those alongside the real ones, and the strip is taken away inside the same
+frame. One cap, one bar height, every screen.
+
+The other half of the same fault was fonts. Measured before Barlow Condensed arrives, every
+title is measured in Arial, which is much wider — so the first paint settled on a bar a
+third shorter than every re-render afterwards produced. `document.fonts.ready` asks again.
+
+## Colour is the family, and only on the one page
+
+The collage has no headings, so the bar across the top of each card is the heading. The
+first set of family colours was seven greys with a hint of hue in each, on the argument that
+colour is the verdict and a label must never borrow it. The argument holds; the execution
+did not — at four metres `#3F6B57` and `#3E5A72` are the same colour, and the collage read
+as one grey wall.
+
+They are seven separate hues now, spaced around the wheel at one darkness so the white
+knockout works on all of them, none of them the green, the amber or the red. Each carries a
+lit version of itself: a strip along the foot of the bar, a 7% wash in the card, a 26% tint
+in its border, and the legend chip beside the plant name. `--fam` and `--famlit` are set
+once per `[data-fam]` and everything else reads them.
+
+It is scoped to `wall--snap`. On the page the sections have headings and the cards stay
+white, because there the only colour that means anything is the verdict on the number.
+
+## The one page is not the same audience
+
+The office reads sales on the screen it opened. The corridor TV the floor walks past is a
+different room, and a plant is entitled to say so without taking the card off the dashboard.
+
+`locations.wall_hidden` is a list holding section keys and card keys alike, so it says "not
+the money" or "not that one card", whichever the plant meant. Configure gives every card two
+ticks — **Dashboard** and **One page** — plus a row of section switches for the fast case.
+`wallPages()` skips a hidden section before it renders it and filters hidden cards out of
+what it reads back.
+
+A note card with nothing in it is dropped from the wall as well, whether or not anybody
+hid it: four cards reading "No issues reported" on a broadcast screen is four cards of
+nothing where four readings could have gone. `noteCard` marks itself `data-empty` and the
+page keeps it, because on the page the prompt is an invitation to write one.
+
+## A card can be moved
+
+Which reading matters most is a plant's opinion. Mississauga wants Printing first because
+Printing is where its mornings go wrong; a plant that runs on its gluers reads that row
+first. Until now the order was whatever the code emitted.
+
+A card is picked up and put down somewhere else in its own grid, and the arrangement is
+stored in `locations.card_order` as `{ "<grid key>": ["<pkey>", ...] }` — for everybody,
+not for the browser that did it, because the whole point of this screen is that the room is
+looking at the same thing. A key the list does not name keeps its place at the end, so a
+card added in a later release appears rather than vanishes.
+
+It is native drag rather than a pointer handler, and `draggable` is switched on only for the
+press that is about to become one: a card is full of inputs, and a permanently draggable
+card makes it impossible to select the text in any of them. `applyCardOrder()` runs before
+`fitCards()`, because a card moved into a different row is a different shape of screen.
+
+The wall reads the same order. A room that put Gluing first on the page and second on the
+screen is looking at two dashboards.
+
+## The Board is gone
+
+There were three surfaces over the whole morning: Enter, Today and the Board — one lane per
+area, one owner per lane. The Board answered "who owns this" on a product where the rail
+already says so, it was a fourth card shape to keep in step with the other three, and nobody
+opened it. A surface that has to be maintained and is never read is a cost with no reader.
+
+## What to line up
+
+Every other card answers "what happened". This one answers the question the room asks
+straight afterwards and then writes on a whiteboard.
+
+It is not a forecast and it is not a language model — it is the readings already on the
+page, sorted by how soon they bite and said as an instruction rather than as a number.
+The rules are the plant's own, in the order the room would say them: something overdue or
+due today, then a machine that is going to be down, then the departments that missed target,
+then the overtime already booked, then what a department manager flagged in the last
+twenty-four hours. Six lines, because a list nobody can read across a room is a list nobody
+reads.
+
+It is worked out on the client from state the page already holds, so it cannot go stale
+against the readings it is drawn from, and it is a card in the catalogue like any other — a
+plant that does not want it unticks it.
 
 ## Overtime is a count and a list of machines
 

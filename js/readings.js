@@ -560,6 +560,9 @@ export const CARD_CATALOGUE = [
   { section: 'Quality',     key: 'ncr',           name: 'NCRs received' },
   { section: 'Quality',     key: 'cint',          name: 'Internal complaints' },
   { section: 'Quality',     key: 'cext',          name: 'Customer complaints' },
+  // The rest of Production is the plant's own departments, set on the Departments screen.
+  // This one is not a department, so it is the one production card that lives here.
+  { section: 'Production',  key: 'pw-week',       name: "Last week's productivity" },
   { section: 'Shipping',    key: 'jobs_shipped',  name: 'Jobs shipped' },
   { section: 'Shipping',    key: 'cartons',       name: 'Cartons' },
   { section: 'Shipping',    key: 'late',          name: 'Late' },
@@ -584,6 +587,9 @@ export const CARD_CATALOGUE = [
   { section: 'Labour',      key: 'ot-depts',      name: 'Machines on OT', off: true },
   { section: 'Labour',      key: 'ot-list',       name: 'Overtime by department' },
   { section: 'Labour',      key: 'staffing',      name: 'Staffing notes' },
+  // Not a reading. Everything on it is already on another card; what it adds is the order
+  // they have to be dealt with in, which is the one thing the room writes down.
+  { section: 'Labour',      key: 'plan',          name: 'What to line up' },
 ];
 
 // A card is turned off in one place rather than at each of its call sites, because a card
@@ -641,16 +647,27 @@ export function listCard({ pkey, icon, label, tone, rows, empty = 'Nothing to re
 }
 
 // A card whose reading is a sentence somebody wrote.
-export function noteCard({ pkey, icon, label, text, prompt = 'Nothing entered.', edit }) {
+//
+// `html` is for the one case the plain paragraph cannot serve: a note that is a list. The
+// last twenty-four hours are entered a line at a time and read back as bullets, and that is
+// the only reading on the product whose body is markup rather than a string — everything
+// else that takes markup takes it as a whole card.
+export function noteCard({ pkey, icon, label, text, html, tone = '',
+                           prompt = 'Nothing entered.', edit }) {
   if (hidden.has(pkey)) return '';
-  return `<div class="card" data-pkey="${esc(pkey)}">
+  // A note nobody wrote says so on the page, where the prompt is an invitation to write one,
+  // and says nothing at all on a wall. Four cards reading "No issues reported" on a screen
+  // the floor walks past is four cards of nothing where four readings could have been, so
+  // the wall drops them — and it can only do that if the card admits it is empty.
+  return `<div class="card card--${tone}" data-pkey="${esc(pkey)}"${
+    text || html ? '' : ' data-empty="1"'}>
     <div class="card__head">
       <span class="card__ico" aria-hidden="true">${icon || iconFor(pkey)}</span>
       <span class="card__label">${esc(label)}</span>
     </div>
     <div class="card__body">
-      <div class="card__mid"><p class="cnote${text ? '' : ' cnote--none'}">${
-        esc(text || prompt)}</p></div>
+      <div class="card__mid">${html || `<p class="cnote${text ? '' : ' cnote--none'}">${
+        esc(text || prompt)}</p>`}</div>
       ${edit ? `<div class="ez">${edit}</div>` : ''}
     </div>
   </div>`;
