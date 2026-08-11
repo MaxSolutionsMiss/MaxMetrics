@@ -200,25 +200,24 @@ export function spark(values, tone = '') {
   </svg>`;
 }
 
-// Twelve months of a count, drawn as columns.
+// Twelve months of a count, drawn the way every other chart here is drawn.
 //
-// The seven-day line is the right picture for a reading taken every morning and the wrong
-// one for a count that is closed off monthly. NCRs, internal complaints and customer
-// complaints are the second kind: a week of them is four zeroes and a one, drawn as a spike
-// that means nothing, and it left the card with nothing along its bottom while every card
-// beside it had a bar and a line. A year of months answers the question actually asked of
-// these three — is this a bad month or a bad year — and gives the card the same footprint
-// as the rest of the screen.
+// The seven-day line is the right picture for a reading taken every morning and the wrong one
+// for a count closed off at month end. NCRs, internal complaints and customer complaints are
+// the second kind: a week of them is four zeroes and a one, drawn as a spike that means
+// nothing. A year of months answers the question actually asked of these three — is this a bad
+// month or a bad year.
 //
-// A month with no incidents draws a stub rather than nothing, because an empty slot and a
-// month that has not happened yet would otherwise look identical. Months past the one being
-// read are left out entirely: drawing December in August is a promise the data cannot keep.
+// It was columns for one draft, which was defensible and looked like nothing else on the
+// product: a quality screen had two cards drawn as lines and three as bar charts. Same line,
+// same fill, same end point as the seven-day spark, with the months named underneath. A card
+// is recognisable across a room because there are only a few shapes on the whole dashboard.
+//
+// Months the year has not reached are left out entirely: drawing December in August is a
+// promise the data cannot keep. A month with no rows breaks the line rather than dropping it
+// to nought, because "none logged" and "none happened" are different statements.
 const MONTH_INITIALS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
 
-// Drawn in HTML rather than as an SVG, unlike every other chart here. The line and the bar
-// are stretched to the card's width with `preserveAspectRatio:none`, which is right for a
-// shape and wrong for a letter: at a 120-wide viewBox in a 600px card, "J" comes out five
-// times as wide as it is tall. Twelve boxes and twelve letters need no scaling trick.
 export function columns(values, tone = '', { through = 11 } = {}) {
   const upto = Math.max(0, Math.min(11, through));
   // `Number(null)` is nought, not NaN, so a month with no row has to be caught before the
@@ -226,15 +225,28 @@ export function columns(values, tone = '', { through = 11 } = {}) {
   const shown = (values || []).slice(0, upto + 1)
     .map(v => v == null || v === '' || !Number.isFinite(Number(v)) ? null : Number(v));
   if (!shown.some(v => v != null)) return '';
-  const peak = Math.max(1, ...shown.map(v => v ?? 0));
-  return `<div class="cols${tone ? ` cols--${tone}` : ''}" aria-hidden="true">${
-    shown.map((v, i) => {
-      const tall = v == null ? 2 : Math.max(2, (v / peak) * 66);
-      return `<span class="cols__c${i === upto ? ' cols__c--now' : ''}${
-        v == null ? ' cols__c--none' : ''}">
-        <span class="cols__b" style="height:${tall.toFixed(1)}%"></span>
-        <i>${MONTH_INITIALS[i]}</i></span>`;
-    }).join('')}</div>`;
+  const w = 200, h = 32, pad = 3.5;
+  // Scaled between the year's own low and high, exactly as the seven-day line is. Drawn from
+  // nought, twelve months of a count that runs between ten and sixteen is a flat line near the
+  // top of the box — honest about the zero and useless about the year.
+  const seenV = shown.filter(v => v != null);
+  const low = Math.min(...seenV), span = (Math.max(...seenV) - low) || 1;
+  const at = i => upto ? (i / upto) * (w - 6) + 3 : w / 2;
+  const up = v => h - pad - ((v - low) / span) * (h - pad * 2);
+  const seen = shown.map((v, i) => [i, v]).filter(([, v]) => v != null);
+  const line = seen.map(([i, v], n) => `${n ? 'L' : 'M'}${at(i).toFixed(1)} ${up(v).toFixed(1)}`).join(' ');
+  const [lastI, lastV] = seen[seen.length - 1];
+  const area = `${line} L${at(lastI).toFixed(1)} ${h} L${at(seen[0][0]).toFixed(1)} ${h} Z`;
+  return `<div class="months">
+    <svg class="spark${tone ? ` spark--${tone}` : ''}" viewBox="0 0 ${w} ${h}"
+      preserveAspectRatio="none" aria-hidden="true">
+      <path class="spark__area" d="${area}"/>
+      <path class="spark__line" d="${line}"/>
+      <circle class="spark__end" cx="${at(lastI).toFixed(1)}" cy="${up(lastV).toFixed(1)}" r="3"/>
+    </svg>
+    <div class="months__m" aria-hidden="true">${
+      shown.map((v, i) => `<i${i === upto ? ' class="is-now"' : ''}>${MONTH_INITIALS[i]}</i>`).join('')}</div>
+  </div>`;
 }
 
 // Actual against target, with the bands that decided the verdict drawn behind it.

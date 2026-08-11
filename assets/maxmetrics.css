@@ -552,8 +552,8 @@ body.tv .verdict{font-size:var(--t-lead)}
    visible. The height comes out of space the card was not using. */
 .card .ctrack .bullet{height:calc(5.6*var(--u))}
 .card .ctrack .spark{height:calc(8.4*var(--u))}
-.card .ctrack .cols{height:calc(14.5*var(--u));gap:calc(.5*var(--u))}
-.card .ctrack .cols__c i{font-size:calc(3.2*var(--u))}
+.card .ctrack .months .spark{height:calc(8.4*var(--u))}
+.card .ctrack .months__m i{font-size:calc(3.4*var(--u))}
 /* The drawings sit at the floor of the reading's zone rather than under the number. Placed
    after `.card .ctrack` on purpose: same specificity, later wins. */
 .card__mid>.ctrack{margin-top:auto}
@@ -882,6 +882,7 @@ body.tv .rail,body.tv .top,body.tv .no-tv{display:none}
 body.tv .shell{grid-template-columns:1fr;height:100vh}
 body.tv .main{height:100vh;overflow:hidden}
 body.tv .content{flex:1;min-height:0;overflow:hidden;padding:var(--s4) var(--s5) var(--s5);gap:var(--s4)}
+.tvbar__split{width:1px;align-self:stretch;background:var(--rule);margin:4px 2px}
 /* The row takes the height it needs and centres in what is left, rather than being
    stretched to the screen and having its cards overflow their own borders. Stretching was
    the bug behind the trend lines drawing below the card edge: the grid row was as tall as
@@ -1164,20 +1165,16 @@ body[data-view="line"] .chartpick,body[data-view="board"] .chartpick{display:non
 .spark__end{fill:currentColor;stroke:none}
 .spark--ok{color:var(--ok)}.spark--warn{color:var(--warn)}.spark--stop{color:var(--stop)}
 .spark:not([class*="spark--"]){color:var(--ink-faint)}
-/* A year of months, for the counts that are closed off monthly rather than read every
-   morning. Same width and the same place on the card as the seven-day line, so a Quality
-   screen still reads as one set of cards. */
-.cols{display:flex;align-items:flex-end;gap:2px;width:100%;align-self:stretch;height:38px;
-  margin-top:2px;color:var(--ink-faint)}
-.cols__c{flex:1 1 0;min-width:0;height:100%;display:flex;flex-direction:column;
-  align-items:center;justify-content:flex-end;gap:1px}
-.cols__b{display:block;flex:none;width:72%;background:currentColor;opacity:.42;border-radius:1px}
-.cols__c--now .cols__b{opacity:1}
-.cols__c--none .cols__b{background:var(--ink-faint);opacity:.28}
-.cols__c i{font-style:normal;font-family:var(--font-condensed);font-weight:600;font-size:9px;
-  line-height:1;color:var(--ink-faint)}
-.cols__c--now i{color:currentColor;font-weight:700}
-.cols--ok{color:var(--ok)}.cols--warn{color:var(--warn)}.cols--stop{color:var(--stop)}
+/* A year of months: the same line, fill and end point as the seven-day spark, with the
+   months named underneath. Drawn as columns for one draft, which put two shapes on one
+   quality screen — a card is recognisable across a room because there are only a few. */
+.months{width:100%;align-self:stretch;display:flex;flex-direction:column;gap:1px}
+.months .spark{height:32px;margin:0}
+.months__m{display:flex;width:100%}
+.months__m i{flex:1 1 0;min-width:0;text-align:center;font-style:normal;
+  font-family:var(--font-condensed);font-weight:600;font-size:9px;line-height:1.1;
+  color:var(--ink-faint)}
+.months__m i.is-now{color:var(--ink-muted);font-weight:700}
 .bullet{position:relative;width:100%;align-self:stretch;height:22px;border-radius:5px;
   overflow:hidden;background:var(--sunk);
   margin:var(--s1) 0;color:var(--ink-faint)}
@@ -1532,8 +1529,13 @@ body.tv .util{display:none}
    building \u2014 and the two groups that are sentences rather than numbers take the full width
    underneath, because a note wants a line to write on. */
 .fill__grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--s4);
-  align-items:start}
+  align-items:stretch}
+/* The three columns end on the same line. Left to their contents they finished at three
+   different heights and the block of groups came out as a staircase — which is the whole of
+   what "it looks like Tetris" was about. The last group in each column takes up the slack, so
+   the outside of the screen is a rectangle however many departments a plant has. */
 .fill__col{display:flex;flex-direction:column;gap:var(--s4);min-width:0}
+.fill__col > .fg:last-child{flex:1 1 auto}
 .fg--wide{grid-column:1/-1}
 .fg{background:var(--surface);border:1px solid var(--rule);
   border-radius:var(--radius-lg);padding:var(--s3) var(--s4) var(--s3);margin:0;
@@ -1550,8 +1552,11 @@ body.tv .util{display:none}
 
 /* A row is a name, a box, and what the box does to the morning. The third column is the
    whole point: you watch the rate move as you type the hours. */
+/* Every row on this screen is the same height, in every group. Rows that sized themselves to
+   their contents ticked down the page at three different rhythms — the ticks made the overtime
+   rows taller than the safety ones, and two groups side by side never lined up. */
 .fr{display:grid;grid-template-columns:1fr 8.4rem minmax(5rem,auto);align-items:center;
-  gap:var(--s2);padding:2px 0}
+  gap:var(--s2);min-height:38px}
 .fr__l{font-size:var(--t-small);color:var(--ink);min-width:0;overflow:hidden;
   text-overflow:ellipsis;white-space:nowrap}
 .fr__i{height:30px;font-size:var(--t-small);text-align:right;
@@ -1569,10 +1574,11 @@ body.tv .util{display:none}
 /* And one nobody has filled yet says so, once, in the only colour on the screen. */
 .fr--todo .fr__i{border-color:var(--warn)}
 .fr__pair{display:contents}
-.fr--ot{grid-template-columns:1fr 5rem minmax(0,2fr)}
-.fr--ot .fr__x{text-align:left;white-space:normal;overflow:visible}
+.fr--ot{grid-template-columns:1fr 5rem minmax(0,2fr);min-height:44px}
+.fr--ot .fr__x{text-align:left;white-space:normal;overflow:visible;padding:4px 0}
 .fr--ot .ticks{justify-content:flex-start}
-.fr--note{grid-template-columns:1fr 6.5rem;row-gap:4px;align-items:start;padding:5px 0}
+.fr--note{grid-template-columns:1fr 6.5rem;row-gap:4px;align-items:start;min-height:0;
+  padding:5px 0}
 .fr--note .fr__l{padding-top:6px}
 .fr--note .fr__t{grid-column:1/-1}
 .fr--wide{grid-template-columns:1fr}
@@ -1588,7 +1594,8 @@ body.tv .util{display:none}
 
 /* Maintenance is six things on a line, so it gets six columns rather than a name and a box. */
 .fr--maint{grid-template-columns:minmax(0,1.1fr) minmax(0,1.2fr) 4.2rem minmax(0,1.6fr) 8.4rem
-  minmax(0,.9fr) 1.6rem;align-items:center;gap:var(--s2)}
+  minmax(0,.9fr) 1.6rem;align-items:center;gap:var(--s2);min-height:38px}
+.fr--head{min-height:0}
 .fr--maint .fr__i{text-align:left}
 .fr--maint .fr__i--h{text-align:right}
 .fr--head{padding-bottom:2px;border-bottom:1px solid var(--rule-soft);margin-bottom:2px}
@@ -1610,3 +1617,36 @@ body[data-view="fill"] #edit-btn,body[data-view="fill"] #publish-btn{display:non
   .fr--maint{grid-template-columns:1fr 1fr;gap:4px}
   .fr--maint .fr--head,.fr--head{display:none}
   .fill__go{justify-content:flex-start}}
+
+/* ── One page ──
+   The other shape of present mode: the whole plant at once, on a screen nobody is standing
+   at. It is what the dashboard this replaces has always been and what the floor is used to
+   reading, so it is an option rather than a replacement for the walk. Sections stack, each
+   one a band with its own heading, and the page scrolls if it must. */
+body.tv.tv-all .content.wall{overflow-y:auto;overflow-x:hidden;display:block;
+  padding:var(--s4) var(--s5) var(--s6);scrollbar-width:thin}
+body.tv.tv-all .sec{display:block;flex:none;margin-bottom:var(--s5)}
+body.tv.tv-all .sec:last-child{margin-bottom:0}
+body.tv.tv-all .sec__head{display:flex;align-items:center;gap:var(--s3);margin:0 0 var(--s3)}
+body.tv.tv-all .sec__title{font-family:var(--font-condensed);font-weight:700;
+  text-transform:uppercase;letter-spacing:.1em;font-size:calc(15px*var(--scale));
+  color:var(--ink-muted);margin:0;white-space:nowrap}
+body.tv.tv-all .sec__rule{flex:1;height:1.5px;background:var(--rule)}
+body.tv.tv-all .sec__head::before{display:none}
+/* A band, not a screen: the card takes its height from its own ratio rather than from
+   whatever is left of the viewport. */
+/* Smaller cards than the walk uses, and one left edge for every band.
+   A walk gives one section the whole screen; a page gives it a band, and a band that fills
+   the screen is a walk with extra scrolling. Twenty per cent of the width puts three bands in
+   view at once, which is what the plant's own screen has always shown. Bands share a left
+   edge rather than centring, because a row of two and a row of eight centred on the same page
+   read as two different pages. */
+body.tv.tv-all{--wall-cap:20}
+body.tv.tv-all .grid.grid--cards{--card-w:min(var(--cell-w),calc(var(--wall-cap)*1vw));
+  --card-h:calc(var(--card-w)*var(--card-r));
+  grid-auto-rows:var(--card-h);align-content:start;justify-content:start;
+  margin:0;flex:none}
+body.tv.tv-all .panel--wall{margin-top:var(--s4)}
+body.tv.tv-all .wall__top{margin-bottom:var(--s4)}
+/* Nobody is driving, so the arrows step aside and the mode button stays. */
+body.tv.tv-all #tv-next,body.tv.tv-all #tv-prev{display:none}
