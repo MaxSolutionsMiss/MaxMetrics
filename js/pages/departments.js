@@ -757,7 +757,7 @@ function dataPane() {
       ].map(([icon, name, action, says]) => `<div class="panel">
         <div class="panel__head"><span class="card__ico" aria-hidden="true">${icon}</span>
           <h3 class="panel__title">${name}</h3></div>
-        <div class="panel__body">
+        <div class="panel__body panel__body--act">
           <p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">${says}</p>
           <a class="btn btn--primary" href="${back}${action}">${name} a morning</a>
         </div></div>`).join('')}
