@@ -847,7 +847,7 @@ function peoplePane() {
     return `<tr data-person="${esc(key)}">
       <td class="ppl__n">
         <span class="who__a who__a--sm" style="background:${
-          person.pending ? '#8A94A6' : '#5B46D9'}">${esc(initialsOf(person))}</span>
+          person.pending ? '#8A94A6' : '#6C4BB6'}">${esc(initialsOf(person))}</span>
         <b>${esc(person.pending ? person.email.split('@')[0] : person.full_name)}</b>
         ${person.pending ? '<span class="pill pill--info">Invited</span>' : ''}
         ${person.profile_id === state.me?.id ? '<span class="pill pill--ok">You</span>' : ''}

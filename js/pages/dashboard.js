@@ -1579,7 +1579,7 @@ function renderHeader() {
 function renderWho() {
   $('#who').innerHTML = state.team.map(person => `<span
     class="who__a${person.id === state.me?.id ? ' who__a--me' : ''}"
-    style="background:${esc(person.colour || '#5B46D9')}"
+    style="background:${esc(person.colour || '#6C4BB6')}"
     title="${esc(person.name || '')}${person.id === state.me?.id ? ' (you)' : ''}">${esc(person.initials || '')}</span>`).join('');
 }
 
@@ -1596,7 +1596,7 @@ function paintPresence() {
     const element = document.querySelector(`[data-pkey="${CSS.escape(person.at)}"]`);
     if (!element) continue;
     element.classList.add('is-live');
-    element.style.setProperty('--pres', person.colour || '#5B46D9');
+    element.style.setProperty('--pres', person.colour || '#6C4BB6');
     element.insertAdjacentHTML('afterbegin',
       `<span class="pres">${esc((person.name || '').split(' ')[0])}</span>`);
   }

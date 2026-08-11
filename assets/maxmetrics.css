@@ -1,45 +1,74 @@
-/* MaxMetrics — the one stylesheet.
-   Structure, spacing and the type ramp come from MaxDock so the two products feel
-   like one system. The identity colour does not: MaxDock owns the corporate blue and
-   status owns green, amber and red, so MaxMetrics takes violet. A brand element that
-   borrowed a status colour would read as a verdict on the number beside it. */
+/* MaxMetrics - the one stylesheet.
+   Every token below the accent is copied verbatim from MaxDock. That is deliberate and it
+   is the whole point: two products of one company should differ by their colour and by
+   nothing else. What used to differ was everything - a condensed display face against
+   MaxDock's single family, a 22px type ramp against its 21, 14px card corners against its
+   7, a shadow under every card where MaxDock has none. Each of those was defensible alone
+   and together they made a second product.
+
+   The accent is the one thing MaxMetrics owns. MaxDock has the corporate blue; green,
+   amber and red are spoken for by status, so a brand element in any of them would read as
+   a verdict on the number beside it. Violet sits outside all four. */
+@font-face{
+  font-family:'IBM Plex Sans';
+  font-style:normal;
+  font-weight:100 700;
+  font-display:swap;
+  /* Self-hosted rather than fetched from a CDN, which is what the system asks for: a plant
+     PC behind a proxy that blocks fonts.gstatic.com would otherwise fall through to
+     system-ui and draw a different product. One variable file covers every weight used. */
+  src:url(fonts/ibm-plex-sans.woff2) format('woff2');
+}
 :root{
-  /* MaxMetrics owns violet. MaxDock owns the corporate blue, and the dashboard's
-     green / amber / red are already spoken for by status, so the product colour has
-     to sit outside all three or a brand element reads as a verdict. */
-  --brand:#5B46D9; --brand-hover:#4A38B8; --brand-wash:#EDEAFC; --brand-deep:#3B2B96;
-  --ground:#EEF2F7; --surface:#FFFFFF; --sunk:#E5EAF1; --rule:#DDE3EC; --rule-strong:#C2CBD6;
-  --ink:#171A25; --ink-muted:#575D70; --ink-faint:#8A90A2;
+  /* THE ACCENT - the five values MaxMetrics changes, and the only ones. */
+  --brand:#6C4BB6; --brand-hover:#583D96; --brand-wash:#EFEAF8; --brand-deep:#3F2A6E;
+
+  /* NEUTRALS - identical to MaxDock. These are what make the two products siblings. */
+  --ground:#F6F8F9; --surface:#FFFFFF; --sunk:#EFF2F4;
+  --rule:#DCE2E6; --rule-strong:#C2CBD1;
+  --ink:#16202A; --ink-muted:#55636E; --ink-faint:#8A959E;
+
+  /* STATUS - reserved, never used for decoration. `signal` is attention, one step above
+     warn: slipping, priority, pending. */
+  --signal:#B8690E; --signal-wash:#FDF2E2;
   --ok:#1B7A4B; --ok-wash:#E6F2EC; --ok-rule:#B7DAC6;
-  --warn:#B8690E; --warn-wash:#FDF2E2; --warn-rule:#EFCE9E;
+  --warn:#8A6D00; --warn-wash:#FBF3D8; --warn-rule:#E3D49A;
   --stop:#B3261E; --stop-wash:#FBEAE9; --stop-rule:#EEBDB9;
-  --rail:#171A25; --rail-ink:#A6ABBD; --rail-rule:rgba(255,255,255,.09); --rail-label:#6B7188;
-  /* Two faces, the plant's own. Body copy is Barlow; every heading, label and number is
-     Barlow Condensed. The condensed face is not decoration — it is what lets a card title
-     read as a title at twenty pixels without wrapping, and a rate hold six digits at
-     fifty-six. The fallbacks are the ones the plant's file already named. */
-  /* Public Sans. Drawn for public-sector screens read by everyone, which is the same
-     problem as a plant screen read at eight feet by people who are not looking for long:
-     plain, even, unmistakable digits. One face — the condensed variable stays an alias so
-     the rules that ask for it keep working and the decision lives on one line. */
-  --font:'Public Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,'Helvetica Neue',Arial,sans-serif;
-  /* One typeface, which is what MaxDock does: its --font-data is deliberately an alias of
-     --font-ui rather than a second face. MaxMetrics was setting titles, labels and every
-     big number in a condensed width, so the family matched but the page did not — the
-     condensed face is narrower at every size and reads as a different product. Kept as a
-     variable rather than deleted so the 29 rules that ask for it keep working and the
-     decision lives in one line. */
-  /* Two faces again, and the reason is the plant's own dashboard: "DAYS SINCE LAST INJURY"
-     fits on one line there and truncates here, because a condensed face carries a title
-     across a narrow card and a normal-width one does not. One typeface was the tidier
-     rule; it cost the titles, and a title that reads "DAYS SINCE LAS…" is worse than two
-     families. Public Sans still sets everything that is a sentence. */
-  --font-condensed:'Barlow Condensed','Oswald','Arial Narrow',var(--font);
+  --rule-soft:#E7ECEF;
+
+  /* THE RAIL - the dark navigation column. Same ink as body text. */
+  --rail:#16202A; --rail-ink:#A8B4BE; --rail-rule:rgba(255,255,255,.08); --rail-label:#6B7A86;
+
+  /* ONE FACE, INCLUDING NUMBERS.
+     MaxMetrics set every title, label and figure in Barlow Condensed. The family matched
+     nothing MaxDock does and the width matched nothing either: a condensed face is narrower
+     at every size, so the two products read as two products even where the colours agreed.
+     Columns of digits still line up, because `body` sets `font-variant-numeric:tabular-nums`
+     globally - that, and not a second typeface, is what aligns figures.
+     `--font-condensed` stays as an alias so the rules that ask for it keep working and the
+     decision lives on one line rather than in forty. */
+  --font:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-condensed:var(--font);
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+
   --scale:1;
-  --t-micro:calc(12.5px*var(--scale)); --t-small:calc(14px*var(--scale)); --t-base:calc(15px*var(--scale));
-  --t-lead:calc(18px*var(--scale)); --t-title:calc(22px*var(--scale)); --t-metric:calc(28px*var(--scale));
-  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px;
-  --radius:6px; --radius-lg:14px; --rail-w:220px; --topbar-h:56px; --ctl-h:36px;
+  --t-micro:calc(11.5px*var(--scale)); --t-small:calc(13px*var(--scale));
+  --t-base:calc(14.5px*var(--scale)); --t-lead:calc(17px*var(--scale));
+  --t-title:calc(21px*var(--scale)); --t-metric:calc(27px*var(--scale));
+
+  /* A 4px spine. Never a value off this ladder. */
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px; --s7:48px;
+
+  /* Exactly two radii, and one control height for everything that can be clicked. */
+  --radius:5px; --radius-lg:7px;
+  --ctl-h:36px; --tap:44px; --topbar-h:52px; --rail-w:196px; --motion:.12s;
+
+  /* One shadow in the product, and it is for things that float above the page. A card is
+     not one of those: MaxDock's cards are a border on a white ground and nothing else. */
+  --shadow-overlay:0 12px 32px rgba(22,32,42,.16),0 2px 6px rgba(22,32,42,.08);
+  --shadow:none;
+  --chart-track:#E7ECEF;
+
   /* One card, one shape, for the whole page.
      The columns fall out of the width rather than the other way round, and the height is
      declared rather than left to the content. Letting each row take the height of whatever
@@ -70,37 +99,49 @@
   --card-bar:#4A5162;
   --card-r-max:1.6;
   --wall-cols:4; --wall-rows:1; --wall-cap:34; --wall-chrome:150px;
-  --shadow:0 1px 8px rgba(15,23,42,.07);
+  /* The title bar. One grey on every card, on purpose: the verdict lives in the number,
+     and a bar that changed colour with it would be a second, louder verdict. */
+  --card-bar:#4A5162;
+  --card-r-max:1.6;
 }
+/* Dark is MaxMetrics' own - MaxDock ships light only - so it keeps the same relationships
+   rather than inventing new ones: the neutrals slide, the accent lifts enough to hold
+   contrast on a dark ground, and status keeps its meaning. */
 @media (prefers-color-scheme:dark){:root[data-theme="auto"]{
-  --brand:#8A76F0; --brand-hover:#9E8DF5; --brand-wash:#1E1A40; --brand-deep:#BFB0FF;
-  --ground:#0D101A; --surface:#161A28; --sunk:#1E2333; --rule:#2A3044; --rule-strong:#3A4157;
-  --ink:#E8EAF2; --ink-muted:#9BA2B8; --ink-faint:#6E7590;
-  --ok:#4FBF85; --ok-wash:#12291E; --ok-rule:#265F42;
-  --warn:#E09A42; --warn-wash:#2B2013; --warn-rule:#6B4A1C;
-  --stop:#F0736A; --stop-wash:#2C1614; --stop-rule:#6E322C;
-  --rail:#090B12; --rail-rule:rgba(255,255,255,.07);
-  --shadow:0 1px 2px rgba(0,0,0,.45);
+  --brand:#A797F8; --brand-hover:#B9ACFA; --brand-wash:#1D1938; --brand-deep:#CFC3FF;
+  --ground:#0E1218; --surface:#161C24; --sunk:#1E2530; --rule:#2A323C; --rule-strong:#3C4653;
+  --ink:#E6EBF0; --ink-muted:#96A3B0; --ink-faint:#6E7C89;
+  --signal:#E09A42; --signal-wash:#2B2013;
+  --ok:#5CC48D; --ok-wash:#12291E; --ok-rule:#2A5C41;
+  --warn:#D2B24A; --warn-wash:#2A2411; --warn-rule:#5A4D20;
+  --stop:#F0857C; --stop-wash:#2B1615; --stop-rule:#5E2C28;
+  --rule-soft:#232B35;
+  --rail:#0A0E13; --rail-rule:rgba(255,255,255,.07);
+  --chart-track:#232B35;
 }}
 :root[data-theme="dark"]{
-  --brand:#8A76F0; --brand-hover:#9E8DF5; --brand-wash:#1E1A40; --brand-deep:#BFB0FF;
-  --ground:#0D101A; --surface:#161A28; --sunk:#1E2333; --rule:#2A3044; --rule-strong:#3A4157;
-  --ink:#E8EAF2; --ink-muted:#9BA2B8; --ink-faint:#6E7590;
-  --ok:#4FBF85; --ok-wash:#12291E; --ok-rule:#265F42;
-  --warn:#E09A42; --warn-wash:#2B2013; --warn-rule:#6B4A1C;
-  --stop:#F0736A; --stop-wash:#2C1614; --stop-rule:#6E322C;
-  --rail:#090B12; --rail-rule:rgba(255,255,255,.07);
-  --shadow:0 1px 2px rgba(0,0,0,.45);
+  --brand:#A797F8; --brand-hover:#B9ACFA; --brand-wash:#1D1938; --brand-deep:#CFC3FF;
+  --ground:#0E1218; --surface:#161C24; --sunk:#1E2530; --rule:#2A323C; --rule-strong:#3C4653;
+  --ink:#E6EBF0; --ink-muted:#96A3B0; --ink-faint:#6E7C89;
+  --signal:#E09A42; --signal-wash:#2B2013;
+  --ok:#5CC48D; --ok-wash:#12291E; --ok-rule:#2A5C41;
+  --warn:#D2B24A; --warn-wash:#2A2411; --warn-rule:#5A4D20;
+  --stop:#F0857C; --stop-wash:#2B1615; --stop-rule:#5E2C28;
+  --rule-soft:#232B35;
+  --rail:#0A0E13; --rail-rule:rgba(255,255,255,.07);
+  --chart-track:#232B35;
 }
 :root[data-theme="light"]{
-  --brand:#5B46D9; --brand-hover:#4A38B8; --brand-wash:#EDEAFC; --brand-deep:#3B2B96;
-  --ground:#EEF2F7; --surface:#FFFFFF; --sunk:#E5EAF1; --rule:#DDE3EC; --rule-strong:#C2CBD6;
-  --ink:#171A25; --ink-muted:#575D70; --ink-faint:#8A90A2;
+  --brand:#6C4BB6; --brand-hover:#583D96; --brand-wash:#EFEAF8; --brand-deep:#3F2A6E;
+  --ground:#F6F8F9; --surface:#FFFFFF; --sunk:#EFF2F4; --rule:#DCE2E6; --rule-strong:#C2CBD1;
+  --ink:#16202A; --ink-muted:#55636E; --ink-faint:#8A959E;
+  --signal:#B8690E; --signal-wash:#FDF2E2;
   --ok:#1B7A4B; --ok-wash:#E6F2EC; --ok-rule:#B7DAC6;
-  --warn:#B8690E; --warn-wash:#FDF2E2; --warn-rule:#EFCE9E;
+  --warn:#8A6D00; --warn-wash:#FBF3D8; --warn-rule:#E3D49A;
   --stop:#B3261E; --stop-wash:#FBEAE9; --stop-rule:#EEBDB9;
-  --rail:#171A25; --rail-rule:rgba(255,255,255,.09);
-  --shadow:0 1px 2px rgba(23,26,37,.06),0 1px 8px rgba(23,26,37,.04);
+  --rule-soft:#E7ECEF;
+  --rail:#16202A; --rail-rule:rgba(255,255,255,.08);
+  --chart-track:#E7ECEF;
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--font);
@@ -182,11 +223,10 @@ html[data-rail="mini"]{--rail-w:62px}
   position:sticky;top:0;z-index:20}
 /* The plant name at 28px was the largest thing in the chrome and read as the page title.
    It is neither — it is a switch, and one that gets used once a morning. */
-.top__loc{font-family:var(--font-condensed);font-size:calc(20px*var(--scale));font-weight:600;
-  letter-spacing:0;color:var(--ink);
+.top__loc{font-size:var(--t-lead);font-weight:600;letter-spacing:-.01em;color:var(--ink);
   background:none;border:none;font-family:inherit;cursor:pointer;padding:2px 22px 2px 0;
   appearance:none;-webkit-appearance:none;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='7'%3E%3Cpath d='M1 1l4.5 4.5L10 1' stroke='%235B46D9' stroke-width='1.9' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='7'%3E%3Cpath d='M1 1l4.5 4.5L10 1' stroke='%236C4BB6' stroke-width='1.9' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
   background-repeat:no-repeat;background-position:right center}
 /* The date and how far away it is, on one line. They were stacked, which cost the whole
    bar a second row of height to say "Yesterday" in — a word that is three characters wider
@@ -236,8 +276,11 @@ html[data-rail="mini"]{--rail-w:62px}
    a row of cards starting at the left edge gives the eye two different places to begin. */
 .sec__head{display:flex;align-items:center;gap:var(--s3)}
 body.tv .sec__head::before{content:"";flex:1;height:1.5px;background:var(--rule)}
-.sec__title{font-family:var(--font-condensed);font-size:calc(14px*var(--scale));font-weight:600;
-  text-transform:uppercase;letter-spacing:.16em;color:var(--ink-muted);margin:0;white-space:nowrap}
+/* MaxDock's page title: 21px, 600, tightened, sentence case. It was 14px, uppercase and
+   letterspaced to .16em - a treatment MaxDock uses nowhere, and one that reads as a label
+   for the section rather than as the name of it. */
+.sec__title{font-size:var(--t-title);font-weight:600;letter-spacing:-.015em;
+  color:var(--ink);margin:0;white-space:nowrap;text-transform:none}
 .sec__rule{flex:1;height:1.5px;background:var(--rule)}
 /* ── The verdict ──
    One line under the heading saying what the whole section comes to, so the meeting can
@@ -383,8 +426,8 @@ body.tv .verdict{font-size:var(--t-lead)}
    draft. In the bar the title has the whole width of the card rather than the width inside
    its padding, and `fitCards()` grows it until the longest title on the screen fills that —
    so it is as large as one line allows, and the same size on every card. */
-.card__label{font-family:var(--font-condensed);font-size:calc(19px*var(--scale));
-  font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#fff;
+.card__label{font-size:calc(15.5px*var(--scale));
+  font-weight:600;text-transform:none;letter-spacing:-.005em;color:#fff;
   line-height:1.12;text-align:center;min-width:0;overflow:hidden;
   white-space:nowrap;text-overflow:ellipsis}
 /* The heading stays ink whatever the verdict. A red title over a red number says the same
@@ -693,14 +736,14 @@ body.tv .verdict{font-size:var(--t-lead)}
 
 /* ── TABLE ── */
 .tbl{width:100%;border-collapse:collapse;font-size:var(--t-small)}
-.tbl th{font-family:var(--font-condensed);font-size:calc(12px*var(--scale));text-transform:uppercase;
-  letter-spacing:.07em;font-weight:700;
-  color:var(--ink-faint);text-align:left;padding:var(--s2);border-bottom:1px solid var(--rule);white-space:nowrap}
+.tbl th{font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.07em;font-weight:600;
+  color:var(--ink-muted);text-align:left;padding:var(--s2);background:var(--sunk);
+  border-bottom:1px solid var(--rule);white-space:nowrap}
 .tbl th.num,.tbl td.num{text-align:right;white-space:nowrap}
 .tbl td{padding:var(--s2);border-bottom:1px solid var(--rule);color:var(--ink)}
 .tbl tr:last-child td{border-bottom:none}
-.tbl .dept{font-family:var(--font-condensed);font-size:calc(16px*var(--scale));font-weight:700;
-  text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;color:var(--ink-muted)}
+.tbl .dept{font-size:var(--t-base);font-weight:600;text-transform:none;
+  letter-spacing:0;white-space:nowrap;color:var(--ink)}
 .tbl .big{font-family:var(--font-condensed);font-size:calc(19px*var(--scale));font-weight:700;letter-spacing:-.01em}
 .pill{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;
   text-transform:uppercase;letter-spacing:.05em}
@@ -732,8 +775,8 @@ body.tv .sec > .panel{max-width:none}
 .panel__head .card__ico{font-size:22px}
 .panel__head{display:flex;align-items:center;gap:var(--s2);padding:var(--s2) var(--s4);
   border-bottom:1px solid var(--rule);min-height:44px;flex:none}
-.panel__title{font-family:var(--font-condensed);font-size:calc(20px*var(--scale));font-weight:700;
-  text-transform:uppercase;letter-spacing:.04em;color:var(--ink-muted);margin:0;white-space:nowrap}
+.panel__title{font-size:var(--t-base);font-weight:600;letter-spacing:0;
+  text-transform:none;color:var(--ink);margin:0;white-space:nowrap}
 .panel__actions{margin-left:auto;display:flex;gap:var(--s2);align-items:center}
 .panel__body{padding:var(--s2) var(--s4) var(--s3);flex:1;min-width:0;overflow-x:auto}
 /* Three cards, three buttons, one line.
@@ -1104,8 +1147,8 @@ body.no-access .top::before{content:"MaxMetrics";font-size:var(--t-lead);font-we
 
 .content--view{padding-top:var(--s3)}
 body[data-view="line"] .chartpick{display:none}
-.eyebrow{font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.1em;
-  font-weight:700;color:var(--ink-faint)}
+.eyebrow{font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.07em;
+  font-weight:600;color:var(--ink-muted)}
 .tone--ok{color:var(--ok)}.tone--warn{color:var(--warn)}.tone--stop{color:var(--stop)}
 .tone--none{color:var(--ink-muted)}
 
@@ -1433,7 +1476,7 @@ body.tv .content.wall{display:flex;flex-direction:column;gap:var(--s4);
 .help__b{display:flex;flex-direction:column;gap:var(--s4);padding-top:var(--s3)}
 .hp{display:flex;flex-direction:column;gap:var(--s2)}
 .hp__h{display:flex;align-items:center;gap:var(--s2)}
-.hp__h .panel__title{font-size:calc(15px*var(--scale));color:var(--ink)}
+.hp__h .panel__title{font-size:var(--t-base);color:var(--ink)}
 .hp__b{display:flex;flex-direction:column;gap:var(--s2)}
 /* Getting a link out of SharePoint has now been attempted four times and lost four times,
    so the instructions live on the screen where the link is pasted rather than in a message
@@ -1447,8 +1490,7 @@ body.tv .content.wall{display:flex;flex-direction:column;gap:var(--s4);
 .lnkq{display:grid;grid-template-columns:repeat(auto-fit,minmax(17rem,1fr));gap:var(--s3)}
 .lnkq__b{display:flex;flex-direction:column;gap:5px;padding:var(--s3);
   border-radius:var(--radius);border:1px solid var(--rule)}
-.lnkq__b b{font-family:var(--font-condensed);font-size:calc(15px*var(--scale));
-  text-transform:uppercase;letter-spacing:.05em}
+.lnkq__b b{font-size:var(--t-base);font-weight:600;text-transform:none;letter-spacing:0}
 .lnkq__b code{font-size:var(--t-micro);word-break:break-all;line-height:1.5}
 .lnkq__b span{font-size:var(--t-micro);color:var(--ink-muted);line-height:1.55}
 .lnkq__b--no{background:var(--stop-wash);border-color:var(--stop-rule)}
@@ -1487,9 +1529,8 @@ body.tv .content.wall{display:flex;flex-direction:column;gap:var(--s4);
   box-shadow:inset 0 1px 0 var(--rule)}
 .sub__b[aria-current="true"],.sub__b[aria-current="true"] + .sub__b,.sub__b:hover,
 .sub__b:hover + .sub__b{box-shadow:none}
-.sub__b b{font-family:var(--font-condensed);font-size:calc(15px*var(--scale));font-weight:700;
-  text-transform:uppercase;letter-spacing:.05em;color:var(--ink);
-  display:flex;align-items:baseline;justify-content:space-between;gap:var(--s2)}
+.sub__b b{font-size:var(--t-base);font-weight:600;letter-spacing:0;text-transform:none;
+  color:var(--ink);display:flex;align-items:baseline;justify-content:space-between;gap:var(--s2)}
 .sub__b span{font-size:var(--t-micro);color:var(--ink-faint)}
 .sub__b:hover{background:var(--sunk)}
 .sub__b[aria-current="true"]{background:var(--brand-wash)}
@@ -1554,8 +1595,8 @@ body.tv .content.wall{display:flex;flex-direction:column;gap:var(--s4);
 .sheet::backdrop{background:rgba(15,23,42,.55)}
 .sheet__head{display:flex;align-items:center;gap:var(--s3);padding:var(--s4) var(--s5);
   border-bottom:1px solid var(--rule);position:sticky;top:0;background:var(--surface);z-index:2}
-.sheet__title{flex:1;margin:0;font-family:var(--font-condensed);font-size:calc(24px*var(--scale));
-  font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-muted)}
+.sheet__title{flex:1;margin:0;font-size:var(--t-title);font-weight:600;text-transform:none;
+  letter-spacing:-.015em;color:var(--ink)}
 .sheet__body{padding:var(--s4) var(--s5) var(--s5);overflow:auto;max-height:calc(88vh - 70px)}
 .sheet__sub{font-family:var(--font-condensed);font-size:calc(17px*var(--scale));font-weight:700;
   text-transform:uppercase;letter-spacing:.06em;color:var(--ink-muted);margin:var(--s5) 0 var(--s2)}
@@ -1631,8 +1672,8 @@ body.tv .util{display:none}
 .cfg__head{display:flex;align-items:center;gap:var(--s2);padding:var(--s2) var(--s4);
   border-bottom:1px solid var(--rule);background:var(--sunk);min-height:44px}
 .cfg__head .card__ico{font-size:22px}
-.cfg__name{margin:0;font-family:var(--font-condensed);font-size:calc(20px*var(--scale));
-  font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-muted)}
+.cfg__name{margin:0;font-size:var(--t-lead);font-weight:600;text-transform:none;
+  letter-spacing:-.01em;color:var(--ink)}
 .cfg__key{margin-left:auto;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
   font-size:var(--t-micro);color:var(--ink-faint);background:var(--ground);
   border:1px solid var(--rule);border-radius:4px;padding:2px 7px;white-space:nowrap}
@@ -1690,8 +1731,8 @@ body.tv .util{display:none}
   border-bottom:1px solid var(--rule)}
 .retired__r:last-child{border-bottom:none}
 .retired__r .card__ico{font-size:19px}
-.retired__r b{font-family:var(--font-condensed);font-size:calc(18px*var(--scale));font-weight:700;
-  text-transform:uppercase;letter-spacing:.04em;color:var(--ink-muted)}
+.retired__r b{font-size:var(--t-base);font-weight:600;text-transform:none;
+  letter-spacing:0;color:var(--ink)}
 .retired__r .btn{margin-left:auto}
 .retired__r .cfg__key{margin-left:0}
 
@@ -1839,10 +1880,9 @@ body.tv .util{display:none}
 .fg{background:var(--surface);border:1px solid var(--rule);
   border-radius:var(--radius-lg);padding:var(--s2) var(--s3) var(--s3);margin:0;
   box-shadow:var(--shadow)}
-.fg__h{margin:0 0 var(--s2);font-family:var(--font-condensed);font-weight:700;
-  font-size:calc(15px*var(--scale));text-transform:uppercase;letter-spacing:.09em;
-  color:var(--ink);display:flex;align-items:center;gap:var(--s2);
-  padding-bottom:var(--s2);border-bottom:1.5px solid var(--rule)}
+.fg__h{margin:0 0 var(--s2);font-weight:600;font-size:var(--t-base);letter-spacing:0;
+  text-transform:none;color:var(--ink);display:flex;align-items:center;gap:var(--s2);
+  padding-bottom:var(--s2);border-bottom:1px solid var(--rule)}
 .fg__n{margin-left:auto;font-size:calc(11px*var(--scale));letter-spacing:.06em;
   background:var(--warn-wash);color:var(--warn);padding:2px 7px;border-radius:3px}
 .fg__rows{display:flex;flex-direction:column;gap:2px}
