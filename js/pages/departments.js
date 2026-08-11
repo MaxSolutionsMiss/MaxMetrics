@@ -25,11 +25,11 @@ import {
   peopleAt, grantAccess, revokeAccess, setAdmin,
   createPerson, updatePerson, resetPersonPassword, removePerson,
   loadSources, saveSource, addSource, dropSource, pullSources,
-} from '../db.js?v=bbb7fd02021b';
+} from '../db.js?v=5dfbc1a11c41';
 import {
   esc, money, MONTHS, iconFor,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE,
-} from '../readings.js?v=bbb7fd02021b';
+} from '../readings.js?v=5dfbc1a11c41';
 
 const $ = selector => document.querySelector(selector);
 
@@ -847,7 +847,7 @@ function peoplePane() {
     return `<tr data-person="${esc(key)}">
       <td class="ppl__n">
         <span class="who__a who__a--sm" style="background:${
-          person.pending ? '#8A94A6' : '#5B46D9'}">${esc(initialsOf(person))}</span>
+          person.pending ? '#8A94A6' : '#6C4BB6'}">${esc(initialsOf(person))}</span>
         <b>${esc(person.pending ? person.email.split('@')[0] : person.full_name)}</b>
         ${person.pending ? '<span class="pill pill--info">Invited</span>' : ''}
         ${person.profile_id === state.me?.id ? '<span class="pill pill--ok">You</span>' : ''}

@@ -13,8 +13,8 @@ import {
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=bbb7fd02021b';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=bbb7fd02021b';
+} from '../db.js?v=5dfbc1a11c41';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=5dfbc1a11c41';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
@@ -22,7 +22,7 @@ import {
   isNa, isMissing,
   varianceChip, varianceTone, variancePct,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE,
-} from '../readings.js?v=bbb7fd02021b';
+} from '../readings.js?v=5dfbc1a11c41';
 
 const $ = selector => document.querySelector(selector);
 
@@ -1579,7 +1579,7 @@ function renderHeader() {
 function renderWho() {
   $('#who').innerHTML = state.team.map(person => `<span
     class="who__a${person.id === state.me?.id ? ' who__a--me' : ''}"
-    style="background:${esc(person.colour || '#5B46D9')}"
+    style="background:${esc(person.colour || '#6C4BB6')}"
     title="${esc(person.name || '')}${person.id === state.me?.id ? ' (you)' : ''}">${esc(person.initials || '')}</span>`).join('');
 }
 
@@ -1596,7 +1596,7 @@ function paintPresence() {
     const element = document.querySelector(`[data-pkey="${CSS.escape(person.at)}"]`);
     if (!element) continue;
     element.classList.add('is-live');
-    element.style.setProperty('--pres', person.colour || '#5B46D9');
+    element.style.setProperty('--pres', person.colour || '#6C4BB6');
     element.insertAdjacentHTML('afterbegin',
       `<span class="pres">${esc((person.name || '').split(' ')[0])}</span>`);
   }
