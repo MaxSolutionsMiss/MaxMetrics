@@ -1525,10 +1525,18 @@ body.tv .util{display:none}
 .fill__say{margin:0;font-size:var(--t-small);color:var(--ink-muted);max-width:62ch;line-height:1.5}
 .fill__go{display:flex;gap:var(--s2)}
 
-/* Columns, not a grid: a group is as tall as its rows and the next one starts underneath. */
-.fill__grid{columns:3 22rem;column-gap:var(--s4)}
-.fg{break-inside:avoid;background:var(--surface);border:1px solid var(--rule);
-  border-radius:var(--radius-lg);padding:var(--s3) var(--s4) var(--s3);margin:0 0 var(--s4);
+/* Three assigned columns, not a masonry flow.
+   Flowed, the browser decided where each group landed: Sales came under Shipping one morning
+   and under Safety the next, and nobody could learn where anything was. Assigned, the screen
+   is the same screen every day \u2014 people and quality, then the floor, then what left the
+   building \u2014 and the two groups that are sentences rather than numbers take the full width
+   underneath, because a note wants a line to write on. */
+.fill__grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--s4);
+  align-items:start}
+.fill__col{display:flex;flex-direction:column;gap:var(--s4);min-width:0}
+.fg--wide{grid-column:1/-1}
+.fg{background:var(--surface);border:1px solid var(--rule);
+  border-radius:var(--radius-lg);padding:var(--s3) var(--s4) var(--s3);margin:0;
   box-shadow:var(--shadow)}
 .fg__h{margin:0 0 var(--s2);font-family:var(--font-condensed);font-weight:700;
   font-size:calc(15px*var(--scale));text-transform:uppercase;letter-spacing:.09em;
@@ -1572,5 +1580,33 @@ body.tv .util{display:none}
 .fr__t{font-family:inherit;font-size:var(--t-small);min-height:32px;padding:6px var(--s2);
   line-height:1.45;resize:vertical}
 
-@media(max-width:900px){.fill__top{grid-template-columns:1fr}
+/* A group whose rows are sentences spreads them across the width instead of stacking them
+   in a column a third as wide. */
+.fg--across .fg__rows{display:grid;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));
+  gap:var(--s2) var(--s4);align-items:start}
+.fg__add{margin-left:auto;height:24px;padding:0 8px;font-size:var(--t-micro)}
+
+/* Maintenance is six things on a line, so it gets six columns rather than a name and a box. */
+.fr--maint{grid-template-columns:minmax(0,1.1fr) minmax(0,1.2fr) 4.2rem minmax(0,1.6fr) 8.4rem
+  minmax(0,.9fr) 1.6rem;align-items:center;gap:var(--s2)}
+.fr--maint .fr__i{text-align:left}
+.fr--maint .fr__i--h{text-align:right}
+.fr--head{padding-bottom:2px;border-bottom:1px solid var(--rule-soft);margin-bottom:2px}
+.fr--head span{font-family:var(--font-condensed);font-size:var(--t-micro);font-weight:700;
+  text-transform:uppercase;letter-spacing:.07em;color:var(--ink-faint)}
+
+/* Publishing belongs where a person finishes, not where they start \u2014 and the top bar's own
+   Publish and Edit buttons say nothing here that this screen does not already say. */
+.fill__end{display:flex;align-items:center;justify-content:space-between;gap:var(--s4);
+  flex-wrap:wrap;background:var(--surface);border:1px solid var(--rule);
+  border-radius:var(--radius-lg);padding:var(--s3) var(--s4);box-shadow:var(--shadow)}
+.fill__end p{margin:0;font-size:var(--t-small);color:var(--ink-muted);max-width:60ch}
+.fill__end b{color:var(--warn)}
+body[data-view="fill"] #edit-btn,body[data-view="fill"] #publish-btn{display:none}
+
+@media(max-width:1200px){.fill__grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:820px){.fill__grid{grid-template-columns:minmax(0,1fr)}
+  .fill__top{grid-template-columns:1fr}
+  .fr--maint{grid-template-columns:1fr 1fr;gap:4px}
+  .fr--maint .fr--head,.fr--head{display:none}
   .fill__go{justify-content:flex-start}}
