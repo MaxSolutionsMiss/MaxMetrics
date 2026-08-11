@@ -13,8 +13,8 @@ import {
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=5dfbc1a11c41';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=5dfbc1a11c41';
+} from '../db.js?v=3ba8472ea0c8';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=3ba8472ea0c8';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
@@ -22,7 +22,7 @@ import {
   isNa, isMissing,
   varianceChip, varianceTone, variancePct,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE,
-} from '../readings.js?v=5dfbc1a11c41';
+} from '../readings.js?v=3ba8472ea0c8';
 
 const $ = selector => document.querySelector(selector);
 
@@ -964,7 +964,10 @@ const SECTIONS = {
             <span>${esc(t.sub)}</span></button>`).join('')}
         </nav>
         <div class="sub__body">
-          <div class="fill__grid${at === '_all' ? '' : ' fill__grid--one'}">${groups}</div>
+          <div class="fill__grid${at === '_all' ? '' : ' fill__grid--one'}">${groups}
+          <!-- Inside the grid, spanning it, so the buttons finish where the last column
+               finishes. Outside it they sat against the right edge of the pane, which on a
+               screen whose columns pack left is a foot belonging to nothing above it. -->
           <div class="fill__end">
             <p>${gaps.length ? `<b>${gaps.length}</b> left across the morning`
               : published ? 'Published' : 'Nothing left to fill in'}</p>
@@ -976,7 +979,7 @@ const SECTIONS = {
                 gaps.length ? `Publish anyway \u2014 ${gaps.length} missing`
                   : published ? 'Publish again' : 'Publish this morning'}</button>` : ''}
             </div>
-          </div>
+          </div></div>
         </div>
       </div>
     </div>`;
@@ -1691,7 +1694,7 @@ function sectionFill(key) {
       </div>
       ${sourceStrip()}
     </div>
-    <div class="fill__grid fill__grid--one">${body}</div>
+    <div class="fill__grid fill__grid--one">${body}
     <div class="fill__end">
       <p>Every box writes as you leave it — Save is here because a screen that saves
         invisibly gives nobody a reason to believe it did.</p>
@@ -1700,7 +1703,7 @@ function sectionFill(key) {
         ${state.canEdit ? `<button class="btn btn--go" data-save-section="${esc(key)}">${
           next ? `Save — on to ${TITLES[next]}` : 'Save'}</button>` : ''}
       </div>
-    </div>
+    </div></div>
   </div>`;
 }
 
