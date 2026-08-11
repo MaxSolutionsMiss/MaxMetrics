@@ -778,9 +778,12 @@ body.tv .sec > .panel{max-width:none}
   font-weight:600}
 .tick2 input{accent-color:var(--warn);width:14px;height:14px;margin:0}
 textarea.inp{height:auto;min-height:54px;padding:var(--s2);resize:vertical;line-height:1.5}
-body:not(.editing) .ez,body:not(.editing) .edit-only{display:none!important}
+/* The entry screen is always in edit mode, because that is what it is for. Everywhere else
+   the fields stay closed until somebody asks for them. */
+body:not(.editing):not([data-view="fill"]) .ez,
+body:not(.editing):not([data-view="fill"]) .edit-only{display:none!important}
 /* And the value steps aside when its field takes the cell. */
-body.editing .view-only{display:none!important}
+body.editing .view-only,body[data-view="fill"] .view-only{display:none!important}
 /* A field in a table cell, sized for what goes in it. Nothing on this product needs more
    than seven digits, and a full-width input under a table is how the entry screens ended up
    twice as tall as the tables they belonged to. */
@@ -1497,3 +1500,77 @@ body.tv .util{display:none}
   text-transform:uppercase;letter-spacing:.04em;color:var(--ink-muted)}
 .retired__r .btn{margin-left:auto}
 .retired__r .cfg__key{margin-left:0}
+
+
+/* ── ENTER ──────────────────────────────────────────────────────────────────────
+   One screen for filling the morning in.
+
+   The dashboard was one page doing three jobs — filling it in, reading it, and showing it
+   ten metres away — and each wants a different density. Filling it in was losing: you
+   scrolled past a graph to reach a box, and the box sat on a card sized for a room. This
+   screen has no charts, no verdict colour except where something is wrong, and no card
+   larger than the words in it. Everything the room reads is untouched, one click away.
+
+   Groups flow into columns rather than sitting in a grid, so a plant with four departments
+   and a plant with nine both get a screen with no gaps in it. */
+.fill{display:flex;flex-direction:column;gap:var(--s4)}
+.fill__top{display:grid;grid-template-columns:auto 1fr auto;align-items:center;
+  gap:var(--s3) var(--s5);background:var(--surface);border:1px solid var(--rule);
+  border-radius:var(--radius-lg);padding:var(--s3) var(--s4);box-shadow:var(--shadow)}
+.fill__count{display:flex;align-items:baseline;gap:var(--s2);white-space:nowrap}
+.fill__count b{font-family:var(--font-condensed);font-size:calc(38px*var(--scale));
+  font-weight:600;line-height:1}
+.fill__count span{font-family:var(--font-condensed);font-size:calc(14px*var(--scale));
+  text-transform:uppercase;letter-spacing:.07em;font-weight:700;color:var(--ink-muted)}
+.fill__say{margin:0;font-size:var(--t-small);color:var(--ink-muted);max-width:62ch;line-height:1.5}
+.fill__go{display:flex;gap:var(--s2)}
+
+/* Columns, not a grid: a group is as tall as its rows and the next one starts underneath. */
+.fill__grid{columns:3 22rem;column-gap:var(--s4)}
+.fg{break-inside:avoid;background:var(--surface);border:1px solid var(--rule);
+  border-radius:var(--radius-lg);padding:var(--s3) var(--s4) var(--s3);margin:0 0 var(--s4);
+  box-shadow:var(--shadow)}
+.fg__h{margin:0 0 var(--s2);font-family:var(--font-condensed);font-weight:700;
+  font-size:calc(15px*var(--scale));text-transform:uppercase;letter-spacing:.09em;
+  color:var(--ink);display:flex;align-items:center;gap:var(--s2);
+  padding-bottom:var(--s2);border-bottom:1.5px solid var(--rule)}
+.fg__n{margin-left:auto;font-size:calc(11px*var(--scale));letter-spacing:.06em;
+  background:var(--warn-wash);color:var(--warn);padding:2px 7px;border-radius:3px}
+.fg__rows{display:flex;flex-direction:column;gap:5px}
+.fg__note{margin:var(--s2) 0 0;padding-top:var(--s2);border-top:1px solid var(--rule-soft);
+  font-size:var(--t-micro);color:var(--ink-faint);line-height:1.45}
+
+/* A row is a name, a box, and what the box does to the morning. The third column is the
+   whole point: you watch the rate move as you type the hours. */
+.fr{display:grid;grid-template-columns:1fr 8.4rem minmax(5rem,auto);align-items:center;
+  gap:var(--s2);padding:2px 0}
+.fr__l{font-size:var(--t-small);color:var(--ink);min-width:0;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.fr__i{height:30px;font-size:var(--t-small);text-align:right;
+  font-variant-numeric:tabular-nums}
+.fr__x{font-size:var(--t-micro);color:var(--ink-faint);text-align:right;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.fr__x b{font-family:var(--font-condensed);font-size:calc(15px*var(--scale));font-weight:700;
+  color:var(--ink)}
+.fr__x em{font-style:normal;text-transform:uppercase;letter-spacing:.08em;font-weight:700;
+  font-size:calc(9.5px*var(--scale));color:var(--ink-faint)}
+/* A value a file already filled is shown, and quiet. Nobody has to visit it; anybody can
+   correct it. */
+.fr--file .fr__i{background:var(--sunk);color:var(--ink-muted);border-style:dashed}
+.fr--file .fr__i:focus{background:var(--surface);color:var(--ink);border-style:solid}
+/* And one nobody has filled yet says so, once, in the only colour on the screen. */
+.fr--todo .fr__i{border-color:var(--warn)}
+.fr__pair{display:contents}
+.fr--ot{grid-template-columns:1fr 5rem minmax(0,2fr)}
+.fr--ot .fr__x{text-align:left;white-space:normal;overflow:visible}
+.fr--ot .ticks{justify-content:flex-start}
+.fr--note{grid-template-columns:1fr 6.5rem;row-gap:4px;align-items:start;padding:5px 0}
+.fr--note .fr__l{padding-top:6px}
+.fr--note .fr__t{grid-column:1/-1}
+.fr--wide{grid-template-columns:1fr}
+.fr__i--s{text-align:left;padding:0 4px}
+.fr__t{font-family:inherit;font-size:var(--t-small);min-height:32px;padding:6px var(--s2);
+  line-height:1.45;resize:vertical}
+
+@media(max-width:900px){.fill__top{grid-template-columns:1fr}
+  .fill__go{justify-content:flex-start}}
