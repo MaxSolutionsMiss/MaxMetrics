@@ -45,7 +45,7 @@ const state = {
   metrics: null, departments: [], review: [], maintenance: [], labour: [], config: [], budgets: [],
   machines: [], upcoming: [],
   history: { metrics: [], departments: [] }, year: [], findings: [], verdicts: {}, plant: null,
-  team: [], live: null, wallStep: 0,
+  team: [], live: null, wallStep: 0, wallMode: 'walk',
 };
 
 // ── Reading the loaded morning ──────────────────────────────────────────────────
@@ -204,7 +204,7 @@ function coqCard(kind, label, valueField, targetField) {
 
 // A note is a list of things, so it is drawn as one.
 //
-// Whoever writes the morning review types one problem per line — "Die 4 slow overnight",
+// Whoever writes the day's review types one thing per line — "Die 4 slow on nights",
 // "waiting on a plate" — and it came out as a paragraph with the line breaks collapsed, so
 // three problems read as one long sentence. Every line is a bullet; a single line is left
 // as a sentence, because one bullet is not a list.
@@ -657,7 +657,7 @@ function fillMaintenance() {
 
 function fillNotes() {
   const list = configured();
-  return fgroupWide('What happened overnight', () => {
+  return fgroupWide('The last 24 hours', () => {
     const rows = list.map(config => {
       const row = state.review.find(r => r.dept_key === config.key) || {};
       return `<div class="fr fr--note">
@@ -666,7 +666,7 @@ function fillNotes() {
           ${[['ok', 'No issue'], ['warn', 'Warning'], ['stop', 'Issue']].map(([v, t]) =>
             `<option value="${v}"${row.status === v ? ' selected' : ''}>${t}</option>`).join('')}
         </select>
-        <textarea class="inp fr__t" rows="1" placeholder="one problem per line"
+        <textarea class="inp fr__t" rows="1" placeholder="what happened \u2014 one per line"
           data-field="review:${esc(config.key)}:note">${esc(row.note || '')}</textarea>
       </div>`;
     });
@@ -1526,16 +1526,47 @@ function wallPages() {
     // cannot carry it and a card was never what was being asked for.
     const panel = holder.querySelector('.panel--wall');
     if (!cards.length && !panel) continue;
-    pages.push({ key, ...bestGrid(Math.max(1, cards.length), panel ? 0.52 : 1),
+    // On one page a section is a band rather than a screen, so the cards are dealt across
+    // the width and the height comes from the card's own ratio. The walk keeps the whole
+    // screen and chooses its arrangement to fill it.
+    const deal = state.wallMode === 'all'
+      ? { cols: Math.min(cards.length, 4), rows: Math.ceil(cards.length / Math.min(cards.length, 4)) }
+      : bestGrid(Math.max(1, cards.length), panel ? 0.52 : 1);
+    pages.push({ key, ...deal,
                  html: cards.map(card => card.outerHTML).join(''),
                  panel: panel ? panel.outerHTML : '' });
   }
   return pages;
 }
 
+// Two shapes, because two rooms want two different things.
+//
+// The walk is a meeting: one section at a screen, driven by a person, each card as large as
+// the screen allows. One page is a broadcast: the whole plant at once on a screen nobody is
+// standing at, scrolling if it must, which is what the dashboard this replaces has always
+// been and what the floor is used to reading. Same cards, same judgement, same sizing rules
+// — the only difference is how many are on screen at once and who is driving.
+function renderWallPage(pages) {
+  const content = $('#content');
+  content.className = 'content wall wall--all';
+  content.innerHTML = `
+    <div class="wall__top">
+      <h2>${esc(state.locations.find(l => l.id === state.location)?.name || '')} \u00b7 the morning</h2>
+      <span class="wall__date">${$('#date-long').textContent}</span>
+    </div>
+    ${pages.map(page => `<section class="sec">
+      <div class="sec__head"><h3 class="sec__title">${esc(TITLES[page.key])}</h3>
+        <div class="sec__rule"></div></div>
+      ${page.html ? `<div class="grid grid--cards"
+           style="--wall-cols:${page.cols};--wall-rows:${page.rows}">${page.html}</div>` : ''}
+      ${page.panel || ''}
+    </section>`).join('')}`;
+}
+
 function renderWall() {
   const pages = wallPages();
   if (!pages.length) return;
+  if (state.wallMode === 'all') return renderWallPage(pages);
   const at = ((state.wallStep % pages.length) + pages.length) % pages.length;
   const page = pages[at];
   const content = $('#content');
@@ -1839,12 +1870,22 @@ const step = direction => {
 };
 $('#tv-btn').addEventListener('click', () => {
   document.body.classList.add('tv');
+  document.body.classList.toggle('tv-all', state.wallMode === 'all');
+  $('#tv-mode').textContent = state.wallMode === 'all' ? 'One at a time' : 'One page';
   state.wallStep = 0;
   render();
 });
 $('#tv-exit').addEventListener('click', () => { document.body.classList.remove('tv'); render(); });
 $('#tv-next').addEventListener('click', () => step(1));
 $('#tv-prev').addEventListener('click', () => step(-1));
+$('#tv-mode').addEventListener('click', () => {
+  state.wallMode = state.wallMode === 'all' ? 'walk' : 'all';
+  document.body.classList.toggle('tv-all', state.wallMode === 'all');
+  $('#tv-mode').textContent = state.wallMode === 'all' ? 'One at a time' : 'One page';
+  state.wallStep = 0;
+  renderWall();
+  fitCards();
+});
 
 document.addEventListener('keydown', event => {
   if (!document.body.classList.contains('tv')) return;

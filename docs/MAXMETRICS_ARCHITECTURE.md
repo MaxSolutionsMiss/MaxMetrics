@@ -752,6 +752,22 @@ floored at the normal card height — but almost nothing needs it any more. `fit
 sees the fields: they are hidden during the measuring pass, because a card is sized for the
 morning meeting, not for the two minutes somebody is filling it in.
 
+## Present has two shapes
+
+Two rooms want two different things from the same morning, so present mode asks which.
+
+**The walk** is a meeting: one section a screen, driven by a person, each card as large as
+the screen allows and the arrangement chosen to fill it. **One page** is a broadcast: the
+whole plant at once on a screen nobody is standing at, sections stacked as bands with their
+own headings, scrolling if it must. That is what the dashboard this replaces has always been
+and what the floor is used to reading, so it is an option rather than a replacement.
+
+The cards, the judgement and the sizing rules are identical. What differs is how many are on
+screen at once and who is driving: a band deals up to four across at a fifth of the width and
+takes its height from the card's own ratio, where a screen deals whatever `bestGrid` says
+fills it. Bands share a left edge, because a row of two and a row of eight centred on the
+same page read as two different pages. And with nobody driving, the arrows step aside.
+
 ## One table reaches the wall
 
 Only cards go up on the wall. A five-row table read from ten metres is a slide with nothing
