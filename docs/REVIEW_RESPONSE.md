@@ -3,6 +3,12 @@
 *11 August 2026. Written against the code as it stands at commit `9217343`, with every claim
 below checked in the source or the database rather than taken on trust.*
 
+> **Status, 11 August 2026.** All six phases below are built and published — commit
+> `838806e`, live on `gh-pages`. What was *not* taken is set out in §3: the collage stays and
+> the overview was added beside it, the rail keeps its sections, and the per-metric EAV table
+> was deliberately not built. The two questions at the end that no longer need answering have
+> been struck.
+
 ---
 
 ## The short version
@@ -376,11 +382,25 @@ would do them whether or not you want the rest.
 
 ---
 
-## 9. What I need from you
+## 9. What was decided
 
-1. **The one page** — keep the 27-card collage and add the six-tile Overview beside it, as I
-   recommend? Or replace it, as the review asks?
-2. **The renames** — take "Morning summary" only, or the reviewer's full set?
-3. **Who may publish an incomplete morning** — anybody with a reason, or only a named role?
-4. **Auto-rotation** — is there actually a TV running this yet, or is Phase 5 speculative?
-5. **Go on Phases 1 and 2 now**, before the rest is settled?
+1. **The one page** — kept. The six-tile Overview was added as a third shape beside it, so
+   present mode is walk / one page / overview and the plant picks which the TV runs.
+2. **The renames** — "Morning summary" only. The rail keeps its sections.
+3. **Who may publish an incomplete morning** — anybody who can edit the plant, with a reason
+   that travels with the publication. A named-role restriction can be added later on top of
+   `publications.incomplete` without changing anything else.
+4. **Auto-rotation** — built, off by default, and only on the walk, which is the only shape
+   with anywhere to go.
+5. **The per-metric table** the review asked for was not built. Freezing the targets onto the
+   day and appending publication revisions gets the value it was after; the full rewrite waits
+   for the second plant.
+
+## 10. Still open
+
+- The ingest endpoint and the Windows watcher are written and not deployed.
+- The OTIF parser has never seen the real file.
+- 2026 uptime and make-ready targets exist for printing only.
+- Leaked-password protection is still off in Supabase Auth — a toggle, not code.
+- `stale` is defined and only half-wired: `source_seen` is stamped by the browser importer, so
+  a morning imported through the unfinished edge function will not carry it yet.
