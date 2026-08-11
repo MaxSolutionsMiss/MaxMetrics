@@ -1319,6 +1319,14 @@ body.tv .content.wall{display:flex;flex-direction:column;gap:var(--s4);
   overflow:hidden;text-overflow:ellipsis}
 .cfg__fams{display:grid;grid-template-columns:repeat(auto-fit,minmax(12rem,1fr));
   gap:6px var(--s3);margin-top:var(--s2)}
+/* Adding somebody is one line: who, what they may do, and the button. Three controls in a
+   row rather than a form, because it is the thing this screen exists for and it should not
+   look like paperwork. */
+.addp{display:flex;gap:var(--s2);flex-wrap:wrap;align-items:center}
+.addp .inp{width:auto;flex:1 1 16rem;min-width:12rem}
+.addp select.inp{flex:0 0 9rem}
+.addp .btn{flex:none}
+.tbl .who__a{margin-right:var(--s2);vertical-align:-3px}
 .wall__empty{display:grid;place-items:center;flex:1;color:var(--ink-muted);font-size:var(--t-title)}
 /* The readings that rode along under an area's worst one. Present, so nothing is
    hidden; quiet, so the meeting hears the story once. */

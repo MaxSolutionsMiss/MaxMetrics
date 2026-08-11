@@ -1320,3 +1320,65 @@ control and the browser's own autofill for everybody else.
 Every input, select and textarea on the product now carries one of the three ways of saying
 what it is, and `verify-maxmetrics.mjs` fails the build if a new one does not — so it cannot
 come back the next time somebody adds a row.
+
+## People, and who may change a plant
+
+The grants have existed since the first migration — `profile_locations.can_edit` and
+`profiles.is_admin` — and there was never a way to set either without writing SQL. A plant
+that cannot add the person covering Thursdays shares a login, and a shared login is how a
+dashboard loses the ability to say who entered a number.
+
+Three levels, because a folding-carton plant does not have a permissions problem:
+
+| | |
+|---|---|
+| **No access** | the plant is not on their list |
+| **View only** | they read the morning and cannot change a number |
+| **Can edit** | they fill it in and publish it |
+
+Administrator is a separate question — it is about MaxMetrics rather than about a plant — so
+it is a tick on the person rather than a fourth level, and nobody can remove their own.
+
+Three things needed a function rather than a table. Reading the list needs the email, and
+emails live in `auth.users`, which a page cannot reach and should not be able to; `people_at`
+is the one door, administrators only. Adding somebody who has not signed up yet has nothing
+to grant access *to*, so `grant_access` puts it in `pending_access` and the signup trigger
+collects it — which means "add the new coordinator" is the same two clicks whether or not
+they have opened the invitation. And all of it is checked with `is_admin()` in the database,
+so hiding the pane is a courtesy rather than the lock.
+
+## What a file actually contains
+
+The import preview was the weakest thing on the product, and it failed in the way that is
+hardest to spot: it was correct and useless.
+
+Drop the DOR on a Tuesday whose Monday shifts have not been keyed yet and the screen said
+"0 shifts across 0 departments", greyed out Apply, and left somebody to conclude the importer
+does not work. The file had **thirteen years and 41,566 shifts** in it. `windowFor()` asks
+for one window — the days since the last morning — and if the file stops before that window
+there is nothing to show. That is right, and saying nothing about the other four thousand
+days was not.
+
+The panel answers three questions in order now.
+
+**What are these files.** One row each: the name, what it was taken for, how many rows, and
+the dates it spans. A file that could not be opened, or that was opened and not recognised,
+appears in the same list in red rather than in a note at the bottom nobody scrolls to.
+
+**What does this morning get.** The coverage strip names the *file* each section comes from —
+"Production · DOR", "Quality · KPI workbook" — and marks the rest "not in these files", with
+a line saying in as many words that this is not a fault: a quality workbook does not carry
+safety and never did. When the open morning gets nothing, it says so in dates: *this morning
+reports 10 August, and the production in these files stops at 9 August.*
+
+**What else is in them.** `morningFor()` is the inverse of `windowFor()` — production dated
+Friday, Saturday or Sunday all belongs to the following Monday — so every day of shifts in
+the file maps to the morning that reports it. Subtract the mornings the plant already has and
+what is left is offered: *these files also cover 300 mornings between 13 June 2025 and 10
+August 2026 that MaxMetrics has no reading for.* Ticked by default, capped at 300, written
+through `import_morning`, which coalesces — so a catch-up can fill gaps and can never take a
+number somebody typed.
+
+That last part is what turns the DOR from a one-day file into the plant's history: the
+seven-day lines, last week's productivity and the year behind every card fill themselves from
+a file that was already on the network.
