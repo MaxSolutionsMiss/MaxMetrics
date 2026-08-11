@@ -485,6 +485,9 @@ function frow(label, name, attrs, { echo = '', source = '', chase = true } = {})
   </label>`;
 }
 
+const fgroupWide = (title, rows, note) =>
+  fgroup(title, rows, note).replace('class="fg"', 'class="fg fg--wide fg--across"');
+
 const fgroup = (title, rows, note) => {
   const before = toGo;
   const body = rows();
@@ -616,9 +619,45 @@ function fillOvertime() {
   }).join(''), 'Leave a department blank if it is not running overtime.');
 }
 
+// Maintenance is a group like every other group here. It was the section's own panel dropped
+// at the foot of the page, which made it the one thing on the screen that looked like it came
+// from somewhere else — and it is six columns wide, so it takes the full row rather than a
+// third of one.
+function fillMaintenance() {
+  const items = upcomingItems();
+  const depts = state.config.filter(c => c.active !== false);
+  const pick = (name, list, chosen, blank) => `<select class="inp fr__i fr__i--s" data-field="${name}">
+    <option value="">${blank}</option>${list.map(o =>
+      `<option value="${esc(o)}"${o === chosen ? ' selected' : ''}>${esc(o)}</option>`).join('')}</select>`;
+  const rows = items.map(m => {
+    const machines = machinesIn(deptKeyOf(m.dept)).map(x => x.name);
+    return `<div class="fr fr--maint" data-pkey="maint-${esc(m.id)}">
+      ${pick(`maint:${esc(m.id)}:dept`, depts.map(d => d.name), m.dept, 'Department')}
+      ${pick(`maint:${esc(m.id)}:machine`, machines, m.machine, 'Machine')}
+      <input class="inp fr__i fr__i--h" type="number" step="0.5" min="0" placeholder="hrs"
+        data-field="maint:${esc(m.id)}:hours" value="${m.hours ?? ''}">
+      <input class="inp fr__i" type="text" placeholder="what for"
+        data-field="maint:${esc(m.id)}:note" value="${esc(m.note || m.item_type || '')}">
+      <input class="inp fr__i fr__i--d" type="date"
+        data-field="maint:${esc(m.id)}:scheduled_on" value="${m.scheduled_on || ''}">
+      ${pick(`maint:${esc(m.id)}:status`, MAINT_STATUS, m.status, m.status)}
+      <button class="lnk" data-drop-maint="${esc(m.id)}" aria-label="Remove this item">×</button>
+    </div>`;
+  });
+  return `<section class="fg fg--wide">
+    <h3 class="fg__h">Upcoming maintenance
+      <button class="btn btn--ghost fg__add" id="maint-add">Add an item</button></h3>
+    <div class="fg__rows">
+      <div class="fr fr--maint fr--head"><span>Department</span><span>Machine</span>
+        <span>Hours</span><span>What for</span><span>When</span><span>Status</span><span></span></div>
+      ${rows.join('') || '<p class="fg__note">Nothing booked in.</p>'}
+    </div>
+  </section>`;
+}
+
 function fillNotes() {
   const list = configured();
-  return fgroup('What happened overnight', () => {
+  return fgroupWide('What happened overnight', () => {
     const rows = list.map(config => {
       const row = state.review.find(r => r.dept_key === config.key) || {};
       return `<div class="fr fr--note">
@@ -647,26 +686,36 @@ const SECTIONS = {
   // The entry screen. See the block above it for why this is its own surface.
   fill: () => {
     toGo = 0;
-    const groups = [fillSafety(), fillQuality(), fillProduction(), fillShipping(),
-                    fillMoney(), fillOvertime(), fillNotes()].join('');
+    // Three columns of numbers, then the two things that are sentences and take the width.
+    // Assigned rather than flowed: masonry put Sales under Shipping one morning and under
+    // Safety the next, so nobody could learn where anything was.
+    const groups = `<div class="fill__col">${fillSafety()}${fillQuality()}</div>
+      <div class="fill__col">${fillProduction()}${fillMoney()}</div>
+      <div class="fill__col">${fillShipping()}${fillOvertime()}</div>
+      ${fillNotes()}${fillMaintenance()}`;
     const published = state.metrics?.status === 'published';
     return `<div class="fill">
       <div class="fill__top">
         <div class="fill__count">
           <b class="${toGo ? 'tone--warn' : 'tone--ok'}">${toGo || 'Nothing'}</b>
-          <span>${toGo ? `still to fill in` : 'left to fill in'}</span>
+          <span>${toGo ? 'still to fill in' : 'left to fill in'}</span>
         </div>
         <p class="fill__say">Everything else arrives from the DOR, the OTIF sheet and the
           monthly KPI workbook, and is shown here so it can be corrected \u2014 not so it has to
           be typed.</p>
+      </div>
+      <div class="fill__grid">${groups}</div>
+      <div class="fill__end">
+        <p>${toGo ? `<b>${toGo}</b> still to fill in. Publishing shows this morning on every
+              screen \u2014 you can keep editing afterwards.`
+          : published ? 'Published. Every screen is showing this morning.'
+          : 'Nothing left to fill in.'}</p>
         <div class="fill__go">
           <button class="btn" data-nav="overview">See the cards</button>
           ${state.canEdit ? `<button class="btn btn--go" id="fill-publish">${
-            published ? 'Published' : 'Publish this morning'}</button>` : ''}
+            published ? 'Publish again' : 'Publish this morning'}</button>` : ''}
         </div>
       </div>
-      <div class="fill__grid">${groups}</div>
-      ${maintenancePanel()}
     </div>`;
   },
 
