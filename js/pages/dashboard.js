@@ -13,8 +13,8 @@ import {
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=186daccd8adb';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=186daccd8adb';
+} from '../db.js?v=bbb7fd02021b';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=bbb7fd02021b';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
@@ -22,7 +22,7 @@ import {
   isNa, isMissing,
   varianceChip, varianceTone, variancePct,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE,
-} from '../readings.js?v=186daccd8adb';
+} from '../readings.js?v=bbb7fd02021b';
 
 const $ = selector => document.querySelector(selector);
 
@@ -150,12 +150,17 @@ const VIEWS = ['fill', 'line'];
 const ORDER = ['safety', 'quality', 'production', 'shipping', 'financials', 'maintenance', 'labour'];
 // Labour and maintenance are one screen for most plants and two for some, so it is the
 // plant's own answer rather than a rule. Together is the default.
-const order = () => ORDER.filter(key => key !== 'maintenance' || state.plant?.split_upkeep);
+// Maintenance and Labour are separate screens unless a plant says otherwise. They were
+// merged by default, which put a booking list and a shift count under one heading and
+// made the tallest screen on the product out of two short ones. `merge_upkeep` is the
+// plant's own answer and it is off until somebody turns it on.
+const order = () => ORDER.filter(key => key !== 'maintenance' || !state.plant?.merge_upkeep);
 const TITLES = {
   safety: 'Safety', quality: 'Quality', production: 'Production', shipping: 'Shipping',
   maintenance: 'Upcoming maintenance', labour: 'Labour & Overtime', financials: 'Financials',
 };
-const NAV = { labour: 'Labour', line: 'Summary', fill: 'Enter' };
+const NAV = { labour: 'Labour', line: 'Summary', fill: 'Enter',
+              maintenance: 'Maintenance' };
 Object.assign(TITLES, { line: 'Morning summary', fill: 'Enter the morning' });
 Object.assign(ICONS, {
   line:  'M4 6h16M4 12h10M4 18h6',
@@ -285,7 +290,7 @@ const cell = (shown, name, attrs = '', klass = '') =>
   `<span class="view-only">${shown ?? '—'}</span>` +
   `<input class="inp inp--cell edit-only${klass ? ` ${klass}` : ''}" data-field="${name}" ${attrs}>`;
 
-const mergedUpkeep = () => !state.plant?.split_upkeep;
+const mergedUpkeep = () => !!state.plant?.merge_upkeep;
 
 // ── Maintenance ─────────────────────────────────────────────────────────────────
 
@@ -841,19 +846,29 @@ function fillNotes() {
           data-field="review:${esc(config.key)}:note">${esc(row.note || '')}</textarea>
       </div>`;
     });
-    rows.push(`<div class="fr fr--note fr--wide">
-      <span class="fr__l">Staffing</span>
-      <textarea class="inp fr__t" rows="1" placeholder="call-ins, vacation, training"
-        aria-label="Staffing notes"
-        data-field="staffing_note">${esc(metric('staffing_note') || '')}</textarea></div>`);
-    rows.push(`<div class="fr fr--note fr--wide">
-      <span class="fr__l">Maintenance</span>
-      <textarea class="inp fr__t" rows="1" placeholder="anything the room should know"
-        aria-label="Maintenance notes"
-        data-field="maintenance_note">${esc(metric('maintenance_note') || '')}</textarea></div>`);
     return rows.join('');
   }, 'Each line becomes a bullet on the card.');
 }
+
+// Staffing and the maintenance note used to ride at the foot of the last twenty-four hours,
+// which made that group two subjects: what each production department reported, and two
+// sentences belonging to neither. They are one box each and they belong on the screen they
+// are about \u2014 staffing with the labour it describes, the maintenance note with the
+// bookings it comments on.
+// No visible label: the group's own heading is the label, and printing it twice was two
+// lines to say one word.
+const noteRow = (field, placeholder, said) => `<div class="fr fr--note fr--wide fr--bare">
+  <textarea class="inp fr__t" rows="1" placeholder="${esc(placeholder)}"
+    aria-label="${esc(said)}"
+    data-field="${esc(field)}">${esc(metric(field) || '')}</textarea></div>`;
+
+const fillStaffing = () => fgroup('Staffing', () =>
+  noteRow('staffing_note', 'call-ins, vacation, training', 'Staffing notes'),
+  'Each line becomes a bullet on the card.');
+
+const fillMaintNote = () => fgroup('Maintenance notes', () =>
+  noteRow('maintenance_note', 'anything the room should know', 'Maintenance notes'),
+  'Each line becomes a bullet on the card.');
 
 const SECTIONS = {
   // The entry screen. See the block above it for why this is its own surface.
@@ -893,8 +908,8 @@ const SECTIONS = {
       // "Las…". Three is what fits, so three is what it is — and the groups are dealt out
       // so the columns finish together rather than as a staircase.
       ? `<div class="fill__col">${fillSafety()}${fillQuality()}${fillMoney()}${fillSupport()}</div>
-         <div class="fill__col">${fillProduction()}${fillMaintenance({ tight: true })}${fillOvertime()}</div>
-         <div class="fill__col">${fillShipping()}${fillNotes()}</div>`
+         <div class="fill__col">${fillProduction()}${fillNotes()}${fillStaffing()}${fillMaintNote()}</div>
+         <div class="fill__col">${fillShipping()}${fillOvertime()}${fillMaintenance({ tight: true })}</div>`
       : FILL_FOR[at]();
     const published = state.metrics?.status === 'published';
     // Two shapes, because two states. Outstanding readings get the big count and the list
@@ -951,11 +966,8 @@ const SECTIONS = {
         <div class="sub__body">
           <div class="fill__grid${at === '_all' ? '' : ' fill__grid--one'}">${groups}</div>
           <div class="fill__end">
-            <p>${gaps.length ? `<b>${gaps.length}</b> still to fill in across the morning. It can
-                  be published incomplete, but somebody has to say why \u2014 every screen will
-                  carry the note.`
-              : published ? 'Published. Every screen is showing this morning.'
-              : 'Nothing left to fill in.'}</p>
+            <p>${gaps.length ? `<b>${gaps.length}</b> left across the morning`
+              : published ? 'Published' : 'Nothing left to fill in'}</p>
             <div class="fill__go">
               ${at === '_all' || !nextFillTab(at) ? '<button class="btn" data-nav="overview">See the cards</button>'
                 : `<button class="btn" data-filltab="${esc(nextFillTab(at))}">${
@@ -1621,8 +1633,9 @@ const FILL_FOR = {
   production:  () => fillProduction() + fillNotes(),
   shipping:    () => fillShipping(),
   financials:  () => fillMoney(),
-  labour:      () => fillOvertime() + (mergedUpkeep() ? fillMaintenance() : ''),
-  maintenance: () => fillMaintenance(),
+  labour:      () => fillOvertime() + fillStaffing()
+                   + (mergedUpkeep() ? fillMaintenance({ tight: true }) + fillMaintNote() : ''),
+  maintenance: () => fillMaintenance({ tight: true }) + fillMaintNote(),
 };
 
 // The next screen down the rail, so Save can be Save-and-carry-on rather than Save-and-stop.
@@ -1642,8 +1655,8 @@ const FILL_TABS = [
   { key: 'production',  sub: 'Output and hours, and the last 24 hours' },
   { key: 'shipping',    sub: 'Jobs, cartons, late, short' },
   { key: 'financials',  sub: "Yesterday's sales" },
-  { key: 'labour',      sub: 'Overtime, and what is booked in' },
-  { key: 'maintenance', sub: 'What is booked in' },
+  { key: 'labour',      sub: 'Overtime and staffing' },
+  { key: 'maintenance', name: 'Maintenance', sub: 'What is booked in, and notes' },
   { key: '_all', name: 'All of it', sub: 'The whole morning on one page' },
 ];
 
@@ -1717,7 +1730,7 @@ function renderContent() {
 function render() {
   hideCards(state.plant?.hidden_cards);
   // One section or two, and the heading says which.
-  TITLES.labour = state.plant?.split_upkeep ? 'Labour & Overtime' : 'Maintenance & Labour';
+  TITLES.labour = state.plant?.merge_upkeep ? 'Maintenance & Labour' : 'Labour & Overtime';
   state.findings = assess(state);
   state.verdicts = verdicts(state, state.findings);
   document.body.dataset.view = state.active;
