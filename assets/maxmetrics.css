@@ -327,28 +327,16 @@ body.tv .verdict{font-size:var(--t-lead)}
    So the width is the fixed thing and the columns fall out of it: every card row is
    `auto-fit` against one track size and centres what it fits. Safety's two, quality's six
    and shipping's eight are then the same card, four to a row, wrapping where they wrap. */
-/* One height for every card on the page, and it is the department card's — measured, not
-   declared.
-   The first attempt set the row to `--card-h` and was wrong in a way worth writing down:
-   `fitCards()` sizes the type by dividing the room in a card by what the card is using, so
-   making every card taller handed it more room and it scaled every figure on the page up.
-   Production was asked to be the yardstick and got moved instead.
-   So the rows stay content-sized, which is exactly what Production was, and `levelRows()`
-   measures the tallest department card *after* the fit is settled and pushes the rest up to
-   it through `--row-h`. Nothing about Production changes; everything else matches it. Not on
-   the wall, where the tile is already fixed and the room is the constraint. */
-/* Every card in a row is the height of the tallest.
-   It used to be `start`, so a card sized itself to what it held: three department cards with
-   a number, a bar and a foot stood tall while the note card beside them stopped a third of
-   the way down, and Maintenance's four cards drew four different heights in one row. Read as
-   a row, that is a set of cards that do not belong together — and the room's word for it was
-   the right one, consistency. A card with less in it now carries the space rather than
-   shrinking out of the row, which is the trade and it is the correct one: a grid of equal
-   rectangles is read as one thing, and a ragged one is read as several. */
+/* A row is as tall as the tallest card in it.
+   `grid-auto-rows: var(--card-h)` made every row 360px whatever was in it, so Labour drew
+   three cards half full of nothing to hold four department names and one line of italic
+   placeholder. Uniformity is worth having between cards that sit side by side - which is
+   what `align-items: stretch` already gives - and is not worth having against a constant.
+   The floor keeps a nearly empty card looking like a card. Present mode keeps the fixed
+   tile: a corridor TV wants identical squares and has the room for them. */
 .grid--cards{grid-template-columns:repeat(auto-fit,minmax(0,var(--card-w)));
   grid-auto-rows:minmax(10rem,auto);
-  justify-content:start;align-items:stretch}
-body:not(.tv) .grid--cards{grid-auto-rows:minmax(var(--row-h,10rem),auto)}
+  justify-content:start;align-items:start}
 @media(max-width:760px){.grid--cards{grid-template-columns:minmax(0,1fr);
   grid-auto-rows:minmax(min-content,auto)}}
 .g4{grid-template-columns:repeat(4,minmax(0,1fr))}
@@ -617,28 +605,14 @@ body.no-trends .ctrack__ser,body.no-trends .ctrack__yr{display:none}
 .keys__v code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;
   background:var(--surface);border:1px solid var(--rule);border-radius:3px;padding:1px 5px;
   color:var(--ink)}
-/* A tab of an unrecognised workbook, drawn as the corner of the spreadsheet it is — row
-   numbers down the side, column letters across the top. It is the one thing that can be
-   screenshotted and acted on, so it is drawn to be read rather than to be tidy. */
-.peek{margin-bottom:var(--s3)}
-.peek__n{font-size:var(--t-small);font-weight:600;color:var(--ink);margin-bottom:4px}
-.peek__t{overflow-x:auto;border:1px solid var(--rule);border-radius:var(--radius);
-  background:var(--surface)}
-.peek__t table{border-collapse:collapse;font-size:11.5px;
-  font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
-.peek__t th,.peek__t td{border:1px solid var(--rule-soft);padding:2px 6px;text-align:left;
-  white-space:nowrap;max-width:16rem;overflow:hidden;text-overflow:ellipsis}
-.peek__t thead th,.peek__t tbody th{background:var(--sunk);color:var(--ink-muted);
-  font-weight:600;text-align:center;position:sticky;left:0}
-.peek__t thead th{position:static}
-.peek__t td{color:var(--ink)}
 .ctrack__d{font-family:var(--font-num);font-size:calc(12px*var(--scale));font-weight:700;
   letter-spacing:0;white-space:nowrap;flex:none}
 /* Against target, on a production card. It is the line the meeting is actually about, so it
    is set a little under the volume above it rather than at caption size. */
 .ctrack__d--lg{font-size:calc(15px*var(--scale))}
 .card .ctrack__d--lg{font-size:calc(9.4*var(--u))}
-.ctrack .bullet{height:12px;margin:calc(2*var(--u,3px)) 0 0}
+/* Room above for the target notch, which hangs over the top edge. */
+.ctrack .bullet{height:12px;margin:calc(3*var(--u,3px)) 0 0}
 .ctrack .spark{height:24px}
 /* In the strip a cell is centred and narrow, so the block that hangs under it has to say
    so or it collapses to nothing between the two centred lines above it. */
@@ -765,14 +739,10 @@ body.no-trends .ctrack__ser,body.no-trends .ctrack__yr{display:none}
 /* The drawings sit at the floor of the reading's zone rather than under the number. Placed
    after `.card .ctrack` on purpose: same specificity, later wins. */
 .card__mid>.ctrack{margin-top:auto}
-/* A figure, what it is counted in, the volume and the bar are one block, centred.
-   The number used to carry `margin-block:auto`, which split the free space above *and
-   below* it — so the caption ended up on the far side of a gap. On the wall that put
-   "100.00" an inch above "on-time delivery", reading as two unrelated lines rather than a
-   reading and its unit, and the taller the screen the worse it got. Centring the zone
-   instead keeps the five lines together and puts the slack outside all of them. */
-.card__mid:has(>.hero){justify-content:center}
-.card__mid:has(>.hero)>.hero,.card__mid:has(>.hero)>.ctrack{margin-block:0}
+/* A figure centres in the room it has. Two auto margins split the free space evenly above
+   and below it; the caption, the bar and the trend line stay together underneath. */
+.card__mid:has(>.hero)>.ctrack{margin-top:0}
+.card__mid>.hero{margin-block:auto}
 /* Nine per cent of air above the figure and three below it put the number at the bottom of
    its own space, sitting on the bar chart. A card is drawn to its content now, so there is
    no slack for `margin:auto` to centre it in - the two gaps have to be made equal instead
@@ -828,20 +798,20 @@ body.no-trends .ctrack__ser,body.no-trends .ctrack__yr{display:none}
    side effect away (nothing moves). */
 .card .fs__l{line-height:calc(5.2*var(--cu))}
 .card .fs__v{line-height:calc(8.4*var(--cu))}
-.card .fs__l{font-size:min(calc(4*var(--cu)*var(--fsz,1)),calc(170cqi/var(--lc,6)))}
-.card .fs__v{font-size:min(calc(6.2*var(--cu)*var(--fsz,1)),calc(150cqi/var(--fc,4)))}
-.card .foot--2 .fs__l{font-size:min(calc(4*var(--cu)*var(--fsz,1)),calc(82cqi/var(--lc,6)))}
-.card .foot--2 .fs__v{font-size:min(calc(6.2*var(--cu)*var(--fsz,1)),calc(74cqi/var(--fc,4)))}
-.card .foot--3 .fs__l{font-size:min(calc(4*var(--cu)*var(--fsz,1)),calc(53cqi/var(--lc,6)))}
-.card .foot--3 .fs__v{font-size:min(calc(6.2*var(--cu)*var(--fsz,1)),calc(47cqi/var(--fc,4)))}
-.card .foot--4 .fs__l{font-size:min(calc(4*var(--cu)*var(--fsz,1)),calc(38cqi/var(--lc,6)))}
-.card .foot--4 .fs__v{font-size:min(calc(6.2*var(--cu)*var(--fsz,1)),calc(34cqi/var(--fc,4)))}
+.card .fs__l{font-size:min(calc(4*var(--cu)),calc(170cqi/var(--lc,6)))}
+.card .fs__v{font-size:min(calc(6.2*var(--cu)),calc(150cqi/var(--fc,4)))}
+.card .foot--2 .fs__l{font-size:min(calc(4*var(--cu)),calc(82cqi/var(--lc,6)))}
+.card .foot--2 .fs__v{font-size:min(calc(6.2*var(--cu)),calc(74cqi/var(--fc,4)))}
+.card .foot--3 .fs__l{font-size:min(calc(4*var(--cu)),calc(53cqi/var(--lc,6)))}
+.card .foot--3 .fs__v{font-size:min(calc(6.2*var(--cu)),calc(47cqi/var(--fc,4)))}
+.card .foot--4 .fs__l{font-size:min(calc(4*var(--cu)),calc(38cqi/var(--lc,6)))}
+.card .foot--4 .fs__v{font-size:min(calc(6.2*var(--cu)),calc(34cqi/var(--fc,4)))}
 /* One fact, two lines, like every other foot — the gap that used to separate a label from
    its value on one line would now separate two lines and put this card's rule above the
    next card's. */
 .card .foot--1 .fs{gap:0}
-.card .foot--1 .fs__l{font-size:min(calc(4.2*var(--cu)*var(--fsz,1)),calc(115cqi/var(--lc,6)))}
-.card .foot--1 .fs__v{font-size:min(calc(6.2*var(--cu)*var(--fsz,1)),calc(105cqi/var(--fc,4)))}
+.card .foot--1 .fs__l{font-size:min(calc(4.2*var(--cu)),calc(115cqi/var(--lc,6)))}
+.card .foot--1 .fs__v{font-size:min(calc(6.2*var(--cu)),calc(105cqi/var(--fc,4)))}
 
 /* The rule is a rule, not a verdict. */
 .fstat{display:flex;flex-direction:column;gap:1px;min-width:0}
@@ -1430,17 +1400,19 @@ body[data-view="line"] .chartpick{display:none}
    card colour on each side so it reads against green, amber and red alike, and points at
    itself with a notch. Sized in `--u` where there is one, in pixels where there is not: the
    same mark is drawn on the flag cards, which are not cards and have no `--u`. */
-/* A line, and only a line.
-   It was clipped down to a tick inside the bar and invisible; unclipped, with a notch above
-   it and standing well proud of both edges, it became the loudest thing on the card. The
-   answer to both is the same mark drawn once, properly: thin, a little taller than the bar
-   at each end so the eye catches where it crosses, full ink, and a shoulder of the card's
-   own ground so it reads against a filled bar and an empty one alike. The notch is gone —
-   an arrow pointing at a line you can already see is the drawing explaining itself. */
-.bullet__target{position:absolute;top:calc(-.5*var(--u,3px));bottom:calc(-.5*var(--u,3px));
-  width:calc(.8*var(--u,3px));min-width:2px;
+/* Standing proud of the bar rather than hidden inside it. It runs past both edges, carries
+   a shoulder of card colour so it reads against green, amber, red and the grey ground
+   alike, and hangs a notch above the top edge pointing down at itself. All three were
+   already written and all three were being clipped away by the bar's own `overflow`. */
+.bullet__target{position:absolute;top:calc(-1.3*var(--u,3px));bottom:calc(-1.3*var(--u,3px));
+  width:calc(1.25*var(--u,3px));min-width:3px;
   background:var(--ink);border-radius:1px;opacity:1;transform:translateX(-50%);
-  box-shadow:0 0 0 calc(.4*var(--u,1.5px)) var(--card-ground,var(--surface))}
+  box-shadow:0 0 0 calc(.55*var(--u,2px)) var(--card-ground,var(--surface))}
+.bullet__target::before{content:"";position:absolute;left:50%;
+  bottom:calc(100% + .5*var(--u,2px));transform:translateX(-50%);
+  border-left:calc(2.3*var(--u,3px)) solid transparent;
+  border-right:calc(2.3*var(--u,3px)) solid transparent;
+  border-top:calc(2.3*var(--u,3px)) solid var(--ink)}
 .delta{display:inline-flex;align-items:center;gap:4px;font-size:var(--t-micro);font-weight:700;
   padding:2px 8px;border-radius:20px;white-space:nowrap;background:var(--sunk);color:var(--ink-muted)}
 .delta--ok{background:var(--ok-wash);color:var(--ok)}
@@ -2296,12 +2268,12 @@ body.tv.tv-all .grid.grid--cards.grid--snap{flex:1 1 auto;min-height:0;display:g
   grid-auto-rows:minmax(0,1fr);align-content:stretch;justify-content:stretch;margin:0;
   --card-w:auto;--card-h:auto}
 /* Cards fill their row here, and it is not cosmetic.
-   `align-items: start` on the ordinary grid reached this one too, so a card took its content
-   height instead of the row's. With `container-type: size` that is circular: the height
-   depends on the contents and the contents are sized from the height, so `1cqb` resolved to
-   nothing, `--cu` came out zero, and the whole page drew at zero size. The ordinary grid
-   stretches now as well, for the room's own reason rather than this one, so the override is
-   kept only as the guard that made it. */
+   `align-items: start` on the ordinary grid - which is what lets a short card stop early on
+   a desk screen - reached this one too, so a card took its content height instead of the
+   row's. With `container-type: size` that is circular: the height depends on the contents
+   and the contents are sized from the height, so `1cqb` resolved to nothing, `--cu` came out
+   zero, and the whole page drew at zero size. Blank cards with their rules still showing is
+   exactly what that looks like. */
 body.tv .grid--cards{align-items:stretch}
 body.tv.tv-all .grid--snap .card{container-type:size;min-width:0;min-height:0}
 body.tv.tv-all .grid--snap .card *{--cu:min(1cqi,calc(1cqb/1.132));
@@ -2319,25 +2291,6 @@ body.tv.tv-all .grid--snap .card__head{font-size:min(9cqi,var(--tcap,99px));
 body.tv.tv-all .grid--snap .card{background:color-mix(in srgb,var(--fam,#888) 7%,var(--surface));
   border-color:color-mix(in srgb,var(--fam,#888) 26%,var(--rule))}
 body.tv.tv-all .grid--snap .card__flag{display:none}
-/* The verdict outranks the family on the collage too.
-   The head takes the family colour here so a block of six reads as a block, and the plant
-   has since asked for the head to carry green, amber or red. Both cannot own it, and the
-   verdict is what the room is in the meeting for — so the family keeps the lit strip along
-   the foot of the bar, which was always the part that carries across a room, and gives up
-   the fill. A card with no verdict is unchanged. */
-body.tv.tv-all .grid--snap .card--ok .card__head{background:var(--ok)}
-body.tv.tv-all .grid--snap .card--warn .card__head{background:var(--warn)}
-body.tv.tv-all .grid--snap .card--stop .card__head{background:var(--stop)}
-/* Ten per cent off the target and the hours at the foot of every card, and a quarter off a
-   list card's rows. On one screen holding every card the plant has, the space those two
-   were taking is space the readings above them wanted, and neither is a reading — one is
-   the target the bar was already drawn against and the other is a schedule. */
-body.tv.tv-all .grid--snap .card{--fsz:.9}
-body.tv.tv-all .grid--snap .clist__l b,
-body.tv.tv-all .grid--snap .clist__r{font-size:calc(3.75*var(--u))}
-body.tv.tv-all .grid--snap .clist__l i{font-size:calc(3.3*var(--cu))}
-body.tv.tv-all .grid--snap .clist__row{padding:calc(.9*var(--u)) 0}
-body.tv.tv-all .grid--snap .clist__more{font-size:calc(2.9*var(--u))}
 
 /* A card sheds what it cannot draw, and it decides for itself.
    `container-type:size` is already on for the sizing, so each card can be asked how tall it

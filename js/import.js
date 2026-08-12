@@ -495,6 +495,111 @@ export async function readKpi(workbook, { date }) {
   return { metrics, notes, month: latest.month, sheet };
 }
 
+// ── A plant's own cost-of-quality sheet ─────────────────────────────────────────
+//
+// Mississauga keeps cost of quality in a second workbook, on a tab called `COQ 2025` that
+// holds 2026 — one row per month with the money, the sales it is a share of, that share, and
+// the target. It is the cleanest quality data the plant has and nothing was reading it,
+// because `readKpi` wants a tab called `PLZ DO NOT TOUCH` and this workbook has none.
+//
+//     A            B        C           D                 E
+//   1 2026
+//   2 Month        COQ      Sales       COQ % of Sales    Taget
+//   3 Jan 2026     16887    2876207.69  0.005871…         0.0085
+//
+// Everything is found by its label. The plant talks about this file in cell references —
+// "the year to date is D16" — and a reader written that way is wrong the first time somebody
+// inserts a row above it, silently, on a card the room reads as fact. `Taget` is their
+// spelling and is matched as it is written.
+//
+// The year to date is computed rather than read: the money for every month up to this one
+// over the sales for the same months. That is what a year-to-date cost of quality is, and it
+// cannot disagree with the twelve rows above it the way a typed-in cell can.
+export const looksLikeCoq = names => names.some(n => /coq/i.test(n));
+
+export async function readCoqSheet(workbook, { date }) {
+  const notes = [];
+  const sheet = workbook.sheetNames.find(n => /coq/i.test(n));
+  if (!sheet) return { metrics: {}, notes: [] };
+  const rows = (await workbook.rows(sheet)) || [];
+
+  // The header is the row that names a month column and a COQ column. A title block above
+  // it is ordinary in these files and row 1 is a guess that happens to be wrong.
+  let at = -1;
+  for (let i = 0; i < Math.min(8, rows.length); i++) {
+    const cells = (rows[i] || []).map(bare);
+    if (cells.some(c => c === 'month' || c.startsWith('month'))
+        && cells.some(c => c.includes('coq') || c.includes('copq'))) { at = i; break; }
+  }
+  if (at < 0) return { metrics: {}, notes: [`${sheet}: no Month and COQ header row.`] };
+
+  const head = (rows[at] || []).map(bare);
+  const find = test => head.findIndex(h => h && test(h));
+  const col = {
+    month: find(h => h === 'month' || h.startsWith('month')),
+    // `COQ` on its own is the money. `COQ % of Sales` also contains both words, so the
+    // share is taken by the per-cent sign and the money by the absence of one.
+    dollars: find(h => (h === 'coq' || h === 'copq' || h === 'coq$' || h === 'totalcoq')),
+    sales: find(h => h.includes('sales') && !h.includes('coq') && !h.includes('copq')),
+    percent: find(h => h.includes('%') && (h.includes('coq') || h.includes('copq'))),
+    // Their spelling, and the right one, in that order.
+    target: find(h => h.includes('taget') || h.includes('target')),
+  };
+
+  // A year written above the table, which is where these sheets put it — and it beats the
+  // year in the tab's name, because `COQ 2025` is holding 2026.
+  const above = rows.slice(0, at).flat()
+    .map(v => String(v ?? '').trim()).find(v => /^20\d\d$/.test(v));
+  const sheetYear = Number(above) || Number((sheet.match(/(20\d\d)/) || [])[1]) || null;
+
+  const months = [];
+  for (const row of rows.slice(at + 1)) {
+    const label = String(row?.[col.month] ?? '').trim();
+    const month = monthIndex(label);
+    // A `Grand Total` or `YTD` row has no month in it and is skipped rather than read as one.
+    if (month < 0) continue;
+    months.push({ month, year: Number((label.match(/(20\d\d)/) || [])[1]) || sheetYear, row });
+  }
+  const want = { year: Number(date.slice(0, 4)), month: Number(date.slice(5, 7)) - 1 };
+  const mine = months.filter(m => m.year === want.year);
+  if (!mine.length) {
+    return { metrics: {}, notes: [`${sheet}: nothing for ${want.year}.`] };
+  }
+
+  const upto = mine.filter(m => m.month <= want.month);
+  const span = upto.length ? upto : mine;
+  const latest = span.reduce((a, b) => (a.month > b.month ? a : b));
+  if (latest.month !== want.month) {
+    notes.push(`${sheet}: no row for ${MONTH_KEYS[want.month].toUpperCase()} yet — read `
+      + `${MONTH_KEYS[latest.month].toUpperCase()} instead.`);
+  }
+
+  const num = (row, index) => index >= 0 && row[index] != null && row[index] !== ''
+    && Number.isFinite(Number(row[index])) ? Number(row[index]) : null;
+  // The sheet keeps its shares as fractions: 0.0023 is COQ at 0.23% of sales.
+  const asPercent = value => (value == null ? null : Number((value * 100).toFixed(4)));
+
+  const metrics = {};
+  const put = (field, value) => { if (value != null && Number.isFinite(value)) metrics[field] = value; };
+
+  put('coq', asPercent(num(latest.row, col.percent)));
+  // A sheet that carries the money and the sales but not the share still knows the share.
+  if (metrics.coq == null) {
+    const money = num(latest.row, col.dollars), sales = num(latest.row, col.sales);
+    if (money != null && sales) put('coq', Number((money / sales * 100).toFixed(4)));
+  }
+  put('coq_target', asPercent(num(latest.row, col.target)));
+  put('coq_ytd_target', asPercent(num(latest.row, col.target)));
+
+  const money = span.reduce((total, m) => total + (num(m.row, col.dollars) || 0), 0);
+  const sales = span.reduce((total, m) => total + (num(m.row, col.sales) || 0), 0);
+  if (sales) put('coq_ytd', Number((money / sales * 100).toFixed(4)));
+
+  notes.push(`${sheet}: ${MONTH_KEYS[latest.month].toUpperCase()} ${want.year}, with the year `
+    + `to date over ${span.length} month(s).`);
+  return { metrics, notes, month: latest.month, sheet };
+}
+
 // Every file dropped at once, sorted out by what is inside it rather than by its name —
 // people rename these. Nothing is written: this returns what *would* be written, for a
 // person to look at first.
@@ -811,6 +916,23 @@ export async function readFiles(files, { date, reported = [], operators = [] } =
               unknown: json.unknown }
           : { days: [day], recognised: Object.keys(read.metrics).sort(), unknown: [] };
         sources.push({ file: file.name, kind: 'quality', rows: Object.keys(read.metrics).length });
+      }
+    } else if (looksLikeCoq(names)) {
+      // A workbook with a COQ tab and no `PLZ DO NOT TOUCH` — Mississauga's second quality
+      // file. It goes through the same door as the one above: one dated record of readings,
+      // previewed and never overwriting anything typed.
+      const read = await readCoqSheet(workbook, { date });
+      notes.push(...read.notes.map(n => `${file.name}: ${n}`));
+      if (Object.keys(read.metrics).length) {
+        const day = { date, metrics: read.metrics, departments: {} };
+        json = json
+          ? { days: json.days.concat([day]),
+              recognised: [...new Set(json.recognised.concat(Object.keys(read.metrics)))].sort(),
+              unknown: json.unknown }
+          : { days: [day], recognised: Object.keys(read.metrics).sort(), unknown: [] };
+        sources.push({ file: file.name, kind: 'quality', rows: Object.keys(read.metrics).length });
+      } else {
+        sources.push({ file: file.name, kind: 'quality', rows: 0 });
       }
     } else if (looksLikeShipping(names)) {
       const read = await readShipping(workbook);
