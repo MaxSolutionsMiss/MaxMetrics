@@ -425,6 +425,11 @@ export const revokeAccess = (profileId, email, location) =>
     person: profileId ?? null, person_email: email ?? null, loc: location,
   }), { retry: 0 });
 
+// Who can reach which plant, for everybody at once. Per-plant answers are what
+// `people_at` gives; assigning access is a question about a person.
+export const accessMatrix = () => run(() => client.rpc('access_matrix'));
+export const allLocations = () => run(() => client.rpc('all_locations'));
+
 export const setAdmin = (profileId, makeAdmin) =>
   run(() => client.rpc('set_admin', { person: profileId, make_admin: makeAdmin }), { retry: 0 });
 
