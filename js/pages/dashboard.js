@@ -1213,9 +1213,14 @@ const SECTIONS = {
           // while the two lived on different cards and is not now: Die Cutting four per cent
           // down drew an amber head, an amber number and a red variance line underneath, one
           // card giving two verdicts on one figure.
+          // `--vchars` is how long the sentence turned out, the same trick the figure above
+          // uses. The line is set large enough to sit level with the volume, and a card can
+          // still hold a department reading minus a hundred per cent without the text
+          // running past its own border and dragging the whole page's type down with it.
           deltaHtml: rate && target
-            ? `<span class="ctrack__d ctrack__d--lg tone--${tone || 'none'}">${
-                esc(variancePct((rate - target) / Math.abs(target) * 100, 1))} vs target</span>`
+            ? (said => `<span class="ctrack__d ctrack__d--lg tone--${tone || 'none'}"
+                 style="--vchars:${said.length}">${esc(said)}</span>`)(
+                `${variancePct((rate - target) / Math.abs(target) * 100, 1)} vs target`)
             : '',
           series: deptSeries(config.key), seriesTrend: false,
         }),
