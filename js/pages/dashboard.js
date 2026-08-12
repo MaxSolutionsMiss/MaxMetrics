@@ -13,8 +13,8 @@ import {
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=0634072048d5';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=0634072048d5';
+} from '../db.js?v=533d50965653';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=533d50965653';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
@@ -22,7 +22,7 @@ import {
   isNa, isMissing,
   varianceChip, varianceTone, variancePct,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE,
-} from '../readings.js?v=0634072048d5';
+} from '../readings.js?v=533d50965653';
 
 const $ = selector => document.querySelector(selector);
 
