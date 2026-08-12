@@ -18,7 +18,7 @@
 // to record. Neither is a warning, and neither holds up an import. An alarm that fires
 // every Monday about a Sunday nobody worked is one people learn to close without reading.
 
-import { openWorkbook, serialToISO } from './xlsx.js?v=da54893a5fbf';
+import { openWorkbook, serialToISO } from './xlsx.js?v=c4ac39de1016';
 
 // ── Matching a column ───────────────────────────────────────────────────────────
 
@@ -289,6 +289,44 @@ export async function readShipping(workbook) {
                 otif: Math.round((jobs - late - short) / jobs * 10000) / 100 });
   }
   return { days, notes: [], sheet };
+}
+
+// The month and the year behind the day.
+//
+// The four running shipping cards — MTD OTD, YTD OTD, MTD OTIF, YTD OTIF — had exactly one
+// source between them, and it was the wrong one for half of them. The KPI workbook carries
+// OTIF for the month and the year because the quality manager closes it off there; it says
+// nothing at all about OTD, so `mtd_otd` and `ytd_otd` were columns nothing on earth ever
+// wrote. They sat blank through every pull and the only way to fill them was to type them.
+//
+// The OTD sheet has had the answer all along: a row per day, for the whole year, with jobs,
+// late and short on it. Month to date is those rows added up. It is the same arithmetic the
+// day card already does, over a wider window, and deriving it means the running figures can
+// never contradict the daily ones printed beside them.
+//
+// The window ends at the last day the morning reports, not at the morning's own date — a
+// Tuesday morning reports Monday, and a row somebody has already typed for Tuesday is not
+// part of what the room is being told. On the first of the month that means the month just
+// closed, which is the month the meeting is about.
+export function shippingPeriod(days, through) {
+  const upto = (days || []).filter(d => d.date <= through);
+  if (!upto.length) return null;
+  const add = rows => rows.reduce((total, row) => ({
+    jobs: total.jobs + row.jobs_shipped,
+    late: total.late + row.late,
+    short: total.short + row.shorts,
+  }), { jobs: 0, late: 0, short: 0 });
+  const pct = (top, jobs) => jobs ? Number((top / jobs * 100).toFixed(2)) : null;
+  const of = rows => {
+    const t = add(rows);
+    return { otd: pct(t.jobs - t.late, t.jobs), otif: pct(t.jobs - t.late - t.short, t.jobs) };
+  };
+  const month = of(upto.filter(d => d.date.slice(0, 7) === through.slice(0, 7)));
+  const year = of(upto.filter(d => d.date.slice(0, 4) === through.slice(0, 4)));
+  const out = {};
+  if (month.otd != null) { out.mtd_otd = month.otd; out.mtd_otif = month.otif; }
+  if (year.otd != null) { out.ytd_otd = year.otd; out.ytd_otif = year.otif; }
+  return Object.keys(out).length ? out : null;
 }
 
 // ── What the page hands the reader ──────────────────────────────────────────────
@@ -804,6 +842,14 @@ export async function readFiles(files, { date, reported = [], operators = [] } =
   // Shipping is counted on the day it is entered, not shifted: a truck that left yesterday
   // is recorded against yesterday and the morning reads that row directly.
   const ship = (shipping || []).find(d => d.date === span.to) ?? null;
+  const period = shippingPeriod(shipping, span.to);
+  // A sheet that has rows but not this one is worth saying out loud. It is the ordinary
+  // reason the four shipping counts stay blank on a morning where everything else filled,
+  // and until now the only evidence was the blank itself.
+  if (shipping?.length && !ship) {
+    notes.push(`The OTD sheet has no row for ${span.to}, so the day's jobs, late and short `
+             + `are left alone. The month and the year to date are still read.`);
+  }
 
   // What the workbook actually holds, whether or not the open morning wants any of it.
   //
@@ -844,11 +890,12 @@ export async function readFiles(files, { date, reported = [], operators = [] } =
       d.pw_qty = was?.qty ?? null;
       d.pw_hours = was?.hours ?? null;
     }
-    return { date: day, window, departments: rolled, shipping: ship };
+    return { date: day, window, departments: rolled, shipping: ship,
+             period: shippingPeriod(shipping, window.to) };
   }).filter(Boolean).sort((a, b) => a.date.localeCompare(b.date));
 
   return {
-    date, span, sources, departments, shipping: ship, json, production, delivery, catchup,
+    date, span, sources, departments, shipping: ship, period, json, production, delivery, catchup,
     covering: daysBetweenInclusive(span.from, span.to),
     unknownNames: unknownNamesIn(shifts, span.from, span.to),
     notes,

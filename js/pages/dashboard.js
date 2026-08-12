@@ -13,8 +13,8 @@ import {
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=da54893a5fbf';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=da54893a5fbf';
+} from '../db.js?v=c4ac39de1016';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=c4ac39de1016';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
@@ -22,7 +22,7 @@ import {
   isNa, isMissing,
   varianceChip, varianceTone, variancePct,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE,
-} from '../readings.js?v=da54893a5fbf';
+} from '../readings.js?v=c4ac39de1016';
 
 const $ = selector => document.querySelector(selector);
 
@@ -2880,7 +2880,10 @@ if (!state.locations.length) {
 // an imported figure gets the same one-column update, the same attribution in the edit
 // trail, and the same broadcast to the other two people working the morning.
 
-const importState = { reading: false, preview: null, error: null };
+// `applied` turns the preview into a report. Pull data writes without asking — that is what
+// pulling means — and when a file it fetched turns out to hold nothing for this morning, the
+// same panel is the honest place to say so, after the fact rather than before it.
+const importState = { reading: false, preview: null, error: null, applied: false, failed: [] };
 
 function importPanel() {
   const p = importState.preview;
@@ -2958,8 +2961,15 @@ function importPanel() {
 
   // One line per file: what it was taken for, and what is in it. A file the reader did not
   // recognise says so here rather than in a note at the bottom nobody scrolls to.
+  // A linked file the server could not fetch never reaches the reader, so it would be absent
+  // from a list headed "What arrived" — which reads as though it arrived and was fine.
+  const missed = !importState.applied ? '' : (importState.failed || []).map(source =>
+    `<tr><td class="dept">${esc(source.name)}</td>
+      <td><span class="pill pill--stop">did not arrive</span></td>
+      <td class="num">—</td><td class="soft">${esc(source.note || '')}</td></tr>`).join('');
+
   const filePanel = `<div class="sheet__sub">What arrived</div>
-    <table class="tbl tbl--tight"><tbody>${p.sources.map(source => `<tr>
+    <table class="tbl tbl--tight"><tbody>${missed}${p.sources.map(source => `<tr>
       <td class="dept">${esc(source.file)}</td>
       <td><span class="pill pill--${
         source.kind === 'unknown' || source.kind === 'unreadable' ? 'stop' : 'info'}">${
@@ -3076,7 +3086,7 @@ function importPanel() {
   return `
     ${filePanel}
     ${morningPanel}
-    ${catchupPanel}
+    ${importState.applied ? '' : catchupPanel}
     ${jsonPanel}
     ${p.unknownNames.length ? `<div class="sheet__sub">Names not on the operator list</div>
       <p class="drop__note">Imported as typed. Nothing is dropped and nothing is invented \u2014
@@ -3086,10 +3096,12 @@ function importPanel() {
     ${p.notes.length ? `<div class="sheet__sub">Notes</div>
       <ul class="drop__notes">${p.notes.map(n => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
     <div class="sheet__foot">
-      <span class="drop__note" id="import-say"></span>
-      <button class="btn" id="import-again">Choose different files</button>
+      <span class="drop__note" id="import-say">${importState.applied
+        ? 'Written. This is what the pull found — nothing here is waiting on you.' : ''}</span>
+      ${importState.applied ? `<button class="btn btn--primary" id="import-done">Close</button>`
+        : `<button class="btn" id="import-again">Choose different files</button>
       <button class="btn btn--go" id="import-apply"${willWrite ? '' : ' disabled'}>${
-        willWrite ? 'Write what these files say' : 'Nothing to write'}</button>
+        willWrite ? 'Write what these files say' : 'Nothing to write'}</button>`}
     </div>`;
 }
 
@@ -3115,7 +3127,7 @@ async function filesUnder(entries, out = []) {
 
 async function readDropped(files) {
   if (!files?.length) return;
-  importState.reading = true; importState.error = null;
+  importState.reading = true; importState.error = null; importState.applied = false;
   drawImport();
   try {
     const { readFiles } = await import('../import.js');
@@ -3148,6 +3160,8 @@ async function readDropped(files) {
 // declared — a page that half-loads tells nobody.
 function drawImport() {
   $('#import-body').innerHTML = importPanel();
+  const title = $('#import-sheet .sheet__title');
+  if (title) title.textContent = importState.applied ? 'What the pull found' : 'Import a morning';
   const zone = $('#drop');
   if (zone) {
     $('#drop-input')?.addEventListener('change', e => readDropped(e.target.files));
@@ -3171,6 +3185,10 @@ function drawImport() {
   }
   $('#import-again')?.addEventListener('click', () => { importState.preview = null; drawImport(); });
   $('#import-apply')?.addEventListener('click', applyImport);
+  $('#import-done')?.addEventListener('click', () => {
+    importState.preview = null; importState.applied = false;
+    $('#import-sheet').close();
+  });
 }
 
 // `quiet` is the pull's way in. It is the same write, without the sheet to close, without
@@ -3194,6 +3212,12 @@ async function applyImport({ quiet = false } = {}) {
     writes.push(['jobs_shipped', p.shipping.jobs_shipped], ['jobs_on_time', p.shipping.jobs_on_time],
                 ['late', p.shipping.late], ['shorts', p.shipping.shorts]);
   }
+  // The month and the year behind the day, added up from the same sheet. These go in before
+  // the KPI workbook's own figures below, so where both files speak the workbook wins: its
+  // OTIF is counted over deliveries and closed off by the quality manager, and that is the
+  // number the plant reports. OTD it does not carry at all, which is why these two columns
+  // were blank on every morning until now.
+  for (const [name, value] of Object.entries(p.period || {})) writes.push([name, value]);
   // The open morning is written over, not coalesced.
   //
   // `import_morning` never replaces a value, which is right for a year of history and wrong
@@ -3250,10 +3274,13 @@ async function applyImport({ quiet = false } = {}) {
           mr_count: d.mr_count, pw_qty: d.pw_qty, pw_hours: d.pw_hours,
         };
       }
-      const metrics = day.shipping ? {
-        jobs_shipped: day.shipping.jobs_shipped, jobs_on_time: day.shipping.jobs_on_time,
-        late: day.shipping.late, shorts: day.shipping.shorts,
-      } : {};
+      const metrics = {
+        ...(day.period || {}),
+        ...(day.shipping ? {
+          jobs_shipped: day.shipping.jobs_shipped, jobs_on_time: day.shipping.jobs_on_time,
+          late: day.shipping.late, shorts: day.shipping.shorts,
+        } : {}),
+      };
       wanted.push({ date: day.date, metrics, departments });
     }
   }
@@ -3324,9 +3351,11 @@ async function pullNow() {
       return;
     }
     button.textContent = 'Reading…';
+    // Named after the linked file rather than after its kind, because the name is what the
+    // report below prints and "kpi.xlsx" is not a thing anybody at the plant has heard of.
     const files = await Promise.all(got.map(async source => {
       const blob = await (await fetch(source.url)).blob();
-      return new File([blob], `${source.kind}.xlsx`);
+      return new File([blob], `${source.name}.xlsx`);
     }));
     const { readFiles } = await import('../import.js');
     const [operators, reported] = await Promise.all([
@@ -3337,12 +3366,34 @@ async function pullNow() {
       date: state.date, reported: reported.filter(d => d < state.date), operators: operators || [],
     });
     button.textContent = 'Writing…';
+    // Kept, because applying clears it and the report is built out of it.
+    const read = importState.preview;
     await applyImport({ quiet: true });
+
+    // A file that arrived and said nothing is the whole of the question people ask about a
+    // pull, and this button used to answer it with "pulled DOR, OTD / OTIF sheet, Monthly KPI
+    // workbook" — three files named, three ticks implied, and quality still blank. The
+    // importer knew why the whole time: it had the file down as not recognised, or with no
+    // row for the month being asked for, and put it in a note nobody was shown.
+    //
+    // So a pull where every file gave something stays silent, and one where a file gave
+    // nothing opens the same panel the drag-and-drop importer uses, after the writing, with
+    // that file's line and that file's note on it.
+    const quiet = (read?.sources || []).filter(source =>
+      source.kind === 'unknown' || source.kind === 'unreadable' || !source.rows);
     const said = [
       failed.length ? `${failed.length} source${failed.length === 1 ? '' : 's'} failed` : '',
       `pulled ${got.map(s => s.name).join(', ')}`,
+      quiet.length ? `${quiet.map(s => s.file).join(', ')} read nothing` : '',
     ].filter(Boolean).join(' · ');
     toast(said);
+    if (read && (quiet.length || failed.length)) {
+      importState.preview = read;
+      importState.failed = failed;
+      importState.applied = true;
+      drawImport();
+      $('#import-sheet').showModal();
+    }
   } catch (error) {
     toast(error.message);
   } finally {
@@ -3353,6 +3404,7 @@ async function pullNow() {
 
 $('#import-btn')?.addEventListener('click', () => {
   if (!state.canEdit) return toast('Your account cannot change this plant.');
+  importState.applied = false;
   drawImport();
   $('#import-sheet').showModal();
 });
