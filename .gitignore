@@ -2,3 +2,10 @@ _site/
 .gh-pages/
 node_modules/
 .DS_Store
+
+# The browser harness. Rebuilt by scratchpad/harness.sh, never committed.
+_dash.html
+_cfg.html
+_stub-db.js
+_fonts/
+_site/
