@@ -13,8 +13,8 @@ import {
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=45a3246b8620';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=45a3246b8620';
+} from '../db.js?v=81bd00f59089';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=81bd00f59089';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
@@ -22,7 +22,7 @@ import {
   isNa, isMissing,
   varianceChip, varianceTone, variancePct,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE,
-} from '../readings.js?v=45a3246b8620';
+} from '../readings.js?v=81bd00f59089';
 
 const $ = selector => document.querySelector(selector);
 
@@ -1213,14 +1213,14 @@ const SECTIONS = {
           // while the two lived on different cards and is not now: Die Cutting four per cent
           // down drew an amber head, an amber number and a red variance line underneath, one
           // card giving two verdicts on one figure.
-          // `--vchars` is how long the sentence turned out, the same trick the figure above
-          // uses. The line is set large enough to sit level with the volume, and a card can
-          // still hold a department reading minus a hundred per cent without the text
-          // running past its own border and dragging the whole page's type down with it.
+          // Just the number. "vs target" was two words explaining a line that sits directly
+          // under a bar drawn against its target, on a card whose foot prints the target —
+          // and no other card on the product says it. A percentage in green or red under
+          // the bar means the same thing on every one of them, which is the point.
           deltaHtml: rate && target
-            ? (said => `<span class="ctrack__d ctrack__d--lg tone--${tone || 'none'}"
+            ? (said => `<span class="ctrack__d tone--${tone || 'none'}"
                  style="--vchars:${said.length}">${esc(said)}</span>`)(
-                `${variancePct((rate - target) / Math.abs(target) * 100, 1)} vs target`)
+                variancePct((rate - target) / Math.abs(target) * 100, 1))
             : '',
           series: deptSeries(config.key), seriesTrend: false,
         }),

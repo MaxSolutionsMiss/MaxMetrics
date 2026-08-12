@@ -405,8 +405,12 @@ export function cardTrack({ chart, actual, target, tone = '', floor = 0, ceiling
   // one part of the card nobody was looking at. The number moved is the story; it goes
   // directly under the bar, on the card's own centre line, where the eye lands after the
   // figure above it.
+  // `--vchars` is how long the line turned out, the same trick the figure above uses. The
+  // size is set from the card, and capped so `+$1.87M` and `-$12.34M` are the same line
+  // rather than one of them running past the border and pulling the page's type down.
   const moved = deltaHtml || (deltaText
-    ? `<span class="ctrack__d tone--${deltaTone || tone || 'none'}">${esc(deltaText)}</span>`
+    ? `<span class="ctrack__d tone--${deltaTone || tone || 'none'}"
+         style="--vchars:${String(deltaText).length}">${esc(deltaText)}</span>`
     : '');
   return `<div class="ctrack">
     ${bar ? bar + (moved ? `<div class="ctrack__mv">${moved}</div>` : '') : ''}
