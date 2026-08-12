@@ -18,7 +18,7 @@
 // to record. Neither is a warning, and neither holds up an import. An alarm that fires
 // every Monday about a Sunday nobody worked is one people learn to close without reading.
 
-import { openWorkbook, serialToISO } from './xlsx.js?v=846bc45e3bfd';
+import { openWorkbook, serialToISO } from './xlsx.js?v=45a3246b8620';
 
 // ── Matching a column ───────────────────────────────────────────────────────────
 
@@ -552,12 +552,25 @@ export async function readCoqSheet(workbook, { date }) {
     .map(v => String(v ?? '').trim()).find(v => /^20\d\d$/.test(v));
   const sheetYear = Number(above) || Number((sheet.match(/(20\d\d)/) || [])[1]) || null;
 
+  const figure = (row, index) => index >= 0 && row[index] != null && row[index] !== ''
+    && Number.isFinite(Number(row[index])) ? Number(row[index]) : null;
+
   const months = [];
   for (const row of rows.slice(at + 1)) {
     const label = String(row?.[col.month] ?? '').trim();
     const month = monthIndex(label);
     // A `Grand Total` or `YTD` row has no month in it and is skipped rather than read as one.
     if (month < 0) continue;
+    // A month with a name and no figures is a row waiting to be filled in, not a month.
+    //
+    // The plant types the twelve months in at the top of the year and fills them as each one
+    // closes, so on any day in August there is an August row carrying nothing but the word
+    // August. Read as the latest month it produced exactly one reading — a year to date — and
+    // left the month's own cost of quality and its target to whatever was on the card
+    // yesterday, which is a stale number wearing today's date. The plant's own rule is the
+    // right one and it falls straight out of this: show the last month that has been closed.
+    if (figure(row, col.percent) == null && figure(row, col.dollars) == null
+        && figure(row, col.sales) == null) continue;
     months.push({ month, year: Number((label.match(/(20\d\d)/) || [])[1]) || sheetYear, row });
   }
   const want = { year: Number(date.slice(0, 4)), month: Number(date.slice(5, 7)) - 1 };
@@ -574,8 +587,7 @@ export async function readCoqSheet(workbook, { date }) {
       + `${MONTH_KEYS[latest.month].toUpperCase()} instead.`);
   }
 
-  const num = (row, index) => index >= 0 && row[index] != null && row[index] !== ''
-    && Number.isFinite(Number(row[index])) ? Number(row[index]) : null;
+  const num = figure;
   // The sheet keeps its shares as fractions: 0.0023 is COQ at 0.23% of sales.
   const asPercent = value => (value == null ? null : Number((value * 100).toFixed(4)));
 
