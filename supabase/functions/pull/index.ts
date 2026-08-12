@@ -146,12 +146,14 @@ Deno.serve(async request => {
   if (!only) query = query.eq('enabled', true);
   const { data: sources } = await query.order('sort_order');
 
-  const live = (sources ?? [])
-    .filter((s: { id?: string }) => !only || s.id === only)
-    .filter((s: { url?: string }) => (s.url ?? '').trim());
+  // A source with no link is not skipped any more. A flow may have delivered its file to
+  // the bucket, in which case there is nothing to fetch and everything to hand over - and
+  // the plant that gets its workbooks that way would otherwise be told it has nothing
+  // linked while three files sat waiting.
+  const live = (sources ?? []).filter((s: { id?: string }) => !only || s.id === only);
   if (!live.length) {
-    return reply({ error: only ? 'That file has no link yet.'
-      : 'No files are linked to this plant yet — Configure, then Data.' }, 400);
+    return reply({ error: only ? 'That file is not linked to this plant.'
+      : 'No files are set up for this plant yet — Configure, then Data.' }, 400);
   }
 
   const out: {
@@ -169,6 +171,7 @@ Deno.serve(async request => {
 
     // Anonymous first, because when it works it is the cheapest thing that can work.
     try {
+      if (!(source.url ?? '').trim()) throw new Error('no link');
       const response = await fetch(asDownload(source.url), { redirect: 'follow' });
       if (response.ok) {
         const got = new Uint8Array(await response.arrayBuffer());
@@ -199,6 +202,24 @@ Deno.serve(async request => {
           note = String((cause as Error).message ?? cause).slice(0, 180);
         }
       }
+    }
+
+    // Nothing fetched, but something may already be here.
+    //
+    // A Power Automate flow signs in as a person Microsoft trusts and posts the workbooks to
+    // `ingest`, which parks them in this same bucket. So before reporting a failure, look:
+    // a file delivered at half past five is a better answer than a link that answers 401,
+    // and from the page's point of view the two are indistinguishable.
+    if (!bytes) {
+      try {
+        const path = `${location}/${source.id}.xlsx`;
+        const { data: link } = await admin.storage.from('pulls').createSignedUrl(path, 600);
+        if (link?.signedUrl) {
+          out.push({ id: source.id, kind: source.kind, name: source.name, ok: true,
+                     note: 'delivered', how: 'delivered', url: link.signedUrl, bytes: 0 });
+          continue;
+        }
+      } catch { /* nothing staged, so the fetch failure above stands */ }
     }
 
     if (bytes) {
