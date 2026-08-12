@@ -13,8 +13,8 @@ import {
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=e50ba26bf32b';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=e50ba26bf32b';
+} from '../db.js?v=23f0ed4f479b';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=23f0ed4f479b';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
@@ -22,7 +22,7 @@ import {
   isNa, isMissing,
   varianceChip, varianceTone, variancePct,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE,
-} from '../readings.js?v=e50ba26bf32b';
+} from '../readings.js?v=23f0ed4f479b';
 
 const $ = selector => document.querySelector(selector);
 
@@ -1320,11 +1320,11 @@ const SECTIONS = {
     // that adds a fourth and a fifth department wraps onto a second row and the week card
     // wraps with them, which is what the full-width table could never do.
     return `<div class="grid grid--cards" data-grid="production">${weekCard()}${
-      supportCard()}${cards}</div>
-    ${review ? `<div class="sec__head" style="margin-top:var(--s3)">
+      cards}</div>
+    ${review || supportCard() ? `<div class="sec__head" style="margin-top:var(--s3)">
       <h3 class="sec__title" style="font-size:var(--t-lead)">Review \u2014 last 24 hours</h3>
       <div class="sec__rule"></div></div>
-    <div class="grid grid--cards" data-grid="review">${review}</div>` : ''}`;
+    <div class="grid grid--cards" data-grid="review">${review}${supportCard()}</div>` : ''}`;
   },
 
   shipping: () => {
@@ -2185,7 +2185,15 @@ function wallPages() {
     // page and second on the screen is looking at two dashboards.
     applyCardOrder(holder);
     const cards = [...holder.querySelectorAll('.grid--cards > .card')]
-      .filter(card => !off.has(card.dataset.pkey) && card.dataset.empty !== '1');
+      .filter(card => !off.has(card.dataset.pkey)
+        // A blank note card is dropped from the wall — four cards reading "No issues
+        // reported" on a screen the floor walks past is four cards of nothing. The review
+        // is the exception, and it is the exception because it is the only part of the
+        // morning the meeting *does* rather than reads: "Die Cutting — not confirmed yet"
+        // is not an empty card, it is the question being asked of the room. Dropping them
+        // meant the wall showed the review only once every department had already answered,
+        // which is the one moment nobody needs to see it.
+        && (card.dataset.empty !== '1' || card.parentElement?.dataset.grid === 'review'));
     // Which section a card belongs to, carried on the card. The collage has no headings —
     // the bar's colour is the heading — so this is the only thing that groups them.
     for (const card of cards) card.dataset.fam = key;
