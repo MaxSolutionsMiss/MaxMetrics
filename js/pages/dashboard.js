@@ -13,8 +13,8 @@ import {
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=950b84b9e39c';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=950b84b9e39c';
+} from '../db.js?v=9805214f8b4f';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=9805214f8b4f';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
@@ -22,7 +22,7 @@ import {
   isNa, isMissing,
   varianceChip, varianceTone, variancePct,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE,
-} from '../readings.js?v=950b84b9e39c';
+} from '../readings.js?v=9805214f8b4f';
 
 const $ = selector => document.querySelector(selector);
 
@@ -1204,28 +1204,40 @@ const SECTIONS = {
           // "\u221250" before, which is fifty of something the label above it names and the
           // reader has to go and find \u2014 and fifty off three thousand and fifty off two
           // thousand are not the same miss.
-          deltaHtml: rate && target ? varianceChip(rate, target) : '',
+          // Plain text under the bar rather than a pill. A pill is a badge you notice and
+          // then read; this is the line the room argues about, and it names what it is
+          // measured against so "−28.0%" cannot be mistaken for a change since yesterday.
+          //
+          // It takes the card's own tone rather than working one out. `varianceTone` turns
+          // amber four per cent under target and `band.rate` at ten, which was invisible
+          // while the two lived on different cards and is not now: Die Cutting four per cent
+          // down drew an amber head, an amber number and a red variance line underneath, one
+          // card giving two verdicts on one figure.
+          deltaHtml: rate && target
+            ? `<span class="ctrack__d ctrack__d--lg tone--${tone || 'none'}">${
+                esc(variancePct((rate - target) / Math.abs(target) * 100, 1))} vs target</span>`
+            : '',
           series: deptSeries(config.key), seriesTrend: false,
         }),
-        // Target, what was made, and the hours it took — the three things asked after the
-        // rate itself, on one line. "vs target" is not among them any more: the bar above
-        // is that number drawn, and printing it twice on the same card was half the reason
-        // the card felt crowded.
-        // Three facts, one row: what the target was, what was made against it, and the
-        // hours it took. They were two rows, which spent a whole line on the hours.
-        // Three facts, three fields, and they are the same three squares of the card.
+        // The volume, directly under the rate it was made out of.
         //
-        // Uptime and make-ready are gone from here. They were two more inputs on a card that
-        // prints neither, entered by hand for a figure the DOR has always carried — and the
-        // DOR's own Formulas tab settled how to read them, so they arrive with the morning
-        // now. Two fewer rows on every department card is most of why Production used to be
-        // a page and a half in edit mode.
+        // It used to be a third of the foot, level with the target and the hours and no
+        // louder than either — which puts "206,166 cartons" and "11,933" on the same line at
+        // the same weight, two numbers about different things pretending to be a set. A
+        // speed on its own answers nothing: eight and a half thousand cartons an hour over
+        // one hour and over twenty-four are different mornings, and the second figure the
+        // room reads is always how many. So it sits under the number it explains, at about
+        // half the size, which is where the plant's own dashboard has always had it.
+        total: { text: row.qty ? `${num(row.qty)} ${volumeLabel(config).toLowerCase()} total` : '',
+                 label: volumeLabel(config),
+                 edit: { field: `dept:${config.key}:qty`,
+                         attrs: `type="number" value="${row.qty ?? ''}"` } },
+        // What is left is the quiet line: the target the bar was drawn against, and the
+        // hours behind the volume. Both are context rather than news and both go faint.
         foot: footLine([
-          ['Target', num(Math.round(target)),
+          ['Target/hr', num(Math.round(target)),
             { field: `dept:${config.key}:target`,
               attrs: `type="number" value="${row.target ?? config.target}"` }],
-          [volumeLabel(config), row.qty ? num(row.qty) : null,
-            { field: `dept:${config.key}:qty`, attrs: `type="number" value="${row.qty ?? ''}"` }],
           [hoursLabel(config), row.hours ? `${row.hours} h` : null,
             { field: `dept:${config.key}:hours`,
               attrs: `type="number" step="0.1" value="${row.hours ?? ''}"` }],
@@ -1914,7 +1926,7 @@ function roomIn(card) {
 function overflows(card) {
   if (usedBy(card) > roomIn(card) + 1) return true;
   for (const part of card.querySelectorAll(
-    '.card__label,.flag,.hero,.unit,.fs__l,.fs__v,.ctrack__l,.ctrack__d')) {
+    '.card__label,.flag,.hero,.unit,.total,.fs__l,.fs__v,.ctrack__l,.ctrack__d')) {
     if (part.scrollWidth > part.clientWidth + 1) return true;
   }
   return false;

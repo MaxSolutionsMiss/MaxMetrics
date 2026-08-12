@@ -322,10 +322,19 @@ export function bullet({ actual, target, tone = '', floor = 0, ceiling = 0, lowe
     : lowerIsBetter
     ? [['good', 0, at(target)], ['mid', at(target), at(target * 1.18)], ['bad', at(target * 1.18), 100]]
     : [['bad', 0, at(target * 0.9)], ['mid', at(target * 0.9), at(target)], ['good', at(target), 100]];
+  // The bands and the fill are clipped to the bar's rounded corners; the target mark is not.
+  //
+  // It used to be inside the same clip, which quietly removed most of it: the mark is drawn
+  // taller than the bar and points at itself with a notch above, and `overflow:hidden`
+  // shaved off both. What was left was a short dark tick the length of the bar, sitting on
+  // a coloured fill, and the room's verdict was that you cannot see where target is. So the
+  // two clipped layers get a wrapper of their own and the mark hangs outside it.
   return `<div class="bullet bullet--${tone}">
-    ${edges.map(([kind, from, to]) => `<span class="bullet__band bullet__band--${kind}"
-      style="left:${from.toFixed(1)}%;width:${Math.max(0, to - from).toFixed(1)}%"></span>`).join('')}
-    <span class="bullet__fill" style="width:${at(Number(actual)).toFixed(1)}%"></span>
+    <span class="bullet__in">
+      ${edges.map(([kind, from, to]) => `<span class="bullet__band bullet__band--${kind}"
+        style="left:${from.toFixed(1)}%;width:${Math.max(0, to - from).toFixed(1)}%"></span>`).join('')}
+      <span class="bullet__fill" style="width:${at(Number(actual)).toFixed(1)}%"></span>
+    </span>
     <span class="bullet__target" style="left:${at(target).toFixed(1)}%"></span>
   </div>`;
 }
@@ -462,7 +471,7 @@ export const footLine = pairs => {
   // A fact whose label is a target is context rather than news, and goes quiet. Naming it
   // here rather than at every call site means a card cannot forget: there are eleven places
   // that print a target and they would not have stayed in step.
-  const quiet = label => /^(target|record|budget|elapsed|through|of|expected)$/i
+  const quiet = label => /^(target|target\/hr|record|budget|elapsed|through|of|expected|hours|crew hrs)$/i
     .test(String(label).trim());
   return `<div class="foot foot--${shown.length}">${shown.map(([label, value, edit]) =>
     `<span class="fs${quiet(label) ? ' fs--quiet' : ''}"><span class="fs__l" style="--lc:${chars(label)}">${esc(label)}</span>` +
@@ -737,7 +746,7 @@ export function noteCard({ pkey, icon, label, text, html, tone = '', blank,
 }
 
 export function metricCard({ chart, pkey, icon, label, tone, value, unit, percent, markPercent,
-                             markLabel, sub, flag, foot, edit, medium, track, heroEdit }) {
+                             markLabel, sub, flag, foot, edit, medium, track, heroEdit, total }) {
   const hero = showsHeroNumber(chart);
   const drawn = drawReading(chart, { percent, markPercent, markLabel, value, unit });
   const caption = hero
@@ -754,6 +763,13 @@ export function metricCard({ chart, pkey, icon, label, tone, value, unit, percen
   // white disc on the bar, which is what lets it stay the plant's own colourful icon
   // instead of being flattened to a white glyph.
   if (hidden.has(pkey)) return '';
+  // A second figure under the first, explaining it. Only production asks for one so far —
+  // the total the rate was made out of — and it takes an editable field like any other
+  // reading rather than being a caption the morning cannot correct.
+  const totalLine = !total?.text ? '' : `<div class="total${total.edit ? ' view-only' : ''}"
+      >${esc(total.text)}</div>${total.edit
+    ? `<input class="inp inp--total edit-only" aria-label="${esc(total.label || 'Total')}"
+        data-field="${esc(total.edit.field)}" ${total.edit.attrs || ''}>` : ''}`;
   return `<div class="card card--${tone}" data-pkey="${esc(pkey)}">
     <div class="card__head">
       <span class="card__ico" aria-hidden="true">${icon || iconFor(pkey)}</span>
@@ -767,7 +783,8 @@ export function metricCard({ chart, pkey, icon, label, tone, value, unit, percen
           heroChars(value, unit)}">${esc(value)}${
           unit ? `<i>${esc(unit)}</i>` : ''}</div>${
           heroEdit ? `<input class="inp inp--hero edit-only" aria-label="${esc(label)}"
-            data-field="${esc(heroEdit.field)}" ${heroEdit.attrs || ''}>` : ''}${caption}${drawn}` : `${drawn}${caption}`}
+            data-field="${esc(heroEdit.field)}" ${heroEdit.attrs || ''}>` : ''}${caption}${
+          totalLine}${drawn}` : `${drawn}${caption}${totalLine}`}
         ${track || ''}
       </div>
       ${foot || '<div class="foot foot--0"></div>'}
