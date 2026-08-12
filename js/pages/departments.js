@@ -28,7 +28,7 @@ import {
 } from '../db.js';
 import {
   esc, money, MONTHS, iconFor,
-  volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE,
+  volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE, WALK,
 } from '../readings.js';
 
 const $ = selector => document.querySelector(selector);
@@ -471,10 +471,20 @@ function qualityPane() {
       <div class="panel__body"><p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">
         <b>Dashboard</b> is whether this plant carries the card at all — unticked, it is
         gone from the page and from present mode, and the section rearranges around what is
-        left. <b>One page</b> is whether it goes up on the single broadcast screen, which is
-        a different room: the corridor TV is read by the floor, and sales usually are not.
-        Production's cards are the plant's departments and are set on the Departments
-        screen. Targets stay on the card itself, in Edit mode.</p>
+        left. <b>Present</b> is whether it goes up on a screen: the walk the meeting is driven
+        through and the one broadcast page alike. That is a different room from the desk — the
+        corridor TV is read by the floor, and sales usually are not — so a card can be on the
+        morning and off the wall. Whole sections can come off the walk the same way, on the
+        list below. Production's cards are the plant's departments and are set on the
+        Departments screen. Targets stay on the card itself, in Edit mode.</p>
+        <div class="cfg__two cfg__two--head" style="margin-top:var(--s4)"><span>Section</span>
+          <span></span><span>Present</span></div>
+        ${WALK.map(([key, name]) => `<div class="cfg__two">
+          <span class="cfg__two-n">${esc(name)}</span>
+          <span></span>
+          <label class="tog"><input type="checkbox" data-wall="${esc(key)}"${
+            wallOff.has(key) ? '' : ' checked'}${canEdit() ? '' : ' disabled'}></label>
+        </div>`).join('')}
         <label class="tog cfg__card" style="margin-top:var(--s2)">
           <input type="checkbox" data-plant="merge_upkeep"${
             state.plant?.merge_upkeep ? ' checked' : ''}${canEdit() ? '' : ' disabled'}>
@@ -513,7 +523,7 @@ function qualityPane() {
           dashboard</span></div></div>
       <div class="panel__body">
         <div class="cfg__two cfg__two--head"><span></span>
-          <span>Dashboard</span><span>One page</span></div>
+          <span>Dashboard</span><span>Present</span></div>
         ${group.cards.map(row).join('')}</div></div>`;
   };
 

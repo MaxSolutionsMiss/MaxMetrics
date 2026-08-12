@@ -354,6 +354,23 @@ body:not(.tv) .grid--cards{grid-auto-rows:minmax(var(--row-h,10rem),auto)}
    needs the top and the bottom to line up. It gives up the width on a narrow screen rather
    than pushing the grid sideways. */
 .card--wide{grid-column:span 2}
+/* The lines already on a comment card, above the box that adds the next one. Each carries a
+   cross, because the first thing anybody wants after adding a line by mistake is to take it
+   off, and the alternative was editing a textarea full of somebody else's sentences. */
+.jot{list-style:none;margin:0 0 var(--s2);padding:0;display:flex;flex-direction:column;gap:2px}
+.jot li{display:flex;align-items:flex-start;gap:var(--s2);font-size:var(--t-small);
+  line-height:1.45;background:var(--sunk);border:1px solid var(--rule);
+  border-radius:var(--radius);padding:3px var(--s2)}
+.jot li>span{flex:1 1 auto;min-width:0;overflow-wrap:anywhere}
+.jot__x{flex:none;border:0;background:none;cursor:pointer;color:var(--ink-faint);
+  font-size:15px;line-height:1.2;padding:0 2px;border-radius:3px}
+.jot__x:hover{color:var(--stop);background:var(--stop-wash)}
+.jot__x:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
+/* The box and its button on one line, so "type it, press Add" is one movement. */
+.er--jot{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:start;
+  gap:var(--s2)}
+.er--jot textarea{min-height:calc(2.4*var(--ctl-h))}
+.jot__add{align-self:stretch;white-space:nowrap}
 @media(max-width:760px){.card--wide{grid-column:auto}}
 @media(max-width:760px){.grid--cards{grid-template-columns:minmax(0,1fr);
   grid-auto-rows:minmax(min-content,auto)}}
