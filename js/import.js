@@ -18,7 +18,7 @@
 // to record. Neither is a warning, and neither holds up an import. An alarm that fires
 // every Monday about a Sunday nobody worked is one people learn to close without reading.
 
-import { openWorkbook, serialToISO } from './xlsx.js?v=c4ac39de1016';
+import { openWorkbook, serialToISO } from './xlsx.js?v=950b84b9e39c';
 
 // ── Matching a column ───────────────────────────────────────────────────────────
 
@@ -821,8 +821,30 @@ export async function readFiles(files, { date, reported = [], operators = [] } =
       // A file the reader could not place still arrived, so it still appears in the list of
       // what arrived. Leaving it out of `sources` and mentioning it in a note at the bottom
       // is how a dropped folder of six workbooks can look like a clean import of three.
+      //
+      // And it says what is *in* it, sheet by sheet, with each sheet's header row.
+      //
+      // "Nothing recognisable" is a true statement that leaves the plant no move to make.
+      // Every one of these files is readable — it is laid out differently from the ones the
+      // parsers were written against, and the whole of the difference is which tab the
+      // numbers are on and what the columns are called. Printing those turns a dead end into
+      // a list somebody can send on, and the parser gets written against the real file
+      // rather than against a guess about it. The JSON importer has done this with its
+      // unrecognised keys from the beginning; a workbook deserves the same.
+      const peek = [];
+      for (const sheet of names.slice(0, 10)) {
+        let head = [];
+        try {
+          const rows = await workbook.rows(sheet);
+          const at = (rows || []).find(row =>
+            (row || []).filter(cell => cell != null && String(cell).trim() !== '').length >= 2);
+          head = (at || []).slice(0, 12)
+            .map(cell => String(cell ?? '').replace(/\s+/g, ' ').trim()).filter(Boolean);
+        } catch { /* a sheet that will not open still gets its name printed */ }
+        peek.push({ sheet, head });
+      }
       sources.push({ file: file.name, kind: 'unknown', rows: names.length,
-                     sheets: names.slice(0, 6) });
+                     sheets: names.slice(0, 6), peek });
       notes.push(`${file.name}: nothing recognisable — sheets are ${names.slice(0, 4).join(', ')}.`);
     }
   }

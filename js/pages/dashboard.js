@@ -13,8 +13,8 @@ import {
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=c4ac39de1016';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=c4ac39de1016';
+} from '../db.js?v=950b84b9e39c';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=950b84b9e39c';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
@@ -22,7 +22,7 @@ import {
   isNa, isMissing,
   varianceChip, varianceTone, variancePct,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE,
-} from '../readings.js?v=c4ac39de1016';
+} from '../readings.js?v=950b84b9e39c';
 
 const $ = selector => document.querySelector(selector);
 
@@ -2987,6 +2987,14 @@ function importPanel() {
         : source.kind === 'unreadable' ? esc(source.why || '')
         : ''}</td></tr>`).join('')}
     </tbody></table>
+    ${p.sources.filter(s => s.peek?.length).map(source => `
+      <div class="keys"><div>
+        <div class="keys__l keys__l--bad">What is inside ${esc(source.file)} — send me this
+          and the reader will be taught it</div>
+        ${source.peek.map(sheet => `<div class="keys__v"><b>${esc(sheet.sheet)}</b>
+          ${sheet.head.length ? sheet.head.map(h => `<code>${esc(h)}</code>`).join(' ')
+            : '<i>no header row</i>'}</div>`).join('')}
+      </div></div>`).join('')}
     <div class="cover">${cover.map(row =>
       `<span class="cover__s cover__s--${row.got ? 'on' : 'off'}">${esc(row.name)}
         <b>${row.got ? esc(KIND_NAMES[row.kind] || 'yes') : 'not in these files'}</b></span>`).join('')}</div>

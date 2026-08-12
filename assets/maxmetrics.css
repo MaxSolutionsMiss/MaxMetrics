@@ -535,7 +535,26 @@ body.tv .verdict{font-size:var(--t-lead)}
 /* A plant that wants the number and nothing else. The line is the first thing to go, not
    the bar: the bar says whether the reading met its target, which is the reading's meaning
    rather than decoration around it. */
-body.no-trends .ctrack__ser{display:none}
+/* The year by month is a trend too. It was not wrapped, so switching trends off took the
+   seven-day line away and left twelve columns sitting under three quality cards whose
+   reading was a dash — a graph over a card with nothing on it. */
+body.no-trends .ctrack__ser,body.no-trends .ctrack__yr{display:none}
+/* What a file holds that the reader could not place: unrecognised JSON keys, and the tabs
+   and column headers of a workbook laid out differently from the ones the parsers know.
+   It had no styling at all, which for a block whose whole job is to be copied and sent on
+   is most of the reason nobody sent one on. */
+.keys{border:1px solid var(--rule);border-radius:var(--radius-lg);background:var(--sunk);
+  padding:var(--s2) var(--s3);margin:var(--s2) 0}
+.keys__l{font-size:var(--t-micro);font-weight:600;letter-spacing:.04em;text-transform:uppercase;
+  color:var(--ink-muted);margin-bottom:var(--s2)}
+.keys__l--bad{color:var(--signal)}
+.keys__v{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px;margin-bottom:4px;
+  font-size:var(--t-small);line-height:1.6}
+.keys__v>b{flex:none;min-width:9rem;color:var(--ink);font-weight:600}
+.keys__v>i{color:var(--ink-faint)}
+.keys__v code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;
+  background:var(--surface);border:1px solid var(--rule);border-radius:3px;padding:1px 5px;
+  color:var(--ink)}
 .ctrack__d{font-family:var(--font-num);font-size:calc(12px*var(--scale));font-weight:700;
   letter-spacing:0;white-space:nowrap;flex:none}
 .ctrack .bullet{height:12px;margin:0}
