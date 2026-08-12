@@ -482,6 +482,14 @@ function qualityPane() {
         <p class="cfg__none" style="font-style:normal;color:var(--ink-faint)">
           Off, each gets its own screen. On, they share one, which suits a plant with two
           bookings a week and nothing else to say about either.</p>
+        <label class="tog cfg__card" style="margin-top:var(--s3)">
+          <input type="checkbox" data-plant="hide_trends"${
+            state.plant?.hide_trends ? ' checked' : ''}${canEdit() ? '' : ' disabled'}>
+          <span>Hide the seven-day line on every card</span></label>
+        <p class="cfg__none" style="font-style:normal;color:var(--ink-faint)">
+          The bar stays either way \u2014 it says whether the reading met its target, which is
+          what the reading means rather than decoration around it. The line is history, and a
+          plant reading the morning off a wall may want the number and nothing else.</p>
       </div></div>
     <div class="panel" style="margin-top:var(--s3)"><div class="panel__head">
       <h3 class="panel__title">Whole sections, off the one page</h3>

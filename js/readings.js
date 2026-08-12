@@ -389,14 +389,20 @@ export function cardTrack({ chart, actual, target, tone = '', floor = 0, ceiling
   if (!bar && !line && !year) return '';
   const row = (label, right) => `<div class="ctrack__row"><span class="ctrack__l">${esc(label)}</span>
     ${right || ''}</div>`;
+  // The bar carries no heading and its movement sits under it, centred.
+  //
+  // "AGAINST 3,050 SHEETS/HR" restated the target, which the foot already prints, and it
+  // pushed the arrow that says which way the reading went out to the right-hand edge - the
+  // one part of the card nobody was looking at. The number moved is the story; it goes
+  // directly under the bar, on the card's own centre line, where the eye lands after the
+  // figure above it.
+  const moved = deltaHtml || (deltaText
+    ? `<span class="ctrack__d tone--${deltaTone || tone || 'none'}">${esc(deltaText)}</span>`
+    : '');
   return `<div class="ctrack">
-    ${bar ? row(targetText || 'Against target',
-        deltaHtml || (deltaText
-          ? `<span class="ctrack__d tone--${deltaTone || tone || 'none'}">${esc(deltaText)}</span>`
-          : ''))
-      + bar : ''}
-    ${line ? row(seriesLabel, seriesTrend
-        ? trend(points[points.length - 1], points[0], lowerIsBetter) : '') + line : ''}
+    ${bar ? bar + (moved ? `<div class="ctrack__mv">${moved}</div>` : '') : ''}
+    ${line ? `<div class="ctrack__ser">${row(seriesLabel, seriesTrend
+        ? trend(points[points.length - 1], points[0], lowerIsBetter) : '')}${line}</div>` : ''}
     ${year ? row(monthsLabel, '') + year : ''}
   </div>`;
 }
@@ -453,8 +459,13 @@ export const footLine = pairs => {
   // than half of one. Without it the date was the first thing to run out of room on every
   // card, which capped how large the whole card could be drawn.
   const chars = text => String(text).replace(/<[^>]*>/g, '').trim().length || 1;
+  // A fact whose label is a target is context rather than news, and goes quiet. Naming it
+  // here rather than at every call site means a card cannot forget: there are eleven places
+  // that print a target and they would not have stayed in step.
+  const quiet = label => /^(target|record|budget|elapsed|through|of|expected)$/i
+    .test(String(label).trim());
   return `<div class="foot foot--${shown.length}">${shown.map(([label, value, edit]) =>
-    `<span class="fs"><span class="fs__l" style="--lc:${chars(label)}">${esc(label)}</span>` +
+    `<span class="fs${quiet(label) ? ' fs--quiet' : ''}"><span class="fs__l" style="--lc:${chars(label)}">${esc(label)}</span>` +
     `<span class="fs__v" style="--fc:${chars(value ?? '—')}">${
       edit ? `<span class="view-only">${value ?? '—'}</span>` +
              `<input class="inp inp--foot edit-only" aria-label="${esc(label)}"

@@ -1736,6 +1736,9 @@ function renderContent() {
 
 function render() {
   hideCards(state.plant?.hidden_cards);
+  // The plant's own answer about trend lines, on the body so present mode and the page get
+  // it from one place.
+  document.body.classList.toggle('no-trends', !!state.plant?.hide_trends);
   // One section or two, and the heading says which.
   TITLES.labour = state.plant?.merge_upkeep ? 'Maintenance & Labour' : 'Labour & Overtime';
   state.findings = assess(state);
