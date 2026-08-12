@@ -18,7 +18,7 @@
 // to record. Neither is a warning, and neither holds up an import. An alarm that fires
 // every Monday about a Sunday nobody worked is one people learn to close without reading.
 
-import { openWorkbook, serialToISO } from './xlsx.js?v=9805214f8b4f';
+import { openWorkbook, serialToISO } from './xlsx.js?v=0df0b9f1b694';
 
 // ── Matching a column ───────────────────────────────────────────────────────────
 
@@ -831,17 +831,32 @@ export async function readFiles(files, { date, reported = [], operators = [] } =
       // a list somebody can send on, and the parser gets written against the real file
       // rather than against a guess about it. The JSON importer has done this with its
       // unrecognised keys from the beginning; a workbook deserves the same.
+      // The first few rows of each tab, not just the header.
+      //
+      // A header row alone is enough for a table and useless for the shape these quality
+      // workbooks are actually in: a COQ sheet is a title, a row of months down the side and
+      // one column of figures, with the year to date on a row of its own further down. Column
+      // letters are printed beside them because that is how the plant talks about the file —
+      // "the year to date is D16" — and because a reader written against a label survives a
+      // row being inserted, while one written against D16 does not. Both together are what
+      // makes a parser writable without the file in hand.
+      const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWX';
       const peek = [];
-      for (const sheet of names.slice(0, 10)) {
-        let head = [];
+      for (const sheet of names.slice(0, 8)) {
+        let head = [], grid = [];
         try {
           const rows = await workbook.rows(sheet);
-          const at = (rows || []).find(row =>
-            (row || []).filter(cell => cell != null && String(cell).trim() !== '').length >= 2);
-          head = (at || []).slice(0, 12)
-            .map(cell => String(cell ?? '').replace(/\s+/g, ' ').trim()).filter(Boolean);
+          const filled = (rows || []).map((row, at) => ({ at, row: row || [] }))
+            .filter(r => r.row.some(cell => cell != null && String(cell).trim() !== ''));
+          const cell = value => String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, 22);
+          grid = filled.slice(0, 8).map(r => ({
+            row: r.at + 1, cells: r.row.slice(0, 8).map(cell),
+          }));
+          const at = filled.find(r =>
+            r.row.filter(c => c != null && String(c).trim() !== '').length >= 2);
+          head = (at?.row || []).slice(0, 12).map(cell).filter(Boolean);
         } catch { /* a sheet that will not open still gets its name printed */ }
-        peek.push({ sheet, head });
+        peek.push({ sheet, head, grid, letters: LETTERS.slice(0, 8).split('') });
       }
       sources.push({ file: file.name, kind: 'unknown', rows: names.length,
                      sheets: names.slice(0, 6), peek });

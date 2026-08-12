@@ -13,8 +13,8 @@ import {
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=9805214f8b4f';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=9805214f8b4f';
+} from '../db.js?v=0df0b9f1b694';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=0df0b9f1b694';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
@@ -22,7 +22,7 @@ import {
   isNa, isMissing,
   varianceChip, varianceTone, variancePct,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE,
-} from '../readings.js?v=9805214f8b4f';
+} from '../readings.js?v=0df0b9f1b694';
 
 const $ = selector => document.querySelector(selector);
 
@@ -1323,8 +1323,12 @@ const SECTIONS = {
     // One grid, and the departments and the week they just had are in it together. A plant
     // that adds a fourth and a fifth department wraps onto a second row and the week card
     // wraps with them, which is what the full-width table could never do.
-    return `<div class="grid grid--cards" data-grid="production">${weekCard()}${
-      supportCard()}${cards}</div>
+    // Support has moved to Shipping. It was here because customer service, the die shop and
+    // prepress are what hold production up — true, and not what the card is: it is the note
+    // somebody from the front of the building leaves for the room, and the front of the
+    // building is the end of the morning, not the middle of the floor. On Production it also
+    // made the row uneven, a note card beside three readings.
+    return `<div class="grid grid--cards" data-grid="production">${weekCard()}${cards}</div>
     ${review ? `<div class="sec__head" style="margin-top:var(--s3)">
       <h3 class="sec__title" style="font-size:var(--t-lead)">Review \u2014 last 24 hours</h3>
       <div class="sec__rule"></div></div>
@@ -1429,6 +1433,7 @@ const SECTIONS = {
       ${pct('ytd_otd', 'YTD OTD', 'year to date')}
       ${pct('mtd_otif', 'MTD OTIF', 'month to date')}
       ${pct('ytd_otif', 'YTD OTIF', 'year to date')}
+      ${supportCard()}
     </div>
     <p class="note-derived edit-only">OTD and OTIF are worked out from jobs, late and short.</p>`;
   },
@@ -3003,9 +3008,17 @@ function importPanel() {
       <div class="keys"><div>
         <div class="keys__l keys__l--bad">What is inside ${esc(source.file)} — send me this
           and the reader will be taught it</div>
-        ${source.peek.map(sheet => `<div class="keys__v"><b>${esc(sheet.sheet)}</b>
-          ${sheet.head.length ? sheet.head.map(h => `<code>${esc(h)}</code>`).join(' ')
-            : '<i>no header row</i>'}</div>`).join('')}
+        ${source.peek.map(sheet => `<div class="peek">
+          <div class="peek__n">${esc(sheet.sheet)}</div>
+          ${sheet.grid?.length ? `<div class="peek__t"><table><thead><tr><th></th>${
+            (sheet.letters || []).map(l => `<th>${esc(l)}</th>`).join('')
+          }</tr></thead><tbody>${sheet.grid.map(row => `<tr><th>${row.row}</th>${
+            row.cells.map(c => `<td>${esc(c)}</td>`).join('')
+          }</tr>`).join('')}</tbody></table></div>`
+          : sheet.head?.length ? `<div class="keys__v">${
+              sheet.head.map(h => `<code>${esc(h)}</code>`).join(' ')}</div>`
+          : '<div class="keys__v"><i>empty</i></div>'}
+        </div>`).join('')}
       </div></div>`).join('')}
     <div class="cover">${cover.map(row =>
       `<span class="cover__s cover__s--${row.got ? 'on' : 'off'}">${esc(row.name)}

@@ -1,7 +1,7 @@
 // Signing in. Two panels, one at a time, and no state worth keeping between them.
 
 import { signIn, resetPassword, currentSession,
-         mustChangePassword, chooseOwnPassword } from '../db.js?v=9805214f8b4f';
+         mustChangePassword, chooseOwnPassword } from '../db.js?v=0df0b9f1b694';
 
 const $ = selector => document.querySelector(selector);
 
