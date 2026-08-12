@@ -25,11 +25,11 @@ import {
   peopleAt, grantAccess, revokeAccess, setAdmin, accessMatrix, allLocations,
   createPerson, updatePerson, resetPersonPassword, removePerson,
   loadSources, saveSource, addSource, dropSource, pullSources,
-} from '../db.js?v=73e5ce1fceb8';
+} from '../db.js?v=957cc5ce14ad';
 import {
   esc, money, MONTHS, iconFor,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE, walkKeyFor, morningToday,
-} from '../readings.js?v=73e5ce1fceb8';
+} from '../readings.js?v=957cc5ce14ad';
 
 const $ = selector => document.querySelector(selector);
 
@@ -1652,7 +1652,23 @@ state.locations = (grants || []).map(grant => ({
   sort: grant.locations?.sort_order ?? 0, canEdit: grant.can_edit,
 })).sort((a, b) => a.sort - b.sort);
 
-if (!state.locations.length) {
+// The screen is for administrators, and the door is shut rather than half open.
+//
+// Hiding the link on the dashboard is not the same as closing the screen: a bookmark, a
+// shared URL or the back button all reach it, and what they used to reach was a page of
+// controls that mostly worked. Configure changes the plant for everybody who reads it —
+// what a department is called, which cards exist, who has access — and that is a different
+// act from filling a morning in, however much the person can be trusted with the morning.
+if (!state.me?.is_admin) {
+  document.body.classList.add('no-access');
+  $('#content').innerHTML = `<div class="state"><div class="state__inner">
+    <h1 class="state__title">Administrators only</h1>
+    <p class="state__body">Configure changes the plant for everyone who reads it — what the
+    departments are, which cards the morning carries, who can see it. Your account can fill
+    in and publish a morning, which is a different thing, and it is where the work is.</p>
+    <a class="btn btn--primary" href="dashboard.html">Back to the dashboard</a>
+  </div></div>`;
+} else if (!state.locations.length) {
   document.body.classList.add('no-access');
   $('#content').innerHTML = `<div class="state"><div class="state__inner">
     <h1 class="state__title">Waiting on access</h1>

@@ -13,8 +13,8 @@ import {
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=73e5ce1fceb8';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=73e5ce1fceb8';
+} from '../db.js?v=957cc5ce14ad';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=957cc5ce14ad';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
@@ -22,7 +22,7 @@ import {
   isNa, isMissing,
   varianceChip, varianceTone, variancePct,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE, WALK, morningToday,
-} from '../readings.js?v=73e5ce1fceb8';
+} from '../readings.js?v=957cc5ce14ad';
 
 const $ = selector => document.querySelector(selector);
 
@@ -1733,10 +1733,14 @@ function renderNav() {
     + link('overview', 'Everything', ICONS.overview, 'none')
     + order().map(key => link(key, NAV[key] || TITLES[key], ICONS[key], sectionTone(key))).join('')
     // Configure is a different page, not a section of this one — the plant's shape is not
-    // a reading of a morning. Only somebody who can edit the plant is offered it; the
-    // policies would refuse anyone else, and offering a door that does not open is worse
-    // than not offering it.
-    + (state.canEdit ? `<div class="rail__split"></div>
+    // a reading of a morning, and changing it is not the same act as filling one in.
+    //
+    // It was offered to anyone who could edit the morning, which is nearly everybody: the
+    // coordinator who keys the timesheets, the supervisor who writes the review. Those people
+    // have every right to the morning and no business renaming a department or taking a card
+    // off the wall for the whole plant. Administrators only, which is what `profiles.is_admin`
+    // has meant since it was added.
+    + (state.me?.is_admin ? `<div class="rail__split"></div>
       <a class="rail__link" href="departments.html?loc=${encodeURIComponent(state.location || '')}"
          title="Configure departments">
         <svg class="rail__ico" viewBox="0 0 24 24"><path d="${ICONS.configure}"/></svg>
