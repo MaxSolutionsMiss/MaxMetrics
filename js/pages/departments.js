@@ -749,7 +749,10 @@ function sourcesPanel() {
 // knows from MaxDock, and it means the pane in front of you is about one thing.
 const DATA_TABS = [
   { key: 'linked', name: 'Linked files', sub: 'Where the numbers come from' },
-  { key: 'inout',  name: 'Import, export, print', sub: 'A morning, by hand' },
+  // Named for the thing somebody does every morning, not for the three things the screen
+  // can do. Uploading the workbooks is the daily act while the links are refused; exporting
+  // and printing happen a few times a month.
+  { key: 'inout',  name: 'Upload a morning', sub: 'And export or print one' },
   { key: 'legacy', name: 'The old dashboard', sub: 'Reading its .json exports' },
 ];
 
