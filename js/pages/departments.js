@@ -438,6 +438,10 @@ function qualityPane() {
   // does not want them on a corridor TV had no way to say so, and the only workaround —
   // turning the card off — took it off the dashboard as well.
   const wallOff = new Set(state.plant?.wall_hidden || []);
+  // The walk and the one page ask different questions of the same card, so they keep
+  // different answers. One tick was doing both and was labelled after only one of them.
+  const pageOff = new Set(state.plant?.page_hidden || []);
+  const solo = new Set(state.plant?.solo_sections || []);
   const sections = [];
   for (const card of CARD_CATALOGUE) {
     let group = sections.find(g => g.name === card.section);
@@ -450,6 +454,7 @@ function qualityPane() {
     <span class="cfg__two-n">${esc(card.name)}</span>
     <label class="tog">${tick('card', card.key, !hidden.has(card.key))}</label>
     <label class="tog">${tick('wall', card.key, !wallOff.has(card.key))}</label>
+    <label class="tog">${tick('page', card.key, !pageOff.has(card.key))}</label>
   </div>`;
   const on = sections.reduce((n, g) => n + g.cards.filter(c => !hidden.has(c.key)).length, 0);
 
@@ -471,12 +476,15 @@ function qualityPane() {
       <div class="panel__body"><p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">
         <b>Dashboard</b> is whether this plant carries the card at all — unticked, it is
         gone from the page and from present mode, and the section rearranges around what is
-        left. <b>Present</b> is whether it goes up on a screen: the walk the meeting is driven
-        through and the one broadcast page alike. That is a different room from the desk — the
-        corridor TV is read by the floor, and sales usually are not — so a card can be on the
-        morning and off the wall. A whole section comes off the walk the same way, from the
-        tick at the top of its own list. Production's cards are the plant's departments and
-        are set on the Departments screen. Targets stay on the card itself, in Edit mode.</p>
+        left. <b>Walk</b> is the sequence the meeting is driven through, a screen at a time.
+        <b>One page</b> is the single broadcast screen the floor walks past — a different room
+        again, which is why it keeps its own answer: sales belong in the meeting and usually
+        not in the corridor. Each is asked of a whole section at the top of its own list and of
+        every card in it below.
+        <b>On a slide of its own</b> says a section must never share. Leave it off and a small
+        section is packed in with its neighbours rather than spending a wall on three cards.
+        Production's cards are the plant's departments and are set on the Departments screen.
+        Targets stay on the card itself, in Edit mode.</p>
 
         <label class="tog cfg__card" style="margin-top:var(--s2)">
           <input type="checkbox" data-plant="merge_upkeep"${
@@ -523,12 +531,17 @@ function qualityPane() {
           dashboard</span></div></div>
       <div class="panel__body">
         <div class="cfg__two cfg__two--head"><span></span>
-          <span>Dashboard</span><span>Present</span></div>
+          <span>Dashboard</span><span>Walk</span><span>One page</span></div>
         ${sectionKey ? `<div class="cfg__two cfg__two--sec">
           <span class="cfg__two-n">The whole ${esc(group.name)} screen</span>
           <span></span>
-          <label class="tog"><input type="checkbox" data-wall="${esc(sectionKey)}"${
-            wallOff.has(sectionKey) ? '' : ' checked'}${canEdit() ? '' : ' disabled'}></label>
+          <label class="tog">${tick('wall', sectionKey, !wallOff.has(sectionKey))}</label>
+          <label class="tog">${tick('page', sectionKey, !pageOff.has(sectionKey))}</label>
+        </div>
+        <div class="cfg__two cfg__two--sec cfg__two--solo">
+          <span class="cfg__two-n">\u2026 on a slide of its own</span>
+          <label class="tog">${tick('solo', sectionKey, solo.has(sectionKey))}</label>
+          <span></span><span></span>
         </div>` : ''}
         ${group.cards.map(row).join('')}</div></div>`;
   };
@@ -1155,6 +1168,20 @@ document.addEventListener('change', async event => {
     state.plant = { ...(state.plant || {}), hidden_cards: list };
     render();
     try { await savePlant(state.location, { hidden_cards: list }); noteSaved(); }
+    catch (error) { toast(error.message); }
+    return;
+  }
+  for (const [attr, column] of [['page', 'page_hidden'], ['solo', 'solo_sections']]) {
+    const key = event.target.dataset?.[attr];
+    if (!key) continue;
+    const set = new Set(state.plant?.[column] || []);
+    // `solo` is a list of what is on; the two hidden lists are lists of what is off.
+    const on = attr === 'solo' ? event.target.checked : !event.target.checked;
+    on ? set.add(key) : set.delete(key);
+    const list = [...set];
+    state.plant = { ...(state.plant || {}), [column]: list };
+    render();
+    try { await savePlant(state.location, { [column]: list }); noteSaved(); }
     catch (error) { toast(error.message); }
     return;
   }

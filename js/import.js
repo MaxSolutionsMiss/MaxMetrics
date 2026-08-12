@@ -883,6 +883,18 @@ export async function readFiles(files, { date, reported = [], operators = [] } =
   let shifts = [], shipping = null, sources = [];
 
   let json = null;
+  // The sheet whose only subject is cost of quality is held back and applied last.
+  //
+  // Mississauga's two quality workbooks disagree about the COQ target: the monthly roll-up
+  // says one per cent and the plant's own COQ sheet says 0.85, on every row, in a column
+  // headed `Taget`. Both were being read and the later file won — which meant a threshold
+  // the room is judged against was being decided by the order two files happen to sit in a
+  // folder, and it read 1.00 for a week because of it. The plant says 0.85.
+  //
+  // Ordering by specificity settles it without a special case for one plant: a tab that
+  // holds nothing but cost of quality by month knows more about cost of quality than a
+  // roll-up that carries it beside eleven other things, so it goes on the end and wins.
+  let coqDay = null;
 
   for (const file of files) {
     // The old dashboard's exports are JSON, not a workbook, and handing one to the XLSX
@@ -935,17 +947,9 @@ export async function readFiles(files, { date, reported = [], operators = [] } =
       // previewed and never overwriting anything typed.
       const read = await readCoqSheet(workbook, { date });
       notes.push(...read.notes.map(n => `${file.name}: ${n}`));
-      if (Object.keys(read.metrics).length) {
-        const day = { date, metrics: read.metrics, departments: {} };
-        json = json
-          ? { days: json.days.concat([day]),
-              recognised: [...new Set(json.recognised.concat(Object.keys(read.metrics)))].sort(),
-              unknown: json.unknown }
-          : { days: [day], recognised: Object.keys(read.metrics).sort(), unknown: [] };
-        sources.push({ file: file.name, kind: 'quality', rows: Object.keys(read.metrics).length });
-      } else {
-        sources.push({ file: file.name, kind: 'quality', rows: 0 });
-      }
+      if (Object.keys(read.metrics).length) coqDay = { date, metrics: read.metrics, departments: {} };
+      sources.push({ file: file.name, kind: 'quality',
+                     rows: Object.keys(read.metrics).length });
     } else if (looksLikeShipping(names)) {
       const read = await readShipping(workbook);
       shipping = read.days;
@@ -996,6 +1000,14 @@ export async function readFiles(files, { date, reported = [], operators = [] } =
                      sheets: names.slice(0, 6), peek });
       notes.push(`${file.name}: nothing recognisable — sheets are ${names.slice(0, 4).join(', ')}.`);
     }
+  }
+
+  if (coqDay) {
+    json = json
+      ? { days: json.days.concat([coqDay]),
+          recognised: [...new Set(json.recognised.concat(Object.keys(coqDay.metrics)))].sort(),
+          unknown: json.unknown }
+      : { days: [coqDay], recognised: Object.keys(coqDay.metrics).sort(), unknown: [] };
   }
 
   const span = windowFor(date, reported);

@@ -183,6 +183,7 @@ const order = () => ORDER.filter(key => key !== 'maintenance' || !state.plant?.m
 const TITLES = {
   safety: 'Safety', quality: 'Quality', production: 'Production', shipping: 'Shipping',
   maintenance: 'Upcoming maintenance', labour: 'Labour & Overtime', financials: 'Financials',
+  attention: 'Needs watching today',
   // Support is an entry screen rather than a dashboard section, so it never needed a title
   // here - until Save-and-next started naming the screen it was about to move to, and found
   // nothing. The button read "Next next" and the toast said "Saved. undefined next."
@@ -2364,10 +2365,16 @@ function bestGrid(count, share = 1) {
 // keys and card keys alike, so it is "not the money" or "not that one card", whichever the
 // plant meant.
 const wallHidden = () => new Set(state.plant?.wall_hidden || []);
+// The one page is a different room from the walk and now keeps a different list. A plant that
+// wants its sales out of the corridor but still in the meeting says so once, here.
+const pageHidden = () => new Set(state.plant?.page_hidden || []);
+const soloSections = () => new Set(state.plant?.solo_sections || []);
 
 function wallPages() {
   const pages = [];
-  const off = wallHidden();
+  const off = state.wallMode === 'all' ? pageHidden() : wallHidden();
+  const solo = soloSections();
+  const later = [];
   // The sections render themselves, once, and their cards are read back out. Doing it this
   // way rather than keeping a parallel list of readings is what stops the wall drifting
   // from the page: there is one definition of a Shipping card and this is reading it.
@@ -2401,10 +2408,50 @@ function wallPages() {
     // room needed off it was five columns wide. Both are cards, so the exception has nothing
     // left to except, and a screen is one grid again.
     if (!cards.length) continue;
-    const deal = state.wallMode === 'all' ? { cols: 1, rows: 1 } : bestGrid(cards.length);
-    pages.push({ key, ...deal, html: cards.map(card => card.outerHTML).join('') });
+    // The board takes the last screen to itself.
+    //
+    // It is a card in Labour's grid on the page, because that is where the room reads it and
+    // a section of one card is a heading with nothing under it. On the walk it is the
+    // opposite: it is the only thing on the morning that faces forwards, it is sentences
+    // rather than a figure, and it is what the meeting ends on. Sharing a slide with the
+    // overtime list would give it a quarter of a wall to say what today turns on.
+    const kept = state.wallMode === 'all' ? cards
+      : cards.filter(card => card.dataset.pkey !== 'attention');
+    const board = state.wallMode === 'all' ? []
+      : cards.filter(card => card.dataset.pkey === 'attention');
+    if (board.length) {
+      later.push({ key: 'attention', cols: 1, rows: 1, solo: true, count: 1,
+                   html: board.map(card => card.outerHTML).join('') });
+    }
+    if (!kept.length) continue;
+    const deal = state.wallMode === 'all' ? { cols: 1, rows: 1 } : bestGrid(kept.length);
+    pages.push({ key, ...deal, solo: solo.has(key), count: kept.length,
+                 html: kept.map(card => card.outerHTML).join('') });
   }
-  return pages;
+  if (state.wallMode === 'all') return pages;
+
+  // Sections that did not ask for a screen of their own share one when they are small.
+  //
+  // Every section used to get a slide whatever was on it, and the only thing that ever put
+  // two together was `merge_upkeep` — one boolean for one pair, which is what a setting looks
+  // like when it is written for the first plant that asks. Two cards on a screen the size of
+  // a wall is a screen of margins, and a walk that spends a slide on it is a walk people stop
+  // watching. A section ticked "own slide" always gets one; the rest are packed with their
+  // neighbours up to six cards, which is the point where `bestGrid` stops drawing a card
+  // large enough to read from the back of the room.
+  const packed = [];
+  for (const page of pages) {
+    const last = packed[packed.length - 1];
+    if (!page.solo && last && !last.solo && last.count + page.count <= 6) {
+      last.count += page.count;
+      last.html += page.html;
+      last.keys = [...(last.keys || [last.key]), page.key];
+      Object.assign(last, bestGrid(last.count));
+      continue;
+    }
+    packed.push({ ...page });
+  }
+  return [...packed, ...later];
 }
 
 // Two shapes, because two rooms want two different things.
@@ -2549,7 +2596,8 @@ function renderWall() {
   content.className = 'content wall';
   content.innerHTML = `
     <div class="wall__top">
-      <h2>${esc(TITLES[page.key])} · ${esc(state.locations.find(l => l.id === state.location)?.name || '')}</h2>
+      <h2>${esc((page.keys || [page.key]).map(k => TITLES[k] || k).join(' · '))} · ${
+        esc(state.locations.find(l => l.id === state.location)?.name || '')}</h2>
       <span class="wall__date">${$('#date-long').textContent}</span>
     </div>
     <section class="sec">
