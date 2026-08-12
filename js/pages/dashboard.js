@@ -21,7 +21,7 @@ import {
   spark, bullet, chip, cardTrack, readingOf, derivedShipping, otifTarget, otdTarget,
   isNa, isMissing,
   varianceChip, varianceTone, variancePct,
-  volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE, WALK,
+  volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE, WALK, morningToday,
 } from '../readings.js';
 
 const $ = selector => document.querySelector(selector);
@@ -29,7 +29,7 @@ const $ = selector => document.querySelector(selector);
 const session = await currentSession();
 if (!session) location.replace('../index.html');
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => morningToday();
 
 // A date, n days off. This was being called here and only ever declared inside import.js,
 // where it is not exported — so every file drop and every history write threw a

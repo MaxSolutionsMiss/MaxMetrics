@@ -97,6 +97,29 @@ export const MONTHS = ['January','February','March','April','May','June',
                        'July','August','September','October','November','December'];
 export const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 
+// Which morning it is, right now.
+//
+// Two things were wrong with `new Date().toISOString().slice(0, 10)`, and both pages had
+// their own copy of it.
+//
+// It was UTC. Mississauga is four or five hours behind, so at eight in the evening the
+// dashboard quietly moved to tomorrow — a fresh, empty morning, in the middle of the
+// afternoon shift, with everything anybody had typed that day apparently gone. Nobody had
+// caught it because nobody opens the dashboard at eight at night.
+//
+// And it rolled at midnight, which is the wrong hour for a plant that runs nights. The
+// comment cards — the review, the front of the building, the board for the day ahead — are
+// per morning and empty themselves when the morning changes, and the room wants that to
+// happen at three, after the night shift has had its say and before anybody arrives to write
+// the next one. Subtracting three hours from the local clock says exactly that: until 02:59
+// you are still filling in yesterday's morning.
+export const MORNING_ROLLS_AT = 3;
+export function morningToday(now = new Date()) {
+  const at = new Date(now.getTime() - MORNING_ROLLS_AT * 3600000);
+  const pad = n => String(n).padStart(2, '0');
+  return `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}`;
+}
+
 export const dateOf = value => new Date(`${value}T00:00:00`);
 export const daysBetween = (from, to) => Math.floor((dateOf(to) - dateOf(from)) / 86400000);
 export const num = value => Number(value ?? 0).toLocaleString('en-US');

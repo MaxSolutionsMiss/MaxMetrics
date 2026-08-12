@@ -28,7 +28,7 @@ import {
 } from '../db.js';
 import {
   esc, money, MONTHS, iconFor,
-  volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE, walkKeyFor,
+  volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE, walkKeyFor, morningToday,
 } from '../readings.js';
 
 const $ = selector => document.querySelector(selector);
@@ -36,7 +36,7 @@ const $ = selector => document.querySelector(selector);
 const session = await currentSession();
 if (!session) location.replace('../index.html');
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => morningToday();
 
 const state = { me: null, locations: [], location: null, config: [], draft: null, plant: null,
                 pane: 'departments', budgets: [], year: new Date().getFullYear(), people: null,
