@@ -13,8 +13,8 @@ import {
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=81bd00f59089';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=81bd00f59089';
+} from '../db.js?v=e50ba26bf32b';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=e50ba26bf32b';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
@@ -22,7 +22,7 @@ import {
   isNa, isMissing,
   varianceChip, varianceTone, variancePct,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE,
-} from '../readings.js?v=81bd00f59089';
+} from '../readings.js?v=e50ba26bf32b';
 
 const $ = selector => document.querySelector(selector);
 
@@ -1200,28 +1200,8 @@ const SECTIONS = {
         track: cardTrack({
           chart: 'number', actual: rate, target, tone,
           targetText: `Against ${num(Math.round(target))} ${rateLabel(config)}`,
-          // The same chip the money and the shipping percentages carry. It printed a bare
-          // "\u221250" before, which is fifty of something the label above it names and the
-          // reader has to go and find \u2014 and fifty off three thousand and fifty off two
-          // thousand are not the same miss.
-          // Plain text under the bar rather than a pill. A pill is a badge you notice and
-          // then read; this is the line the room argues about, and it names what it is
-          // measured against so "−28.0%" cannot be mistaken for a change since yesterday.
-          //
-          // It takes the card's own tone rather than working one out. `varianceTone` turns
-          // amber four per cent under target and `band.rate` at ten, which was invisible
-          // while the two lived on different cards and is not now: Die Cutting four per cent
-          // down drew an amber head, an amber number and a red variance line underneath, one
-          // card giving two verdicts on one figure.
-          // Just the number. "vs target" was two words explaining a line that sits directly
-          // under a bar drawn against its target, on a card whose foot prints the target —
-          // and no other card on the product says it. A percentage in green or red under
-          // the bar means the same thing on every one of them, which is the point.
-          deltaHtml: rate && target
-            ? (said => `<span class="ctrack__d tone--${tone || 'none'}"
-                 style="--vchars:${said.length}">${esc(said)}</span>`)(
-                variancePct((rate - target) / Math.abs(target) * 100, 1))
-            : '',
+          // Nothing under the bar. Against target has moved below the rule into the foot,
+          // where Shipping has always kept it — see the note on the foot below.
           series: deptSeries(config.key), seriesTrend: false,
         }),
         // The volume, directly under the rate it was made out of.
@@ -1237,12 +1217,23 @@ const SECTIONS = {
                  label: volumeLabel(config),
                  edit: { field: `dept:${config.key}:qty`,
                          attrs: `type="number" value="${row.qty ?? ''}"` } },
-        // What is left is the quiet line: the target the bar was drawn against, and the
-        // hours behind the volume. Both are context rather than news and both go faint.
+        // Target, against target, and the hours — and against target in the middle, which
+        // is where Shipping has printed its variance since the beginning.
+        //
+        // It was above the rule, directly under the bar. Moving it below buys two things
+        // the room asked for and one it did not: the bar drops to sit on the rule where it
+        // works as the divider, the reading zone loses a line so the figure is drawn larger,
+        // and a department card's foot is finally the same three-part row as every other
+        // card's. The cost is honest — it is a foot-sized figure now rather than a large
+        // one — and it is the trade that makes the number above it bigger.
         foot: footLine([
           ['Target/hr', num(Math.round(target)),
             { field: `dept:${config.key}:target`,
               attrs: `type="number" value="${row.target ?? config.target}"` }],
+          ['Variance', rate && target
+            ? `<span class="tone--${tone || 'none'}">${
+                esc(variancePct((rate - target) / Math.abs(target) * 100, 1))}</span>`
+            : null],
           [hoursLabel(config), row.hours ? `${row.hours} h` : null,
             { field: `dept:${config.key}:hours`,
               attrs: `type="number" step="0.1" value="${row.hours ?? ''}"` }],
@@ -1495,7 +1486,7 @@ const SECTIONS = {
     //
     // "Budget", not "plan". The plant writes a budget; prorating it by elapsed days does
     // not make it a different thing, and two words for one number is one word too many.
-    const pane = (key, title, actual, budget, tone, variance, percent, budgetRow, whenRow,
+    const pane = (key, title, actual, budget, tone, variance, percent, budgetRow,
                   seriesField) => {
       const pace = budget ? Math.round(actual / budget * 100) : 0;
       return metricCard({
@@ -1517,7 +1508,13 @@ const SECTIONS = {
         track: cardTrack({
           chart: 'number', actual, target: budget, tone,
           targetText: `Against ${money(budget)} expected`,
-          deltaText: `${variance >= 0 ? '+' : '−'}${money(Math.abs(variance))}`,
+          // The money moved is in the foot now, in the middle, where "Through Aug 11" and
+          // "day 11 of 31" used to be. Neither of those was news: one is a date printed on
+          // the top bar of the page and the other is a calendar. The figure that says how
+          // far ahead of budget the plant is deserved the slot, and the bar keeps the floor
+          // to itself so the money above it can be drawn at the size Shipping draws its
+          // percentages.
+          deltaText: '',
           // The month's own shape. Sales against budget is a race the plant runs once a
           // month, and the line says whether it is being won steadily or was won on one
           // good Thursday — which is the difference between a forecast and a relief.
@@ -1525,7 +1522,8 @@ const SECTIONS = {
         }),
         foot: footLine([
           budgetRow,
-          whenRow,
+          ['Moved', `<span class="tone--${tone || 'none'}">${
+            esc(`${variance >= 0 ? '+' : '\u2212'}${money(Math.abs(variance))}`)}</span>`],
           ['Variance', chip(varianceTone(percent), variancePct(percent))],
         ]),
       });
@@ -1534,13 +1532,9 @@ const SECTIONS = {
     return `<div class="grid grid--cards" data-grid="financials">
       ${pane('fin-mtd', 'Month to date', actualMtd, planMtd, toneMtd,
         varianceMtd, percentMtd, [`${MONTHS[month]} budget`, money(monthBudget)],
-        // How far into the month the plant is, which is the whole reason the budget is
-        // prorated — and one fact on a foot rather than a full-width panel with a
-        // progress bar the width of the screen saying "day 9 of 31".
-        ['Elapsed', `day ${elapsed} of ${inMonth}`], 'fin_actual_mtd')}
+        'fin_actual_mtd')}
       ${pane('fin-ytd', 'Year to date', actualYtd, planYtd, toneYtd,
-        varianceYtd, percentYtd, ['Year budget', money(yearBudget)],
-        ['Through', shortDate(reportDate.toISOString().slice(0, 10))], 'fin_actual_ytd')}
+        varianceYtd, percentYtd, ['Year budget', money(yearBudget)], 'fin_actual_ytd')}
     </div>`;
   },
 };
