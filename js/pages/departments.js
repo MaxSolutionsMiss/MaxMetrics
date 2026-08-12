@@ -25,11 +25,11 @@ import {
   peopleAt, grantAccess, revokeAccess, setAdmin, accessMatrix, allLocations,
   createPerson, updatePerson, resetPersonPassword, removePerson,
   loadSources, saveSource, addSource, dropSource, pullSources,
-} from '../db.js?v=491491704d22';
+} from '../db.js?v=1a5600bc9455';
 import {
   esc, money, MONTHS, iconFor,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE,
-} from '../readings.js?v=491491704d22';
+} from '../readings.js?v=1a5600bc9455';
 
 const $ = selector => document.querySelector(selector);
 
@@ -932,12 +932,21 @@ function peoplePane() {
             aria-label="Full name">
           <input class="inp" id="add-email" type="email" placeholder="name@maxsolutions.ca"
             aria-label="Email address">
+          <select class="inp" id="add-plant" aria-label="Which plant">
+            ${(state.plants || []).map(pl =>
+              `<option value="${esc(pl.id)}"${pl.id === state.location ? ' selected' : ''}
+                >${esc(pl.name)}</option>`).join('')}
+          </select>
           <select class="inp" id="add-level" aria-label="Access level">
             <option value="view">View only</option>
             <option value="edit">Can edit</option>
           </select>
           <button class="btn btn--go" id="add-person">Add</button>
         </div>
+        <p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">
+          One plant to start with. Open the account in <b>Users</b> afterwards to give it more
+          \u2014 an account can hold a different level at every plant, and holds none at the
+          ones it is not given.</p>
         ${made ? `<div class="madep">
           <div class="madep__t">${esc(made.reused ? 'Password reset for' : 'Account created for')}
             <b>${esc(made.email)}</b></div>
@@ -1416,13 +1425,15 @@ async function addPerson() {
   const email = $('#add-email').value.trim();
   const name = $('#add-name').value.trim();
   const level = $('#add-level').value;
+  // Whichever plant was picked, not whichever one happens to be open in Configure.
+  const plant = $('#add-plant')?.value || state.location;
   if (!email) return toast('An email address is needed.');
   const button = $('#add-person');
   button.disabled = true;
   button.textContent = 'Adding…';
   try {
     const made = await createPerson({
-      email, name, location: state.location, canEdit: level === 'edit',
+      email, name, location: plant, canEdit: level === 'edit',
     });
     state.madePerson = made;
     await loadPeople();
