@@ -6,6 +6,7 @@ node_modules/
 # The browser harness. Rebuilt by scratchpad/harness.sh, never committed.
 _dash.html
 _cfg.html
+_shot.html
 _stub-db.js
 _fonts/
 _site/
