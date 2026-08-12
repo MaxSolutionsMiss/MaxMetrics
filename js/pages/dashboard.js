@@ -52,7 +52,7 @@ const state = {
   // all of them, because the work it exists for is going down the rail filling each in.
   filling: false,
   // Which of customer service, the die shop and prepress the comment box is currently on.
-  supportAt: null, staffAt: null,
+  supportAt: null, staffAt: null, attentionAt: null,
   // Which screen the entry rail is on.
   fillAt: 'safety',
 };
@@ -82,6 +82,31 @@ const SUPPORT = [
   ['die_shop', 'Die shop'],
   ['prepress', 'Prepress'],
 ];
+// Everyone who can put something on the board for the day ahead.
+//
+// Not the department list: half of these have no machine and never appear on a production
+// card — estimating, scheduling, the CSRs. That is the point of the card. The morning's other
+// twenty readings are what happened; this is the one place the building says what is about
+// to matter, and the people who know that are spread across it.
+//
+// Kept as a list here rather than as rows in Configure because it is the same ten at every
+// plant Max Solutions runs, and a screen for editing a list nobody edits is a screen.
+const ATTENTION = [
+  ['next_customer_service', 'Customer service'],
+  ['next_estimating',       'Estimating'],
+  ['next_scheduling',       'Scheduling'],
+  ['next_prepress',         'Prepress'],
+  ['next_die_shop',         'Die shop'],
+  ['next_printing',         'Printing'],
+  ['next_diecutting',       'Die cutting'],
+  ['next_finishing',        'Finishing'],
+  ['next_packing',          'Packing'],
+  ['next_shipping',         'Shipping'],
+];
+const ATTENTION_KEYS = new Set(ATTENTION.map(([key]) => key));
+const isAttention = key => ATTENTION_KEYS.has(key);
+const attentionRows = () => (state.review || []).filter(r => isAttention(r.dept_key));
+
 const SUPPORT_KEYS = new Set(SUPPORT.map(([key]) => key));
 const isSupport = key => SUPPORT_KEYS.has(key);
 const supportRows = () => (state.review || []).filter(r => isSupport(r.dept_key));
@@ -442,6 +467,60 @@ function supportCard() {
     prompt: 'Nothing from customer service, the die shop or prepress.',
     edit: supportEditor(),
   });
+}
+
+// What the building wants watched today.
+//
+// Every other reading on the morning is a fact about yesterday. This is the one that faces
+// the other way, and it is the only card anybody in the building writes on: the CSR who knows
+// a spec is late, the scheduler who knows Thursday is tight, the printer who knows there is a
+// press approval standing between a job and the floor. Five people put five lines on it and
+// the meeting reads them out.
+//
+// It is stored in `daily_review`, on keys prefixed `next_`. That table is already the place
+// for a dated note against a name that is not always a configured department — customer
+// service, the die shop and prepress have lived in it since the support card — so this adds a
+// naming convention rather than a table, and inherits the writes, the edit trail and the
+// live updates that come with it. The prefix is what keeps the two apart, and both readers
+// filter on it rather than assuming.
+//
+// Twice the width of a card and exactly the height of one. A sentence needs the width; a row
+// of cards needs the height, and the room has been clear about the height.
+function attentionCard() {
+  const said = ATTENTION.map(([key, name]) => {
+    const lines = String(attentionRows().find(r => r.dept_key === key)?.note || '')
+      .split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+    return lines.length ? { name, lines } : null;
+  }).filter(Boolean);
+  const count = said.reduce((total, entry) => total + entry.lines.length, 0);
+
+  return noteCard({
+    pkey: 'attention', label: 'Needs watching today', icon: '\u{1F4CC}', wide: true,
+    tone: count ? 'warn' : '',
+    html: count ? `<ul class="rev__note rev__note--list sup__l">${said.map(entry =>
+      entry.lines.map(line =>
+        `<li><b class="sup__w">${esc(entry.name)}</b>${esc(line)}</li>`).join('')).join('')}</ul>`
+      : '',
+    blank: !count,
+    prompt: 'Nothing flagged for the day ahead. Anyone in the building can add a line.',
+    edit: attentionEditor(),
+  });
+}
+
+// A name and a line, the same two controls as the support and staffing editors. Ten
+// permanent boxes would be nine empty ones on any given morning.
+function attentionEditor() {
+  const at = state.attentionAt || ATTENTION[0][0];
+  const row = attentionRows().find(r => r.dept_key === at);
+  return `<div class="er"><label for="att-who">Who</label>
+      <select class="inp" id="att-who" aria-label="Which part of the building is flagging this">
+        ${ATTENTION.map(([key, name]) =>
+          `<option value="${key}"${key === at ? ' selected' : ''}>${esc(name)}</option>`).join('')}
+      </select></div>
+    <div class="er"><label for="att-note">Needs watching</label>
+      <textarea class="inp" id="att-note" rows="2" placeholder="one per line"
+        aria-label="What needs watching today"
+        data-field="review:${esc(at)}:note">${esc(row?.note || '')}</textarea></div>`;
 }
 
 // Staffing, said by whoever it is about.
@@ -913,6 +992,10 @@ const noteRow = (field, placeholder, said) => `<div class="fr fr--note fr--wide 
     aria-label="${esc(said)}"
     data-field="${esc(field)}">${esc(metric(field) || '')}</textarea></div>`;
 
+const fillAttention = () => fgroup('Needs watching today', () => attentionEditor(),
+  'Anyone in the building can add a line — pick who it is from and type it. Each line '
+  + 'becomes a bullet on the card the meeting reads.');
+
 const fillStaffing = () => fgroup('Staffing', () => staffingEditor(),
   'Pick a department and type a line, or use the whole-plant box. Each line becomes a '
   + 'bullet on the card.');
@@ -960,7 +1043,8 @@ const SECTIONS = {
       // so the columns finish together rather than as a staircase.
       ? `<div class="fill__col">${fillSafety()}${fillQuality()}${fillMoney()}${fillSupport()}</div>
          <div class="fill__col">${fillProduction()}${fillNotes()}${fillStaffing()}${fillMaintNote()}</div>
-         <div class="fill__col">${fillShipping()}${fillOvertime()}${fillMaintenance({ tight: true })}</div>`
+         <div class="fill__col">${fillShipping()}${fillOvertime()}${fillAttention()}${
+           fillMaintenance({ tight: true })}</div>`
       : FILL_FOR[at]();
     const published = state.metrics?.status === 'published';
     // Two shapes, because two states. Outstanding readings get the big count and the list
@@ -1074,6 +1158,7 @@ const SECTIONS = {
     // carry. They were on four cards two sections away; on the screen the meeting opens
     // with, they are the agenda.
     const points = state.review
+      .filter(row => !isAttention(row.dept_key))
       .filter(row => row.note && String(row.note).trim())
       .flatMap(row => {
         const config = state.config.find(c => c.key === row.dept_key);
@@ -1347,7 +1432,8 @@ const SECTIONS = {
     // nothing and there was no way to find out why.
     const onReview = key => state.config.find(c => c.key === key)?.on_review !== false;
     const review = state.review
-      .filter(row => !isSupport(row.dept_key) && onReview(row.dept_key)).map(row => {
+      .filter(row => !isSupport(row.dept_key) && !isAttention(row.dept_key)
+        && onReview(row.dept_key)).map(row => {
       const config = state.config.find(c => c.key === row.dept_key);
       // Three states, not two. A department that answered "no issue" has said something and
       // the card says it back; a department nobody has asked yet has said nothing, and the
@@ -1506,7 +1592,10 @@ const SECTIONS = {
   // Upcoming Maintenance sat alone on a row of four with three empty cells beside it and the
   // labour cards started a new row underneath — which is the staircase the room kept
   // calling Tetris, in the one place it survived.
-  labour: () => cardGrid('labour', (mergedUpkeep() ? maintenanceCards() : '') + labourCards()),
+  // The board goes last, on the last section, which makes it the last slide of the walk —
+  // the morning ends on the day ahead rather than on overtime.
+  labour: () => cardGrid('labour',
+    (mergedUpkeep() ? maintenanceCards() : '') + labourCards() + attentionCard()),
 
   financials: () => {
     // Billing is reviewed the next morning, so the financial picture reports through the
@@ -1712,7 +1801,7 @@ const FILL_FOR = {
   production:  () => fillProduction() + fillNotes(),
   shipping:    () => fillShipping(),
   financials:  () => fillMoney(),
-  labour:      () => fillOvertime() + fillStaffing()
+  labour:      () => fillOvertime() + fillStaffing() + fillAttention()
                    + (mergedUpkeep() ? fillMaintenance({ tight: true }) + fillMaintNote() : ''),
   maintenance: () => fillMaintenance({ tight: true }) + fillMaintNote(),
 };
@@ -2720,6 +2809,12 @@ document.addEventListener('change', event => {
     state.supportAt = event.target.value;
     render();
     document.querySelector('#sup-note, [data-field^="review:"][id]')?.focus?.();
+    return;
+  }
+  if (event.target.id === 'att-who') {
+    state.attentionAt = event.target.value;
+    render();
+    document.querySelector('#att-note')?.focus?.();
     return;
   }
   if (event.target.id !== 'staff-who') return;

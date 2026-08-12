@@ -349,6 +349,12 @@ body.tv .verdict{font-size:var(--t-lead)}
   grid-auto-rows:minmax(10rem,auto);
   justify-content:start;align-items:stretch}
 body:not(.tv) .grid--cards{grid-auto-rows:minmax(var(--row-h,10rem),auto)}
+/* Two columns wide, one card tall. For the one card on the product whose body is sentences
+   people have written rather than a number: ten words need the width and a row of cards
+   needs the top and the bottom to line up. It gives up the width on a narrow screen rather
+   than pushing the grid sideways. */
+.card--wide{grid-column:span 2}
+@media(max-width:760px){.card--wide{grid-column:auto}}
 @media(max-width:760px){.grid--cards{grid-template-columns:minmax(0,1fr);
   grid-auto-rows:minmax(min-content,auto)}}
 .g4{grid-template-columns:repeat(4,minmax(0,1fr))}
