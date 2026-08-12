@@ -22,7 +22,7 @@ import {
   currentSession, signOut, myProfile, myLocations,
   loadDepartmentConfig, saveDepartmentConfig, addDepartmentConfig, ensureDepartmentRows,
   loadBudgets, saveBudget, loadPlant, savePlant,
-  peopleAt, grantAccess, revokeAccess, setAdmin,
+  peopleAt, grantAccess, revokeAccess, setAdmin, accessMatrix, allLocations,
   createPerson, updatePerson, resetPersonPassword, removePerson,
   loadSources, saveSource, addSource, dropSource, pullSources,
 } from '../db.js';
@@ -803,6 +803,32 @@ function dataPane() {
 const LEVELS = [['none', 'No access'], ['view', 'View only'], ['edit', 'Can edit']];
 const levelOf = person => !person.has_access ? 'none' : person.can_edit ? 'edit' : 'view';
 
+// Which plants this person may reach, one line each, three states.
+//
+// The screen used to set access for the plant you happened to be configuring, which makes
+// "make sure people cannot get into other locations" a job of visiting nine screens and
+// remembering what you did on the other eight. It is one question about one person, so it
+// is one list.
+function plantAccess(person) {
+  const plants = state.plants || [];
+  if (!plants.length) return '';
+  const who = person.profile_id || `email:${person.email}`;
+  return `<div class="pacc">
+    <div class="pacc__h">Which plants this account may open</div>
+    <div class="pacc__g">${plants.map(pl => {
+      const at = levelAt(person, pl.id);
+      return `<label class="pacc__r">
+        <span class="pacc__n">${esc(pl.name)}</span>
+        <select class="inp inp--cell" data-plant-level="${esc(who)}"
+          data-plant-id="${esc(pl.id)}"
+          aria-label="${esc(pl.name)} access for ${esc(person.full_name || person.email)}">
+          ${LEVELS.map(([value, text]) =>
+            `<option value="${value}"${value === at ? ' selected' : ''}>${text}</option>`).join('')}
+        </select></label>`;
+    }).join('')}</div>
+  </div>`;
+}
+
 const initialsOf = person => {
   const source = person.pending ? person.email : (person.full_name || person.email || '?');
   return source.split(/[\s.@_-]+/).filter(Boolean).slice(0, 2)
@@ -842,6 +868,7 @@ function peoplePane() {
             : `<button class="btn btn--quiet pplf__x"
                  data-remove-person="${esc(person.profile_id)}">Remove account</button>`}
         </div>
+        ${plantAccess(person)}
       </td></tr>`;
     }
     return `<tr data-person="${esc(key)}">
@@ -853,13 +880,16 @@ function peoplePane() {
         ${person.profile_id === state.me?.id ? '<span class="pill pill--ok">You</span>' : ''}
       </td>
       <td class="soft ppl__e">${esc(person.email)}</td>
-      <td class="ppl__l">
-        <select class="inp inp--cell" data-level="${esc(key)}"
-          aria-label="Access for ${esc(person.pending ? person.email : person.full_name)}">
-          ${LEVELS.map(([value, text]) =>
-            `<option value="${value}"${value === level ? ' selected' : ''}>${text}</option>`).join('')}
-        </select>
-      </td>
+      <td class="ppl__l">${(() => {
+        // Which plants, not what level here. "Can edit" told an administrator nothing about
+        // the question they came to answer, which is whether this person can see Guelph.
+        const mine = plantsFor(person);
+        if (!mine.length) return '<span class="soft">No plants</span>';
+        return `<span class="plst">${mine.map(pl =>
+          `<span class="plst__p${levelAt(person, pl.id) === 'edit' ? ' plst__p--edit' : ''}"
+             title="${esc(levelAt(person, pl.id) === 'edit' ? 'Can edit' : 'View only')}"
+             >${esc(pl.name)}</span>`).join('')}</span>`;
+      })()}</td>
       <td class="num ppl__a">
         <label class="tog" title="Administrators can add people and set access at every plant">
           <input type="checkbox" data-admin="${esc(person.profile_id || '')}"
@@ -881,21 +911,21 @@ function peoplePane() {
   const made = state.madePerson;
 
   const everybody = () => `<div class="panel"><div class="panel__head">
-      <h3 class="panel__title">Everybody</h3>
+      <h3 class="panel__title">Users</h3>
       <div class="panel__actions">
         <span class="pill pill--ok">${withAccess.length} with access</span>
         <span class="pill pill--info">${people.length} account${people.length === 1 ? '' : 's'}</span>
       </div></div>
       <div class="panel__body">
         ${people.length ? `<table class="tbl tbl--tight tbl--ppl"><thead><tr>
-          <th>Name</th><th>Email</th><th>This plant</th><th class="num">MaxMetrics</th><th></th>
+          <th>Name</th><th>Email</th><th>Plants</th><th class="num">MaxMetrics</th><th></th>
         </tr></thead><tbody>${people.map(inRow).join('')}</tbody></table>`
         : '<p class="cfg__none">Nobody yet.</p>'}
       </div></div>`;
 
   const add = () => `<div class="panel"><div class="panel__head">
       <span class="card__ico" aria-hidden="true">\u{1F464}</span>
-      <h3 class="panel__title">Add somebody to ${esc(plant?.name || 'this plant')}</h3></div>
+      <h3 class="panel__title">Add new user</h3></div>
       <div class="panel__body">
         <div class="addp">
           <input class="inp" id="add-name" type="text" placeholder="Full name"
@@ -926,9 +956,12 @@ function peoplePane() {
       </div></div>`;
 
   const tabs = [
-    { key: 'all', name: 'Everybody', sub: 'Who may see this plant',
-      tag: `${withAccess.length} of ${people.length}` },
-    { key: 'add', name: 'Add somebody', sub: 'Make an account and hand over a password' },
+    // Name things the way the people using them do. "Everybody" and "Add somebody" are how
+    // this was described in conversation; on a screen they are a category and a verb that
+    // neither MaxDock nor anything else in the product uses.
+    { key: 'all', name: 'Users', sub: 'Accounts and the plants they may open',
+      tag: `${people.length}` },
+    { key: 'add', name: 'Add new user', sub: 'Make an account and hand over a password' },
   ];
   // A temporary password has just been issued, so that is the screen to be on: it is shown
   // once and never again, and landing back on the list would throw it away.
@@ -1347,9 +1380,31 @@ async function loadLinked() {
 }
 
 async function loadPeople() {
-  try { state.people = await peopleAt(state.location); }
-  catch (error) { state.people = []; toast(error.message); }
+  try {
+    // Three answers, together: who exists, which plants there are, and who can reach which.
+    // The third is what makes "this person sees Mississauga and Guelph and nothing else" a
+    // thing an administrator can set rather than a thing they have to trust.
+    const [people, plants, matrix] = await Promise.all([
+      peopleAt(state.location),
+      allLocations().catch(() => null),
+      accessMatrix().catch(() => null),
+    ]);
+    state.people = people;
+    state.plants = plants?.length ? plants
+      : state.locations.map(l => ({ id: l.id, name: l.name }));
+    state.access = matrix || [];
+  } catch (error) { state.people = []; toast(error.message); }
 }
+
+// What this person can reach at one plant: none, view, or edit.
+const levelAt = (person, plant) => {
+  const row = (state.access || []).find(a => person.profile_id
+    ? a.profile_id === person.profile_id && a.location_id === plant
+    : a.pending_email === person.email && a.location_id === plant);
+  return !row ? 'none' : row.can_edit ? 'edit' : 'view';
+};
+const plantsFor = person => (state.plants || [])
+  .filter(pl => levelAt(person, pl.id) !== 'none');
 
 // Adding somebody is making an account, not sending an invitation.
 //
@@ -1403,16 +1458,21 @@ document.addEventListener('change', async event => {
     render();
     return;
   }
-  const level = event.target.dataset?.level;
-  if (level) {
-    const person = (state.people || []).find(p => (p.profile_id || `email:${p.email}`) === level);
+  // One plant's level for one person. `grant_access` and `revoke_access` already take a
+  // plant, so this is the same two calls the single-plant control made - it just names the
+  // plant being changed instead of assuming the one on screen.
+  const plantLevel = event.target.dataset?.plantLevel;
+  if (plantLevel) {
+    const person = (state.people || []).find(p =>
+      (p.profile_id || `email:${p.email}`) === plantLevel);
     if (!person) return;
+    const plant = event.target.dataset.plantId;
     const chosen = event.target.value;
     try {
       if (chosen === 'none') {
-        await revokeAccess(person.profile_id, person.pending ? person.email : null, state.location);
+        await revokeAccess(person.profile_id, person.pending ? person.email : null, plant);
       } else {
-        await grantAccess(person.email, state.location, chosen === 'edit');
+        await grantAccess(person.email, plant, chosen === 'edit');
       }
       await loadPeople();
       render();
