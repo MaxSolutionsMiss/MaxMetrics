@@ -622,15 +622,21 @@ export const iconFor = (key, chosen) => {
 // Configure needed the same pair to offer "which of these goes on a screen". A second copy in
 // Configure would be a list that drifts the first time a section is added, and the symptom
 // would be a tick that governs nothing.
+// The third entry is what the card catalogue below calls the same section, where the two
+// differ — the walk says "Upcoming maintenance" over a screen and the catalogue heads a list
+// of cards "Maintenance". One list still, rather than a lookup table in Configure that would
+// be wrong the first time either name changed.
 export const WALK = [
   ['safety',      'Safety'],
   ['quality',     'Quality'],
   ['production',  'Production'],
   ['shipping',    'Shipping'],
   ['financials',  'Financials'],
-  ['maintenance', 'Upcoming maintenance'],
-  ['labour',      'Labour & Overtime'],
+  ['maintenance', 'Upcoming maintenance', 'Maintenance'],
+  ['labour',      'Labour & Overtime',    'Labour'],
 ];
+export const walkKeyFor = section =>
+  (WALK.find(([, name, catalogue]) => (catalogue || name) === section) || [])[0] || '';
 
 export const CARD_CATALOGUE = [
   { section: 'Safety',      key: 'injury',        name: 'Days since last injury' },
@@ -677,6 +683,10 @@ export const CARD_CATALOGUE = [
   // Not a reading. Everything on it is already on another card; what it adds is the order
   // they have to be dealt with in, which is the one thing the room writes down.
   { section: 'Labour',      key: 'plan',          name: 'What to line up' },
+  // The one card on the product that faces forwards, and the only one the whole building
+  // writes on. It belongs in this list for the same reason the others do: a plant that runs
+  // its morning without it should be able to say so once.
+  { section: 'Labour',      key: 'attention',     name: 'Needs watching today' },
 ];
 
 // A card is turned off in one place rather than at each of its call sites, because a card
