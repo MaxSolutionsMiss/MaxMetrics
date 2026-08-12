@@ -1531,11 +1531,18 @@ const SECTIONS = {
     };
 
     return `<div class="grid grid--cards" data-grid="financials">
+      ${/* "Budget", not "August budget" — and the short label is not tidiness, it is the
+            reason the money screen was drawing small on the wall.
+            `fitCards` shrinks a screen while anything on it overflows, and a foot label that
+            has been clipped to an ellipsis reports itself as overflowing. Split three ways, a
+            wall card gives each foot label about a third of its width; "AUGUST BUDGET" does
+            not fit that at any size the label is allowed to take, so the fit went down and
+            down against a truncation no amount of shrinking could cure, and took the figure
+            with it. The card's own title already says which month it is. */''}
       ${pane('fin-mtd', 'Month to date', actualMtd, planMtd, toneMtd,
-        varianceMtd, percentMtd, [`${MONTHS[month]} budget`, money(monthBudget)],
-        'fin_actual_mtd')}
+        varianceMtd, percentMtd, ['Budget', money(monthBudget)], 'fin_actual_mtd')}
       ${pane('fin-ytd', 'Year to date', actualYtd, planYtd, toneYtd,
-        varianceYtd, percentYtd, ['Year budget', money(yearBudget)], 'fin_actual_ytd')}
+        varianceYtd, percentYtd, ['Budget', money(yearBudget)], 'fin_actual_ytd')}
     </div>`;
   },
 };
@@ -1923,10 +1930,26 @@ function roomIn(card) {
 // its glyphs are always a little taller than its line box and `scrollHeight` always exceeds
 // `clientHeight` — which read as "this card is full" on every card at every size and pinned
 // the whole thing at 1. Height that genuinely overruns shows up in the card's own total.
+//
+// Two things that are *meant* to truncate are deliberately not in this list, and leaving them
+// in was costing whole screens.
+//
+// The card title has a cap of its own, `--tcap`, settled in its own loop before the fit is
+// touched — and it is settled against every title the product can draw, so a screen showing
+// "Days since near-miss" ends up with that title clipped on purpose rather than with a bar
+// twice the height of every other screen's. Counting the clip as an overflow sent `--fit`
+// down to the floor chasing it, which is why Safety drew a two-digit streak the size of a
+// caption on the wall.
+//
+// A foot label is the same story with `--lc`. Split three ways a wall card gives each label
+// about a third of its width, "AUGUST BUDGET" does not fit that at any size the label is
+// allowed to take, and the money screen shrank and shrank against a truncation no amount of
+// shrinking could cure. Both degrade gracefully by design; neither should be allowed to
+// govern how large the figure beside it is drawn.
 function overflows(card) {
   if (usedBy(card) > roomIn(card) + 1) return true;
   for (const part of card.querySelectorAll(
-    '.card__label,.flag,.hero,.unit,.total,.fs__l,.fs__v,.ctrack__l,.ctrack__d')) {
+    '.flag,.hero,.unit,.total,.fs__v,.ctrack__l,.ctrack__d')) {
     if (part.scrollWidth > part.clientWidth + 1) return true;
   }
   return false;
