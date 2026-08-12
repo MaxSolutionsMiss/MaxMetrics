@@ -113,12 +113,12 @@
   /* The title bar. One grey on every card, on purpose: the verdict lives in the number,
      and a bar that changed colour with it would be a second, louder verdict. */
   --card-bar:#4A5162;
-  --card-r-max:1.6;
-  --wall-cols:4; --wall-rows:1; --wall-cap:34; --wall-chrome:150px;
+  --card-r-max:1.32;
+  --wall-cols:4; --wall-rows:1; --wall-cap:19; --wall-chrome:150px;
   /* The title bar. One grey on every card, on purpose: the verdict lives in the number,
      and a bar that changed colour with it would be a second, louder verdict. */
   --card-bar:#4A5162;
-  --card-r-max:1.6;
+  --card-r-max:1.32;
 }
 /* Dark is MaxMetrics' own - MaxDock ships light only - so it keeps the same relationships
    rather than inventing new ones: the neutrals slide, the accent lifts enough to hold
@@ -849,8 +849,11 @@ body.no-trends .ctrack__ser,body.no-trends .ctrack__yr{display:none}
 .card .fs__v{font-size:min(calc(6.2*var(--cu)),calc(150cqi/var(--fc,4)))}
 .card .foot--2 .fs__l{font-size:min(calc(4*var(--cu)),calc(82cqi/var(--lc,6)))}
 .card .foot--2 .fs__v{font-size:min(calc(6.2*var(--cu)),calc(74cqi/var(--fc,4)))}
-.card .foot--3 .fs__l{font-size:min(calc(4*var(--cu)),calc(53cqi/var(--lc,6)))}
-.card .foot--3 .fs__v{font-size:min(calc(6.2*var(--cu)),calc(47cqi/var(--fc,4)))}
+/* Three facts on one line are three thirds of a card's width, and at the scale a two-part
+   foot uses they crowd each other. Target, against target and the hours are all context —
+   the reading is above them — so the three-part row takes a tenth off. */
+.card .foot--3 .fs__l{font-size:min(calc(3.6*var(--cu)),calc(53cqi/var(--lc,6)))}
+.card .foot--3 .fs__v{font-size:min(calc(5.6*var(--cu)),calc(47cqi/var(--fc,4)))}
 .card .foot--4 .fs__l{font-size:min(calc(4*var(--cu)),calc(38cqi/var(--lc,6)))}
 .card .foot--4 .fs__v{font-size:min(calc(6.2*var(--cu)),calc(34cqi/var(--fc,4)))}
 /* One fact, two lines, like every other foot — the gap that used to separate a label from
@@ -1127,18 +1130,22 @@ body.tv .grid--cards{
   --card-w:min(var(--cell-w),calc(var(--wall-cap)*1vw));
   --card-h:min(var(--cell-h),calc(var(--card-w)*var(--card-r-max)));
   grid-template-columns:repeat(var(--wall-cols),var(--card-w))}
-/* One figure size across every screen of the walk.
-   The tile is deliberately allowed to grow on a sparse screen — a screen of two comes out
-   653 wide against a screen of ten at 352 — and the figure grew with it, so Financials drew
-   its money at 157px and Shipping drew its percentages at 84 on the same wall four seconds
-   apart. Read as a sequence that is two products, and the room said so.
-   Capping the card would fix it by making a two-card screen look under-filled. Capping the
-   *figure* against the screen instead leaves every tile the size it wants to be — the bar,
-   the foot and the title still fill it — and makes the one thing a person reads from ten
-   metres the same height on all of them. Both terms keep the 33:24 relationship the two
-   hero sizes have everywhere else. */
-body.tv .card .hero{font-size:min(calc(33*var(--u)),calc(213cqi/var(--chars,3)),11.3vh)}
-body.tv .card .hero--md{font-size:min(calc(24*var(--u)),calc(166cqi/var(--chars,3)),8.2vh)}
+/* Two cards on a screen are two cards, not two doors.
+   Capping the figure against the screen was the wrong half of this and the room saw it
+   straight away: the tile stayed 653 wide, the number came down to Shipping's height, and
+   Safety drew a two-digit streak in the middle of a great empty rectangle. A number is read
+   against the card it is on long before it is read against a card four seconds ago.
+   So the cap goes back on the card, and hard enough to actually land: 19vw, and the tallest
+   a card may be drawn brought from 1.6 times its width to 1.32. Both were needed. The width
+   cap alone still left a screen of two a quarter wider than a screen of ten, and the height
+   ratio left it half again as tall — a door rather than a card, which is what the original
+   note was worried about and what happened anyway. Measured at 1920 by 1080 the two now come
+   out 358 by 457 against 365 by 482, with the figure at 86px against 87; at 1400 by 840,
+   61px against 63. The sizes match across screens because the cards do, which is the only
+   way it holds when a section gains or loses a card.
+   Centred both ways, because a capped pair anchored to the top left is a screen with a hole
+   in it. */
+body.tv .grid--cards{justify-content:center;align-content:center}
 @media(min-width:1500px){body.tv{--scale:1.8}}
 @media(min-width:1800px){body.tv{--scale:2.15}}
 body.tv .rail,body.tv .top,body.tv .no-tv{display:none}
