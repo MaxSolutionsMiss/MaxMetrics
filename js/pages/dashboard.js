@@ -1323,16 +1323,19 @@ const SECTIONS = {
     // One grid, and the departments and the week they just had are in it together. A plant
     // that adds a fourth and a fifth department wraps onto a second row and the week card
     // wraps with them, which is what the full-width table could never do.
-    // Support has moved to Shipping. It was here because customer service, the die shop and
-    // prepress are what hold production up — true, and not what the card is: it is the note
-    // somebody from the front of the building leaves for the room, and the front of the
-    // building is the end of the morning, not the middle of the floor. On Production it also
-    // made the row uneven, a note card beside three readings.
+    // Support sits with the review, which is what it is.
+    //
+    // It started beside the departments, because customer service, the die shop and prepress
+    // are what hold production up. That is true and it is not what the card *is*: the review
+    // row is one card per department saying what happened in the last twenty-four hours, and
+    // this is the same sentence from the three parts of the building that have no machine to
+    // report on. Beside the readings it was a note card in a row of numbers; here it is one
+    // note card among four.
     return `<div class="grid grid--cards" data-grid="production">${weekCard()}${cards}</div>
-    ${review ? `<div class="sec__head" style="margin-top:var(--s3)">
+    ${review || supportCard() ? `<div class="sec__head" style="margin-top:var(--s3)">
       <h3 class="sec__title" style="font-size:var(--t-lead)">Review \u2014 last 24 hours</h3>
       <div class="sec__rule"></div></div>
-    <div class="grid grid--cards" data-grid="review">${review}</div>` : ''}`;
+    <div class="grid grid--cards" data-grid="review">${review}${supportCard()}</div>` : ''}`;
   },
 
   shipping: () => {
@@ -1433,7 +1436,6 @@ const SECTIONS = {
       ${pct('ytd_otd', 'YTD OTD', 'year to date')}
       ${pct('mtd_otif', 'MTD OTIF', 'month to date')}
       ${pct('ytd_otif', 'YTD OTIF', 'year to date')}
-      ${supportCard()}
     </div>
     <p class="note-derived edit-only">OTD and OTIF are worked out from jobs, late and short.</p>`;
   },

@@ -38,21 +38,43 @@ const looksLikeWorkbook = (bytes: Uint8Array) =>
 // our identifiers — a person renaming a source in Configure must not break a flow nobody
 // remembers how to edit.
 function sourceFor(name: string, sources: { id: string; kind: string; name: string }[]) {
-  const file = name.toLowerCase();
-  const has = (...words: string[]) => words.some(w => file.includes(w));
+  // The name first, the kind only as a tie-break.
+  //
+  // Keyword-on-kind was the whole rule and it put two files in one slot. Mississauga keeps
+  // `Mississauga KPI's.xlsx` and `Mississauga_Monthly KPI Raw Data.xlsx` in the same folder;
+  // both contain "kpi", both resolved to the single source of kind `kpi`, and both were
+  // written to `<location>/<that id>.xlsx` — so every morning the flow uploaded one workbook
+  // and then overwrote it with the other, and which one survived depended on the order the
+  // Apply to each happened to walk the folder in. Nothing reported a fault. One of the two
+  // files simply was not there, and it was a different one on different days.
+  //
+  // Scoring on the words the source's own name and the file's name share fixes that without
+  // asking anybody to rename anything: "Monthly KPI raw data" matches all four of its words
+  // against the raw-data file and two against the other one.
+  const words = (text: string) => new Set(
+    text.toLowerCase().replace(/\.[a-z0-9]+$/, '').split(/[^a-z0-9]+/).filter(w => w.length > 1));
+  const file = words(name);
+  const scored = sources.map(source => {
+    const own = words(source.name);
+    let shared = 0;
+    for (const word of own) if (file.has(word)) shared += 1;
+    // Over the source's own length, so a two-word name matching both of its words beats a
+    // four-word name matching two of its four. The tiny second term breaks ties towards the
+    // name that shared more words outright.
+    return { source, score: own.size ? shared / own.size + shared / 100 : 0 };
+  }).sort((a, b) => b.score - a.score);
+  if (scored.length && scored[0].score > 0
+      && (scored.length === 1 || scored[0].score > scored[1].score)) {
+    return scored[0].source;
+  }
+
+  const lower = name.toLowerCase();
+  const has = (...w: string[]) => w.some(word => lower.includes(word));
   const kind = has('dor') ? 'dor'
     : has('otif', 'otd') ? 'otif'
     : has('kpi') ? 'kpi'
     : '';
-  if (kind) {
-    const match = sources.find(s => s.kind === kind);
-    if (match) return match;
-  }
-  // Failing that, the source whose own name is closest to the file's.
-  const stem = file.replace(/\.[a-z]+$/, '');
-  return sources.find(s => stem.includes(s.name.toLowerCase()))
-      ?? sources.find(s => s.name.toLowerCase().includes(stem))
-      ?? null;
+  return (kind && sources.find(s => s.kind === kind)) || null;
 }
 
 Deno.serve(async request => {
