@@ -473,7 +473,7 @@ body.tv .verdict{font-size:var(--t-lead)}
    be large. Weight 500 rather than 700: at fifty pixels a condensed bold closes its own
    counters and a 6 starts to read as an 8. */
 .hero{font-family:var(--font-num);
-  font-size:min(calc(var(--t-metric)*3),30cqi,calc(205cqi/var(--chars,3)));
+  font-size:min(calc(var(--t-metric)*3.9),39cqi,calc(266cqi/var(--chars,3)));
   font-weight:500;line-height:.95;letter-spacing:-.01em;color:var(--ink);
   display:flex;align-items:baseline;justify-content:center;gap:5px;white-space:nowrap;
   /* Shrink-to-fit rather than full-width, so a number too wide for its card is something
@@ -485,7 +485,7 @@ body.tv .verdict{font-size:var(--t-lead)}
   color:var(--ink-muted);letter-spacing:0}
 .card--ok .hero{color:var(--ok)}.card--warn .hero{color:var(--warn)}.card--stop .hero{color:var(--stop)}
 .card--ok .hero i,.card--warn .hero i,.card--stop .hero i{color:inherit;opacity:.75}
-.hero--md{font-size:min(calc(var(--t-metric)*2.4),24cqi,calc(205cqi/var(--chars,3)))}
+.hero--md{font-size:min(calc(var(--t-metric)*3.1),31cqi,calc(266cqi/var(--chars,3)))}
 .unit{font-size:var(--t-small);color:var(--ink-muted);margin-top:1px;text-align:center;
   line-height:1.25}
 /* The caption under the number stays muted — one coloured thing per card. */
@@ -634,12 +634,12 @@ body.tv .verdict{font-size:var(--t-lead)}
 /* The second cap is the number's own length: 31.5% of the card is right for "262" and
    wrong for "$1.42M", where six glyphs at that size are wider than the card and ran under
    its border into the card beside it. `--chars` comes from metricCard. */
-.card .hero{font-size:min(calc(31.5*var(--u)),calc(205cqi/var(--chars,3)))}
+.card .hero{font-size:min(calc(41*var(--u)),calc(266cqi/var(--chars,3)))}
 /* A medium hero is capped harder by its own length as well as by the card. Six glyphs at
    the full cap \u2014 "$11.8M", "12,400" \u2014 ran the width of the card and left the graph
    under them a sliver; the room asked for those to come down by about a fifth, which is
    what dropping the length cap from 205 to 160 does. */
-.card .hero--md{font-size:min(calc(23*var(--u)),calc(160cqi/var(--chars,3)))}
+.card .hero--md{font-size:min(calc(30*var(--u)),calc(208cqi/var(--chars,3)))}
 .card .unit{font-size:calc(4.1*var(--u))}
 .card .ctrack{margin-top:calc(2.6*var(--u));gap:calc(1.4*var(--u))}
 .card .ctrack__row:not(:first-child){margin-top:calc(1.4*var(--u))}
@@ -656,6 +656,15 @@ body.tv .verdict{font-size:var(--t-lead)}
 /* The drawings sit at the floor of the reading's zone rather than under the number. Placed
    after `.card .ctrack` on purpose: same specificity, later wins. */
 .card__mid>.ctrack{margin-top:auto}
+/* A figure centres in the room it has. Two auto margins split the free space evenly above
+   and below it; the caption, the bar and the trend line stay together underneath. */
+.card__mid:has(>.hero)>.ctrack{margin-top:0}
+.card__mid>.hero{margin-block:auto}
+/* Nine per cent of air above the figure and three below it put the number at the bottom of
+   its own space, sitting on the bar chart. A card is drawn to its content now, so there is
+   no slack for `margin:auto` to centre it in - the two gaps have to be made equal instead
+   of hoping free space appears to split. */
+.card__mid:has(>.hero){padding-top:calc(4*var(--cu))}
 /* While `fitCards()` is working the zones stop stretching, so a card reports the height its
    contents need rather than the height it was handed. See the note beside `measuring`. */
 /* Titles that are not on this screen, measured anyway.

@@ -1988,6 +1988,19 @@ function fitCards() {
     // on a morning when nothing anywhere is flagged.
     const flagged = group.some(grid => grid.querySelector('.card .flag'));
     for (const grid of group) grid.classList.toggle('flagged', flagged);
+
+    // One figure size for the whole screen.
+    //
+    // Every card carried its own digit count and shrank its own number to fit it, so
+    // "3,000" was drawn at one size and "11,917" beside it at another - two cards of the
+    // same design showing the same kind of reading at two type sizes, which reads as two
+    // kinds of card. The longest number on the screen decides, and every card is drawn to
+    // it. The count travels as `--hchars` on each figure and the answer as `--chars` on the
+    // grid, so the cascade does the sharing rather than a second loop.
+    const widest = Math.max(3, ...group.flatMap(grid =>
+      [...grid.querySelectorAll('.hero')]
+        .map(h => Number(h.style.getPropertyValue('--hchars')) || 3)));
+    for (const grid of group) grid.style.setProperty('--chars', String(widest));
     const box = cards[0].getBoundingClientRect();
     const probe = titleProbe(box.width || 300, box.height || 340);
     const titles = [...cards, ...probe.children]
