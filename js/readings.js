@@ -752,7 +752,7 @@ export function metricCard({ chart, pkey, icon, label, tone, value, unit, percen
       <div class="card__flag">${flag || ''}</div>
       <div class="card__mid">
         ${hero ? `<div class="hero${medium ? ' hero--md' : ''}${
-            heroEdit ? ' view-only' : ''}" style="--chars:${
+            heroEdit ? ' view-only' : ''}" style="--hchars:${
           heroChars(value, unit)}">${esc(value)}${
           unit ? `<i>${esc(unit)}</i>` : ''}</div>${
           heroEdit ? `<input class="inp inp--hero edit-only" aria-label="${esc(label)}"
