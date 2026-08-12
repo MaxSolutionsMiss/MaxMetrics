@@ -13,8 +13,8 @@ import {
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=11bea477f44a';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=11bea477f44a';
+} from '../db.js?v=af57751c943e';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=af57751c943e';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
@@ -22,7 +22,7 @@ import {
   isNa, isMissing,
   varianceChip, varianceTone, variancePct,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE,
-} from '../readings.js?v=11bea477f44a';
+} from '../readings.js?v=af57751c943e';
 
 const $ = selector => document.querySelector(selector);
 
@@ -52,7 +52,7 @@ const state = {
   // all of them, because the work it exists for is going down the rail filling each in.
   filling: false,
   // Which of customer service, the die shop and prepress the comment box is currently on.
-  supportAt: null,
+  supportAt: null, staffAt: null,
   // Which screen the entry rail is on.
   fillAt: 'safety',
 };
@@ -444,6 +444,60 @@ function supportCard() {
   });
 }
 
+// Staffing, said by whoever it is about.
+//
+// It was one box for the whole plant, so "Printing two on vacation, Gluing one call-in"
+// arrived as a paragraph somebody had to parse in a meeting. Who it is about is the first
+// thing the room needs and it was buried in the sentence. Now it is a department and a line,
+// the same shape as the support card beside it — and the same storage that has been sitting
+// unused on `daily_labour` since labour was added.
+//
+// The plant-wide note stays and leads, because some of it genuinely is not about one
+// department: a shutdown, a training day, the whole floor down to one shift.
+function staffingCard() {
+  const said = (state.config || []).map(config => {
+    const lines = String(labourRow(config.key)?.note || '')
+      .split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+    return lines.length ? { name: config.name, lines } : null;
+  }).filter(Boolean);
+  const plant = String(metric('staffing_note') || '')
+    .split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+
+  return noteCard({
+    pkey: 'staffing', label: 'Staffing notes',
+    html: plant.length || said.length
+      ? `<ul class="rev__note rev__note--list sup__l">${
+          plant.map(line => `<li>${esc(line)}</li>`).join('')}${
+          said.map(entry => entry.lines.map(line =>
+            `<li><b class="sup__w">${esc(entry.name)}</b>${esc(line)}</li>`).join('')).join('')
+        }</ul>` : '',
+    blank: !plant.length && !said.length,
+    prompt: 'Call-ins, vacation, training — nothing entered.',
+    edit: staffingEditor(),
+  });
+}
+
+// A department and a box, and the plant-wide line underneath it. Same argument as the
+// support editor: a permanent box per department is four empty ones on most mornings.
+function staffingEditor() {
+  const list = state.config || [];
+  const at = state.staffAt || list[0]?.key || '';
+  return `<div class="er"><label for="staff-who">Department</label>
+      <select class="inp" id="staff-who" aria-label="Which department this is about">
+        ${list.map(config =>
+          `<option value="${esc(config.key)}"${config.key === at ? ' selected' : ''}>${
+            esc(config.name)}</option>`).join('')}
+      </select></div>
+    <div class="er"><label for="staff-note">Note</label>
+      <textarea class="inp" id="staff-note" rows="2" placeholder="one per line"
+        aria-label="Staffing note"
+        data-field="labour:${esc(at)}:note">${esc(labourRow(at)?.note || '')}</textarea></div>
+    <div class="er"><label for="staff-all">Whole plant</label>
+      <textarea class="inp" id="staff-all" rows="2" placeholder="one per line"
+        aria-label="Staffing notes for the whole plant"
+        data-field="staffing_note">${esc(metric('staffing_note') || '')}</textarea></div>`;
+}
+
 // The editor, used on the card in Edit mode and on the entry screen alike.
 //
 // A dropdown and one box, because that is what was asked for and it is right: these three
@@ -518,14 +572,7 @@ function labourCards() {
       empty: 'Nothing outstanding from this morning.',
       cap: 6,
     })}
-    ${noteCard({
-      pkey: 'staffing', label: 'Staffing notes',
-      text: metric('staffing_note'),
-      prompt: 'Call-ins, vacation, training — nothing entered.',
-      edit: `<div class="er"><label>Staffing</label><textarea class="inp"
-        aria-label="Staffing notes"
-        data-field="staffing_note">${esc(metric('staffing_note') || '')}</textarea></div>`,
-    })}
+    ${staffingCard()}
   `;
 }
 
@@ -866,9 +913,9 @@ const noteRow = (field, placeholder, said) => `<div class="fr fr--note fr--wide 
     aria-label="${esc(said)}"
     data-field="${esc(field)}">${esc(metric(field) || '')}</textarea></div>`;
 
-const fillStaffing = () => fgroup('Staffing', () =>
-  noteRow('staffing_note', 'call-ins, vacation, training', 'Staffing notes'),
-  'Each line becomes a bullet on the card.');
+const fillStaffing = () => fgroup('Staffing', () => staffingEditor(),
+  'Pick a department and type a line, or use the whole-plant box. Each line becomes a '
+  + 'bullet on the card.');
 
 const fillMaintNote = () => fgroup('Maintenance notes', () =>
   noteRow('maintenance_note', 'anything the room should know', 'Maintenance notes'),
@@ -1294,7 +1341,13 @@ const SECTIONS = {
     // Support has its own card and must not turn up here as well: a card headed "Prepress"
     // in a grid of departments reads as a department, and the next question is why it has
     // no rate.
-    const review = state.review.filter(row => !isSupport(row.dept_key)).map(row => {
+    // And the plant's own switch is read. Configure has offered "A card in the 24-hour
+    // review" per department since departments were configurable, and this row was ignoring
+    // it — every department got a card whatever the tick said, so turning Shipping off did
+    // nothing and there was no way to find out why.
+    const onReview = key => state.config.find(c => c.key === key)?.on_review !== false;
+    const review = state.review
+      .filter(row => !isSupport(row.dept_key) && onReview(row.dept_key)).map(row => {
       const config = state.config.find(c => c.key === row.dept_key);
       // Three states, not two. A department that answered "no issue" has said something and
       // the card says it back; a department nobody has asked yet has said nothing, and the
@@ -2659,13 +2712,20 @@ document.addEventListener('click', async event => {
   window.scrollTo(0, 0);
 });
 
-// Switching which of the three support departments is being commented on. It only changes
-// which note is in the box — nothing is written, because nothing has been typed yet.
+// Switching which department a comment is about — the three support ones, or a production
+// department on the staffing note. It only changes which note is in the box; nothing is
+// written, because nothing has been typed yet.
 document.addEventListener('change', event => {
-  if (event.target.id !== 'sup-who') return;
-  state.supportAt = event.target.value;
+  if (event.target.id === 'sup-who') {
+    state.supportAt = event.target.value;
+    render();
+    document.querySelector('#sup-note, [data-field^="review:"][id]')?.focus?.();
+    return;
+  }
+  if (event.target.id !== 'staff-who') return;
+  state.staffAt = event.target.value;
   render();
-  document.querySelector('#sup-note, [data-field^="review:"][id]')?.focus?.();
+  document.querySelector('#staff-note')?.focus?.();
 });
 
 // Cards or fill-in, and the answer sticks. Somebody working down the rail filling sections
@@ -3318,6 +3378,32 @@ async function applyImport({ quiet = false } = {}) {
       history.push({ date: day.date, metrics: day.metrics, departments: day.departments });
     }
   }
+  // The last twenty-four hours, worked out from the month rather than counted again.
+  //
+  // The raw logs give a count per day, and they are right when somebody has written in them
+  // that morning and silent when nobody has. Silence was being written down as "unknown",
+  // which is honest and useless: these three read a dash three hundred days a year, and a
+  // card that says nothing that often is one people stop looking at.
+  //
+  // The month-to-date count is the signal the plant actually maintains. If it stood at
+  // fifteen yesterday and reads sixteen today, one was raised in the last twenty-four hours;
+  // if it has not moved, none were. On the first of a month there is no yesterday to
+  // subtract, and the month-to-date figure *is* the day's. Anybody can type over the answer
+  // on the entry screen, which is what makes a derived number safe to show.
+  const previous = (state.year || [])
+    .filter(row => row.metric_date < state.date)
+    .sort((a, b) => String(a.metric_date).localeCompare(String(b.metric_date))).pop();
+  const sameMonth = previous
+    && String(previous.metric_date).slice(0, 7) === state.date.slice(0, 7);
+  for (const [today, month] of [['ncr_today', 'ncr_mtd'],
+                                ['complaints_internal_today', 'complaints_internal_mtd'],
+                                ['complaints_external_today', 'complaints_external_mtd']]) {
+    const now = writes.find(([name]) => name === month)?.[1] ?? metric(month);
+    if (now == null || now === '' || !Number.isFinite(Number(now))) continue;
+    const before = sameMonth ? Number(previous[month] ?? 0) : 0;
+    writes.push([today, Math.max(0, Number(now) - before)]);
+  }
+
   for (const [name, value] of writes) {
     applyLocally(name, value);
     await persist(name, value);
