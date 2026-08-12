@@ -354,12 +354,19 @@ body:not(.tv) .grid--cards{grid-auto-rows:minmax(var(--row-h,10rem),auto)}
    needs the top and the bottom to line up. It gives up the width on a narrow screen rather
    than pushing the grid sideways. */
 .card--wide{grid-column:span 2}
+/* The board is sentences, and sentences on this one card are the reading rather than a
+   caption under one. A step up from the other note cards on the page, and on its own slide
+   it takes the screen. */
+.card[data-pkey="attention"] .sup__l{font-size:calc(5.6*var(--cu));line-height:1.5}
+.card[data-pkey="attention"] .sup__w{font-size:.92em}
 /* The lines already on a comment card, above the box that adds the next one. Each carries a
    cross, because the first thing anybody wants after adding a line by mistake is to take it
    off, and the alternative was editing a textarea full of somebody else's sentences. */
 /* The section's own row, at the head of its list of cards. Set apart because it governs all
    of them rather than sitting among them. */
-.cfg__two--sec{border-bottom:1px solid var(--rule-strong);margin-bottom:var(--s2)}
+.cfg__two--sec{border-bottom:0}
+.cfg__two--solo{border-bottom:1px solid var(--rule-strong);margin-bottom:var(--s2)}
+.cfg__two--solo .cfg__two-n{font-weight:400;color:var(--ink-muted);padding-left:var(--s3)}
 .cfg__two--sec .cfg__two-n{font-weight:600;color:var(--ink)}
 .jot{list-style:none;margin:0 0 var(--s2);padding:0;display:flex;flex-direction:column;gap:2px}
 .jot li{display:flex;align-items:flex-start;gap:var(--s2);font-size:var(--t-small);
