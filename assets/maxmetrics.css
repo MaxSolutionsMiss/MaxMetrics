@@ -531,7 +531,12 @@ body.tv .verdict{font-size:var(--t-lead)}
 .ctrack__l{font-family:var(--font-condensed);font-size:calc(10.5px*var(--scale));
   text-transform:uppercase;letter-spacing:.07em;font-weight:600;color:var(--ink-faint);
   text-align:left;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ctrack__d{font-family:var(--font-condensed);font-size:calc(12px*var(--scale));font-weight:700;
+.ctrack__mv{display:flex;justify-content:center;margin-top:4px}
+/* A plant that wants the number and nothing else. The line is the first thing to go, not
+   the bar: the bar says whether the reading met its target, which is the reading's meaning
+   rather than decoration around it. */
+body.no-trends .ctrack__ser{display:none}
+.ctrack__d{font-family:var(--font-num);font-size:calc(12px*var(--scale));font-weight:700;
   letter-spacing:0;white-space:nowrap;flex:none}
 .ctrack .bullet{height:12px;margin:0}
 .ctrack .spark{height:24px}
@@ -553,6 +558,9 @@ body.tv .verdict{font-size:var(--t-lead)}
 .foot--4{grid-template-columns:repeat(4,1fr)}
 /* The last of a pair or a row turns to face the others across the card. */
 .foot .fs:last-child:not(:only-child){text-align:right;align-items:flex-end}
+/* A target is what a reading is measured against, not a reading. It goes grey, and the
+   figures the morning is actually about - sheets run, hours crewed - stay black. */
+.fs--quiet .fs__l,.fs--quiet .fs__v{color:var(--ink-faint)}
 .foot--3 .fs:nth-child(2){text-align:center;align-items:center}
 .fs{display:flex;flex-direction:column;gap:0;min-width:0}
 .fs__l{font-family:var(--font-condensed);font-size:calc(11.5px*var(--scale));
@@ -640,11 +648,12 @@ body.tv .verdict{font-size:var(--t-lead)}
    under them a sliver; the room asked for those to come down by about a fifth, which is
    what dropping the length cap from 205 to 160 does. */
 .card .hero--md{font-size:min(calc(24*var(--u)),calc(166cqi/var(--chars,3)))}
-.card .unit{font-size:calc(4.1*var(--u));margin-bottom:calc(3.5*var(--u))}
+.card .unit{font-size:calc(4.9*var(--u));margin-bottom:calc(3.5*var(--u))}
 .card .ctrack{margin-top:calc(2.6*var(--u));gap:calc(1.4*var(--u))}
 .card .ctrack__row:not(:first-child){margin-top:calc(1.4*var(--u))}
 .card .ctrack__l{font-size:calc(4*var(--u))}
-.card .ctrack__d{font-size:calc(4.5*var(--u))}
+.card .ctrack__d{font-size:calc(5*var(--u))}
+.card .ctrack__mv{margin-top:calc(1.2*var(--u))}
 /* Both drawings grew. A bar four per cent of the card tall is a hairline at page size and
    an unremarkable stripe on the wall, and the graph under it was smaller still — which is
    what the room meant by "the bar is not really evident" and by wanting the graphs more
@@ -664,7 +673,7 @@ body.tv .verdict{font-size:var(--t-lead)}
    its own space, sitting on the bar chart. A card is drawn to its content now, so there is
    no slack for `margin:auto` to centre it in - the two gaps have to be made equal instead
    of hoping free space appears to split. */
-.card__mid:has(>.hero){padding-top:calc(3*var(--cu))}
+.card__mid:has(>.hero){padding-top:calc(1.5*var(--cu))}
 /* While `fitCards()` is working the zones stop stretching, so a card reports the height its
    contents need rather than the height it was handed. See the note beside `measuring`. */
 /* Titles that are not on this screen, measured anyway.
@@ -2170,6 +2179,14 @@ body.tv.tv-all .grid.grid--cards.grid--snap{flex:1 1 auto;min-height:0;display:g
   gap:var(--s2);grid-template-columns:repeat(var(--snap-cols,6),minmax(0,1fr));
   grid-auto-rows:minmax(0,1fr);align-content:stretch;justify-content:stretch;margin:0;
   --card-w:auto;--card-h:auto}
+/* Cards fill their row here, and it is not cosmetic.
+   `align-items: start` on the ordinary grid - which is what lets a short card stop early on
+   a desk screen - reached this one too, so a card took its content height instead of the
+   row's. With `container-type: size` that is circular: the height depends on the contents
+   and the contents are sized from the height, so `1cqb` resolved to nothing, `--cu` came out
+   zero, and the whole page drew at zero size. Blank cards with their rules still showing is
+   exactly what that looks like. */
+body.tv .grid--cards{align-items:stretch}
 body.tv.tv-all .grid--snap .card{container-type:size;min-width:0;min-height:0}
 body.tv.tv-all .grid--snap .card *{--cu:min(1cqi,calc(1cqb/1.132));
   --u:calc(var(--cu)*var(--fit,1))}

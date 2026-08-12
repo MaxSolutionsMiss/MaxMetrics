@@ -13,8 +13,8 @@ import {
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=533d50965653';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=533d50965653';
+} from '../db.js?v=a51ac53b2fe3';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=a51ac53b2fe3';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
@@ -22,7 +22,7 @@ import {
   isNa, isMissing,
   varianceChip, varianceTone, variancePct,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE,
-} from '../readings.js?v=533d50965653';
+} from '../readings.js?v=a51ac53b2fe3';
 
 const $ = selector => document.querySelector(selector);
 
@@ -1736,6 +1736,9 @@ function renderContent() {
 
 function render() {
   hideCards(state.plant?.hidden_cards);
+  // The plant's own answer about trend lines, on the body so present mode and the page get
+  // it from one place.
+  document.body.classList.toggle('no-trends', !!state.plant?.hide_trends);
   // One section or two, and the heading says which.
   TITLES.labour = state.plant?.merge_upkeep ? 'Maintenance & Labour' : 'Labour & Overtime';
   state.findings = assess(state);
