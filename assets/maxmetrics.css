@@ -742,9 +742,18 @@ body.no-trends .ctrack__ser,body.no-trends .ctrack__yr{display:none}
    It was written thirty lines above it at the same specificity, so the later rule won and
    the larger size was never once drawn — the variance has been at 5u the entire time it was
    supposed to be bigger. Which made "make it twenty per cent larger" impossible to judge:
-   raising the dead rule was a hundred and ten per cent, not twenty. Twelve per cent over
-   what is on the screen is what was asked for, and 5.6u is that. */
-.card .ctrack__d--lg{font-size:calc(5.6*var(--u))}
+   raising the dead rule was a hundred and ten per cent, not twenty.
+   Twelve per cent was the first answer and it left this line at two thirds of the volume
+   above it, where the plant's own morning dashboard sets the two almost level — that card is
+   the reference for this one and the variance is the half of it the meeting argues about. So
+   it goes to 8u against the volume's 9u, which is the same relationship their card has.
+   Capped by width as well, exactly as the figure above it is, and for a reason that only
+   shows up on a bad morning: at 8u the line runs 293px inside a 283px card the moment a
+   department reads -100.0%, one character wider than -33.7%. Overflow is what `fitCards`
+   shrinks the whole page to cure, so the card would get smaller precisely when the number
+   got worse. `--vchars` carries the length of the string and the second term keeps it inside
+   the card whatever the reading turns out to be. */
+.card .ctrack__d--lg{font-size:min(calc(8*var(--u)),calc(143cqi/var(--vchars,19)))}
 .card .ctrack__mv{margin-top:calc(1.2*var(--u))}
 /* Both drawings grew. A bar four per cent of the card tall is a hairline at page size and
    an unremarkable stripe on the wall, and the graph under it was smaller still — which is
