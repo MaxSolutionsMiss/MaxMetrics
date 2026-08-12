@@ -28,7 +28,7 @@ import {
 } from '../db.js';
 import {
   esc, money, MONTHS, iconFor,
-  volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE, WALK,
+  volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE, walkKeyFor,
 } from '../readings.js';
 
 const $ = selector => document.querySelector(selector);
@@ -474,17 +474,10 @@ function qualityPane() {
         left. <b>Present</b> is whether it goes up on a screen: the walk the meeting is driven
         through and the one broadcast page alike. That is a different room from the desk — the
         corridor TV is read by the floor, and sales usually are not — so a card can be on the
-        morning and off the wall. Whole sections can come off the walk the same way, on the
-        list below. Production's cards are the plant's departments and are set on the
-        Departments screen. Targets stay on the card itself, in Edit mode.</p>
-        <div class="cfg__two cfg__two--head" style="margin-top:var(--s4)"><span>Section</span>
-          <span></span><span>Present</span></div>
-        ${WALK.map(([key, name]) => `<div class="cfg__two">
-          <span class="cfg__two-n">${esc(name)}</span>
-          <span></span>
-          <label class="tog"><input type="checkbox" data-wall="${esc(key)}"${
-            wallOff.has(key) ? '' : ' checked'}${canEdit() ? '' : ' disabled'}></label>
-        </div>`).join('')}
+        morning and off the wall. A whole section comes off the walk the same way, from the
+        tick at the top of its own list. Production's cards are the plant's departments and
+        are set on the Departments screen. Targets stay on the card itself, in Edit mode.</p>
+
         <label class="tog cfg__card" style="margin-top:var(--s2)">
           <input type="checkbox" data-plant="merge_upkeep"${
             state.plant?.merge_upkeep ? ' checked' : ''}${canEdit() ? '' : ' disabled'}>
@@ -516,6 +509,13 @@ function qualityPane() {
   const one = tab => {
     const group = sections.find(g => g.name === tab.key);
     if (!group) return screens();
+    // The section's own switch sits at the top of the section's own list.
+    //
+    // It was one list of all seven under Screens, which put "is Financials on the wall" two
+    // clicks away from every card in Financials and asked somebody to hold both in their head
+    // at once. A setting belongs where the thing it governs is, and the row reads the same
+    // way as the card rows beneath it — same grid, same column, one tick.
+    const sectionKey = walkKeyFor(group.name);
     return `<div class="panel"><div class="panel__head">
         <h3 class="panel__title">${esc(group.name)}</h3>
         <div class="panel__actions"><span class="pill pill--info">${
@@ -524,6 +524,12 @@ function qualityPane() {
       <div class="panel__body">
         <div class="cfg__two cfg__two--head"><span></span>
           <span>Dashboard</span><span>Present</span></div>
+        ${sectionKey ? `<div class="cfg__two cfg__two--sec">
+          <span class="cfg__two-n">The whole ${esc(group.name)} screen</span>
+          <span></span>
+          <label class="tog"><input type="checkbox" data-wall="${esc(sectionKey)}"${
+            wallOff.has(sectionKey) ? '' : ' checked'}${canEdit() ? '' : ' disabled'}></label>
+        </div>` : ''}
         ${group.cards.map(row).join('')}</div></div>`;
   };
 

@@ -512,7 +512,7 @@ function attentionCard() {
 function attentionEditor() {
   const at = state.attentionAt || ATTENTION[0][0];
   return jotEditor({ id: 'att', label: 'Who', options: ATTENTION, at,
-                     field: `review:${at}:note`, note: noteOf(`review:${at}:note`) });
+                     field: `review:${at}:note` });
 }
 
 // Staffing, said by whoever it is about.
@@ -554,7 +554,7 @@ function staffingEditor() {
   const list = (state.config || []).map(config => [config.key, config.name]);
   const at = state.staffAt || list[0]?.[0] || '';
   return jotEditor({ id: 'staff', label: 'Department', options: list, at,
-                     field: `labour:${at}:note`, note: noteOf(`labour:${at}:note`) })
+                     field: `labour:${at}:note` })
     + `<div class="er"><label for="staff-all">Whole plant</label>
       <textarea class="inp" id="staff-all" rows="2" placeholder="one per line"
         aria-label="Staffing notes for the whole plant"
@@ -583,22 +583,29 @@ function noteOf(field) {
 // person exactly where they need to be to pick the next department. The lines already there
 // are listed above it, each with a cross, because the second thing anybody wants after adding
 // a line by mistake is to take it off.
-function jotEditor({ id, label, options, at, field, note }) {
-  const lines = String(note || '').split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+// The lines and the Add box on their own, for a card that already knows whose note it is —
+// a review card is headed with the department's name, so a picker above it would be asking a
+// question the card has already answered.
+function jotLines(field, id, label = 'Comment') {
+  const lines = String(noteOf(field)).split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+  return `${lines.length ? `<ul class="jot">${lines.map((line, at) =>
+      `<li><span>${esc(line)}</span><button type="button" class="jot__x"
+         data-drop="${esc(field)}" data-line="${at}"
+         aria-label="Remove this line">\u00d7</button></li>`).join('')}</ul>` : ''}
+    <div class="er er--jot"><label for="${esc(id)}-note">${esc(label)}</label>
+      <textarea class="inp" id="${esc(id)}-note" rows="2" data-jot="${esc(field)}"
+        placeholder="one line, then Add" aria-label="${esc(label)}"></textarea>
+      <button type="button" class="btn btn--go jot__add" data-add="${esc(field)}">Add</button>
+    </div>`;
+}
+
+function jotEditor({ id, label, options, at, field }) {
   return `<div class="er"><label for="${id}-who">${esc(label)}</label>
       <select class="inp" id="${id}-who" aria-label="${esc(label)}">
         ${options.map(([key, name]) =>
           `<option value="${esc(key)}"${key === at ? ' selected' : ''}>${esc(name)}</option>`).join('')}
       </select></div>
-    ${lines.length ? `<ul class="jot">${lines.map((line, at2) =>
-      `<li><span>${esc(line)}</span><button type="button" class="jot__x"
-         data-drop="${esc(field)}" data-line="${at2}"
-         aria-label="Remove this line">\u00d7</button></li>`).join('')}</ul>` : ''}
-    <div class="er er--jot"><label for="${id}-note">Comment</label>
-      <textarea class="inp" id="${id}-note" rows="2" data-jot="${esc(field)}"
-        placeholder="what the room should know" aria-label="Comment"></textarea>
-      <button type="button" class="btn btn--go jot__add" data-add="${esc(field)}">Add</button>
-    </div>`;
+    ${jotLines(field, id)}`;
 }
 
 // The editor, used on the card in Edit mode and on the entry screen alike.
@@ -610,7 +617,7 @@ function jotEditor({ id, label, options, at, field, note }) {
 function supportEditor() {
   const at = state.supportAt || SUPPORT[0][0];
   return jotEditor({ id: 'sup', label: 'Who', options: SUPPORT, at,
-                     field: `review:${at}:note`, note: noteOf(`review:${at}:note`) });
+                     field: `review:${at}:note` });
 }
 
 // The plant names a department "Die Cutting" and the machine list keys it "diecutting".
@@ -1462,12 +1469,13 @@ const SECTIONS = {
         html: row.note ? bullets(row.note) : '',
         blank: answered && !row.note,
         prompt: answered ? 'No issues reported.' : 'Not confirmed yet.',
+        // The same Add box as every other card somebody writes sentences on. A department
+        // reporting two things overnight is two lines, and typing them into one box with a
+        // Return between was the thing nobody could tell had saved.
         edit: `<div class="er"><label>Status</label>
             <select class="inp" data-field="review:${esc(row.dept_key)}:status"
               aria-label="Status">${reviewOptions(row.status)}</select></div>
-          <div class="er"><label>Note</label>
-            <textarea class="inp" aria-label="What happened"
-              data-field="review:${esc(row.dept_key)}:note">${esc(row.note)}</textarea></div>`,
+          ${jotLines(`review:${row.dept_key}:note`, `rev-${row.dept_key}`, 'What happened')}`,
       });
     }).join('');
 
@@ -1817,7 +1825,8 @@ const FILL_FOR = {
   production:  () => fillProduction() + fillNotes(),
   shipping:    () => fillShipping(),
   financials:  () => fillMoney(),
-  labour:      () => fillOvertime() + fillStaffing() + fillAttention()
+  attention:   () => fillAttention(),
+  labour:      () => fillOvertime() + fillStaffing()
                    + (mergedUpkeep() ? fillMaintenance({ tight: true }) + fillMaintNote() : ''),
   maintenance: () => fillMaintenance({ tight: true }) + fillMaintNote(),
 };
@@ -1841,14 +1850,17 @@ const FILL_TABS = [
   { key: 'financials',  sub: "Yesterday's sales" },
   { key: 'labour',      sub: 'Overtime and staffing' },
   { key: 'maintenance', name: 'Maintenance', sub: 'What is booked in, and notes' },
+  { key: 'attention',   name: 'Needs watching', sub: 'What the day ahead turns on' },
   { key: '_all', name: 'All of it', sub: 'The whole morning on one page' },
 ];
 
 // Support is not one of the dashboard's sections — it is one card inside Production's —
 // so it is named here rather than looked up in `order()`, which decides screens and knows
 // nothing about it.
+// Support and the board are cards rather than sections, so `order()` — which decides screens
+// and knows nothing about either — cannot vouch for them. They are named here instead.
 const fillTabs = () => FILL_TABS.filter(t =>
-  t.key === '_all' || t.key === 'support' || order().includes(t.key));
+  t.key === '_all' || t.key === 'support' || t.key === 'attention' || order().includes(t.key));
 
 const nextFillTab = key => {
   const list = fillTabs().map(t => t.key);
