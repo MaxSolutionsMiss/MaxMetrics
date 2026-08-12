@@ -570,7 +570,7 @@ body.tv .card--wide{grid-column:auto}
    one the room picked. One weight for every number on the page, so a quality card and a
    production card are the same product. */
 .hero{font-family:var(--font-num);
-  font-size:min(calc(var(--t-metric)*3.1),31cqi,calc(213cqi/var(--chars,3)));
+  font-size:min(calc(var(--t-metric)*2.79),27.9cqi,calc(192cqi/var(--chars,3)));
   font-weight:600;line-height:.95;letter-spacing:-.01em;color:var(--ink);
   display:flex;align-items:baseline;justify-content:center;gap:5px;white-space:nowrap;
   /* Shrink-to-fit rather than full-width, so a number too wide for its card is something
@@ -582,7 +582,7 @@ body.tv .card--wide{grid-column:auto}
   color:var(--ink-muted);letter-spacing:0}
 .card--ok .hero{color:var(--ok)}.card--warn .hero{color:var(--warn)}.card--stop .hero{color:var(--stop)}
 .card--ok .hero i,.card--warn .hero i,.card--stop .hero i{color:inherit;opacity:.75}
-.hero--md{font-size:min(calc(var(--t-metric)*2.5),25cqi,calc(213cqi/var(--chars,3)))}
+.hero--md{font-size:min(calc(var(--t-metric)*2.25),22.5cqi,calc(192cqi/var(--chars,3)))}
 .unit{font-size:var(--t-small);color:var(--ink-muted);margin-top:1px;text-align:center;
   line-height:1.25}
 /* The volume, under the rate that was made out of it.
@@ -780,7 +780,10 @@ body.no-trends .ctrack__ser,body.no-trends .ctrack__yr{display:none}
 /* The second cap is the number's own length: 31.5% of the card is right for "262" and
    wrong for "$1.42M", where six glyphs at that size are wider than the card and ran under
    its border into the card beside it. `--chars` comes from metricCard. */
-.card .hero{font-size:min(calc(33*var(--u)),calc(213cqi/var(--chars,3)))}
+/* A tenth smaller than it was, across the board and on every term of the `min()` — taking
+   it off only one would have changed which cap binds, so a card whose number is long would
+   have shrunk and a card whose number is short would not, and the row would stop matching. */
+.card .hero{font-size:min(calc(29.7*var(--u)),calc(192cqi/var(--chars,3)))}
 /* A medium hero is capped harder by its own length as well as by the card. Six glyphs at
    the full cap \u2014 "$11.8M", "12,400" \u2014 ran the width of the card and left the graph
    under them a sliver; the room asked for those to come down by about a fifth, which is
@@ -795,7 +798,7 @@ body.no-trends .ctrack__ser,body.no-trends .ctrack__yr{display:none}
    was never the money. It was two hero sizes on one screen.
    Kept as a class rather than removed from twenty call sites, because the call sites are
    right about which readings are long; they were wrong that long means small. */
-.card .hero--md{font-size:min(calc(33*var(--u)),calc(213cqi/var(--chars,3)))}
+.card .hero--md{font-size:min(calc(29.7*var(--u)),calc(192cqi/var(--chars,3)))}
 .card .unit{font-size:calc(4.9*var(--u));margin-bottom:calc(3.5*var(--u))}
 /* The unit closes up when the volume follows it. Those two lines are one statement —
    "4,202 sheets an hour, 113,448 sheets in all" — and three and a half units of air between
