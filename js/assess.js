@@ -13,7 +13,7 @@
 // cannot happen is for the verdict to be reached once, here, before any view sees it.
 
 import { band, daysBetween, num, money, readingOf, rateLabel, MONTHS,
-         otifTarget, otdTarget, isNa } from './readings.js?v=3ba8472ea0c8';
+         otifTarget, otdTarget, isNa } from './readings.js?v=d48dec1dc854';
 
 // ── What a complete morning contains ────────────────────────────────────────────
 //

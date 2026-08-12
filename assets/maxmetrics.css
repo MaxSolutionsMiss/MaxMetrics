@@ -325,9 +325,16 @@ body.tv .verdict{font-size:var(--t-lead)}
    So the width is the fixed thing and the columns fall out of it: every card row is
    `auto-fit` against one track size and centres what it fits. Safety's two, quality's six
    and shipping's eight are then the same card, four to a row, wrapping where they wrap. */
+/* A row is as tall as the tallest card in it.
+   `grid-auto-rows: var(--card-h)` made every row 360px whatever was in it, so Labour drew
+   three cards half full of nothing to hold four department names and one line of italic
+   placeholder. Uniformity is worth having between cards that sit side by side - which is
+   what `align-items: stretch` already gives - and is not worth having against a constant.
+   The floor keeps a nearly empty card looking like a card. Present mode keeps the fixed
+   tile: a corridor TV wants identical squares and has the room for them. */
 .grid--cards{grid-template-columns:repeat(auto-fit,minmax(0,var(--card-w)));
-  grid-auto-rows:var(--card-h);
-  justify-content:start;align-items:stretch}
+  grid-auto-rows:minmax(10rem,auto);
+  justify-content:start;align-items:start}
 @media(max-width:760px){.grid--cards{grid-template-columns:minmax(0,1fr);
   grid-auto-rows:minmax(min-content,auto)}}
 .g4{grid-template-columns:repeat(4,minmax(0,1fr))}
@@ -383,6 +390,10 @@ body.tv .verdict{font-size:var(--t-lead)}
    direction: the number read as though it had been pushed up against the title, with all the
    air of the card pooled underneath it. */
 .card__mid{padding-top:calc(9*var(--cu))}
+/* Nine per cent is right under a number and wrong above a list. A hero figure needs air
+   between it and the bar or it reads as stuck to the title; a list of departments starts at
+   its first row, and twenty-nine pixels above it is just the top of the card left empty. */
+.card__mid:has(>.clist),.card__mid:has(>.rev__note){padding-top:calc(3*var(--cu))}
 /* A fourth border, and it is not a verdict. `gap` means nobody has answered yet — the
    colour is the brand's violet rather than amber, because amber says somebody looked and it
    fell short, and a card nobody has touched has not been looked at. */
@@ -1398,15 +1409,20 @@ body.tv .content.wall{display:flex;flex-direction:column;gap:var(--s4);
 /* Two answers about one card — does the plant carry it, and does it go on the broadcast
    screen — so the name takes the room and the two ticks sit in fixed columns under their
    headings. A tick without a heading over it is a switch nobody dares touch. */
-.cfg__two{display:grid;grid-template-columns:minmax(0,1fr) 5.8rem 5.8rem;align-items:center;
-  gap:var(--s2);padding:5px 0;border-bottom:1px solid var(--rule)}
+/* The card's name, then the two ticks, then the end of the row.
+   `1fr` on the name gave it every spare pixel and pinned the ticks to the right-hand edge,
+   so "Month to date" and the box that turns it on sat two-thirds of a screen apart - the
+   same fault as the entry rows, in the one other place the product lays out a label and a
+   control on a line. */
+.cfg__two{display:grid;grid-template-columns:minmax(0,18rem) 5.8rem 5.8rem minmax(0,1fr);
+  align-items:center;gap:var(--s2);padding:5px 0;border-bottom:1px solid var(--rule)}
 .cfg__two:last-child{border-bottom:none}
 .cfg__two-n{font-size:var(--t-small);min-width:0;overflow:hidden;text-overflow:ellipsis;
   white-space:nowrap}
 .cfg__two .tog{justify-content:center}
 .cfg__two--head{border-bottom:1px solid var(--ink-faint);padding-bottom:6px}
-.cfg__two--head span{font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.03em;
-  font-weight:700;color:var(--ink-faint);text-align:center;white-space:nowrap;
+.cfg__two--head span{font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.07em;
+  font-weight:600;color:var(--ink-muted);text-align:center;white-space:nowrap;
   overflow:hidden;text-overflow:ellipsis}
 .cfg__fams{display:grid;grid-template-columns:repeat(auto-fit,minmax(12rem,1fr));
   gap:6px var(--s3);margin-top:var(--s2)}

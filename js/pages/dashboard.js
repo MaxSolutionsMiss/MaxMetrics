@@ -13,8 +13,8 @@ import {
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=3ba8472ea0c8';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=3ba8472ea0c8';
+} from '../db.js?v=d48dec1dc854';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=d48dec1dc854';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
@@ -22,7 +22,7 @@ import {
   isNa, isMissing,
   varianceChip, varianceTone, variancePct,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE,
-} from '../readings.js?v=3ba8472ea0c8';
+} from '../readings.js?v=d48dec1dc854';
 
 const $ = selector => document.querySelector(selector);
 
@@ -158,6 +158,10 @@ const order = () => ORDER.filter(key => key !== 'maintenance' || !state.plant?.m
 const TITLES = {
   safety: 'Safety', quality: 'Quality', production: 'Production', shipping: 'Shipping',
   maintenance: 'Upcoming maintenance', labour: 'Labour & Overtime', financials: 'Financials',
+  // Support is an entry screen rather than a dashboard section, so it never needed a title
+  // here - until Save-and-next started naming the screen it was about to move to, and found
+  // nothing. The button read "Next next" and the toast said "Saved. undefined next."
+  support: 'Customer service',
 };
 const NAV = { labour: 'Labour', line: 'Summary', fill: 'Enter',
               maintenance: 'Maintenance' };
