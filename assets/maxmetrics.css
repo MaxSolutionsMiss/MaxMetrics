@@ -1127,6 +1127,18 @@ body.tv .grid--cards{
   --card-w:min(var(--cell-w),calc(var(--wall-cap)*1vw));
   --card-h:min(var(--cell-h),calc(var(--card-w)*var(--card-r-max)));
   grid-template-columns:repeat(var(--wall-cols),var(--card-w))}
+/* One figure size across every screen of the walk.
+   The tile is deliberately allowed to grow on a sparse screen — a screen of two comes out
+   653 wide against a screen of ten at 352 — and the figure grew with it, so Financials drew
+   its money at 157px and Shipping drew its percentages at 84 on the same wall four seconds
+   apart. Read as a sequence that is two products, and the room said so.
+   Capping the card would fix it by making a two-card screen look under-filled. Capping the
+   *figure* against the screen instead leaves every tile the size it wants to be — the bar,
+   the foot and the title still fill it — and makes the one thing a person reads from ten
+   metres the same height on all of them. Both terms keep the 33:24 relationship the two
+   hero sizes have everywhere else. */
+body.tv .card .hero{font-size:min(calc(33*var(--u)),calc(213cqi/var(--chars,3)),11.3vh)}
+body.tv .card .hero--md{font-size:min(calc(24*var(--u)),calc(166cqi/var(--chars,3)),8.2vh)}
 @media(min-width:1500px){body.tv{--scale:1.8}}
 @media(min-width:1800px){body.tv{--scale:2.15}}
 body.tv .rail,body.tv .top,body.tv .no-tv{display:none}
