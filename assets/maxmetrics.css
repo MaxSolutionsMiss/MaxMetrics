@@ -327,14 +327,16 @@ body.tv .verdict{font-size:var(--t-lead)}
    So the width is the fixed thing and the columns fall out of it: every card row is
    `auto-fit` against one track size and centres what it fits. Safety's two, quality's six
    and shipping's eight are then the same card, four to a row, wrapping where they wrap. */
-/* One height for every card on the page, and it is the department card's.
-   This went back and forth twice and the room has settled it. Content-sized rows meant
-   Labour's three cards were not half full of nothing — but it also meant Safety's row was
-   shorter than Quality's, which was shorter than Production's, and scrolling the whole
-   morning was scrolling past four different card sizes. Levelling within a row was not
-   enough: what reads as one product is one rectangle, repeated, whatever is in it.
-   `minmax` rather than a flat height so a card that genuinely needs more grows instead of
-   spilling out of its own border. */
+/* One height for every card on the page, and it is the department card's — measured, not
+   declared.
+   The first attempt set the row to `--card-h` and was wrong in a way worth writing down:
+   `fitCards()` sizes the type by dividing the room in a card by what the card is using, so
+   making every card taller handed it more room and it scaled every figure on the page up.
+   Production was asked to be the yardstick and got moved instead.
+   So the rows stay content-sized, which is exactly what Production was, and `levelRows()`
+   measures the tallest department card *after* the fit is settled and pushes the rest up to
+   it through `--row-h`. Nothing about Production changes; everything else matches it. Not on
+   the wall, where the tile is already fixed and the room is the constraint. */
 /* Every card in a row is the height of the tallest.
    It used to be `start`, so a card sized itself to what it held: three department cards with
    a number, a bar and a foot stood tall while the note card beside them stopped a third of
@@ -344,8 +346,9 @@ body.tv .verdict{font-size:var(--t-lead)}
    shrinking out of the row, which is the trade and it is the correct one: a grid of equal
    rectangles is read as one thing, and a ragged one is read as several. */
 .grid--cards{grid-template-columns:repeat(auto-fit,minmax(0,var(--card-w)));
-  grid-auto-rows:minmax(var(--card-h),auto);
+  grid-auto-rows:minmax(10rem,auto);
   justify-content:start;align-items:stretch}
+body:not(.tv) .grid--cards{grid-auto-rows:minmax(var(--row-h,10rem),auto)}
 @media(max-width:760px){.grid--cards{grid-template-columns:minmax(0,1fr);
   grid-auto-rows:minmax(min-content,auto)}}
 .g4{grid-template-columns:repeat(4,minmax(0,1fr))}

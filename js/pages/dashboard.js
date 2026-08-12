@@ -13,8 +13,8 @@ import {
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=7b52942839bf';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=7b52942839bf';
+} from '../db.js?v=79c15420a7de';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=79c15420a7de';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
@@ -22,7 +22,7 @@ import {
   isNa, isMissing,
   varianceChip, varianceTone, variancePct,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE,
-} from '../readings.js?v=7b52942839bf';
+} from '../readings.js?v=79c15420a7de';
 
 const $ = selector => document.querySelector(selector);
 
@@ -1979,6 +1979,10 @@ function fitCards() {
   // is measured together — otherwise Safety's two cards would grow to a larger title than
   // Production's four on the same screen, which is the same "two designs" fault in a new
   // place.
+  // Whatever levelling the last render left behind comes off before anything is measured.
+  // A row floor set from the previous pass would be read as room the cards have, and the
+  // type would climb a step every time the page redrew.
+  $('#content')?.style.removeProperty('--row-h');
   const grids = [...document.querySelectorAll('.grid--cards')];
   const groups = document.body.classList.contains('tv') ? grids.map(g => [g]) : [grids];
   for (const group of groups) {
@@ -2066,6 +2070,37 @@ function fitCards() {
     }
     group.forEach(grid => grid.classList.remove('measuring'));
   }
+  levelRows();
+}
+
+// Every card on the page as tall as a department card — and not one pixel taller.
+//
+// This runs *after* `fitCards`, and the order is the whole of it. `fitCards` decides one
+// type size for the page by dividing the room in each card by what that card is using, so
+// anything that makes cards taller before it measures hands it more room and it draws every
+// figure on the page larger. Setting the row height in the stylesheet did exactly that: the
+// department cards were asked to be the yardstick and were the first thing to move.
+//
+// So the grid stays content-sized while the fit is worked out, Production comes out exactly
+// as it always did, and only then is the rest of the page pushed up to meet it. Nothing
+// measured here feeds back into anything: `--cu` is derived from the card's width and the
+// constant `--card-h`, never from the height a row happens to be, so a taller card is a
+// taller card and the type on it does not move.
+//
+// Production is the yardstick because the room said so — it is the fullest card the product
+// has, so matching it never has to shrink anything. With no Production on screen the tallest
+// card there is stands in, which is the same rule with a smaller set.
+function levelRows() {
+  if (document.body.classList.contains('tv')) return;
+  const content = $('#content');
+  if (!content) return;
+  content.style.removeProperty('--row-h');
+  const from = content.querySelector('.grid--cards[data-grid="production"]')
+    ?? content;
+  const cards = [...from.querySelectorAll('.card')];
+  if (!cards.length) return;
+  const tallest = Math.max(...cards.map(card => card.getBoundingClientRect().height));
+  if (tallest > 0) content.style.setProperty('--row-h', `${Math.round(tallest)}px`);
 }
 
 // ── The wall ──
