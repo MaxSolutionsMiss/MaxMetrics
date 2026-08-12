@@ -616,6 +616,22 @@ export const iconFor = (key, chosen) => {
 // hard-wired on. The list is the switch now, and it is here rather than in the dashboard
 // because Configure has to draw the same names without importing the page that renders
 // them.
+// The sections a morning is made of, in the order it is walked, with what each is called.
+//
+// Both pages need this and neither owned it: the dashboard kept the order and the titles, and
+// Configure needed the same pair to offer "which of these goes on a screen". A second copy in
+// Configure would be a list that drifts the first time a section is added, and the symptom
+// would be a tick that governs nothing.
+export const WALK = [
+  ['safety',      'Safety'],
+  ['quality',     'Quality'],
+  ['production',  'Production'],
+  ['shipping',    'Shipping'],
+  ['financials',  'Financials'],
+  ['maintenance', 'Upcoming maintenance'],
+  ['labour',      'Labour & Overtime'],
+];
+
 export const CARD_CATALOGUE = [
   { section: 'Safety',      key: 'injury',        name: 'Days since last injury' },
   { section: 'Safety',      key: 'nearmiss',      name: 'Days since near-miss' },

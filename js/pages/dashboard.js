@@ -13,16 +13,16 @@ import {
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=4ae89c5e7aad';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=4ae89c5e7aad';
+} from '../db.js?v=4b09789bb4c7';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=4b09789bb4c7';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
   spark, bullet, chip, cardTrack, readingOf, derivedShipping, otifTarget, otdTarget,
   isNa, isMissing,
   varianceChip, varianceTone, variancePct,
-  volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE,
-} from '../readings.js?v=4ae89c5e7aad';
+  volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE, WALK,
+} from '../readings.js?v=4b09789bb4c7';
 
 const $ = selector => document.querySelector(selector);
 
@@ -100,7 +100,7 @@ const ATTENTION = [
   ['next_printing',         'Printing'],
   ['next_diecutting',       'Die cutting'],
   ['next_finishing',        'Finishing'],
-  ['next_packing',          'Packing'],
+  ['next_packsize',         'PackSize'],
   ['next_shipping',         'Shipping'],
 ];
 const ATTENTION_KEYS = new Set(ATTENTION.map(([key]) => key));
@@ -172,7 +172,7 @@ const VIEWS = ['fill', 'line'];
 // Safety and quality were one section because the old dashboard drew them in one row.
 // They are two subjects with two owners, and on a wall each deserves its own screen — six
 // quality readings do not fit under two safety ones.
-const ORDER = ['safety', 'quality', 'production', 'shipping', 'financials', 'maintenance', 'labour'];
+const ORDER = WALK.map(([key]) => key);
 // Labour and maintenance are one screen for most plants and two for some, so it is the
 // plant's own answer rather than a rule. Together is the default.
 // Maintenance and Labour are separate screens unless a plant says otherwise. They were
@@ -511,16 +511,8 @@ function attentionCard() {
 // permanent boxes would be nine empty ones on any given morning.
 function attentionEditor() {
   const at = state.attentionAt || ATTENTION[0][0];
-  const row = attentionRows().find(r => r.dept_key === at);
-  return `<div class="er"><label for="att-who">Who</label>
-      <select class="inp" id="att-who" aria-label="Which part of the building is flagging this">
-        ${ATTENTION.map(([key, name]) =>
-          `<option value="${key}"${key === at ? ' selected' : ''}>${esc(name)}</option>`).join('')}
-      </select></div>
-    <div class="er"><label for="att-note">Needs watching</label>
-      <textarea class="inp" id="att-note" rows="2" placeholder="one per line"
-        aria-label="What needs watching today"
-        data-field="review:${esc(at)}:note">${esc(row?.note || '')}</textarea></div>`;
+  return jotEditor({ id: 'att', label: 'Who', options: ATTENTION, at,
+                     field: `review:${at}:note`, note: noteOf(`review:${at}:note`) });
 }
 
 // Staffing, said by whoever it is about.
@@ -559,22 +551,54 @@ function staffingCard() {
 // A department and a box, and the plant-wide line underneath it. Same argument as the
 // support editor: a permanent box per department is four empty ones on most mornings.
 function staffingEditor() {
-  const list = state.config || [];
-  const at = state.staffAt || list[0]?.key || '';
-  return `<div class="er"><label for="staff-who">Department</label>
-      <select class="inp" id="staff-who" aria-label="Which department this is about">
-        ${list.map(config =>
-          `<option value="${esc(config.key)}"${config.key === at ? ' selected' : ''}>${
-            esc(config.name)}</option>`).join('')}
-      </select></div>
-    <div class="er"><label for="staff-note">Note</label>
-      <textarea class="inp" id="staff-note" rows="2" placeholder="one per line"
-        aria-label="Staffing note"
-        data-field="labour:${esc(at)}:note">${esc(labourRow(at)?.note || '')}</textarea></div>
-    <div class="er"><label for="staff-all">Whole plant</label>
+  const list = (state.config || []).map(config => [config.key, config.name]);
+  const at = state.staffAt || list[0]?.[0] || '';
+  return jotEditor({ id: 'staff', label: 'Department', options: list, at,
+                     field: `labour:${at}:note`, note: noteOf(`labour:${at}:note`) })
+    + `<div class="er"><label for="staff-all">Whole plant</label>
       <textarea class="inp" id="staff-all" rows="2" placeholder="one per line"
         aria-label="Staffing notes for the whole plant"
         data-field="staffing_note">${esc(metric('staffing_note') || '')}</textarea></div>`;
+}
+
+// Where a note actually lives, given the name of its field. Three different tables behind
+// three fields that all hold the same thing: lines somebody typed.
+function noteOf(field) {
+  const [kind, first, second] = String(field).split(':');
+  if (kind === 'review') return (state.review || []).find(r => r.dept_key === first)?.[second] || '';
+  if (kind === 'labour') return (state.labour || []).find(l => l.dept_key === first)?.[second] || '';
+  return metric(field) || '';
+}
+
+// A picker, the lines already on the card, and a box with an Add button.
+//
+// The three comment cards were a dropdown and a textarea that saved themselves half a second
+// after you stopped typing. Correct, invisible, and the room's verdict was the right one:
+// nothing on the screen ever said the comment had been taken, so people typed, waited, and
+// went looking for a button that was not there. Worse, the box held the whole of that
+// department's note, so adding a second line meant knowing to press Return first.
+//
+// Add is what was asked for and it is also the better model. The box is one comment. Pressing
+// Add puts it on the end of that name's list, empties the box and says so, which leaves the
+// person exactly where they need to be to pick the next department. The lines already there
+// are listed above it, each with a cross, because the second thing anybody wants after adding
+// a line by mistake is to take it off.
+function jotEditor({ id, label, options, at, field, note }) {
+  const lines = String(note || '').split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+  return `<div class="er"><label for="${id}-who">${esc(label)}</label>
+      <select class="inp" id="${id}-who" aria-label="${esc(label)}">
+        ${options.map(([key, name]) =>
+          `<option value="${esc(key)}"${key === at ? ' selected' : ''}>${esc(name)}</option>`).join('')}
+      </select></div>
+    ${lines.length ? `<ul class="jot">${lines.map((line, at2) =>
+      `<li><span>${esc(line)}</span><button type="button" class="jot__x"
+         data-drop="${esc(field)}" data-line="${at2}"
+         aria-label="Remove this line">\u00d7</button></li>`).join('')}</ul>` : ''}
+    <div class="er er--jot"><label for="${id}-note">Comment</label>
+      <textarea class="inp" id="${id}-note" rows="2" data-jot="${esc(field)}"
+        placeholder="what the room should know" aria-label="Comment"></textarea>
+      <button type="button" class="btn btn--go jot__add" data-add="${esc(field)}">Add</button>
+    </div>`;
 }
 
 // The editor, used on the card in Edit mode and on the entry screen alike.
@@ -585,16 +609,8 @@ function staffingEditor() {
 // is also how yesterday's sentence gets corrected.
 function supportEditor() {
   const at = state.supportAt || SUPPORT[0][0];
-  const row = supportRows().find(r => r.dept_key === at);
-  return `<div class="er"><label for="sup-who">Who</label>
-      <select class="inp" id="sup-who" aria-label="Which department is commenting">
-        ${SUPPORT.map(([key, name]) =>
-          `<option value="${key}"${key === at ? ' selected' : ''}>${esc(name)}</option>`).join('')}
-      </select></div>
-    <div class="er"><label for="sup-note">Comment</label>
-      <textarea class="inp" id="sup-note" rows="2" placeholder="one per line"
-        aria-label="Comment"
-        data-field="review:${esc(at)}:note">${esc(row?.note || '')}</textarea></div>`;
+  return jotEditor({ id: 'sup', label: 'Who', options: SUPPORT, at,
+                     field: `review:${at}:note`, note: noteOf(`review:${at}:note`) });
 }
 
 // The plant names a department "Die Cutting" and the machine list keys it "diecutting".
@@ -2359,7 +2375,12 @@ function wallPages() {
         // is not an empty card, it is the question being asked of the room. Dropping them
         // meant the wall showed the review only once every department had already answered,
         // which is the one moment nobody needs to see it.
-        && (card.dataset.empty !== '1' || card.parentElement?.dataset.grid === 'review'));
+        && (card.dataset.empty !== '1'
+            || card.parentElement?.dataset.grid === 'review'
+            // And the board for the day ahead, for the same reason: an empty one is the
+            // meeting being asked what today needs, which is the question the last slide
+            // exists to put. It was being dropped on exactly the mornings it was wanted.
+            || card.dataset.pkey === 'attention'));
     // Which section a card belongs to, carried on the card. The collage has no headings —
     // the bar's colour is the heading — so this is the only thing that groups them.
     for (const card of cards) card.dataset.fam = key;
@@ -2821,6 +2842,39 @@ document.addEventListener('change', event => {
   state.staffAt = event.target.value;
   render();
   document.querySelector('#staff-note')?.focus?.();
+});
+
+// Add, and take one off again.
+//
+// Both write the whole of that name's note, because a note is lines and this is editing the
+// list of them. Both go straight to `persist` rather than through the typing path — there is
+// nothing to debounce about a button, and the point of the button is that the person knows
+// it happened the moment they press it.
+document.addEventListener('click', async event => {
+  const add = event.target.closest?.('[data-add]');
+  if (add) {
+    const field = add.dataset.add;
+    const box = document.querySelector(`[data-jot="${CSS.escape(field)}"]`);
+    const said = String(box?.value || '').trim();
+    if (!said) { box?.focus(); return; }
+    const lines = String(noteOf(field)).split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const next = [...lines, said].join('\n');
+    applyLocally(field, next);
+    if (box) box.value = '';
+    render();
+    toast('Added');
+    try { await persist(field, next); } catch (error) { toast(error.message); }
+    return;
+  }
+  const drop = event.target.closest?.('[data-drop]');
+  if (!drop) return;
+  const field = drop.dataset.drop;
+  const lines = String(noteOf(field)).split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  lines.splice(Number(drop.dataset.line), 1);
+  const next = lines.join('\n');
+  applyLocally(field, next);
+  render();
+  try { await persist(field, next); } catch (error) { toast(error.message); }
 });
 
 // Cards or fill-in, and the answer sticks. Somebody working down the rail filling sections
