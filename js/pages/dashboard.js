@@ -3589,18 +3589,30 @@ async function applyImport({ quiet = false } = {}) {
   // if it has not moved, none were. On the first of a month there is no yesterday to
   // subtract, and the month-to-date figure *is* the day's. Anybody can type over the answer
   // on the entry screen, which is what makes a derived number safe to show.
-  const previous = (state.year || [])
-    .filter(row => row.metric_date < state.date)
-    .sort((a, b) => String(a.metric_date).localeCompare(String(b.metric_date))).pop();
-  const sameMonth = previous
-    && String(previous.metric_date).slice(0, 7) === state.date.slice(0, 7);
   for (const [today, month] of [['ncr_today', 'ncr_mtd'],
                                 ['complaints_internal_today', 'complaints_internal_mtd'],
                                 ['complaints_external_today', 'complaints_external_mtd']]) {
     const now = writes.find(([name]) => name === month)?.[1] ?? metric(month);
     if (now == null || now === '' || !Number.isFinite(Number(now))) continue;
-    const before = sameMonth ? Number(previous[month] ?? 0) : 0;
-    writes.push([today, Math.max(0, Number(now) - before)]);
+    // The most recent morning *this month* that actually carries a figure for this count.
+    //
+    // The first version took the last morning before today and read the column off it, and
+    // an absent column came through as nought. Every August morning before the twelfth had
+    // no month-to-date reading at all — the workbook had never been read — so the first pull
+    // of the month measured eleven against nothing and reported eleven NCRs in the last
+    // twenty-four hours. Eleven for the month and eleven for the day, on the same card,
+    // which is the plant's own arithmetic contradicting itself in public.
+    //
+    // A movement can only be measured against a reading. Where there is no earlier reading
+    // to subtract, nothing is known about the day and it stays at nought — which is the rule
+    // the room asked for and the honest answer besides: what a count did in one day cannot
+    // be recovered from the first time anybody wrote the month down.
+    const before = (state.year || [])
+      .filter(row => String(row.metric_date) < state.date
+        && String(row.metric_date).slice(0, 7) === state.date.slice(0, 7)
+        && Number.isFinite(Number(row[month])) && row[month] !== null && row[month] !== '')
+      .sort((a, b) => String(a.metric_date).localeCompare(String(b.metric_date))).pop();
+    writes.push([today, before ? Math.max(0, Number(now) - Number(before[month])) : 0]);
   }
 
   for (const [name, value] of writes) {
