@@ -13,23 +13,23 @@ import {
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=d15f310741e8';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=d15f310741e8';
+} from '../db.js?v=7c851c04d4f5';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=7c851c04d4f5';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
   spark, bullet, chip, cardTrack, readingOf, derivedShipping, otifTarget, otdTarget,
   isNa, isMissing,
   varianceChip, varianceTone, variancePct,
-  volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE, WALK,
-} from '../readings.js?v=d15f310741e8';
+  volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE, WALK, morningToday,
+} from '../readings.js?v=7c851c04d4f5';
 
 const $ = selector => document.querySelector(selector);
 
 const session = await currentSession();
 if (!session) location.replace('../index.html');
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => morningToday();
 
 // A date, n days off. This was being called here and only ever declared inside import.js,
 // where it is not exported — so every file drop and every history write threw a

@@ -25,18 +25,18 @@ import {
   peopleAt, grantAccess, revokeAccess, setAdmin, accessMatrix, allLocations,
   createPerson, updatePerson, resetPersonPassword, removePerson,
   loadSources, saveSource, addSource, dropSource, pullSources,
-} from '../db.js?v=d15f310741e8';
+} from '../db.js?v=7c851c04d4f5';
 import {
   esc, money, MONTHS, iconFor,
-  volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE, walkKeyFor,
-} from '../readings.js?v=d15f310741e8';
+  volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE, walkKeyFor, morningToday,
+} from '../readings.js?v=7c851c04d4f5';
 
 const $ = selector => document.querySelector(selector);
 
 const session = await currentSession();
 if (!session) location.replace('../index.html');
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => morningToday();
 
 const state = { me: null, locations: [], location: null, config: [], draft: null, plant: null,
                 pane: 'departments', budgets: [], year: new Date().getFullYear(), people: null,
