@@ -71,10 +71,42 @@ Deno.serve(async request => {
   const name = request.headers.get('x-maxmetrics-filename') ?? 'upload.xlsx';
   if (!location) return json({ error: 'x-maxmetrics-location is required.' }, 400);
 
-  const bytes = new Uint8Array(await request.arrayBuffer());
-  if (!bytes.length) return json({ error: `${name} arrived empty.` }, 400);
+  // Three shapes, because Power Automate sends whichever it feels like.
+  //
+  // Dropping "File content" into an HTTP body sometimes posts the bytes, sometimes posts
+  // Power Automate's own wrapper - `{"$content": "UEsDBB…", "$content-type": "…"}` - and
+  // sometimes posts the base64 on its own. All three are the same workbook, and refusing
+  // two of them would send somebody back into the designer to guess which one they had.
+  let bytes = new Uint8Array(await request.arrayBuffer());
+  if (bytes.length && !looksLikeWorkbook(bytes)) {
+    const text = new TextDecoder().decode(bytes).trim();
+    const base64 = text.startsWith('{')
+      ? (() => { try { return JSON.parse(text)?.['$content'] ?? ''; } catch { return ''; } })()
+      : /^[A-Za-z0-9+/=\s]+$/.test(text) ? text : '';
+    if (base64) {
+      try {
+        const raw = atob(base64.replace(/\s+/g, ''));
+        const out = new Uint8Array(raw.length);
+        for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+        bytes = out;
+      } catch { /* not base64 after all; the check below reports what it really is */ }
+    }
+  }
+
+  if (!bytes.length) {
+    return json({
+      error: `${name} arrived with no content.`,
+      // The body is the field people leave empty, so say so rather than making them guess.
+      fix: 'In the HTTP action, set Body to the File content from Get file content. If the '
+         + 'dynamic token will not stick, use the expression '
+         + "base64ToBinary(body('Get_file_content')?['$content']).",
+    }, 400);
+  }
   if (!looksLikeWorkbook(bytes)) {
-    return json({ error: `${name} is not a workbook — it does not start like a ZIP.` }, 422);
+    return json({
+      error: `${name} is not a workbook - it does not start like a ZIP.`,
+      firstBytes: Array.from(bytes.slice(0, 8)).map(b => b.toString(16).padStart(2, '0')).join(' '),
+    }, 422);
   }
 
   const admin = createClient(URL_, SERVICE, { auth: { persistSession: false } });
