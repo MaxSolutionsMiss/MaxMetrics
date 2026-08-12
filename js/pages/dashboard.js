@@ -13,8 +13,8 @@ import {
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=79c15420a7de';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=79c15420a7de';
+} from '../db.js?v=54d6f2bf2dc2';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=54d6f2bf2dc2';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
@@ -22,7 +22,7 @@ import {
   isNa, isMissing,
   varianceChip, varianceTone, variancePct,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE,
-} from '../readings.js?v=79c15420a7de';
+} from '../readings.js?v=54d6f2bf2dc2';
 
 const $ = selector => document.querySelector(selector);
 
@@ -1323,19 +1323,12 @@ const SECTIONS = {
     // One grid, and the departments and the week they just had are in it together. A plant
     // that adds a fourth and a fifth department wraps onto a second row and the week card
     // wraps with them, which is what the full-width table could never do.
-    // Support sits with the review, which is what it is.
-    //
-    // It started beside the departments, because customer service, the die shop and prepress
-    // are what hold production up. That is true and it is not what the card *is*: the review
-    // row is one card per department saying what happened in the last twenty-four hours, and
-    // this is the same sentence from the three parts of the building that have no machine to
-    // report on. Beside the readings it was a note card in a row of numbers; here it is one
-    // note card among four.
-    return `<div class="grid grid--cards" data-grid="production">${weekCard()}${cards}</div>
-    ${review || supportCard() ? `<div class="sec__head" style="margin-top:var(--s3)">
+    return `<div class="grid grid--cards" data-grid="production">${weekCard()}${
+      supportCard()}${cards}</div>
+    ${review ? `<div class="sec__head" style="margin-top:var(--s3)">
       <h3 class="sec__title" style="font-size:var(--t-lead)">Review \u2014 last 24 hours</h3>
       <div class="sec__rule"></div></div>
-    <div class="grid grid--cards" data-grid="review">${review}${supportCard()}</div>` : ''}`;
+    <div class="grid grid--cards" data-grid="review">${review}</div>` : ''}`;
   },
 
   shipping: () => {
@@ -1979,10 +1972,6 @@ function fitCards() {
   // is measured together — otherwise Safety's two cards would grow to a larger title than
   // Production's four on the same screen, which is the same "two designs" fault in a new
   // place.
-  // Whatever levelling the last render left behind comes off before anything is measured.
-  // A row floor set from the previous pass would be read as room the cards have, and the
-  // type would climb a step every time the page redrew.
-  $('#content')?.style.removeProperty('--row-h');
   const grids = [...document.querySelectorAll('.grid--cards')];
   const groups = document.body.classList.contains('tv') ? grids.map(g => [g]) : [grids];
   for (const group of groups) {
@@ -2070,37 +2059,6 @@ function fitCards() {
     }
     group.forEach(grid => grid.classList.remove('measuring'));
   }
-  levelRows();
-}
-
-// Every card on the page as tall as a department card — and not one pixel taller.
-//
-// This runs *after* `fitCards`, and the order is the whole of it. `fitCards` decides one
-// type size for the page by dividing the room in each card by what that card is using, so
-// anything that makes cards taller before it measures hands it more room and it draws every
-// figure on the page larger. Setting the row height in the stylesheet did exactly that: the
-// department cards were asked to be the yardstick and were the first thing to move.
-//
-// So the grid stays content-sized while the fit is worked out, Production comes out exactly
-// as it always did, and only then is the rest of the page pushed up to meet it. Nothing
-// measured here feeds back into anything: `--cu` is derived from the card's width and the
-// constant `--card-h`, never from the height a row happens to be, so a taller card is a
-// taller card and the type on it does not move.
-//
-// Production is the yardstick because the room said so — it is the fullest card the product
-// has, so matching it never has to shrink anything. With no Production on screen the tallest
-// card there is stands in, which is the same rule with a smaller set.
-function levelRows() {
-  if (document.body.classList.contains('tv')) return;
-  const content = $('#content');
-  if (!content) return;
-  content.style.removeProperty('--row-h');
-  const from = content.querySelector('.grid--cards[data-grid="production"]')
-    ?? content;
-  const cards = [...from.querySelectorAll('.card')];
-  if (!cards.length) return;
-  const tallest = Math.max(...cards.map(card => card.getBoundingClientRect().height));
-  if (tallest > 0) content.style.setProperty('--row-h', `${Math.round(tallest)}px`);
 }
 
 // ── The wall ──
@@ -3045,17 +3003,9 @@ function importPanel() {
       <div class="keys"><div>
         <div class="keys__l keys__l--bad">What is inside ${esc(source.file)} — send me this
           and the reader will be taught it</div>
-        ${source.peek.map(sheet => `<div class="peek">
-          <div class="peek__n">${esc(sheet.sheet)}</div>
-          ${sheet.grid?.length ? `<div class="peek__t"><table><thead><tr><th></th>${
-            (sheet.letters || []).map(l => `<th>${esc(l)}</th>`).join('')
-          }</tr></thead><tbody>${sheet.grid.map(row => `<tr><th>${row.row}</th>${
-            row.cells.map(c => `<td>${esc(c)}</td>`).join('')
-          }</tr>`).join('')}</tbody></table></div>`
-          : sheet.head?.length ? `<div class="keys__v">${
-              sheet.head.map(h => `<code>${esc(h)}</code>`).join(' ')}</div>`
-          : '<div class="keys__v"><i>empty</i></div>'}
-        </div>`).join('')}
+        ${source.peek.map(sheet => `<div class="keys__v"><b>${esc(sheet.sheet)}</b>
+          ${sheet.head.length ? sheet.head.map(h => `<code>${esc(h)}</code>`).join(' ')
+            : '<i>no header row</i>'}</div>`).join('')}
       </div></div>`).join('')}
     <div class="cover">${cover.map(row =>
       `<span class="cover__s cover__s--${row.got ? 'on' : 'off'}">${esc(row.name)}
