@@ -12,7 +12,7 @@
   <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
   <link rel="mask-icon" href="../assets/favicon.svg" color="#6C4BB6">
   <link rel="preload" href="../assets/fonts/ibm-plex-sans.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="../assets/maxmetrics.css?v=a51ac53b2fe3">
+  <link rel="stylesheet" href="../assets/maxmetrics.css?v=da54893a5fbf">
 </head>
 <body>
   <div class="shell">
@@ -62,11 +62,10 @@
                than Configure → Data → drop. -->
           <span class="pullw" id="pull-when"></span>
           <button class="btn btn--primary" id="pull-btn">Pull data</button>
-          <!-- The same importer, with a door on the bar. Pull data needs the plant's files to
-               be reachable; until they are, somebody has the three workbooks open in front of
-               them every morning and needs somewhere to put them that is not three screens
-               away in Configure. -->
-          <button class="btn" id="import-btn">Upload files</button>
+          <!-- Uploading files is not on this bar. It lives in Configure, then Data, with the
+               links it is standing in for - that is where somebody goes to change where the
+               morning comes from, and a second door on the bar every reader sees would make
+               a once-a-day administrative act look like part of reading the morning. -->
           <button class="btn" id="edit-btn">Edit mode</button>
           <button class="btn btn--go hide" id="publish-btn">Publish</button>
           <button class="btn btn--primary" id="tv-btn">Present</button>
@@ -99,6 +98,6 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.52.1/dist/umd/supabase.min.js"></script>
-  <script type="module" src="../js/pages/dashboard.js?v=a51ac53b2fe3"></script>
+  <script type="module" src="../js/pages/dashboard.js?v=da54893a5fbf"></script>
 </body>
 </html>
