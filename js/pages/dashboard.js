@@ -158,6 +158,10 @@ const order = () => ORDER.filter(key => key !== 'maintenance' || !state.plant?.m
 const TITLES = {
   safety: 'Safety', quality: 'Quality', production: 'Production', shipping: 'Shipping',
   maintenance: 'Upcoming maintenance', labour: 'Labour & Overtime', financials: 'Financials',
+  // Support is an entry screen rather than a dashboard section, so it never needed a title
+  // here - until Save-and-next started naming the screen it was about to move to, and found
+  // nothing. The button read "Next next" and the toast said "Saved. undefined next."
+  support: 'Customer service',
 };
 const NAV = { labour: 'Labour', line: 'Summary', fill: 'Enter',
               maintenance: 'Maintenance' };
