@@ -2987,6 +2987,14 @@ function importPanel() {
         : source.kind === 'unreadable' ? esc(source.why || '')
         : ''}</td></tr>`).join('')}
     </tbody></table>
+    ${p.sources.filter(s => s.peek?.length).map(source => `
+      <div class="keys"><div>
+        <div class="keys__l keys__l--bad">What is inside ${esc(source.file)} — send me this
+          and the reader will be taught it</div>
+        ${source.peek.map(sheet => `<div class="keys__v"><b>${esc(sheet.sheet)}</b>
+          ${sheet.head.length ? sheet.head.map(h => `<code>${esc(h)}</code>`).join(' ')
+            : '<i>no header row</i>'}</div>`).join('')}
+      </div></div>`).join('')}
     <div class="cover">${cover.map(row =>
       `<span class="cover__s cover__s--${row.got ? 'on' : 'off'}">${esc(row.name)}
         <b>${row.got ? esc(KIND_NAMES[row.kind] || 'yes') : 'not in these files'}</b></span>`).join('')}</div>

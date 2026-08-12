@@ -403,7 +403,7 @@ export function cardTrack({ chart, actual, target, tone = '', floor = 0, ceiling
     ${bar ? bar + (moved ? `<div class="ctrack__mv">${moved}</div>` : '') : ''}
     ${line ? `<div class="ctrack__ser">${row(seriesLabel, seriesTrend
         ? trend(points[points.length - 1], points[0], lowerIsBetter) : '')}${line}</div>` : ''}
-    ${year ? row(monthsLabel, '') + year : ''}
+    ${year ? `<div class="ctrack__yr">${row(monthsLabel, '')}${year}</div>` : ''}
   </div>`;
 }
 
