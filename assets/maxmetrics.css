@@ -583,7 +583,7 @@ body.tv .card--wide{grid-column:auto}
 .card--ok .hero{color:var(--ok)}.card--warn .hero{color:var(--warn)}.card--stop .hero{color:var(--stop)}
 .card--ok .hero i,.card--warn .hero i,.card--stop .hero i{color:inherit;opacity:.75}
 .hero--md{font-size:min(calc(var(--t-metric)*2.25),22.5cqi,calc(192cqi/var(--chars,3)))}
-.unit{font-size:var(--t-small);color:var(--ink-muted);margin-top:1px;text-align:center;
+.unit{font-size:var(--t-small);color:var(--ink-muted);margin-top:6px;text-align:center;
   line-height:1.25}
 /* The volume, under the rate that was made out of it.
    A department card's number is a speed and speed alone answers nothing: eight thousand
@@ -799,7 +799,16 @@ body.no-trends .ctrack__ser,body.no-trends .ctrack__yr{display:none}
    Kept as a class rather than removed from twenty call sites, because the call sites are
    right about which readings are long; they were wrong that long means small. */
 .card .hero--md{font-size:min(calc(29.7*var(--u)),calc(192cqi/var(--chars,3)))}
-.card .unit{font-size:calc(4.9*var(--u));margin-bottom:calc(3.5*var(--u))}
+/* Air between the figure and what it is counted in — fifteen per cent of the figure's own
+   size, so it holds on a card drawn at 94px on a desk and at 130 on a wall.
+   It was a single pixel, which is what a caption gets when nobody has decided what it should
+   get: the hero sets a line-height under one on purpose, so the two were touching at every
+   size and worst at the largest. The margin is the same expression the hero is, times .15,
+   rather than a number of units — a card whose number is long is held by the length cap and
+   drawn smaller, and its caption should sit closer in proportion, not at a fixed distance
+   that would read as a different gap on every card in the row. */
+.card .unit{font-size:calc(4.9*var(--u));margin-bottom:calc(3.5*var(--u));
+  margin-top:min(calc(4.46*var(--u)),calc(28.8cqi/var(--chars,3)))}
 /* The unit closes up when the volume follows it. Those two lines are one statement —
    "4,202 sheets an hour, 113,448 sheets in all" — and three and a half units of air between
    them was reading as a gap. Closing it also buys the department card the slack it needs to
