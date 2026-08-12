@@ -1391,8 +1391,12 @@ const SECTIONS = {
         heroEdit: { field: name, attrs: `type="number" min="0" value="${value ?? ''}"` },
         // No bar — a bar against a target of zero is a bar that is always full — but the
         // week behind it is the difference between one late truck and a pattern.
+        //
+        // And no foot. "Target 0" under a count of late shipments is a line that says the
+        // same thing every morning of the plant's life, and the four counting cards were
+        // carrying one each — four rows of furniture holding the number away from the middle
+        // of its own card for no reading anybody takes.
         series: metricSeries(name), lowerIsBetter: true,
-        foot: [['Target', '0']],
       });
     };
 
@@ -1406,17 +1410,14 @@ const SECTIONS = {
         value: read('jobs_shipped') == null ? '\u2014' : num(read('jobs_shipped')), sub: 'today',
         heroEdit: { field: 'jobs_shipped',
                     attrs: `type="number" min="0" value="${state.metrics?.jobs_shipped ?? ''}"` },
-        foot: [['On time', read('jobs_on_time') ?? null,
-                 { field: 'jobs_on_time',
-                   attrs: `type="number" min="0" value="${state.metrics?.jobs_on_time ?? ''}"` }],
-               ['Of', read('jobs_shipped') ?? null]] })}
+        // On time and Of were a foot restating the number above them, and a field that has
+        // its own row on the entry screen. The count is the card.
+      })}
       ${ship('cartons', 'Cartons', {
         series: metricSeries('cartons'),
         value: read('cartons') == null ? '\u2014' : num(read('cartons')), sub: 'shipped today',
         heroEdit: { field: 'cartons',
-                    attrs: `type="number" min="0" value="${state.metrics?.cartons ?? ''}"` },
-        foot: [['Per job', read('cartons') && read('jobs_shipped')
-          ? num(Math.round(read('cartons') / read('jobs_shipped'))) : null]] })}
+                    attrs: `type="number" min="0" value="${state.metrics?.cartons ?? ''}"` } })}
       ${count('late', 'Late', 'shipments')}
       ${count('shorts', 'Shorts', 'shipments')}
       ${pct('otd', 'OTD', 'on-time delivery')}
