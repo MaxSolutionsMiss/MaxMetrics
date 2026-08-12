@@ -25,11 +25,11 @@ import {
   peopleAt, grantAccess, revokeAccess, setAdmin, accessMatrix, allLocations,
   createPerson, updatePerson, resetPersonPassword, removePerson,
   loadSources, saveSource, addSource, dropSource, pullSources,
-} from '../db.js?v=23f0ed4f479b';
+} from '../db.js?v=bda50a1f1e88';
 import {
   esc, money, MONTHS, iconFor,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE,
-} from '../readings.js?v=23f0ed4f479b';
+} from '../readings.js?v=bda50a1f1e88';
 
 const $ = selector => document.querySelector(selector);
 

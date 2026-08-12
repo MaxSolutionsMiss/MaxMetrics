@@ -732,7 +732,17 @@ body.no-trends .ctrack__ser,body.no-trends .ctrack__yr{display:none}
    the full cap \u2014 "$11.8M", "12,400" \u2014 ran the width of the card and left the graph
    under them a sliver; the room asked for those to come down by about a fifth, which is
    what dropping the length cap from 205 to 160 does. */
-.card .hero--md{font-size:min(calc(24*var(--u)),calc(166cqi/var(--chars,3)))}
+/* There is one figure size on a card, and this used to be a second one.
+   `--md` was for the readings that run long — money, five-figure counts, a percentage to two
+   places — on the argument that at full size they would run the width of the card. The
+   length cap already prevents that: `213cqi/--chars` is exactly "as large as the longest
+   number on this screen allows". So all `--md` did was draw Shipping's four counts at 104px
+   and Shipping's four percentages at 76, on the same row, and Financials at 76 beside them —
+   which is the mismatch the room has been pointing at and calling the money too small. It
+   was never the money. It was two hero sizes on one screen.
+   Kept as a class rather than removed from twenty call sites, because the call sites are
+   right about which readings are long; they were wrong that long means small. */
+.card .hero--md{font-size:min(calc(33*var(--u)),calc(213cqi/var(--chars,3)))}
 .card .unit{font-size:calc(4.9*var(--u));margin-bottom:calc(3.5*var(--u))}
 /* The unit closes up when the volume follows it. Those two lines are one statement —
    "4,202 sheets an hour, 113,448 sheets in all" — and three and a half units of air between
