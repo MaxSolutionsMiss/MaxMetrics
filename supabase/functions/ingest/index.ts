@@ -116,13 +116,27 @@ Deno.serve(async request => {
     return json({ error: `No files are linked to ${location} yet — Configure, then Data.` }, 400);
   }
 
-  const source = sourceFor(name, sources);
+  // A file nobody has told MaxMetrics about gets a place rather than a refusal.
+  //
+  // The flow walks a folder, so the way somebody adds a fourth workbook is to put it in the
+  // folder - and being told "nothing matches" for doing exactly that is the product blaming
+  // a person for using it correctly. It is filed as `other` and kept; Configure, then Data
+  // is where somebody says what kind of file it is, and until they do it simply sits there
+  // costing nothing.
+  let source = sourceFor(name, sources);
   if (!source) {
-    return json({
-      error: `Nothing at ${location} matches "${name}".`,
-      // Saying what it *would* have accepted turns a rejection into an instruction.
-      linked: sources.map(s => ({ name: s.name, kind: s.kind })),
-    }, 422);
+    const made = await admin.from('location_sources').insert({
+      location_id: location, kind: 'other', name: name.replace(/\.[a-z]+$/i, ''),
+      url: '', enabled: true, sort_order: sources.length + 1,
+    }).select('id, kind, name').single();
+    if (made.error) {
+      return json({
+        error: `Nothing at ${location} matches "${name}", and it could not be added.`,
+        why: made.error.message,
+        linked: sources.map(s => ({ name: s.name, kind: s.kind })),
+      }, 422);
+    }
+    source = made.data;
   }
 
   const path = `${location}/${source.id}.xlsx`;

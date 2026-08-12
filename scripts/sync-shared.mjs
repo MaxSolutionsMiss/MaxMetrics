@@ -13,9 +13,12 @@ export const SHARED = ['import.js', 'xlsx.js'];
 // `pull` is not in this list on purpose. It imports the parser straight from the published
 // site — the very file the browser is running — so there is no copy of it to keep in step.
 // See the note at the top of `pull/index.ts`.
+// `ingest` is not in this list either, for the same reason it no longer carries a parser:
+// it stores the bytes a flow posts and the page reads them. It kept getting a copy long
+// after it stopped importing one, which is how a folder ends up with a nine-hundred-line
+// file in it that nothing calls.
 export const WANTS_PARSER = [
   join('supabase', 'functions', '_shared'),
-  join('supabase', 'functions', 'ingest'),
 ];
 
 for (const into of WANTS_PARSER) {
