@@ -150,6 +150,8 @@ const ICONS = {
   overview:    'M4 4h7v7H4zM13 4h7v4h-7zM13 10h7v10h-7zM4 13h7v7H4z',
   safety:      'M12 3l7 3v6c0 4.2-2.9 7.6-7 9-4.1-1.4-7-4.8-7-9V6z',
   quality:     'M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.9-5.2-2.8-5.2 2.8 1-5.9-4.3-4.1 5.9-.9z',
+  // A pin. The one section that is about what is coming rather than what happened.
+  attention:   'M9 3.5h6l-1 5 3.5 3.5H6.5L10 8.5zM12 12.5V21',
   production:  'M4 20V9l5 3V9l5 3V4l6 4v12z',
   shipping:    'M3 7h11v9H3zM14 10h4l3 3v3h-7zM7 19a1.6 1.6 0 100-3.2A1.6 1.6 0 007 19zM17.5 19a1.6 1.6 0 100-3.2 1.6 1.6 0 000 3.2z',
   maintenance: 'M14.5 6.5a3.5 3.5 0 01-4.6 4.6L5 16l3 3 4.9-4.9a3.5 3.5 0 004.6-4.6l-2.4 2.4-2.1-2.1z',
@@ -190,7 +192,7 @@ const TITLES = {
   support: 'Customer service',
 };
 const NAV = { labour: 'Labour', line: 'Summary', fill: 'Enter',
-              maintenance: 'Maintenance' };
+              maintenance: 'Maintenance', attention: 'Needs watching' };
 Object.assign(TITLES, { line: 'Morning summary', fill: 'Enter the morning' });
 Object.assign(ICONS, {
   line:  'M4 6h16M4 12h10M4 18h6',
@@ -496,8 +498,13 @@ function attentionCard() {
   const count = said.reduce((total, entry) => total + entry.lines.length, 0);
 
   return noteCard({
-    pkey: 'attention', label: 'Needs watching today', icon: '\u{1F4CC}', wide: true,
-    tone: count ? 'warn' : '',
+    pkey: 'attention', label: 'Needs watching today', icon: iconFor('attention'), wide: true,
+    // No verdict tone. Green, amber and red mean "against target" everywhere else on the
+    // product, and there is no target here — a morning with five things to watch is not a
+    // worse morning than one with two, it is a busier one. The card is violet instead, the
+    // one place the identity colour is used as anything but chrome, which is what makes it
+    // the thing your eye finds on a page of green and red without shouting at anybody.
+    tone: '',
     html: count ? `<ul class="rev__note rev__note--list sup__l">${said.map(entry =>
       entry.lines.map(line =>
         `<li><b class="sup__w">${esc(entry.name)}</b>${esc(line)}</li>`).join('')).join('')}</ul>`
@@ -963,17 +970,11 @@ function fillMaintenance({ tight = false } = {}) {
 function fillSupport() {
   return fgroup('Customer service, die shop & prepress', () => {
     const at = state.supportAt || SUPPORT[0][0];
-    const row = supportRows().find(r => r.dept_key === at);
-    return `<div class="fr fr--note fr--wide">
-      <span class="fr__l">Who</span>
-      <select class="inp fr__i fr__i--s" id="sup-who" aria-label="Which department is commenting">
-        ${SUPPORT.map(([key, name]) =>
-          `<option value="${key}"${key === at ? ' selected' : ''}>${esc(name)}</option>`).join('')}
-      </select>
-      <textarea class="inp fr__t" rows="1" placeholder="what they want the room to know"
-        aria-label="Comment"
-        data-field="review:${esc(at)}:note">${esc(row?.note || '')}</textarea>
-    </div>
+    // The same picker, list and Add button as every other card somebody writes sentences on.
+    // This screen had a layout of its own — a select and a one-line box on a `fr` row — which
+    // is how the one place people actually enter these ended up being the one place with no
+    // Add button and no way to see what was already there.
+    return `${supportEditor()}
     ${SUPPORT.filter(([key]) => key !== at).map(([key, name]) => {
       const other = supportRows().find(r => r.dept_key === key);
       const lines = String(other?.note || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
@@ -1620,7 +1621,9 @@ const SECTIONS = {
   // The board goes last, on the last section, which makes it the last slide of the walk —
   // the morning ends on the day ahead rather than on overtime.
   labour: () => cardGrid('labour',
-    (mergedUpkeep() ? maintenanceCards() : '') + labourCards() + attentionCard()),
+    (mergedUpkeep() ? maintenanceCards() : '') + labourCards()),
+
+  attention: () => cardGrid('attention', attentionCard()),
 
   financials: () => {
     // Billing is reviewed the next morning, so the financial picture reports through the
@@ -1845,23 +1848,26 @@ const nextToFill = key => {
 const FILL_TABS = [
   { key: 'safety',      sub: 'Injuries and near-misses' },
   { key: 'quality',     sub: 'Shortages, NCRs, complaints, COQ' },
-  { key: 'support',     name: 'Customer service', sub: 'The die shop and prepress too' },
+  { key: 'support',     name: 'Customer service, prepress & die shop',
+    sub: 'Whatever the front of the building wants said' },
   { key: 'production',  sub: 'Output and hours, and the last 24 hours' },
   { key: 'shipping',    sub: 'Jobs, cartons, late, short' },
   { key: 'financials',  sub: "Yesterday's sales" },
   { key: 'labour',      sub: 'Overtime and staffing' },
   { key: 'maintenance', name: 'Maintenance', sub: 'What is booked in, and notes' },
-  { key: 'attention',   name: 'Needs watching', sub: 'What the day ahead turns on' },
+  { key: 'attention',   name: 'Needs watching today',
+    sub: 'What the day ahead turns on \u2014 anyone can add a line' },
   { key: '_all', name: 'All of it', sub: 'The whole morning on one page' },
 ];
 
 // Support is not one of the dashboard's sections — it is one card inside Production's —
 // so it is named here rather than looked up in `order()`, which decides screens and knows
 // nothing about it.
-// Support and the board are cards rather than sections, so `order()` — which decides screens
-// and knows nothing about either — cannot vouch for them. They are named here instead.
+// Support is a card rather than a section, so `order()` — which decides screens and knows
+// nothing about it — cannot vouch for it. It is named here instead. The board no longer needs
+// to be: it is a section, and `order()` carries it like any other.
 const fillTabs = () => FILL_TABS.filter(t =>
-  t.key === '_all' || t.key === 'support' || t.key === 'attention' || order().includes(t.key));
+  t.key === '_all' || t.key === 'support' || order().includes(t.key));
 
 const nextFillTab = key => {
   const list = fillTabs().map(t => t.key);
@@ -2374,7 +2380,6 @@ function wallPages() {
   const pages = [];
   const off = state.wallMode === 'all' ? pageHidden() : wallHidden();
   const solo = soloSections();
-  const later = [];
   // The sections render themselves, once, and their cards are read back out. Doing it this
   // way rather than keeping a parallel list of readings is what stops the wall drifting
   // from the page: there is one definition of a Shipping card and this is reading it.
@@ -2408,25 +2413,10 @@ function wallPages() {
     // room needed off it was five columns wide. Both are cards, so the exception has nothing
     // left to except, and a screen is one grid again.
     if (!cards.length) continue;
-    // The board takes the last screen to itself.
-    //
-    // It is a card in Labour's grid on the page, because that is where the room reads it and
-    // a section of one card is a heading with nothing under it. On the walk it is the
-    // opposite: it is the only thing on the morning that faces forwards, it is sentences
-    // rather than a figure, and it is what the meeting ends on. Sharing a slide with the
-    // overtime list would give it a quarter of a wall to say what today turns on.
-    const kept = state.wallMode === 'all' ? cards
-      : cards.filter(card => card.dataset.pkey !== 'attention');
-    const board = state.wallMode === 'all' ? []
-      : cards.filter(card => card.dataset.pkey === 'attention');
-    if (board.length) {
-      later.push({ key: 'attention', cols: 1, rows: 1, solo: true, count: 1,
-                   html: board.map(card => card.outerHTML).join('') });
-    }
-    if (!kept.length) continue;
-    const deal = state.wallMode === 'all' ? { cols: 1, rows: 1 } : bestGrid(kept.length);
-    pages.push({ key, ...deal, solo: solo.has(key), count: kept.length,
-                 html: kept.map(card => card.outerHTML).join('') });
+    const deal = state.wallMode === 'all' ? { cols: 1, rows: 1 } : bestGrid(cards.length);
+    // A section of sentences never shares a slide. Everything else may be packed.
+    pages.push({ key, ...deal, solo: solo.has(key) || key === 'attention', count: cards.length,
+                 html: cards.map(card => card.outerHTML).join('') });
   }
   if (state.wallMode === 'all') return pages;
 
@@ -2451,7 +2441,7 @@ function wallPages() {
     }
     packed.push({ ...page });
   }
-  return [...packed, ...later];
+  return packed;
 }
 
 // Two shapes, because two rooms want two different things.

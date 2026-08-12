@@ -113,12 +113,12 @@
   /* The title bar. One grey on every card, on purpose: the verdict lives in the number,
      and a bar that changed colour with it would be a second, louder verdict. */
   --card-bar:#4A5162;
-  --card-r-max:1.32;
-  --wall-cols:4; --wall-rows:1; --wall-cap:19; --wall-chrome:150px;
+  --card-r-max:1.45;
+  --wall-cols:4; --wall-rows:1; --wall-cap:23; --wall-chrome:150px;
   /* The title bar. One grey on every card, on purpose: the verdict lives in the number,
      and a bar that changed colour with it would be a second, louder verdict. */
   --card-bar:#4A5162;
-  --card-r-max:1.32;
+  --card-r-max:1.45;
 }
 /* Dark is MaxMetrics' own - MaxDock ships light only - so it keeps the same relationships
    rather than inventing new ones: the neutrals slide, the accent lifts enough to hold
@@ -356,9 +356,28 @@ body:not(.tv) .grid--cards{grid-auto-rows:minmax(var(--row-h,10rem),auto)}
 .card--wide{grid-column:span 2}
 /* The board is sentences, and sentences on this one card are the reading rather than a
    caption under one. A step up from the other note cards on the page, and on its own slide
-   it takes the screen. */
+   it takes the screen.
+   Violet, which is the one place the identity colour is used as anything but chrome. Green,
+   amber and red mean "against target" everywhere else and there is no target here — five
+   things to watch is not a worse morning than two, it is a busier one — so a verdict palette
+   would be saying something untrue. It is the card the eye finds on a page of green and red
+   without anybody being shouted at. */
+.card[data-pkey="attention"]{border-color:color-mix(in srgb,var(--brand) 34%,var(--rule))}
+.card[data-pkey="attention"] .card__head{background:var(--brand);color:#fff}
+.card[data-pkey="attention"] .card__body{background:var(--brand-wash);
+  --card-ground:var(--brand-wash)}
 .card[data-pkey="attention"] .sup__l{font-size:calc(5.6*var(--cu));line-height:1.5}
-.card[data-pkey="attention"] .sup__w{font-size:.92em}
+.card[data-pkey="attention"] .sup__w{font-size:.92em;color:var(--brand-deep)}
+.card[data-pkey="attention"] .cnote--none{color:var(--brand-deep);opacity:.7}
+
+/* On the wall a slide of sentences is three cards wide, not one.
+   `bestGrid` deals one card one column, and one column is one card's width — which on a
+   screen given over entirely to what the day turns on left two thirds of the wall empty
+   beside a column of wrapped text. The span comes off, because a one-column grid has
+   nothing to span into, and the column itself is widened instead. */
+body.tv .grid--cards:has(.card--wide){
+  --card-w:min(var(--cell-w),calc(3*var(--wall-cap)*1vw))}
+body.tv .card--wide{grid-column:auto}
 /* The lines already on a comment card, above the box that adds the next one. Each carries a
    cross, because the first thing anybody wants after adding a line by mistake is to take it
    off, and the alternative was editing a textarea full of somebody else's sentences. */
