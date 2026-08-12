@@ -734,10 +734,17 @@ body.no-trends .ctrack__ser,body.no-trends .ctrack__yr{display:none}
    what dropping the length cap from 205 to 160 does. */
 .card .hero--md{font-size:min(calc(24*var(--u)),calc(166cqi/var(--chars,3)))}
 .card .unit{font-size:calc(4.9*var(--u));margin-bottom:calc(3.5*var(--u))}
+/* The unit closes up when the volume follows it. Those two lines are one statement —
+   "4,202 sheets an hour, 113,448 sheets in all" — and three and a half units of air between
+   them was reading as a gap. Closing it also buys the department card the slack it needs to
+   sit its figure in the middle of the space rather than at the top of it: Production is the
+   fullest card there is, so it is the one with least room to centre in, and it is also the
+   one every other card is being levelled against. */
+.card .card__mid:has(>.total) .unit{margin-bottom:calc(1.2*var(--u))}
 .card .ctrack{margin-top:calc(2.6*var(--u));gap:calc(1.4*var(--u))}
 .card .ctrack__row:not(:first-child){margin-top:calc(1.4*var(--u))}
 .card .ctrack__l{font-size:calc(4*var(--u))}
-.card .ctrack__d{font-size:calc(5*var(--u))}
+.card .ctrack__d{font-size:min(calc(8*var(--u)),calc(143cqi/var(--vchars,10)))}
 /* After `.card .ctrack__d`, and that is the whole point of where it sits.
    It was written thirty lines above it at the same specificity, so the later rule won and
    the larger size was never once drawn — the variance has been at 5u the entire time it was
@@ -746,14 +753,15 @@ body.no-trends .ctrack__ser,body.no-trends .ctrack__yr{display:none}
    Twelve per cent was the first answer and it left this line at two thirds of the volume
    above it, where the plant's own morning dashboard sets the two almost level — that card is
    the reference for this one and the variance is the half of it the meeting argues about. So
-   it goes to 8u against the volume's 9u, which is the same relationship their card has.
+   it goes to 8u against the volume's 9u, which is the same relationship their card has — and
+   every card that draws a line under its bar now uses it, which is the whole of what the
+   room means by standardising. The money's `+$117K` was at 5u beside a production card's 8u,
+   two sizes for one job, and the smaller of them on the card where the figure is the point.
    Capped by width as well, exactly as the figure above it is, and for a reason that only
-   shows up on a bad morning: at 8u the line runs 293px inside a 283px card the moment a
-   department reads -100.0%, one character wider than -33.7%. Overflow is what `fitCards`
-   shrinks the whole page to cure, so the card would get smaller precisely when the number
-   got worse. `--vchars` carries the length of the string and the second term keeps it inside
-   the card whatever the reading turns out to be. */
-.card .ctrack__d--lg{font-size:min(calc(8*var(--u)),calc(143cqi/var(--vchars,19)))}
+   shows up on a bad morning: unchecked, the line runs past the card's own border the moment
+   a reading gets long enough, and overflow is what `fitCards` cures by shrinking the whole
+   page — so the card would get smaller precisely when the number got worse. `--vchars`
+   carries the length of the string and the second term of the `min()` keeps it inside. */
 .card .ctrack__mv{margin-top:calc(1.2*var(--u))}
 /* Both drawings grew. A bar four per cent of the card tall is a hairline at page size and
    an unremarkable stripe on the wall, and the graph under it was smaller still — which is
@@ -766,15 +774,21 @@ body.no-trends .ctrack__ser,body.no-trends .ctrack__yr{display:none}
 /* The drawings sit at the floor of the reading's zone rather than under the number. Placed
    after `.card .ctrack` on purpose: same specificity, later wins. */
 .card__mid>.ctrack{margin-top:auto}
-/* The figure, its unit, the volume and the bar are one block, centred and then lifted.
-   The number used to carry `margin-block:auto`, which split the free space above *and*
-   below it — so the caption sat on the far side of a gap and read as a separate line rather
-   than as what the number is counted in. Centring the zone keeps the five lines together;
-   the padding underneath biases the whole block up by half of itself, which is the "a little
-   bit higher" the room asked for and is twelve pixels at page size. */
+/* Two things in the reading zone, and they sit in different places.
+   The figure, what it is counted in and the volume are one block and belong in the middle of
+   the space. The bar and the line under it belong at the foot of it, just above the rule —
+   the bar is the divider as much as the rule is, and floated up under the number it crowded
+   the reading and left a hand's width of nothing between itself and the foot.
+   Two auto margins do it: one above the figure and one below the last line of the block, so
+   the block centres in whatever room is left after the drawings have taken the floor. The
+   `:has` chain is only choosing which line is last — the volume where there is one, the unit
+   where there is not. */
+.card__mid:has(>.hero){justify-content:flex-start;padding-bottom:0}
+.card__mid:has(>.hero)>.hero{margin-block:auto 0}
+.card__mid:has(>.hero)>.unit{margin-bottom:auto}
+.card__mid:has(>.hero):has(>.total)>.unit{margin-bottom:0}
+.card__mid:has(>.hero)>.total{margin-bottom:auto}
 .card__mid:has(>.hero)>.ctrack{margin-top:0}
-.card__mid:has(>.hero){justify-content:center;padding-bottom:calc(8*var(--u))}
-.card__mid:has(>.hero)>.hero{margin-block:0}
 .card__mid>.hero{margin-block:auto}
 /* Nine per cent of air above the figure and three below it put the number at the bottom of
    its own space, sitting on the bar chart. A card is drawn to its content now, so there is
@@ -1514,24 +1528,29 @@ body.tv .content.wall{display:flex;flex-direction:column;gap:var(--s4);
    and a screen of them fits the same way a screen of numbers does. */
 .clist{list-style:none;margin:0;padding:0;width:100%;align-self:stretch}
 .clist__row{display:flex;align-items:center;justify-content:space-between;
-  gap:calc(2*var(--u));padding:calc(1.4*var(--u)) 0;border-bottom:1px solid var(--rule)}
+  gap:calc(2*var(--cu));padding:calc(1.4*var(--cu)) 0;border-bottom:1px solid var(--rule)}
 .clist__row:last-child{border-bottom:none}
 /* The name holds and the value gives way, not the other way round. A row reading
    "Gl\u2026  3 shifts \u00b7 Heidelberg, Omega" has cut the only word that says which row it is;
    "Gluing  3 shifts \u00b7 Heidelb\u2026" still tells you what you are looking at. */
 .clist__l{display:flex;flex-direction:column;gap:0;flex:1 1 auto;min-width:0}
-.clist__l b{font-family:var(--font-condensed);font-size:calc(5*var(--u));font-weight:600;
+.clist__l b{font-family:var(--font-condensed);font-size:calc(5*var(--cu));font-weight:600;
   color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-/* The quieter line is sized against the card rather than against the fit factor. On a
-   sparse screen `--fit` runs past two and "Heidelberg, Omega" at twice its size no longer
-   fits the card it is naming. */
+/* Sized against the card rather than against the fit factor — all of it, now, not just the
+   quiet line.
+   `--fit` is how much room the fullest card on a screen has spare, and a screen of three
+   list cards has a great deal. At better than twice, "Printing" came out at sixty pixels and
+   "Die C…" lost its own name to an ellipsis on the wall — three cards of headline type
+   colliding with each other, which is the opposite of what a list is for. A list is read,
+   not glanced at from ten metres; it belongs at the card's own scale whatever slack the
+   screen happens to have. */
 .clist__l i{font-style:normal;font-family:var(--font-condensed);font-size:calc(4.4*var(--cu));
   font-weight:600;color:var(--ink-faint);white-space:nowrap;overflow:hidden;
   text-overflow:ellipsis;letter-spacing:.02em}
-.clist__r{font-family:var(--font-num);font-size:calc(5*var(--u));font-weight:700;
+.clist__r{font-family:var(--font-num);font-size:calc(5*var(--cu));font-weight:700;
   color:var(--ink-muted);white-space:nowrap;flex:none}
-.clist__more{font-size:calc(3.8*var(--u));color:var(--ink-faint);padding-top:calc(1.2*var(--u))}
-.clist__none,.cnote{font-size:calc(4.6*var(--u));line-height:1.4;color:var(--ink);
+.clist__more{font-size:calc(3.8*var(--cu));color:var(--ink-faint);padding-top:calc(1.2*var(--cu))}
+.clist__none,.cnote{font-size:calc(4.6*var(--cu));line-height:1.4;color:var(--ink);
   text-align:center;margin:0}
 .cnote--none,.clist__none{color:var(--ink-faint);font-style:italic}
 
