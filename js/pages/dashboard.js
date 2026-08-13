@@ -14,16 +14,17 @@ import {
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=922bfc04e2d0';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=922bfc04e2d0';
+} from '../db.js?v=9725d527d4b4';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=9725d527d4b4';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
   spark, bullet, chip, cardTrack, readingOf, derivedShipping, otifTarget, otdTarget,
   isNa, isMissing,
   varianceChip, varianceTone, variancePct, VERDICT, verdictMark,
+  FROM_FILE, SOURCE_NAMES, sourceOf,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE, WALK, morningToday,
-} from '../readings.js?v=922bfc04e2d0';
+} from '../readings.js?v=9725d527d4b4';
 
 const $ = selector => document.querySelector(selector);
 
@@ -1017,15 +1018,9 @@ const machineNames = key => otMachines(key).map(m => m.name).join(', ');
 // Which fields arrive in a file, and which file. Static, because the mapping is a property of
 // the parsers rather than of a morning — and a field nobody has to fill is a field this
 // screen must not nag about.
-const FROM_FILE = {
-  DOR: ['qty', 'hours', 'uptime', 'make_ready', 'pw_qty', 'pw_hours'],
-  KPI: ['coq', 'coq_ytd', 'coq_target', 'coq_ytd_target', 'ncr_today', 'ncr_mtd', 'ncr_ytd',
-        'complaints_internal_today', 'complaints_internal_mtd', 'complaints_internal',
-        'complaints_external_today', 'complaints_external_mtd', 'complaints_external',
-        'mtd_otif', 'ytd_otif', 'mtd_otd', 'ytd_otd', 'fin_actual_mtd', 'fin_actual_ytd'],
-  OTIF: ['jobs_shipped', 'jobs_on_time', 'late', 'shorts'],
-};
-const sourceOf = name => Object.keys(FROM_FILE).find(file => FROM_FILE[file].includes(name)) || '';
+// `FROM_FILE`, `SOURCE_NAMES` and `sourceOf` moved to readings.js, where the cards can
+// reach them too. Which workbook a reading arrives in is a fact about the reading, not
+// about the screen that happens to be showing it.
 
 // When each file last arrived, said out loud.
 //
@@ -1034,7 +1029,7 @@ const sourceOf = name => Object.keys(FROM_FILE).find(file => FROM_FILE[file].inc
 // for a week without anybody noticing. The importer stamps `source_seen` per file; this
 // reads it back. A file that has not been seen since before this morning is amber, and one
 // that has never been seen says so rather than pretending.
-const SOURCE_NAMES = { DOR: 'DOR', OTIF: 'OTIF sheet', KPI: 'KPI workbook' };
+
 
 // The clock a person actually reads off a wall: half past seven, not 07:30:00.000Z.
 const clockAt = when =>
