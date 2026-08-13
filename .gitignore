@@ -1,6 +1,9 @@
 _site/
 .gh-pages/
-node_modules/
+# No trailing slash. The browser harness symlinks `node_modules` to a directory outside the
+# repository so Playwright resolves, and git sees a symlink as a file — which `node_modules/`
+# does not match, so it showed up as untracked on every commit.
+node_modules
 .DS_Store
 
 # The browser harness. Rebuilt by scratchpad/harness.sh, never committed.
