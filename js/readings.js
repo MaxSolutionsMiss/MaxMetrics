@@ -878,7 +878,7 @@ export function listCard({ pkey, icon, label, tone, rows, empty = 'Nothing to re
 // the only reading on the product whose body is markup rather than a string — everything
 // else that takes markup takes it as a whole card.
 export function noteCard({ pkey, icon, label, text, html, tone = '', blank,
-                           prompt = 'Nothing entered.', edit, wide = false }) {
+                           prompt = 'Nothing entered.', edit, wide = false, tall = false }) {
   if (hidden.has(pkey)) return '';
   // A note nobody wrote says so on the page, where the prompt is an invitation to write one,
   // and says nothing at all on a wall. Four cards reading "No issues reported" on a screen
@@ -892,7 +892,8 @@ export function noteCard({ pkey, icon, label, text, html, tone = '', blank,
   // A card two columns wide. Sentences need width in a way readings do not — the height is
   // still one card's, because a row of cards that share a top and a bottom is the whole of
   // why the page reads as one thing.
-  return `<div class="card card--${tone}${wide ? ' card--wide' : ''}" data-pkey="${esc(pkey)}"${
+  return `<div class="card card--${tone}${wide ? ' card--wide' : ''}${
+    tall ? ' card--tall' : ''}" data-pkey="${esc(pkey)}"${
     nothing ? ' data-empty="1"' : ''}>
     <div class="card__head">
       <span class="card__ico" aria-hidden="true">${icon || iconFor(pkey)}</span>

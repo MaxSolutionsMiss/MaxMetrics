@@ -376,6 +376,46 @@ body:not(.tv) .grid--cards{grid-auto-rows:minmax(var(--row-h,10rem),auto)}
    needs the top and the bottom to line up. It gives up the width on a narrow screen rather
    than pushing the grid sideways. */
 .card--wide{grid-column:span 2}
+/* Twice the height, so it stands beside two rows of department cards rather than one.
+
+   `--row-h` is what `levelRows()` measures every card against, so two of them plus the gap
+   between them is exactly two rows and the card's bottom edge lines up with the bottom of
+   the row underneath. Spanning two grid rows alone would not do it: the second row's height
+   is set by whatever is in it, and on a screen where nothing else is tall the card would
+   stop short. */
+.card--tall{grid-row:span 2;min-height:calc(2*var(--row-h,240px) + var(--s4));height:100%}
+@media(max-width:760px){.card--tall{grid-row:auto;min-height:0}}
+
+/* One block per department: the name, then the three readings it is judged on.
+
+   The room's ask was for the week to say what a department card says — what it made, how
+   long the changeovers took, how much of the crewed time the machine was actually working —
+   rather than output alone. Three cells to a row, divided from the next department by a
+   rule, because a list of nine figures with no grouping is a table nobody reads across. */
+.wkb__all{display:flex;flex-direction:column;width:100%;flex:1 1 auto;align-self:stretch;
+  gap:calc(2.4*var(--u,3px))}
+/* The departments divide the card's height between them rather than stacking at the top of
+   it. A card that is deliberately twice as tall and three quarters empty is a card that
+   looks like a mistake. */
+.wkb{display:flex;flex:1 1 0;flex-direction:column;justify-content:center;
+  gap:calc(1*var(--u,3px));
+  padding-bottom:calc(2.4*var(--u,3px));border-bottom:1px solid var(--rule)}
+.wkb:last-child{border-bottom:none;padding-bottom:0}
+.wkb__n{display:flex;align-items:baseline;justify-content:space-between;gap:var(--s2);
+  font-family:var(--font-condensed);font-weight:700;
+  font-size:clamp(calc(13px*var(--scale)),calc(4.6*var(--u,3px)),calc(15px*var(--scale)));
+  color:var(--ink)}
+.wkb__n em{font-style:normal;font-weight:400;color:var(--ink-faint);white-space:nowrap;
+  font-size:.78em}
+.wkb__r{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--s2)}
+.wkb__c{display:flex;flex-direction:column;min-width:0}
+.wkb__l{font-family:var(--font-condensed);text-transform:uppercase;letter-spacing:.06em;
+  font-weight:700;color:var(--ink-faint);white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;
+  font-size:clamp(calc(9.5px*var(--scale)),calc(3.2*var(--u,3px)),calc(11px*var(--scale)))}
+.wkb__v{font-family:var(--font-num);font-weight:600;line-height:1.2;color:var(--ink);
+  font-size:clamp(calc(15px*var(--scale)),calc(5.6*var(--u,3px)),calc(19px*var(--scale)))}
+.wkb__none{font-style:italic;color:var(--ink-faint);font-size:var(--t-small)}
 /* The board is sentences, and sentences on this one card are the reading rather than a
    caption under one. A step up from the other note cards on the page, and on its own slide
    it takes the screen.
@@ -467,6 +507,11 @@ body.tv .card--wide{grid-column:auto}
 .jot__b:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
 /* The line currently in the box, so it is obvious which one is being changed. */
 .jot--open{border-color:var(--brand);background:var(--brand-wash)}
+/* Everybody else's lines, under the box that adds your own. Named, because on the board a
+   line without its department is a sentence with no owner — and the name is the whole reason
+   the board does not carry initials as well. */
+.jot--rest{margin-top:var(--s2)}
+.jot--rest .sup__w{flex:none}
 /* The label goes above the box, and the box gets the width.
 
    It used to sit in front: label, box, buttons, all on one line. On a review card a
