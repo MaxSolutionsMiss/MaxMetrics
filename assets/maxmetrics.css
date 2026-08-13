@@ -430,10 +430,21 @@ body.tv .card--wide{grid-column:auto}
   line-height:1.45;background:var(--sunk);border:1px solid var(--rule);
   border-radius:var(--radius);padding:3px var(--s2)}
 .jot li>span{flex:1 1 auto;min-width:0;overflow-wrap:anywhere}
-.jot__x{flex:none;border:0;background:none;cursor:pointer;color:var(--ink-faint);
-  font-size:15px;line-height:1.2;padding:0 2px;border-radius:3px}
+/* Change and remove, in that order, on every line.
+   Both are quiet until the line is under the pointer — a list of six comments with twelve
+   dark buttons down its right-hand side reads as a control panel rather than as what the
+   plant said this morning. */
+.jot__b{flex:none;border:0;background:none;cursor:pointer;color:var(--ink-faint);
+  line-height:1.2;padding:0 2px;border-radius:3px;opacity:.55}
+.jot li:hover .jot__b,.jot__b:focus-visible{opacity:1}
+.jot__b svg{width:13px;height:13px;display:block;fill:none;stroke:currentColor;
+  stroke-width:1.9;stroke-linejoin:round;stroke-linecap:round}
+.jot__b:hover{color:var(--brand);background:var(--brand-wash)}
+.jot__x{font-size:15px}
 .jot__x:hover{color:var(--stop);background:var(--stop-wash)}
-.jot__x:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
+.jot__b:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
+/* The line currently in the box, so it is obvious which one is being changed. */
+.jot--open{border-color:var(--brand);background:var(--brand-wash)}
 /* The label goes above the box, and the box gets the width.
 
    It used to sit in front: label, box, buttons, all on one line. On a review card a
@@ -1259,10 +1270,18 @@ body.tv .sec > .panel{max-width:none}
   font-weight:600}
 .tick2 input{accent-color:var(--warn);width:13px;height:13px;margin:0}
 textarea.inp{height:auto;min-height:54px;padding:var(--s2);resize:vertical;line-height:1.5}
-/* The entry screen is always in edit mode, because that is what it is for. Everywhere else
-   the fields stay closed until somebody asks for them. */
-body:not(.editing):not([data-view="fill"]) .ez,
-body:not(.editing):not([data-view="fill"]) .edit-only{display:none!important}
+/* A screen showing one section is a place to work on it.
+
+   The fields used to stay closed everywhere except Enter, so somebody who came to write one
+   line on their own section had to find "Edit mode" on the top bar first — a control that
+   says nothing about comments, on a bar that is mostly about reading. The overview is the
+   only screen where the fields are genuinely in the way: thirty cards at once is a page for
+   reading, and thirty open editors is a form nobody asked for.
+
+   So: closed on the overview, open on a section. The wall hides `.ez` outright further down,
+   so present mode is unaffected either way. */
+body:not(.editing)[data-view="overview"] .ez,
+body:not(.editing)[data-view="overview"] .edit-only{display:none!important}
 /* And the value steps aside when its field takes the cell. */
 body.editing .view-only,body[data-view="fill"] .view-only{display:none!important}
 /* A field in a table cell, sized for what goes in it. Nothing on this product needs more
