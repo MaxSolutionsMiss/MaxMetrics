@@ -314,9 +314,50 @@ export const loadBudgets = (location, year) =>
 // Only the field that changed is sent. Two people editing two readings of the same
 // morning are two column updates, so neither carries the other's stale value back over
 // the top of it. This is the whole reason the table is shaped in columns.
-export const saveField = (location, date, field, value) =>
-  run(() => client.from('daily_metrics').update({ [field]: value })
-    .eq('location_id', location).eq('metric_date', date), { retry: 0 });
+// A write that knows what it was looking at.
+//
+// One column per field is what stops two people editing two readings of the same morning
+// from overwriting each other, and it has always done that job. What it does not do is stop
+// two people editing *the same* reading: the coordinator corrects die cutting to 53,460, the
+// manager corrects it to 53,640 from the sheet in their hand, and whoever's write lands
+// second wins in silence. Both go on seeing their own number. At half past seven, with a
+// meeting at quarter to, that is a coin toss nobody knows they took part in.
+//
+// So the update carries the value the page was looking at when the edit began and matches on
+// it. Nothing changed since: one row updates and the write stands. Something changed: no row
+// matches, and rather than guess, this reads back what is actually there and hands it to the
+// caller to ask about.
+//
+// The check is per *field*, not per row, and that is the whole reason it can exist at all. A
+// row-level version — an `updated_at` guard — would fire every time somebody edited a
+// different column of the same morning, which on this product is most of the time, and a
+// conflict prompt that is usually wrong is one people learn to click through.
+//
+// `seen` is left off by the importer and the pull, which are supposed to write over whatever
+// is there.
+export const saveField = (location, date, field, value, seen) =>
+  run(async () => {
+    let write = client.from('daily_metrics').update({ [field]: value })
+      .eq('location_id', location).eq('metric_date', date);
+    if (seen !== undefined) {
+      write = seen === null || seen === '' ? write.is(field, null) : write.eq(field, seen);
+    }
+    const answer = await write.select(`metric_date, ${field}`);
+    if (answer.error) throw answer.error;
+    if (seen !== undefined && !answer.data?.length) {
+      // Nothing matched. Either somebody else moved it, or the row is not there at all —
+      // and the two are worth telling apart before anybody is asked a question.
+      const now = await client.from('daily_metrics').select(field)
+        .eq('location_id', location).eq('metric_date', date).limit(1);
+      const theirs = now.data?.[0]?.[field] ?? null;
+      if (!now.data?.length) throw new Error('That morning is not open.');
+      // 409, so `run` does not class it as a connection problem and announce the app
+      // offline over something that is nothing of the kind.
+      throw Object.assign(new Error('Somebody else changed this while you were editing.'),
+                          { status: 409, conflict: { field, theirs, mine: value } });
+    }
+    return answer;
+  }, { retry: 0 });
 
 // Upsert rather than update, for one reason: a department added in Configure at 07:10 has
 // no row for a morning that was opened at 06:58, and an UPDATE matching nothing reports
