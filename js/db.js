@@ -206,6 +206,22 @@ export const addDepartmentConfig = row =>
 export const ensureDepartmentRows = (location, date) =>
   run(() => client.rpc('ensure_day', { loc: location, d: date }), { retry: 0 });
 
+// The two weeks Monday's review is made of.
+//
+// Separate from `loadHistory` on purpose. That one is the seven days behind a card, and
+// every trend line on the product is drawn from it — widening its window to reach back a
+// fortnight would quietly turn every seven-point spark into a fourteen-point one. This is a
+// different question over a different range, so it is a different read.
+//
+// `mr_count` comes along because a week's make-ready is the mean of its changeovers, not the
+// mean of its days: a Tuesday with one changeover and a Wednesday with nine do not get an
+// equal say in the number the meeting argues about.
+export const loadWeeks = (location, fromDate, toDate) =>
+  run(() => client.from('daily_departments')
+    .select('metric_date, dept_key, qty, hours, uptime, make_ready, mr_count')
+    .eq('location_id', location)
+    .gte('metric_date', fromDate).lte('metric_date', toDate).order('metric_date'));
+
 // Seven days behind today. The old file kept no history at all, so nothing in it could
 // show a direction — a rate was a reading rather than a reading that is falling. Two
 // reads, not one per day, because a week of mornings is a range query.

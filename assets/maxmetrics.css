@@ -370,6 +370,44 @@ body:not(.tv) .grid--cards{grid-auto-rows:minmax(var(--row-h,10rem),auto)}
 .card[data-pkey="attention"] .sup__w{font-size:.92em;color:var(--brand-deep)}
 .card[data-pkey="attention"] .cnote--none{color:var(--brand-deep);opacity:.7}
 
+/* ── Last week, one row per department ─────────────────────────────────────────
+   The other wide card is sentences; this one is a small table, and it is a table because
+   the question is genuinely two-dimensional — four readings across three departments — and
+   twelve cards would be a screen of its own for something the meeting spends two minutes on.
+   Everything in it is drawn with the parts the rest of the product is drawn with: the figure
+   in the number face, the target as the same `bullet` bar, the variance as the same chip. It
+   sizes off `--cu` like every other card, so it grows and shrinks with the page and the wall
+   rather than being a fixed-size table that happens to sit inside a card. */
+.wkt{width:100%;height:100%;align-self:stretch;border-collapse:collapse;
+  font-variant-numeric:tabular-nums;table-layout:fixed}
+.wkt th,.wkt td{padding:calc(1*var(--cu)) calc(1.4*var(--cu));text-align:right;
+  border-bottom:1px solid var(--rule-soft);vertical-align:middle}
+.wkt thead th{font-size:calc(3.3*var(--cu));font-weight:600;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--ink-faint);white-space:nowrap;
+  border-bottom:1px solid var(--rule);padding-bottom:calc(.7*var(--cu))}
+.wkt th:first-child,.wkt td:first-child{text-align:left;width:19%}
+.wkt tbody th{font-size:calc(4.3*var(--cu));font-weight:600;color:var(--ink)}
+.wkt tbody tr:last-child th,.wkt tbody tr:last-child td{border-bottom:0}
+/* How many mornings the week was actually made of. A week of four logged days is not a bad
+   week, and the figures above it mean something different if you do not know that. */
+.wkt__d{display:block;font:400 calc(3.1*var(--cu))/1.3 var(--font);color:var(--ink-faint)}
+/* What the column is measured against, said in the heading rather than left to be assumed.
+   Three of the four are read against a target and one is read against the week before it,
+   and a reader who takes the volume variance for a target miss has been misled by the
+   layout. */
+.wkt__a{display:block;font:400 calc(2.9*var(--cu))/1.3 var(--font);letter-spacing:0;
+  text-transform:none;color:var(--ink-faint);opacity:.85}
+.wkt__v{display:block;font-family:var(--font-num);font-size:calc(5.8*var(--cu));
+  font-weight:600;color:var(--ink);line-height:1.05}
+.wkt__n{display:block;font-size:calc(3.1*var(--cu));color:var(--ink-faint);line-height:1.3}
+.wkt__x{color:var(--ink-faint);font-size:calc(3.6*var(--cu))}
+.wkt .bullet{margin-top:calc(.9*var(--cu));height:calc(1.5*var(--cu));min-height:4px}
+.wkt .delta{font-size:calc(3.4*var(--cu));margin-top:calc(.5*var(--cu))}
+/* A phone gets the departments and the two readings the week turns on. Four columns of
+   figures inside a screen width is four columns of nothing legible. */
+@media(max-width:760px){.wkt th:nth-child(4),.wkt td:nth-child(4),
+  .wkt th:nth-child(5),.wkt td:nth-child(5){display:none}}
+
 /* On the wall a slide of sentences is three cards wide, not one.
    `bestGrid` deals one card one column, and one column is one card's width — which on a
    screen given over entirely to what the day turns on left two thirds of the wall empty
@@ -460,7 +498,8 @@ body.tv .card--wide{grid-column:auto}
 /* Nine per cent is right under a number and wrong above a list. A hero figure needs air
    between it and the bar or it reads as stuck to the title; a list of departments starts at
    its first row, and twenty-nine pixels above it is just the top of the card left empty. */
-.card__mid:has(>.clist),.card__mid:has(>.rev__note){padding-top:calc(3*var(--cu))}
+.card__mid:has(>.clist),.card__mid:has(>.rev__note),
+.card__mid:has(>.wkt){padding-top:calc(3*var(--cu))}
 /* A fourth border, and it is not a verdict. `gap` means nobody has answered yet — the
    colour is the brand's violet rather than amber, because amber says somebody looked and it
    fell short, and a card nobody has touched has not been looked at. */
