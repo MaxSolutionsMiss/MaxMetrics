@@ -376,18 +376,10 @@ body:not(.tv) .grid--cards{grid-auto-rows:minmax(var(--row-h,10rem),auto)}
    needs the top and the bottom to line up. It gives up the width on a narrow screen rather
    than pushing the grid sideways. */
 .card--wide{grid-column:span 2}
-/* Money gets half the row each.
-
-   There are two financial cards and they carry four facts apiece — the figure, the budget,
-   what was expected by today, and the gap. At a third of a row that is "$2.94M" over
-   "BUDGET EXPEC… VARIA…", which is the card truncating the words that make the number mean
-   something. Two to a row and nothing is abbreviated, and the reading the room asks about
-   most stops being the smallest thing on the screen.
-
-   Not `card--wide`: two cards each spanning two of three columns wrap, and on a four-column
-   screen they would leave a hole. Two columns for this grid says what is meant. */
-.grid--cards[data-grid="financials"]{grid-template-columns:repeat(2,minmax(0,1fr))}
-body.tv .grid--cards[data-grid="financials"]{grid-template-columns:none}
+/* The money cards are the same card as every other one. An earlier pass gave this grid two
+   columns so four foot labels would fit; the room's answer was that the card was never the
+   problem — the labels were — and a financial card the size of two OTIF cards beside them is
+   a third design on a screen that has one. The labels shrink to fit instead. */
 /* Twice the height, so it stands beside two rows of department cards rather than one.
 
    `--row-h` is what `levelRows()` measures every card against, so two of them plus the gap
@@ -397,6 +389,25 @@ body.tv .grid--cards[data-grid="financials"]{grid-template-columns:none}
    stop short. */
 .card--tall{grid-row:span 2;min-height:calc(2*var(--row-h,240px) + var(--s4));height:100%}
 @media(max-width:760px){.card--tall{grid-row:auto;min-height:0}}
+
+/* Production is one arrangement, and it is the one the wall draws.
+
+   A column per department, its own review card directly underneath it, and the week
+   standing full height down the right-hand side. The page used to draw this as two grids
+   under two headings while present mode drew it as one, so the same section had two shapes
+   depending on where you looked at it; the room's verdict on the two was that the wall's was
+   right. A department and what its manager said about it belong in one column — nobody reads
+   die cutting's rate and then goes hunting two headings away for die cutting's sentence.
+
+   The column count comes from the plant rather than from a constant: three departments make
+   four columns, five make six, and the week keeps the last one whatever happens. Below a
+   laptop's width it gives up and lets the cards flow, because four columns of cards on a
+   narrow screen is four columns of nothing. */
+@media(min-width:1100px){
+  body:not(.tv) .grid--prod{
+    grid-template-columns:repeat(var(--prod-cols,3),minmax(0,1fr)) minmax(0,1fr)}
+  body:not(.tv) .grid--prod .card--tall{grid-column:-2/-1;grid-row:1/span 2}
+}
 
 /* One block per department: the name, then the three readings it is judged on.
 
@@ -427,6 +438,11 @@ body.tv .grid--cards[data-grid="financials"]{grid-template-columns:none}
   font-size:clamp(calc(9.5px*var(--scale)),calc(3.2*var(--u,3px)),calc(11px*var(--scale)))}
 .wkb__v{font-family:var(--font-num);font-weight:600;line-height:1.2;color:var(--ink);
   font-size:clamp(calc(15px*var(--scale)),calc(5.6*var(--u,3px)),calc(19px*var(--scale)))}
+/* How far off target, under the reading it belongs to. Reserved whether or not there is one,
+   so three columns with two answers between them still line up. */
+.wkb__d{font-style:normal;font-family:var(--font-num);font-weight:700;line-height:1.3;
+  min-height:1.3em;white-space:nowrap;
+  font-size:clamp(calc(10px*var(--scale)),calc(3.4*var(--u,3px)),calc(12.5px*var(--scale)))}
 .wkb__none{font-style:italic;color:var(--ink-faint);font-size:var(--t-small)}
 /* The board is sentences, and sentences on this one card are the reading rather than a
    caption under one. A step up from the other note cards on the page, and on its own slide
@@ -869,8 +885,15 @@ body.no-trends .ctrack__ser,body.no-trends .ctrack__yr{display:none}
   border-top:1px solid var(--rule);display:grid;gap:var(--s2) var(--s3);text-align:left;
   grid-template-columns:1fr 1fr}
 .foot--1{grid-template-columns:1fr}
-.foot--3{grid-template-columns:repeat(3,1fr)}
-.foot--4{grid-template-columns:repeat(4,1fr)}
+/* Columns sized to what is in them, not three equal thirds.
+
+   Equal thirds give "TARGET/HR 3,050" exactly as much room as "VARIANCE ▼ −34.0%", so the
+   longest fact decides how large all of them may be drawn and a third of the row sits empty
+   beside the shortest. Sized to content and spread across the row, the long one takes what
+   it needs and the type can be larger for all three — which is the whole of what the room
+   asked for when it said the numbers at the bottom were too small. */
+.foot--3{grid-template-columns:auto auto auto;justify-content:space-between}
+.foot--4{grid-template-columns:repeat(4,auto);justify-content:space-between}
 /* The last of a pair or a row turns to face the others across the card. */
 .foot .fs:last-child:not(:only-child){text-align:right;align-items:flex-end}
 /* A target is what a reading is measured against, not a reading. It goes grey, and the
@@ -1178,20 +1201,39 @@ body.no-trends .ctrack__ser,body.no-trends .ctrack__yr{display:none}
    parallel sets of numbers for the same thing. */
 :root{--foot-up:1.2}
 body.tv{--foot-up:1}
-.card .fs{font-size:calc(min(calc(8.9*var(--u)),calc(182cqi/var(--fc,4)))*var(--foot-up))}
-.card .fs__v{font-size:1em}
-.card .fs__l{font-size:.62em}
-.card .foot--2 .fs{font-size:calc(min(calc(8.9*var(--u)),calc(90cqi/var(--fc,4)))*var(--foot-up))}
+.card .fs{font-size:calc(8.9*var(--u)*var(--foot-up))}
+/* The value shrinks to its own width, the way the label does.
+
+   The cell's size is settled once for the row; each value then caps itself by how many
+   characters it holds over how wide its column is. Without it the row is sized by the
+   shortest value in it and the longest one clips — "▼ −34.0%" beside "40 h" is eight glyphs
+   beside four, and making the row a fifth larger for the page pushed the long one over the
+   edge. Per value, the row grows as far as its widest member allows and no further. */
+.card .fs__v{font-size:min(1em,calc(190cqi/var(--fc,4)))}
+.card .foot--2 .fs__v{font-size:min(1em,calc(95cqi/var(--fc,4)))}
+.card .foot--3 .fs__v{font-size:min(1em,calc(58cqi/var(--fc,4)))}
+.card .foot--4 .fs__v{font-size:min(1em,calc(45cqi/var(--fc,4)))}
+/* .62em of the value, and smaller when the word is too long for its column.
+   "EXPECTED" and "VARIANCE" are eight and nine characters in a third of a card; at a flat
+   .62em they clipped to "EXPEC…", which is the card hiding the word that makes the number
+   beside it mean something. `--lc` is the longest label on the screen, measured by
+   `fitCards()`, so one column's long word settles the size for all of them and the row
+   still reads as a row. */
+.card .fs__l{font-size:min(.62em,calc(115cqi/var(--lc,6)))}
+.card .foot--2 .fs__l{font-size:min(.62em,calc(55cqi/var(--lc,6)))}
+.card .foot--3 .fs__l{font-size:min(.62em,calc(34cqi/var(--lc,6)))}
+.card .foot--4 .fs__l{font-size:min(.62em,calc(24cqi/var(--lc,6)))}
+.card .foot--2 .fs{font-size:calc(8.9*var(--u)*var(--foot-up))}
 /* Three facts on one line are three thirds of a card's width, and at the scale a two-part
    foot uses they crowd each other. Target, against target and the hours are all context —
    the reading is above them — so the three-part row takes a tenth off. */
-.card .foot--3 .fs{font-size:calc(min(calc(8*var(--u)),calc(57cqi/var(--fc,4)))*var(--foot-up))}
-.card .foot--4 .fs{font-size:calc(min(calc(8.9*var(--u)),calc(41cqi/var(--fc,4)))*var(--foot-up))}
+.card .foot--3 .fs{font-size:calc(8*var(--u)*var(--foot-up))}
+.card .foot--4 .fs{font-size:calc(8.9*var(--u)*var(--foot-up))}
 /* One fact, two lines, like every other foot — the gap that used to separate a label from
    its value on one line would now separate two lines and put this card's rule above the
    next card's. */
 .card .foot--1 .fs{gap:0}
-.card .foot--1 .fs{font-size:calc(min(calc(8.9*var(--u)),calc(128cqi/var(--fc,4)))*var(--foot-up))}
+.card .foot--1 .fs{font-size:calc(8.9*var(--u)*var(--foot-up))}
 
 /* The rule is a rule, not a verdict. */
 .fstat{display:flex;flex-direction:column;gap:1px;min-width:0}
