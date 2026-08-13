@@ -616,7 +616,11 @@ export const resetMorning = (location, date) =>
 // answers one of three ways: the corrected text, an `error` the page shows and then leaves
 // the person's own words alone, or `unavailable` — which means no key is configured for this
 // plant and the button should stop offering something that cannot work.
-export async function tidyText(text, location) {
+// `tone` is empty for Clean up and one of the function's own names for a rewrite. The two
+// are one call because they are one act from the writer's side — something happens to the
+// box, you look at it, and you keep it or you put yours back — and one endpoint means one
+// place holding the rate limit, the edit check and the key.
+export async function tidyText(text, location, tone = '') {
   const session = await currentSession();
   if (!session) throw new Error('Sign in first.');
   const response = await fetch(`${SUPABASE_URL}/functions/v1/tidy`, {
@@ -629,10 +633,10 @@ export async function tidyText(text, location) {
     // The plant is sent so the function can check that this account may write here, rather
     // than only that it is signed in. A read-only account has no business spending the
     // plant's model budget on a box it cannot save.
-    body: JSON.stringify({ text, location }),
+    body: JSON.stringify({ text, location, tone }),
   });
   const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(body.error || 'Clean-up could not run.');
+  if (!response.ok) throw new Error(body.error || 'That could not run.');
   return body;
 }
 

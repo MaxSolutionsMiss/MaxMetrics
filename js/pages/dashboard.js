@@ -14,17 +14,17 @@ import {
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=997771f7ca0d';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=997771f7ca0d';
+} from '../db.js?v=f54cb95c2d70';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=f54cb95c2d70';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
-  spark, bullet, chip, cardTrack, readingOf, derivedShipping, otifTarget, otdTarget,
+  spark, bullet, chip, cardTrack, readingOf, derivedShipping, otifTarget, otdTarget, cardOn,
   isNa, isMissing,
   varianceChip, varianceTone, variancePct, VERDICT, verdictMark,
   FROM_FILE, SOURCE_NAMES, sourceOf,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE, WALK, morningToday,
-} from '../readings.js?v=997771f7ca0d';
+} from '../readings.js?v=f54cb95c2d70';
 
 const $ = selector => document.querySelector(selector);
 
@@ -50,7 +50,7 @@ const state = {
   machines: [], upcoming: [], jotEdit: null,
   history: { metrics: [], departments: [] }, weeks: [], year: [], findings: [],
   verdicts: {}, plant: null,
-  team: [], live: null, wallStep: 0, wallMode: 'walk', rotating: false,
+  team: [], live: null, wallStep: 0, wallMode: 'walk', zoom: null, rotating: false,
   // Whether a section screen is showing its cards or asking for its readings. One answer for
   // all of them, because the work it exists for is going down the rail filling each in.
   filling: false,
@@ -411,12 +411,24 @@ const signLine = text => {
   return `${who} ${dayAt(new Date())} \u2014 ${clean}`;
 };
 
-// One line, drawn. The signature is a chip and the words are the words.
+// One line, drawn. The words are the words and the signature trails them.
+//
+// It used to lead: bold initials and a date in front of every sentence, so a column of six
+// notes began with six pieces of book-keeping and the reader had to step over each one to
+// reach what was said. The attribution is not the news — it is what you look for *after*
+// reading something, when you want to know who to ask about it. So it goes where a
+// signature goes, after the sentence, small and pale enough that the eye skips it until it
+// is wanted.
+//
+// One element around both, because the line is drawn inside a flex row: text and signature
+// as two flex items would set the signature beside a wrapped paragraph rather than after
+// its last word.
 const jotHtml = line => {
   const said = SIGNED.exec(String(line));
-  if (!said) return esc(String(line));
-  return `<b class="sig" title="${esc(said[1])} on ${esc(said[2])}">${esc(said[1])}</b>`
-    + `<span class="sig__at">${esc(said[2])}</span>${esc(said[3])}`;
+  const words = esc(said ? said[3] : String(line));
+  if (!said) return `<span class="jot__t">${words}</span>`;
+  return `<span class="jot__t">${words}<i class="sig" title="${
+    esc(said[1])} on ${esc(said[2])}">${esc(said[1])} ${esc(said[2])}</i></span>`;
 };
 
 // A note is a list of things, so it is drawn as one.
@@ -528,9 +540,7 @@ function maintenanceCards() {
       pkey: 'maint-note', label: 'Maintenance notes',
       text: metric('maintenance_note'),
       prompt: 'No notes entered.',
-      edit: `<div class="er"><label>Notes</label><textarea class="inp"
-        aria-label="Maintenance notes"
-        data-field="maintenance_note">${esc(metric('maintenance_note') || '')}</textarea></div>`,
+      edit: jotLines('maintenance_note', 'maint', 'Notes'),
     })}
   `;
 }
@@ -807,10 +817,7 @@ function staffingEditor() {
   const at = state.staffAt || list[0]?.[0] || '';
   return jotEditor({ id: 'staff', label: 'Department', options: list, at,
                      field: `labour:${at}:note` })
-    + `<div class="er"><label for="staff-all">Whole plant</label>
-      <textarea class="inp" id="staff-all" rows="2" placeholder="one per line"
-        aria-label="Staffing notes for the whole plant"
-        data-field="staffing_note">${esc(metric('staffing_note') || '')}</textarea></div>`;
+    + jotLines('staffing_note', 'staff-all', 'Whole plant');
 }
 
 // Where a note actually lives, given the name of its field. Three different tables behind
@@ -869,9 +876,44 @@ function noteOf(field) {
 // "Clean up" says what happens to the line and claims nothing about what it will become.
 // The function behind it is still called `tidy` — renaming a deployed edge function costs a
 // redeploy and buys nothing, and the name on the button is the only one anybody reads.
-const tidyButton = field => state.tidyOff ? '' :
-  `<button type="button" class="btn jot__tidy" data-tidy="${esc(field)}"
-     title="Fix the spelling, grammar and punctuation of what you have typed">Clean up</button>`;
+//
+// And a rewrite beside it, which is the other half of the same request. Clean up deals with
+// how a line is spelled; this deals with how it reads — plainer, shorter, in whole
+// sentences, in the register of a report, or worded so it does not land on a person. The
+// room asked for it in those words: people want to change the tone of what they wrote, not
+// only its spelling.
+//
+// A dropdown rather than five buttons, because five buttons beside a comment box is a
+// toolbar and this is a box somebody types two lines into. It reads "Rewrite" until it is
+// opened, does its work on being chosen, and goes back to reading "Rewrite" — a menu of
+// verbs, not a setting that stays set.
+//
+// Both share one Undo, on the Clean up button, because they share one box: whatever the last
+// thing done to it was, one click puts back exactly what was typed. Two undos for one box
+// would be two ways back to the same place.
+const TONES = [
+  ['plain',  'Plain English'],
+  ['short',  'Shorter'],
+  ['full',   'Fuller sentences'],
+  ['formal', 'More formal'],
+  ['warm',   'Warmer'],
+];
+
+// Every box on the product that takes a sentence gets both, which is what was asked for and
+// is also the only defensible rule: a person who has learned that a comment box can fix its
+// own spelling should not have to remember which four boxes can.
+const writeAids = field => state.tidyOff ? '' :
+  `<span class="aid">
+     <button type="button" class="btn jot__tidy" data-tidy="${esc(field)}"
+       title="Fix the spelling, grammar and punctuation of what you have typed">Clean up</button>
+     <select class="inp aid__tone" data-tone="${esc(field)}"
+       aria-label="Rewrite what you have typed"
+       title="Rewrite what you have typed, in a tone you pick">
+       <option value="">Rewrite\u2026</option>
+       ${TONES.map(([key, name]) =>
+         `<option value="${key}">${esc(name)}</option>`).join('')}
+     </select>
+   </span>`;
 
 // A line that is written can be rewritten.
 //
@@ -913,7 +955,7 @@ function jotLines(field, id, label = 'Comment', sign = true) {
         placeholder="one line, then Add" aria-label="${esc(label)}">${esc(words)}</textarea>
       <span class="jot__do">${open
         ? `<button type="button" class="btn jot__tidy" data-jot-cancel="1">Cancel</button>`
-        : tidyButton(field)}<button type="button"
+        : writeAids(field)}<button type="button"
         class="btn btn--go jot__add" data-add="${esc(field)}">${open ? 'Save' : 'Add'}</button></span>
     </div>`;
 }
@@ -1245,14 +1287,19 @@ function fillShipping() {
       frow('OTIF today', 'otif',
         `type="number" step="0.01" value="${state.metrics?.otif ?? ''}"`,
         { echo: derived ? `worked out: <b>${derived.otif.toFixed(2)}%</b>` : '' }),
-      frow('OTD month', 'mtd_otd',
-        `type="number" step="0.01" value="${state.metrics?.mtd_otd ?? ''}"`),
-      frow('OTD year', 'ytd_otd',
-        `type="number" step="0.01" value="${state.metrics?.ytd_otd ?? ''}"`),
-      frow('OTIF month', 'mtd_otif',
-        `type="number" step="0.01" value="${state.metrics?.mtd_otif ?? ''}"`),
-      frow('OTIF year', 'ytd_otif',
-        `type="number" step="0.01" value="${state.metrics?.ytd_otif ?? ''}"`),
+      // The month and year rollups are read off the OTIF sheet and shown on four cards, and
+      // a plant that has switched a card off has said it does not report that figure. The
+      // row goes with it: Shipping's cards showed four percentages while this screen asked
+      // for six, and the two extra were asking for numbers with nowhere to appear.
+      //
+      // Only these four follow their cards. The counts above them do not, because OTD and
+      // OTIF for today are worked out from jobs, late and short — hiding one of those cards
+      // would stop the morning being able to work out the two that are showing.
+      ...[['OTD month', 'mtd_otd'], ['OTD year', 'ytd_otd'],
+          ['OTIF month', 'mtd_otif'], ['OTIF year', 'ytd_otif']]
+        .filter(([, field]) => cardOn(field))
+        .map(([said, field]) => frow(said, field,
+          `type="number" step="0.01" value="${state.metrics?.[field] ?? ''}"`)),
     ].join('');
   }, 'OTD and OTIF for today are worked out from jobs, late and short \u2014 change any of '
    + 'those three and both are worked out again.');
@@ -1377,9 +1424,7 @@ function fillNotes() {
         <span class="fr__l">${esc(config.name)}</span>
         <select class="inp fr__i fr__i--s" aria-label="${esc(config.name)} status"
           data-field="review:${esc(config.key)}:status">${reviewOptions(row.status)}</select>
-        <textarea class="inp fr__t" rows="1" placeholder="what happened \u2014 one per line"
-          aria-label="${esc(config.name)} \u2014 what happened"
-          data-field="review:${esc(config.key)}:note">${esc(row.note || '')}</textarea>
+        ${jotLines(`review:${config.key}:note`, `fn-${config.key}`, 'What happened')}
       </div>`;
     });
     return rows.join('');
@@ -1394,9 +1439,7 @@ function fillNotes() {
 // No visible label: the group's own heading is the label, and printing it twice was two
 // lines to say one word.
 const noteRow = (field, placeholder, said) => `<div class="fr fr--note fr--wide fr--bare">
-  <textarea class="inp fr__t" rows="1" placeholder="${esc(placeholder)}"
-    aria-label="${esc(said)}"
-    data-field="${esc(field)}">${esc(metric(field) || '')}</textarea></div>`;
+  ${jotLines(field, `nr-${field.replace(/[^a-z_]/g, '')}`, said)}</div>`;
 
 const fillAttention = () => fgroup('Needs watching today', () => attentionEditor(),
   'Anyone in the building can add a line — pick who it is from and type it. Each line '
@@ -1823,7 +1866,12 @@ const SECTIONS = {
       const cell = (label, text, tone, actual, target, lowerIsBetter) => {
         const off = actual != null && target
           ? (actual - target) / target * 100 * (lowerIsBetter ? -1 : 1) : null;
-        return `<div class="wkb__c"><span class="wkb__l">${esc(label)}</span>
+        // The caption carries its own length, so it can be capped by how much of the card it
+        // has rather than by a flat ceiling. A third of a card fits "UPTIME" at a size that
+        // clips "MAKE-READY" and "CARTONS/HR", and a clipped caption is the card hiding the
+        // word that says what the number under it is.
+        return `<div class="wkb__c"><span class="wkb__l" style="--wl:${
+          String(label).length}">${esc(label)}</span>
            <b class="wkb__v${tone ? ` tone--${tone}` : ''}">${text}</b>
            ${off == null ? '<i class="wkb__d"></i>'
              : `<i class="wkb__d tone--${off >= 0 ? 'ok' : 'stop'}">${
@@ -2152,7 +2200,6 @@ const SECTIONS = {
     // not make it a different thing, and two words for one number is one word too many.
     const pane = (key, title, actual, budget, tone, variance, percent, budgetRow,
                   seriesField, expected) => {
-      const pace = budget ? Math.round(actual / budget * 100) : 0;
       return metricCard({
         chart: 'number', pkey: key, label: title, tone, medium: true,
         // The figure is the reading and the pace is what it means — the two things the
@@ -2160,10 +2207,18 @@ const SECTIONS = {
         // Medium, like the other five-figure readings on the product. "$21.11M" at the size
         // that suits "98" is the widest thing on any card, and the width it took came out of
         // the graph underneath.
-        // "of budget" was wrong on a running month: `budget` here is the share of it
-        // expected by today, not the whole month's. On a closed month the two are the same
-        // and the word does no harm; on the twelfth of August they are not.
-        value: money(actual), sub: `${pace}% of expected`,
+        //
+        // The pace is an arrow and a percentage now, not a sentence.
+        //
+        // "95% of expected" is a number you have to do arithmetic on before it means
+        // anything: ninety-five per cent of what was expected is five per cent short, and
+        // every reader was working that out for themselves in the one second a card gets.
+        // "▼ 5.4%" is the answer, in the form the rest of the product already uses for a
+        // variance, and it carries to the back of a room because an arrow does and a
+        // sentence does not. No sign in front of the number — the arrow is the sign, and
+        // printing both is saying it twice.
+        value: money(actual), sub: `${percent >= 0 ? '▲' : '▼'} ${Math.abs(percent).toFixed(1)}%`,
+        subTone: tone || 'none',
         heroEdit: { field: key === 'fin-mtd' ? 'fin_actual_mtd' : 'fin_actual_ytd',
                     attrs: `type="number" step="0.01" value="${
                       metric(key === 'fin-mtd' ? 'fin_actual_mtd' : 'fin_actual_ytd') ?? ''}"` },
@@ -2187,21 +2242,26 @@ const SECTIONS = {
           // good Thursday — which is the difference between a forecast and a relief.
           deltaTone: tone, series: metricSeries(seriesField),
         }),
-        // Budget, what was expected by today, what was actually done against it, and the
-        // percentage. Four facts, which is what the plant's own dashboard has carried for
-        // months and what this card was missing: it showed the budget and the variance and
-        // left the reader to work out the number in between. "We are $136K behind" is not a
-        // sentence anybody can say from "$3.03M" and "12.6%" — the expected figure is the
-        // one that makes the other two mean something.
-        // Three facts, not four. The budget, what was expected by today, and how far off
-        // that we are in money — which is the number somebody says out loud. A fourth cell
-        // for the percentage would have taken a fifth off the size of all of them, and the
-        // percentage is already the line under the figure.
+        // Budget, what was expected by today, and how far off that we are — three cells,
+        // which is what the plant's own dashboard has carried for months and what this card
+        // was missing: it showed the budget and the variance and left the reader to work out
+        // the number in between. "We are $63K behind" is not a sentence anybody can say from
+        // "$3.03M" and "5.4%" — the expected figure is the one that makes the other two mean
+        // something.
+        //
+        // The variance says itself three ways at once, in the order the eye takes them: the
+        // arrow, which is the only part of a card that carries to the back of a room; the
+        // percentage, which says how big a miss it is; and the money in brackets, which is
+        // the figure that gets repeated out loud. A percentage alone cannot be acted on and
+        // an amount alone cannot be sized, so both, on the one line, in the corner the
+        // variance already had. A fourth cell would have taken a fifth off the size of all
+        // of them.
         foot: footLine([
           budgetRow,
           ['Expected', money(expected)],
           ['Variance', `<span class="tone--${tone || 'none'}">${
-            esc(`${variance >= 0 ? '+' : '\u2212'}${money(Math.abs(variance))}`)}</span>`],
+            esc(`${variancePct(percent)} (${
+              variance >= 0 ? '+' : '\u2212'}${money(Math.abs(variance))})`)}</span>`],
         ]),
       });
     };
@@ -2642,7 +2702,14 @@ function overflows(card) {
   if (usedBy(card) > roomIn(card) + 1) return true;
   for (const part of card.querySelectorAll(
     '.flag,.hero,.unit,.total,.fs__v,.ctrack__l,.ctrack__d')) {
-    if (part.scrollWidth > part.clientWidth + 1) return true;
+    // Half a pixel, not one.
+    //
+    // A pixel of tolerance sounds like rounding and is not: these are integers, so a part
+    // that fits reports the two exactly equal and a part that has been clipped reports one
+    // more. "One more" was the case the tolerance was swallowing — "▼ −34.0%" wanted 256 in
+    // 255 and drew as "▼ −34.0…" while the fit went on climbing, which is the one thing this
+    // loop exists to notice.
+    if (part.scrollWidth > part.clientWidth + 0.5) return true;
   }
   return false;
 }
@@ -2735,28 +2802,27 @@ function fitCards() {
       [...grid.querySelectorAll('.hero')]
         .map(h => Number(h.style.getPropertyValue('--hchars')) || 3)));
     for (const grid of group) grid.style.setProperty('--chars', String(widest));
-    // The same measurement for the foot, which never had one.
+    // The same measurement for the foot's captions, which never had one.
     //
-    // `.fs__v` is capped by "how many characters it holds" over "how wide its column is" —
-    // and the character count was a CSS default of four that nothing ever set. So the cap
-    // was really "four characters", and it never bound: what actually decided the foot's
-    // size was `6.2*--cu`, a share of the card *before* `fitCards()` has had its say. The
-    // consequence is the one the room reported. On a sparse wall slide the fit runs the
-    // card's contents up by more than two, the figure goes from 66px to 281 — and the foot,
-    // which is not multiplied by the fit, stays where it was. A card whose parts stop
-    // growing together is a card that looks like two designs at the size it is read from.
+    // `.fs__l` is capped by "how many characters it holds" over "how wide its column is" —
+    // and the character count was a CSS default that nothing ever set. So the cap never
+    // bound: what actually decided the foot's size was a share of the card *before*
+    // `fitCards()` has had its say. The consequence is the one the room reported. On a sparse
+    // wall slide the fit runs the card's contents up by more than two, the figure goes from
+    // 66px to 281 — and the foot, which is not multiplied by the fit, stays where it was. A
+    // card whose parts stop growing together is a card that looks like two designs at the
+    // size it is read from.
     //
     // Measured, the cap becomes true, and the foot can be sized off `--u` like everything
-    // else above it without "Jul 31, 2026" running off the side of the card. The widest
-    // value and the widest label on the whole screen decide, for the same reason `--chars`
-    // does: two cards in a row drawing their feet at two sizes is the thing being fixed.
+    // else above it without "LAST NEAR-MISS" running off the side of the card. The longest
+    // caption on the whole screen decides, for the same reason `--chars` does: two cards in a
+    // row drawing their feet at two sizes is the thing being fixed. The values are settled
+    // per row rather than per screen — `footLine` counts what its own row holds — because a
+    // row's three columns are `auto` and a row is the width the values have to share.
     const longest = (selector, floor) => Math.max(floor, ...group.flatMap(grid =>
       [...grid.querySelectorAll(selector)].map(part => (part.textContent || '').trim().length)));
-    const fc = longest('.fs__v', 3), lc = longest('.fs__l', 4);
-    for (const grid of group) {
-      grid.style.setProperty('--fc', String(fc));
-      grid.style.setProperty('--lc', String(lc));
-    }
+    const lc = longest('.fs__l', 4);
+    for (const grid of group) grid.style.setProperty('--lc', String(lc));
     const box = cards[0].getBoundingClientRect();
     const probe = titleProbe(box.width || 300, box.height || 340);
     const titles = [...cards, ...probe.children]
@@ -2953,7 +3019,23 @@ function wallPages() {
     // room needed off it was five columns wide. Both are cards, so the exception has nothing
     // left to except, and a screen is one grid again.
     if (!cards.length) continue;
-    const deal = state.wallMode === 'all' ? { cols: 1, rows: 1 } : bestGrid(cards.length);
+    // Production is arranged rather than dealt, because it is the one section whose cards
+    // are not interchangeable.
+    //
+    // Three departments across the top, what each of them reported in the last twenty-four
+    // hours directly underneath its own department, and last week's productivity down the
+    // right across both rows. That is what the page draws and what the room reads it as: a
+    // column is a department. `bestGrid` knows none of that — it sees seven cards, deals
+    // them four and three, and the tall card that is two rows high on the page tore the
+    // arrangement open and ran off the bottom of the slide.
+    //
+    // Its column count is the departments plus one for the tall card, and it is two rows
+    // deep, which comes out at the same card size `bestGrid` was choosing anyway. The
+    // stylesheet does the placing, from the same two rules the page uses.
+    const tall = cards.filter(card => card.classList.contains('card--tall')).length;
+    const prod = key === 'production' && tall === 1 && cards.length > 2;
+    const across = prod ? Math.max(1, Math.round((cards.length - tall) / 2)) : 0;
+    const deal = prod ? { cols: across + 1, rows: 2, prod: across } : bestGrid(cards.length);
     // A section of sentences never shares a slide. Everything else may be packed.
     pages.push({ key, ...deal, solo: solo.has(key) || key === 'attention', count: cards.length,
                  html: cards.map(card => card.outerHTML).join('') });
@@ -2972,7 +3054,8 @@ function wallPages() {
   const packed = [];
   for (const page of pages) {
     const last = packed[packed.length - 1];
-    if (!page.solo && last && !last.solo && last.count + page.count <= 6) {
+    if (!page.solo && !page.prod && last && !last.solo && !last.prod
+        && last.count + page.count <= 6) {
       last.count += page.count;
       last.html += page.html;
       last.keys = [...(last.keys || [last.key]), page.key];
@@ -3017,17 +3100,50 @@ function snapCols(count, box) {
 
 function renderWallPage(pages) {
   const content = $('#content');
-  content.className = 'content wall wall--snap';
   const shown = pages.filter(p => p.html);
+  // The names across the top are buttons, and pressing one brings that section forward.
+  //
+  // One page is forty cards at the size forty cards can be, which answers "is the plant all
+  // right" and cannot answer "what does Quality say" — for that the room had to leave the
+  // page, walk the slides to the right one, and walk back. The chips were already there,
+  // already the colour of the section, already the thing an eye goes to. Pressing one deals
+  // that section at the size the walk deals it, in the middle of the screen; pressing another
+  // swaps; pressing the lit one puts the whole morning back. It is present mode on demand,
+  // driven by a person rather than by a step counter.
+  //
+  // The bar itself does not move between the two. That is the point of doing it here rather
+  // than by jumping into the walk: what you pressed stays where you pressed it, lit, with
+  // everything else still beside it.
+  const up = shown.find(p => p.key === state.zoom) || null;
+  content.className = `content wall${up ? ' wall--up' : ' wall--snap'}`;
   content.innerHTML = `
     <div class="wall__top">
       <h2>${esc(state.locations.find(l => l.id === state.location)?.name || '')}</h2>
       <div class="legend">${shown.map(p =>
-        `<span class="legend__i" data-fam="${esc(p.key)}">${esc(TITLES[p.key])}</span>`).join('')}</div>
+        `<button type="button" class="legend__i${p === up ? ' legend__i--on' : ''}"
+           data-zoom="${esc(p.key)}" data-fam="${esc(p.key)}"
+           aria-pressed="${p === up}">${esc(TITLES[p.key])}</button>`).join('')}</div>
       <span class="wall__date">${$('#date-long').textContent}</span>
     </div>
-    <div class="grid grid--cards grid--snap" data-grid="wall">${shown.map(p => p.html).join('')}</div>`;
+    ${up
+      ? `<div class="grid grid--cards${up.prod ? ' grid--prod' : ''}" data-grid="${esc(up.key)}"
+             style="--wall-cols:${up.cols};--wall-rows:${up.rows}${
+               up.prod ? `;--prod-cols:${up.prod}` : ''}">${up.html}</div>`
+      : `<div class="grid grid--cards grid--snap" data-grid="wall">${
+          shown.map(p => p.html).join('')}</div>`}`;
+  // A magnified section is measured against the room it has rather than against the screen.
+  //
+  // `--wall-h` on the walk is the screen less a fixed allowance for the chrome, which is right
+  // there because the chrome is one line. Here the chip bar wraps to two lines on a narrow
+  // screen and three on a phone, so the allowance is whatever is left after it — which the
+  // browser has just worked out, and which is exactly what this reads back.
+  const front = content.querySelector('.grid--cards:not(.grid--snap)');
+  if (front) {
+    front.style.setProperty('--wall-h', `${Math.round(front.getBoundingClientRect().height)}px`);
+    return;
+  }
   const grid = content.querySelector('.grid--snap');
+  if (!grid) return;
   const count = grid.querySelectorAll(':scope > .card').length;
   if (!count) return;
   const box = grid.getBoundingClientRect();
@@ -3132,8 +3248,10 @@ function renderWall() {
       <span class="wall__date">${$('#date-long').textContent}</span>
     </div>
     <section class="sec">
-      <div class="grid grid--cards" data-grid="${esc(page.key)}"
-           style="--wall-cols:${page.cols};--wall-rows:${page.rows}">${page.html}</div>
+      <div class="grid grid--cards${page.prod ? ' grid--prod' : ''}"
+           data-grid="${esc(page.key)}"
+           style="--wall-cols:${page.cols};--wall-rows:${page.rows}${
+             page.prod ? `;--prod-cols:${page.prod}` : ''}">${page.html}</div>
     </section>
     <div class="wall__dots">${pages.map((p, i) =>
       `<span class="wall__dot${i === at ? ' wall__dot--on' : ''}"
@@ -3602,56 +3720,110 @@ document.addEventListener('change', event => {
 // list of them. Both go straight to `persist` rather than through the typing path — there is
 // nothing to debounce about a button, and the point of the button is that the person knows
 // it happened the moment they press it.
-// Clean up, and the Undo that has to come with it.
+// Clean up and Rewrite, and the one Undo they share.
 //
-// This one does not re-render. Everything else on this page redraws from state after a
-// change, and a redraw here would throw away whatever else the person has typed — the box is
-// not saved yet, that is the whole point of cleaning it up before Add. So it edits the two elements
-// it is about and nothing else.
+// Neither re-renders. Everything else on this page redraws from state after a change, and a
+// redraw here would throw away whatever else the person has typed — the box is not saved yet,
+// and on a jotted card that is the whole point of cleaning a line up before Add. So this
+// edits the two elements it is about and nothing else.
 //
-// The button becomes Undo and carries the original wording, which is the smallest form of
-// "you can put yours back" that does not need a second control or a dialogue. Press Add and
-// the line saves as it stands; press Undo and the box is exactly what you typed.
+// The Clean up button becomes Undo and carries the original wording, which is the smallest
+// form of "you can put yours back" that does not need a second control or a dialogue.
+//
+// Which box a control belongs to is answered by where it is, not by a lookup.
+//
+// It used to be `[data-jot="<field>"]`, which was fine while the only boxes with a Clean up
+// were the ones `jotLines` builds. They are on every field that takes a sentence now — the
+// maintenance note, the whole-plant staffing box, each department's last twenty-four hours —
+// and those carry `data-field`, not `data-jot`. Worse, the entry screen draws several at
+// once, so a lookup by name is a lookup that can find somebody else's box. Climbing out from
+// the control until a box appears finds the one it was drawn beside, every time.
+const aidBox = control => {
+  const takes = 'textarea[data-jot],textarea[data-field],input[data-jot],input[data-field]';
+  for (let node = control.parentElement; node; node = node.parentElement) {
+    const found = node.querySelector(takes);
+    if (found) return found;
+  }
+  return null;
+};
+
+// A box that saves itself is told it changed.
+//
+// `data-jot` boxes are staging: nothing is written until Add, so replacing the value is the
+// whole of the job. A `data-field` box is the reading itself, saved by the typing path — and
+// a value set from script fires no event, so the maintenance note would have been cleaned up
+// on screen and left unsaved. These are the two events a person typing would have raised.
+const aidSaved = box => {
+  if (!box.dataset.field) return;
+  box.dispatchEvent(new Event('input', { bubbles: true }));
+  box.dispatchEvent(new Event('change', { bubbles: true }));
+};
+
+// No key at this plant. Take every one of these off the screen rather than leaving controls
+// that cannot work — without a render, so nobody loses what they were typing.
+const aidsOff = said => {
+  state.tidyOff = true;
+  document.querySelectorAll('.aid').forEach(span => span.remove());
+  toast(said || 'Clean-up is not set up for this plant.');
+};
+
+// One call for both, because from the writer's side they are one act: something happens to
+// the box, you look at it, and you keep it or you put yours back.
+async function runAid(control, box, tone, busy, done) {
+  const undo = control.closest('.aid')?.querySelector('[data-tidy]') ?? control;
+  const said = String(box.value || '').trim();
+  if (!said) { box.focus(); return; }
+  control.disabled = true;
+  const wasLabel = undo.textContent;
+  undo.textContent = busy;
+  try {
+    const answer = await tidyText(said, state.location, tone);
+    if (answer.unavailable) { aidsOff(answer.error); return; }
+    if (answer.error) { toast(answer.error); return; }
+    if (answer.text === said) { toast('Nothing to change.'); return; }
+    // The words the writer typed, held on the Clean up button whichever control did the
+    // work. One box, one way back.
+    if (undo.dataset.was == null) undo.dataset.was = said;
+    box.value = answer.text;
+    aidSaved(box);
+    undo.textContent = 'Undo';
+    toast(`${done} \u2014 or Undo for your own words.`);
+  } catch (error) {
+    toast(error.message);
+  } finally {
+    control.disabled = false;
+    if (undo.isConnected && undo.textContent === busy) undo.textContent = wasLabel;
+  }
+}
+
+// Rewrite is a menu of verbs, so it acts on being chosen and then forgets what was chosen.
+// Leaving "Shorter" showing would make it look like a setting the box is now under, when what
+// happened is that the box was made shorter once.
+document.addEventListener('change', async event => {
+  const tone = event.target.closest?.('[data-tone]');
+  if (!tone || !tone.value) return;
+  const asked = tone.value;
+  tone.value = '';
+  const box = aidBox(tone);
+  if (!box) return;
+  const named = (TONES.find(([key]) => key === asked) || [, asked])[1];
+  await runAid(tone, box, asked, 'Rewriting\u2026', `Rewritten \u2014 ${named.toLowerCase()}`);
+});
+
 document.addEventListener('click', async event => {
   const tidy = event.target.closest?.('[data-tidy]');
   if (tidy) {
-    const box = document.querySelector(`[data-jot="${CSS.escape(tidy.dataset.tidy)}"]`);
+    const box = aidBox(tidy);
     if (!box) return;
     if (tidy.dataset.was != null) {
       box.value = tidy.dataset.was;
       delete tidy.dataset.was;
+      aidSaved(box);
       tidy.textContent = 'Clean up';
       box.focus();
       return;
     }
-    const said = String(box.value || '').trim();
-    if (!said) { box.focus(); return; }
-    tidy.disabled = true;
-    tidy.textContent = 'Cleaning\u2026';
-    try {
-      const answer = await tidyText(said, state.location);
-      if (answer.unavailable) {
-        // No key at this plant. Take every Clean up button off the screen rather than leaving
-        // one that cannot work — without a render, so nobody loses what they were typing.
-        state.tidyOff = true;
-        document.querySelectorAll('[data-tidy]').forEach(button => button.remove());
-        toast(answer.error || 'Clean-up is not set up for this plant.');
-        return;
-      }
-      if (answer.error) { toast(answer.error); return; }
-      if (answer.text === said) { toast('Nothing to fix.'); return; }
-      tidy.dataset.was = said;
-      box.value = answer.text;
-      tidy.textContent = 'Undo';
-      toast('Cleaned up \u2014 press Add to save it, or Undo for your own words.');
-    } catch (error) {
-      toast(error.message);
-    } finally {
-      if (tidy.isConnected) {
-        tidy.disabled = false;
-        if (tidy.textContent === 'Cleaning\u2026') tidy.textContent = 'Clean up';
-      }
-    }
+    await runAid(tidy, box, '', 'Cleaning\u2026', 'Cleaned up');
     return;
   }
   const add = event.target.closest?.('[data-add]');
@@ -3958,8 +4130,25 @@ $('#tv-mode').addEventListener('click', () => {
   state.wallMode = nextMode(state.wallMode);
   if (state.wallMode !== 'walk') rotate(false);
   state.wallStep = 0;
+  // Leaving the page leaves whatever it had brought forward. Coming back to a screen still
+  // holding one section from four minutes ago is a screen that has not been put away.
+  state.zoom = null;
   paintMode();
   renderWall();
+  fitCards();
+});
+
+// Bringing a section forward on the one page, and putting it back.
+//
+// The same chip does both, which is what makes it a control rather than a menu: pressing an
+// unlit one swaps to that section, pressing the lit one restores the whole morning. There is
+// nothing else to learn and nothing to go back through.
+document.addEventListener('click', event => {
+  const chip = event.target.closest?.('[data-zoom]');
+  if (!chip) return;
+  state.zoom = state.zoom === chip.dataset.zoom ? null : chip.dataset.zoom;
+  renderWall();
+  applyCardOrder();
   fitCards();
 });
 
