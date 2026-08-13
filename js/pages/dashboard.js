@@ -14,8 +14,8 @@ import {
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=ebdbaf26bd12';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=ebdbaf26bd12';
+} from '../db.js?v=7e385a6cac71';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=7e385a6cac71';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
@@ -23,7 +23,7 @@ import {
   isNa, isMissing,
   varianceChip, varianceTone, variancePct,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE, WALK, morningToday,
-} from '../readings.js?v=ebdbaf26bd12';
+} from '../readings.js?v=7e385a6cac71';
 
 const $ = selector => document.querySelector(selector);
 
@@ -46,7 +46,7 @@ const state = {
   me: null, locations: [], canEdit: true,
   location: null, date: today(), active: 'overview',
   metrics: null, departments: [], review: [], maintenance: [], labour: [], config: [], budgets: [],
-  machines: [], upcoming: [],
+  machines: [], upcoming: [], jotEdit: null,
   history: { metrics: [], departments: [] }, weeks: [], year: [], findings: [],
   verdicts: {}, plant: null,
   team: [], live: null, wallStep: 0, wallMode: 'walk', rotating: false,
@@ -552,7 +552,10 @@ function supportCard() {
 
   return noteCard({
     pkey: 'support', label: 'Customer service, die shop & prepress',
-    icon: '\u{1F4AC}',
+    // Twice the width, like the board. A section holding one card should not draw it at the
+    // width of one of four, with three empty cells beside it — and what is in it is
+    // sentences, which want the width more than any reading on the product does.
+    icon: '\u{1F4AC}', wide: true,
     html: said.length ? `<ul class="rev__note rev__note--list sup__l">${said.map(s =>
       s.lines.map(line =>
         `<li><b class="sup__w">${esc(s.name)}</b>${jotHtml(line)}</li>`).join('')).join('')}</ul>` : '',
@@ -848,21 +851,61 @@ function noteOf(field) {
 //
 // It is gone entirely when the plant has no key configured, rather than being a button that
 // fails in somebody's hand.
+// "Clean up", not "Tidy".
+//
+// The room's report on the button was that it does rather more than tidy — it takes a line
+// typed one-handed at a press and gives back a sentence — and that "Tidy" undersold it
+// enough that people did not press it. The name is the whole of the invitation on a button
+// nobody is required to use.
+//
+// The words it is not called are as considered as the one it is. "Proofread" and "Proof"
+// are out: in a folding-carton plant a proof is a thing prepress sends a customer, and a
+// button that borrows that word in a comment box is a button that means something else on
+// this floor. "Polish" is out because on a button, capitalised, it reads as the nationality
+// first — in a plant that runs three shifts of a mixed workforce that is not a subtle
+// problem. "Rewrite" is out because it would be a promise this deliberately does not keep.
+//
+// "Clean up" says what happens to the line and claims nothing about what it will become.
+// The function behind it is still called `tidy` — renaming a deployed edge function costs a
+// redeploy and buys nothing, and the name on the button is the only one anybody reads.
 const tidyButton = field => state.tidyOff ? '' :
   `<button type="button" class="btn jot__tidy" data-tidy="${esc(field)}"
-     title="Fix the spelling and grammar of what you have typed">Tidy</button>`;
+     title="Fix the spelling, grammar and punctuation of what you have typed">Clean up</button>`;
+
+// A line that is written can be rewritten.
+//
+// Until now a comment could be added and removed and nothing else, so correcting a typo in
+// something said an hour ago meant reading it, deleting it, and typing the whole sentence
+// again from memory — with the second version losing the first one's initials and date,
+// because a retyped line is a new line. People did the arithmetic and left the typo.
+//
+// The pencil puts the line back in the box you wrote it in. Saving replaces it in place and
+// keeps the signature it already had: whoever wrote it still wrote it, and the date is still
+// the day it was said. Correcting your own sentence is not a new statement by somebody else.
+const editingLine = field => state.jotEdit?.field === field ? state.jotEdit : null;
 
 function jotLines(field, id, label = 'Comment') {
   const lines = String(noteOf(field)).split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+  const open = editingLine(field);
+  // The words on their own. The signature is held back and put on again when it is saved.
+  const words = open ? (SIGNED.exec(lines[open.line] || '')?.[3] ?? lines[open.line] ?? '') : '';
   return `${lines.length ? `<ul class="jot">${lines.map((line, at) =>
-      `<li><span>${jotHtml(line)}</span><button type="button" class="jot__x"
+      `<li${open?.line === at ? ' class="jot--open"' : ''}><span>${jotHtml(line)}</span>
+         <button type="button" class="jot__b" data-edit-line="${esc(field)}" data-line="${at}"
+           aria-label="Change this line" title="Change this line">
+           <svg viewBox="0 0 24 24" aria-hidden="true"><path
+             d="M4 20h4L19.5 8.5a2.1 2.1 0 10-3-3L5 17z"/></svg></button>
+         <button type="button" class="jot__b jot__x"
          data-drop="${esc(field)}" data-line="${at}"
-         aria-label="Remove this line">\u00d7</button></li>`).join('')}</ul>` : ''}
-    <div class="er er--jot"><label for="${esc(id)}-note">${esc(label)}</label>
+         aria-label="Remove this line">×</button></li>`).join('')}</ul>` : ''}
+    <div class="er er--jot"><label for="${esc(id)}-note">${
+        open ? 'Change this line' : esc(label)}</label>
       <textarea class="inp" id="${esc(id)}-note" rows="2" data-jot="${esc(field)}"
-        placeholder="one line, then Add" aria-label="${esc(label)}"></textarea>
-      <span class="jot__do">${tidyButton(field)}<button type="button"
-        class="btn btn--go jot__add" data-add="${esc(field)}">Add</button></span>
+        placeholder="one line, then Add" aria-label="${esc(label)}">${esc(words)}</textarea>
+      <span class="jot__do">${open
+        ? `<button type="button" class="btn jot__tidy" data-jot-cancel="1">Cancel</button>`
+        : tidyButton(field)}<button type="button"
+        class="btn btn--go jot__add" data-add="${esc(field)}">${open ? 'Save' : 'Add'}</button></span>
     </div>`;
 }
 
@@ -3245,11 +3288,11 @@ document.addEventListener('change', event => {
 // list of them. Both go straight to `persist` rather than through the typing path — there is
 // nothing to debounce about a button, and the point of the button is that the person knows
 // it happened the moment they press it.
-// Tidy, and the Undo that has to come with it.
+// Clean up, and the Undo that has to come with it.
 //
 // This one does not re-render. Everything else on this page redraws from state after a
 // change, and a redraw here would throw away whatever else the person has typed — the box is
-// not saved yet, that is the whole point of tidying before Add. So it edits the two elements
+// not saved yet, that is the whole point of cleaning it up before Add. So it edits the two elements
 // it is about and nothing else.
 //
 // The button becomes Undo and carries the original wording, which is the smallest form of
@@ -3263,22 +3306,22 @@ document.addEventListener('click', async event => {
     if (tidy.dataset.was != null) {
       box.value = tidy.dataset.was;
       delete tidy.dataset.was;
-      tidy.textContent = 'Tidy';
+      tidy.textContent = 'Clean up';
       box.focus();
       return;
     }
     const said = String(box.value || '').trim();
     if (!said) { box.focus(); return; }
     tidy.disabled = true;
-    tidy.textContent = 'Tidying\u2026';
+    tidy.textContent = 'Cleaning\u2026';
     try {
       const answer = await tidyText(said);
       if (answer.unavailable) {
-        // No key at this plant. Take every Tidy button off the screen rather than leaving
+        // No key at this plant. Take every Clean up button off the screen rather than leaving
         // one that cannot work — without a render, so nobody loses what they were typing.
         state.tidyOff = true;
         document.querySelectorAll('[data-tidy]').forEach(button => button.remove());
-        toast(answer.error || 'Tidy-up is not set up for this plant.');
+        toast(answer.error || 'Clean-up is not set up for this plant.');
         return;
       }
       if (answer.error) { toast(answer.error); return; }
@@ -3286,13 +3329,13 @@ document.addEventListener('click', async event => {
       tidy.dataset.was = said;
       box.value = answer.text;
       tidy.textContent = 'Undo';
-      toast('Tidied \u2014 press Add to save it, or Undo for your own words.');
+      toast('Cleaned up \u2014 press Add to save it, or Undo for your own words.');
     } catch (error) {
       toast(error.message);
     } finally {
       if (tidy.isConnected) {
         tidy.disabled = false;
-        if (tidy.textContent === 'Tidying\u2026') tidy.textContent = 'Tidy';
+        if (tidy.textContent === 'Cleaning\u2026') tidy.textContent = 'Clean up';
       }
     }
     return;
@@ -3301,24 +3344,45 @@ document.addEventListener('click', async event => {
   if (add) {
     const field = add.dataset.add;
     const box = document.querySelector(`[data-jot="${CSS.escape(field)}"]`);
-    // Signed here rather than in the box, so what somebody types is what they see while
-    // they are typing it and Tidy never has the signature in front of it to correct.
-    const said = signLine(box?.value);
-    if (!said) { box?.focus(); return; }
     const lines = String(noteOf(field)).split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-    const next = [...lines, said].join('\n');
+    const open = editingLine(field);
+    const typed = String(box?.value || '').replace(/\s+/g, ' ').trim();
+    if (!typed) { box?.focus(); return; }
+    // Changing a line keeps the signature the line already had — the words are being
+    // corrected, not re-said by whoever happens to be at the screen. A line written before
+    // signatures existed stays unsigned rather than acquiring somebody else's initials.
+    // Signing happens here rather than in the box, so what somebody types is what they see
+    // while they are typing it, and Clean up never has a signature in front of it to correct.
+    const said = open
+      ? (SIGNED.exec(lines[open.line] || '')
+          ? `${SIGNED.exec(lines[open.line])[1]} ${SIGNED.exec(lines[open.line])[2]} — ${typed}`
+          : typed)
+      : signLine(typed);
+    if (!said) { box?.focus(); return; }
+    if (open) lines[open.line] = said; else lines.push(said);
+    state.jotEdit = null;
+    const next = lines.join('\n');
     applyLocally(field, next);
     if (box) box.value = '';
     render();
-    toast('Added');
+    toast(open ? 'Changed' : 'Added');
     try { await persist(field, next); } catch (error) { toast(error.message); }
     return;
   }
+  const pencil = event.target.closest?.('[data-edit-line]');
+  if (pencil) {
+    state.jotEdit = { field: pencil.dataset.editLine, line: Number(pencil.dataset.line) };
+    render();
+    document.querySelector(`[data-jot="${CSS.escape(state.jotEdit.field)}"]`)?.focus();
+    return;
+  }
+  if (event.target.closest?.('[data-jot-cancel]')) { state.jotEdit = null; render(); return; }
   const drop = event.target.closest?.('[data-drop]');
   if (!drop) return;
   const field = drop.dataset.drop;
   const lines = String(noteOf(field)).split(/\r?\n/).map(l => l.trim()).filter(Boolean);
   lines.splice(Number(drop.dataset.line), 1);
+  state.jotEdit = null;
   const next = lines.join('\n');
   applyLocally(field, next);
   render();
