@@ -53,6 +53,29 @@ const isSharePoint = (raw: string) => {
   } catch { return false; }
 };
 
+// Somewhere this function is willing to go.
+//
+// This runs on Supabase's network with a service key in its environment and it fetches a URL
+// that an editor typed into Configure. That is a server-side request forgery waiting to
+// happen: `http://169.254.169.254/…` is a cloud metadata endpoint, `http://localhost:54321`
+// is the project's own API, and neither is a place a spreadsheet link should be able to send
+// this. An editor is a trusted account, but "trusted to link a workbook" and "trusted to aim
+// the server at an arbitrary address" are not the same grant.
+//
+// HTTPS only, and no host that resolves to a name the internet does not route. A hostname
+// can still resolve to a private address — that check needs DNS and cannot be done reliably
+// here — so this is a floor rather than a proof, and the real guarantee is that the plant's
+// links are SharePoint links.
+const PRIVATE = /^(localhost$|127\.|10\.|192\.168\.|169\.254\.|0\.|\[?::1\]?$|172\.(1[6-9]|2\d|3[01])\.)/i;
+function mayFetch(raw: string) {
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== 'https:') return 'only https: links can be fetched';
+    if (PRIVATE.test(url.hostname)) return 'that address is not on the public internet';
+    return '';
+  } catch { return 'that is not a link'; }
+}
+
 // A share link opens a viewer; the same link with `download=1` returns the file. Everything
 // else is passed through untouched — guessing at URLs is how an importer starts lying about
 // what it fetched.
@@ -71,6 +94,10 @@ function asDownload(raw: string) {
 // later in a way nobody can read.
 const looksLikeWorkbook = (bytes: Uint8Array) =>
   bytes.length > 4 && bytes[0] === 0x50 && bytes[1] === 0x4b;
+
+// When a delivered file arrived, said the way somebody would read it off a screen.
+const stamp = (when: Date) => `${when.toISOString().slice(0, 10)} at `
+  + `${when.toISOString().slice(11, 16)} UTC`;
 
 // Graph's own way of naming a file by its URL: base64url of the address, with `u!` in front.
 function shareId(raw: string) {
@@ -158,7 +185,7 @@ Deno.serve(async request => {
 
   const out: {
     id: string; kind: string; name: string; ok: boolean; note: string;
-    how?: string; url?: string; bytes?: number;
+    how?: string; url?: string; bytes?: number; stale?: boolean; arrived?: string;
   }[] = [];
 
   for (const source of live) {
@@ -172,6 +199,8 @@ Deno.serve(async request => {
     // Anonymous first, because when it works it is the cheapest thing that can work.
     try {
       if (!(source.url ?? '').trim()) throw new Error('no link');
+      const refused = mayFetch(source.url);
+      if (refused) throw new Error(refused);
       const response = await fetch(asDownload(source.url), { redirect: 'follow' });
       if (response.ok) {
         const got = new Uint8Array(await response.arrayBuffer());
@@ -204,20 +233,53 @@ Deno.serve(async request => {
       }
     }
 
-    // Nothing fetched, but something may already be here.
+    // Nothing fetched, but something may already be here — and how old it is decides
+    // everything.
     //
     // A Power Automate flow signs in as a person Microsoft trusts and posts the workbooks to
-    // `ingest`, which parks them in this same bucket. So before reporting a failure, look:
-    // a file delivered at half past five is a better answer than a link that answers 401,
-    // and from the page's point of view the two are indistinguishable.
+    // `ingest`, which parks them in this same bucket. So before reporting a failure, look: a
+    // file delivered at half past five is a better answer than a link that answers 401.
+    //
+    // What this used to do was look, find something, and report `ok: true, note: 'delivered'`
+    // without ever asking when it arrived. The bucket is a staging area overwritten by each
+    // pull, so "something is here" is true for a week after the last successful delivery. A
+    // flow that quietly stopped running on the Friday would have had the plant reading
+    // Friday's production every morning of the following week, under a green tick, with the
+    // page saying the file had been delivered. Believable, wrong, and silent — which is the
+    // one combination this product exists to prevent.
+    //
+    // So the age is checked against the morning being pulled. A file delivered today, or
+    // late last night for a morning that reports yesterday, is the answer. Anything older is
+    // reported as stale with the date it actually arrived, and it is not handed to the
+    // parser: a reader that is given a workbook will read it, and the whole point is that
+    // this one must not be read as though it were today's.
     if (!bytes) {
       try {
         const path = `${location}/${source.id}.xlsx`;
-        const { data: link } = await admin.storage.from('pulls').createSignedUrl(path, 600);
-        if (link?.signedUrl) {
-          out.push({ id: source.id, kind: source.kind, name: source.name, ok: true,
-                     note: 'delivered', how: 'delivered', url: link.signedUrl, bytes: 0 });
+        const { data: found } = await admin.storage.from('pulls')
+          .list(location, { search: `${source.id}.xlsx`, limit: 1 });
+        const at = found?.[0]?.updated_at ?? found?.[0]?.created_at ?? null;
+        const arrived = at ? new Date(at) : null;
+        // Delivered for *this* morning. The window opens at six the previous evening, which
+        // covers a night-shift flow and a plant whose files land before midnight, and it
+        // closes at the end of the day being pulled.
+        const dayEnd = new Date(`${date}T23:59:59Z`);
+        const windowOpens = new Date(dayEnd.getTime() - 30 * 3600000);
+        const fresh = arrived && arrived >= windowOpens && arrived <= new Date(dayEnd.getTime() + 3600000);
+        if (arrived && !fresh) {
+          out.push({ id: source.id, kind: source.kind, name: source.name, ok: false,
+                     note: `stale — delivered ${stamp(arrived)}, not for this morning`,
+                     how: 'delivered', bytes: 0, stale: true, arrived: arrived.toISOString() });
           continue;
+        }
+        if (fresh) {
+          const { data: link } = await admin.storage.from('pulls').createSignedUrl(path, 600);
+          if (link?.signedUrl) {
+            out.push({ id: source.id, kind: source.kind, name: source.name, ok: true,
+                       note: `delivered ${stamp(arrived!)}`, how: 'delivered',
+                       url: link.signedUrl, bytes: 0, arrived: arrived!.toISOString() });
+            continue;
+          }
         }
       } catch { /* nothing staged, so the fetch failure above stands */ }
     }

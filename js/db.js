@@ -575,7 +575,7 @@ export const resetMorning = (location, date) =>
 // answers one of three ways: the corrected text, an `error` the page shows and then leaves
 // the person's own words alone, or `unavailable` — which means no key is configured for this
 // plant and the button should stop offering something that cannot work.
-export async function tidyText(text) {
+export async function tidyText(text, location) {
   const session = await currentSession();
   if (!session) throw new Error('Sign in first.');
   const response = await fetch(`${SUPABASE_URL}/functions/v1/tidy`, {
@@ -585,10 +585,13 @@ export async function tidyText(text) {
       apikey: SUPABASE_PUBLISHABLE_KEY,
       Authorization: `Bearer ${session.access_token}`,
     },
-    body: JSON.stringify({ text }),
+    // The plant is sent so the function can check that this account may write here, rather
+    // than only that it is signed in. A read-only account has no business spending the
+    // plant's model budget on a box it cannot save.
+    body: JSON.stringify({ text, location }),
   });
   const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(body.error || 'Tidy-up could not run.');
+  if (!response.ok) throw new Error(body.error || 'Clean-up could not run.');
   return body;
 }
 

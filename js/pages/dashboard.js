@@ -3381,7 +3381,7 @@ document.addEventListener('click', async event => {
     tidy.disabled = true;
     tidy.textContent = 'Cleaning\u2026';
     try {
-      const answer = await tidyText(said);
+      const answer = await tidyText(said, state.location);
       if (answer.unavailable) {
         // No key at this plant. Take every Clean up button off the screen rather than leaving
         // one that cannot work — without a render, so nobody loses what they were typing.
@@ -4308,6 +4308,14 @@ async function pullNow() {
     const pulled = await pullSources(state.location, state.date);
     const got = (pulled.sources || []).filter(s => s.ok && s.url);
     const failed = (pulled.sources || []).filter(s => !s.ok);
+    // A workbook that was delivered for some other morning is a failure with a date on it,
+    // and it is said out loud rather than folded into "nothing could be fetched". The flow
+    // that stopped running last Friday is exactly the thing this sentence has to name.
+    const stale = failed.filter(s => s.stale);
+    if (stale.length) {
+      toast(`${stale.map(s => s.name).join(', ')}: not delivered for this morning \u2014 `
+        + `${stale[0].note.replace(/^stale \u2014 /, '')}`);
+    }
     if (!got.length) {
       toast(failed[0] ? `${failed[0].name}: ${failed[0].note}` : 'Nothing could be fetched.');
       return;
