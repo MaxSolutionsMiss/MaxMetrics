@@ -434,15 +434,36 @@ body.tv .card--wide{grid-column:auto}
   font-size:15px;line-height:1.2;padding:0 2px;border-radius:3px}
 .jot__x:hover{color:var(--stop);background:var(--stop-wash)}
 .jot__x:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
-/* The box and its buttons on one line, so "type it, press Add" is one movement. */
-.er--jot{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:start;
-  gap:var(--s2)}
+/* The label goes above the box, and the box gets the width.
+
+   It used to sit in front: label, box, buttons, all on one line. On a review card a
+   quarter of the screen wide that left "WHAT HAPPENED" holding a third of the row and the
+   box — the only part anybody types into — holding rather less than half of it, two words
+   at a time. The label is four words read once; the box is a sentence written every
+   morning, and the room was giving the width to the wrong one.
+
+   Above, the box runs the full width of the card and lines up with the note above it, which
+   is the other half of what was wrong: the field was inset from everything it belonged to. */
+/* `.er.er--jot`, because the plain `.er` rule is declared further down this file and would
+   otherwise win on equal specificity and turn this back into a single column. */
+.er.er--jot{display:grid;grid-template-columns:minmax(0,1fr) auto;
+  grid-template-areas:"lbl lbl" "box do";align-items:stretch;gap:var(--s1) var(--s2)}
+.er--jot>label{grid-area:lbl}
+.er--jot>textarea{grid-area:box}
+.er--jot>.jot__do{grid-area:do}
 .er--jot textarea{min-height:calc(2.4*var(--ctl-h))}
 /* Tidy above Add rather than beside it. Beside, the two read as a pair of equals and the
    eye has to choose between them every time; stacked, Add is the button and Tidy is the
-   thing you can do to the line first. */
-.jot__do{display:flex;flex-direction:column;gap:var(--s2);align-self:stretch}
-.jot__add{flex:1 1 auto;white-space:nowrap}
+   thing you can do to the line first.
+
+   Top of Tidy level with the top of the box, bottom of Add level with the bottom of it —
+   `space-between` in a column stretched to the box's own height. The two used to divide the
+   height between them, which made a pair of tall soft-cornered blocks the same size as the
+   thing they act on; at a fixed control height they read as buttons beside a box. */
+.jot__do{display:flex;flex-direction:column;justify-content:space-between;
+  gap:var(--s2);align-self:stretch}
+.jot__do>.btn{flex:none;height:var(--ctl-h);padding:0 var(--s3);white-space:nowrap}
+.jot__add{white-space:nowrap}
 /* Quieter than Add, and not `btn--quiet` — that variant turns red on hover, which it earns
    beside "Remove account" and does not earn here. */
 .jot__tidy{white-space:nowrap;color:var(--ink-muted)}
@@ -461,9 +482,11 @@ body.tv .card--wide{grid-column:auto}
    `sig` is deliberately not a pill or a coloured chip. There are already coloured avatars on
    this product for who is *in* the morning; a second coloured circle for who *wrote a line*
    would be two systems saying similar things in the same eyeline. */
-.sig{flex:none;font-weight:600;font-size:var(--t-micro);letter-spacing:.04em;
+/* Sized against the line it sits on rather than against the page. A fixed micro size looked
+   right on a desk and shrank to a watermark beside a note drawn for a wall. */
+.sig{flex:none;font-weight:600;font-size:.82em;letter-spacing:.04em;
   color:var(--ink);margin-right:var(--s1)}
-.sig__at{flex:none;font-size:var(--t-micro);color:var(--ink-faint);margin-right:var(--s2)}
+.sig__at{flex:none;font-size:.78em;color:var(--ink-faint);margin-right:var(--s2)}
 @media(max-width:760px){.card--wide{grid-column:auto}}
 @media(max-width:760px){.grid--cards{grid-template-columns:minmax(0,1fr);
   grid-auto-rows:minmax(min-content,auto)}}
@@ -1148,7 +1171,7 @@ body.tv .sec > .panel{max-width:none}
    the room that a person has to walk towards. The floor puts it at the page's own body size;
    the ceiling stops a three-line note from pushing a card's own height out. Both are in
    `--scale`, so present mode carries them up with everything else. */
-.rev__note{font-size:clamp(calc(13px*var(--scale)),calc(4.6*var(--u,4px)),calc(15px*var(--scale)));
+.rev__note{font-size:clamp(calc(13px*var(--scale)),calc(4.6*var(--u,4px)),calc(14px*var(--scale)));
   line-height:1.45;color:var(--ink)}
 
 .fin{display:grid;grid-template-columns:1fr 1fr;gap:var(--s5)}
@@ -1191,9 +1214,16 @@ body.tv .sec > .panel{max-width:none}
 /* ── EDIT ── */
 .ez{margin-top:var(--s3);padding-top:var(--s3);border-top:1px dashed var(--rule-strong);
   display:flex;flex-direction:column;gap:var(--s2)}
-.er{display:flex;align-items:center;gap:var(--s2)}
+/* Every edit row is a label over its control, not beside it.
+
+   `min-width:64px` on a label beside a field is a fixed tax on the field, and it is worst
+   exactly where the field matters most: a card four to a row gives its boxes about 150px,
+   and sixty-four of them went to a word nobody needs to re-read. Stacked, the control gets
+   the whole width on every card, on every screen size, and every field on the product lines
+   up with the left edge of what it belongs to. */
+.er{display:flex;flex-direction:column;align-items:stretch;gap:var(--s1)}
 .er label{font-size:9.5px;text-transform:uppercase;letter-spacing:.07em;font-weight:700;
-  color:var(--ink-muted);min-width:64px;flex:none}
+  color:var(--ink-muted);flex:none}
 .inp{font-family:inherit;font-size:var(--t-small);height:30px;padding:0 var(--s2);width:100%;
   min-width:0;border-radius:var(--radius);border:1px solid var(--rule-strong);
   background:var(--surface);color:var(--ink)}
@@ -1755,7 +1785,15 @@ body.tv .content.wall{display:flex;flex-direction:column;gap:var(--s4);
    "Gl\u2026  3 shifts \u00b7 Heidelberg, Omega" has cut the only word that says which row it is;
    "Gluing  3 shifts \u00b7 Heidelb\u2026" still tells you what you are looking at. */
 .clist__l{display:flex;flex-direction:column;gap:0;flex:1 1 auto;min-width:0}
-.clist__l b{font-family:var(--font-condensed);font-size:calc(5*var(--u));font-weight:600;
+/* Overtime, staffing and maintenance share a row, and a row of cards that reads at three
+   sizes reads as three designs. Putting these on `--u` gave them the fit — which was the
+   fix — and on a sparse wall slide the fit is over two, so "Printing" came out at 57px
+   beside a staffing note at 30 and truncated the machines under Gluing to "Heidelb…".
+   The floor and the ceiling are what keep a list and a note the same size in the same row:
+   the type still follows the card, and it stops following it past the point where the
+   three cards stop matching. */
+.clist__l b{font-family:var(--font-condensed);
+  font-size:clamp(calc(13px*var(--scale)),calc(5*var(--u)),calc(14px*var(--scale)));font-weight:600;
   color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* Sized against the card rather than against the fit factor — all of it, now, not just the
    quiet line.
@@ -1765,13 +1803,15 @@ body.tv .content.wall{display:flex;flex-direction:column;gap:var(--s4);
    colliding with each other, which is the opposite of what a list is for. A list is read,
    not glanced at from ten metres; it belongs at the card's own scale whatever slack the
    screen happens to have. */
-.clist__l i{font-style:normal;font-family:var(--font-condensed);font-size:calc(4.4*var(--u));
+.clist__l i{font-style:normal;font-family:var(--font-condensed);
+  font-size:clamp(calc(11px*var(--scale)),calc(4.4*var(--u)),calc(12px*var(--scale)));
   font-weight:600;color:var(--ink-faint);white-space:nowrap;overflow:hidden;
   text-overflow:ellipsis;letter-spacing:.02em}
-.clist__r{font-family:var(--font-num);font-size:calc(5*var(--u));font-weight:700;
+.clist__r{font-family:var(--font-num);
+  font-size:clamp(calc(13px*var(--scale)),calc(5*var(--u)),calc(14px*var(--scale)));font-weight:700;
   color:var(--ink-muted);white-space:nowrap;flex:none}
 .clist__more{font-size:calc(3.8*var(--u));color:var(--ink-faint);padding-top:calc(1.2*var(--cu))}
-.clist__none,.cnote{font-size:calc(4.6*var(--u));line-height:1.4;color:var(--ink);
+.clist__none,.cnote{font-size:clamp(calc(13px*var(--scale)),calc(4.6*var(--u)),calc(14px*var(--scale)));line-height:1.4;color:var(--ink);
   text-align:center;margin:0}
 .cnote--none,.clist__none{color:var(--ink-faint);font-style:italic}
 

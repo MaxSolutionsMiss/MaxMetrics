@@ -26,11 +26,11 @@ import {
   peopleAt, grantAccess, revokeAccess, setAdmin, accessMatrix, allLocations,
   createPerson, updatePerson, resetPersonPassword, removePerson,
   loadSources, saveSource, addSource, dropSource, pullSources,
-} from '../db.js?v=4449ff199c74';
+} from '../db.js?v=ebdbaf26bd12';
 import {
   esc, money, MONTHS, iconFor,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE, WALK, walkKeyFor, morningToday,
-} from '../readings.js?v=4449ff199c74';
+} from '../readings.js?v=ebdbaf26bd12';
 
 const $ = selector => document.querySelector(selector);
 

@@ -14,8 +14,8 @@ import {
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=4449ff199c74';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=4449ff199c74';
+} from '../db.js?v=ebdbaf26bd12';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=ebdbaf26bd12';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
@@ -23,7 +23,7 @@ import {
   isNa, isMissing,
   varianceChip, varianceTone, variancePct,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE, WALK, morningToday,
-} from '../readings.js?v=4449ff199c74';
+} from '../readings.js?v=ebdbaf26bd12';
 
 const $ = selector => document.querySelector(selector);
 
@@ -177,6 +177,8 @@ const ICONS = {
   attention:   'M9 3.5h6l-1 5 3.5 3.5H6.5L10 8.5zM12 12.5V21',
   // A calendar, because the section is a date range rather than a subject.
   week:        'M4.6 6.6h14.8v12.8H4.6zM4.6 10.4h14.8M8.6 4.2v3.4M15.4 4.2v3.4',
+  // A speech bubble. The only section on the product that is nothing but what people said.
+  support:     'M4 5.5h16v10H9.5L5.5 19v-3.5H4z',
   production:  'M4 20V9l5 3V9l5 3V4l6 4v12z',
   shipping:    'M3 7h11v9H3zM14 10h4l3 3v3h-7zM7 19a1.6 1.6 0 100-3.2A1.6 1.6 0 007 19zM17.5 19a1.6 1.6 0 100-3.2 1.6 1.6 0 000 3.2z',
   maintenance: 'M14.5 6.5a3.5 3.5 0 01-4.6 4.6L5 16l3 3 4.9-4.9a3.5 3.5 0 004.6-4.6l-2.4 2.4-2.1-2.1z',
@@ -221,13 +223,16 @@ const TITLES = {
   safety: 'Safety', quality: 'Quality', production: 'Production', shipping: 'Shipping',
   maintenance: 'Upcoming maintenance', labour: 'Labour & Overtime', financials: 'Financials',
   attention: 'Needs watching today', week: 'Last week',
+  // Named in full on its own screen. The rail says "Front of house", which is what the
+  // building calls these three when it is not naming them one at a time.
   // Support is an entry screen rather than a dashboard section, so it never needed a title
   // here - until Save-and-next started naming the screen it was about to move to, and found
   // nothing. The button read "Next next" and the toast said "Saved. undefined next."
-  support: 'Customer service',
+  support: 'Customer service, die shop & prepress',
 };
 const NAV = { labour: 'Labour', line: 'Summary', fill: 'Enter',
-              maintenance: 'Maintenance', attention: 'Needs watching', week: 'Last week' };
+              maintenance: 'Maintenance', attention: 'Needs watching', week: 'Last week',
+              support: 'Front of house' };
 Object.assign(TITLES, { line: 'Morning summary', fill: 'Enter the morning' });
 Object.assign(ICONS, {
   line:  'M4 6h16M4 12h10M4 18h6',
@@ -1390,9 +1395,8 @@ const SECTIONS = {
               ${at === '_all' || !nextFillTab(at) ? '<button class="btn" data-nav="overview">See the cards</button>'
                 : `<button class="btn" data-filltab="${esc(nextFillTab(at))}">${
                     esc(TITLES[nextFillTab(at)] || 'Next')} next</button>`}
-              ${state.canEdit ? `<button class="btn ${gaps.length ? '' : 'btn--go'}" id="fill-publish">${
-                gaps.length ? `Publish anyway \u2014 ${gaps.length} missing`
-                  : published ? 'Publish again' : 'Publish this morning'}</button>` : ''}
+              ${/* No Publish button. Saving a section is finishing it, and finishing is what
+                    puts the morning up — see `goUp()`. */''}
             </div>
           </div></div>
         </div>
@@ -1751,7 +1755,7 @@ const SECTIONS = {
     ${review || supportCard() ? `<div class="sec__head" style="margin-top:var(--s3)">
       <h3 class="sec__title" style="font-size:var(--t-lead)">Review \u2014 last 24 hours</h3>
       <div class="sec__rule"></div></div>
-    <div class="grid grid--cards" data-grid="review">${review}${supportCard()}</div>` : ''}`;
+    <div class="grid grid--cards" data-grid="review">${review}</div>` : ''}`;
   },
 
   shipping: () => {
@@ -1886,6 +1890,9 @@ const SECTIONS = {
     (mergedUpkeep() ? maintenanceCards() : '') + labourCards()),
 
   attention: () => cardGrid('attention', attentionCard()),
+
+  // One card, its own screen. The same shape as the board, for the same reason.
+  support: () => cardGrid('support', supportCard()),
 
   // One card, and it is the width of two. The same shape as the board: a section that
   // holds a single wide card rather than a row of narrow ones.
@@ -3187,7 +3194,8 @@ $('#edit-btn').addEventListener('click', () => {
   // Showing the fields is a personal view. It claims nothing and blocks nobody.
   const on = document.body.classList.toggle('editing');
   $('#edit-btn').textContent = on ? 'Done editing' : 'Edit mode';
-  $('#publish-btn').classList.toggle('hide', !on);
+  // Leaving edit mode is finishing. See `goUp()`.
+  if (!on) goUp();
   paintPresence();
 });
 
@@ -3195,7 +3203,6 @@ $('#edit-btn').addEventListener('click', () => {
 document.addEventListener('click', event => {
   const go = event.target.closest('.fill [data-nav]');
   if (go) { state.active = go.dataset.nav; render(); window.scrollTo(0, 0); return; }
-  if (event.target.closest('#fill-publish')) $('#publish-btn').click();
   if (event.target.closest('#reset-day')) startAgain();
 });
 
@@ -3334,6 +3341,7 @@ document.addEventListener('click', async event => {
   if (!done) return;
   document.activeElement?.blur();
   await flushWrites();
+  await goUp();
   const next = nextToFill(done.dataset.saveSection);
   toast(next ? `Saved. ${TITLES[next]} next.` : 'Saved.');
   if (next) { state.active = next; render(); window.scrollTo(0, 0); }
@@ -3393,38 +3401,34 @@ document.addEventListener('click', event => {
   } else land();
 });
 
-// Publishing an incomplete morning takes a deliberate act and a reason.
+// A morning goes up when it is finished, and finishing is the only act there is.
 //
-// It used to take one click whatever the morning contained, which is how a screen twenty
-// people read could go up with four departments never asked and nobody the wiser. The guard
-// is not a refusal — a plant that has to start the meeting at eight is going to publish what
-// it has, and it is right to — it is that the room is told what is missing, and that the
-// person who decided to go anyway says why. The note travels with the publication.
-$('#publish-btn').addEventListener('click', async () => {
-  const gaps = absent(state.findings);
-  let note = null;
-  if (gaps.length) {
-    const names = gaps.slice(0, 4).map(r => r.title).join(', ');
-    note = prompt(
-      `${gaps.length} reading${gaps.length === 1 ? ' has' : 's have'} not been entered — ${
-        names}${gaps.length > 4 ? `, and ${gaps.length - 4} more` : ''}.\n\n` +
-      'Publishing now is allowed. Say briefly why, and the note goes up with the morning.');
-    // Cancel means cancel. An empty box means somebody pressed OK without reading it.
-    if (note === null) return;
-    if (!note.trim()) { toast('A reason is needed to publish an incomplete morning'); return; }
-  }
+// There was a Publish button. It sat on the top bar beside Present, it appeared only in edit
+// mode, and pressing it did three things nobody had asked to be separate: it wrote a
+// publication row, it took the page out of edit mode, and it turned the chip from Draft to
+// Published. Which meant the person filling the morning in had two endings to choose
+// between — Save, and then Publish — and the second one was the one that mattered and the
+// one people forgot. A morning sitting in Draft at ten past eight is not a decision anybody
+// made; it is a button somebody did not know about.
+//
+// So there is no button. Saving a section publishes, and pressing Done editing publishes,
+// because both of those are somebody saying they have finished. It happens once — the
+// revision is cut the first time a morning is finished, and later corrections update the
+// readings without cutting another, which is what "Published" already meant.
+//
+// The guard that used to ask for a written reason before publishing an incomplete morning is
+// gone with the button, and deliberately. It was asked at the wrong moment: the first save of
+// the day is always incomplete, so the prompt would fire on a morning nobody had claimed was
+// finished. What was outstanding is still recorded against the publication, and the summary
+// screen has said how many readings are missing all along.
+async function goUp() {
+  if (!state.canEdit || !state.location || state.metrics?.status === 'published') return;
   try {
-    await publish(state.location, state.date, { incomplete: gaps.length > 0, note });
+    await publish(state.location, state.date, { incomplete: absent(state.findings).length > 0 });
     if (state.metrics) state.metrics.status = 'published';
-    document.body.classList.remove('editing');
-    $('#edit-btn').textContent = 'Edit mode';
-    $('#publish-btn').classList.add('hide');
-    toast(gaps.length
-      ? `Published with ${gaps.length} missing — the note is on the record`
-      : 'Published — every screen shows this now');
-    render();
+    renderHeader();
   } catch (error) { toast(error.message); }
-});
+}
 
 $('#loc').addEventListener('change', event => open(event.target.value, state.date));
 $('#date').addEventListener('change', event => { if (event.target.value) open(state.location, event.target.value); });
