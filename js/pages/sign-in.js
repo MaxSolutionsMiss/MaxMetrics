@@ -1,7 +1,7 @@
 // Signing in. Two panels, one at a time, and no state worth keeping between them.
 
 import { signIn, resetPassword, currentSession,
-         mustChangePassword, chooseOwnPassword } from '../db.js?v=9a146e3cc72a';
+         mustChangePassword, chooseOwnPassword } from '../db.js?v=912f72b40726';
 
 const $ = selector => document.querySelector(selector);
 
@@ -36,15 +36,17 @@ function busy(button, on, restingLabel) {
 
 $('#sign-in-form').addEventListener('submit', async event => {
   event.preventDefault();
-  const email = $('#email').value.trim();
+  const identifier = $('#email').value.trim();
   const password = $('#password').value;
-  if (!email || !password) return say('#sign-in-message', 'Enter your email and password.');
+  if (!identifier || !password) {
+    return say('#sign-in-message', 'Enter your username and password.');
+  }
 
   const button = $('#sign-in-submit');
   say('#sign-in-message', '');
   busy(button, true, 'Sign in');
   try {
-    await signIn(email, password);
+    await signIn(identifier, password);
     // A temporary password gets you exactly this far.
     if (await mustChangePassword()) { busy(button, false, 'Sign in'); return showChoose(); }
     location.replace('app/dashboard.html');
@@ -58,6 +60,12 @@ $('#forgot-form').addEventListener('submit', async event => {
   event.preventDefault();
   const email = $('#reset-email').value.trim();
   if (!email) return say('#forgot-message', 'Enter the email on your account.');
+  // A username account has no mailbox behind it, and telling somebody a link is on its way
+  // to an address that cannot exist is a dead end they will sit in front of for ten minutes.
+  if (!email.includes('@')) {
+    return say('#forgot-message', 'That is a username, and a username has no email address '
+      + 'to send a link to. Ask an administrator to issue you a new password.');
+  }
 
   const button = $('#forgot-submit');
   busy(button, true, 'Send reset link');
