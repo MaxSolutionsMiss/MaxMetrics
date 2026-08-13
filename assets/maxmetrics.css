@@ -194,9 +194,17 @@ html[data-rail="mini"]{--rail-w:62px}
 .rail__ico{width:19px;height:19px;flex:none;stroke:currentColor;fill:none;stroke-width:1.7;
   stroke-linecap:round;stroke-linejoin:round}
 .rail__txt{flex:1;min-width:0;white-space:nowrap;overflow:hidden}
-.rail__dot{width:7px;height:7px;border-radius:50%;flex:none}
-.rail__dot--ok{background:#4FBF85}.rail__dot--warn{background:#E09A42}.rail__dot--stop{background:#F0736A}
-.rail__dot--none{background:currentColor;opacity:.3}
+/* The same mark the cards carry, at the size the dot used to be.
+
+   The dot was a colour and nothing else, which made the rail the least readable thing on the
+   page for anybody who cannot separate green from amber — and the rail is what people use to
+   decide which section to open. The shape is drawn in the dot's own colour on nothing, rather
+   than in white on a disc: at nine pixels a filled disc with a glyph knocked out of it is a
+   smudge, and the shape on its own is not. */
+.rail__dot{flex:none;display:flex;align-items:center;justify-content:center;
+  width:11px;height:11px;font-size:11px;line-height:1;background:none}
+.rail__dot--ok{color:#4FBF85}.rail__dot--warn{color:#E09A42}.rail__dot--stop{color:#F0736A}
+.rail__dot--none{color:currentColor;opacity:.28}
 /* Plant, person, sign out — three lines, in that order.
    These were laid out as one nowrap line under `overflow:hidden`, so the name pushed the
    button off the edge and it was clipped away: the only way out of MaxMetrics was invisible
@@ -298,6 +306,20 @@ body.tv .sec__head::before{content:"";flex:1;height:1.5px;background:var(--rule)
 .sec__title{font-size:var(--t-title);font-weight:600;letter-spacing:-.015em;
   color:var(--ink);margin:0;white-space:nowrap;text-transform:none}
 .sec__rule{flex:1;height:1.5px;background:var(--rule)}
+/* Which file this section came out of, and when it arrived.
+
+   It lived on the entry screens and nowhere else, which meant the freshness of the morning
+   was known to the one person who did not need telling and hidden from the fifteen reading
+   it off a wall. Quiet where the answer is "this morning", because that is the ordinary
+   case and an ordinary case does not need a colour; amber and stated plainly when the file
+   is older than the morning it is being read as. */
+.fresh{flex:none;font-size:var(--t-micro);color:var(--ink-faint);white-space:nowrap}
+.fresh b{font-weight:700;color:var(--ink-muted)}
+.fresh--warn,.fresh--warn b{color:var(--warn)}
+.fresh--gap,.fresh--old{opacity:.75}
+/* On the wall it is read from ten metres like everything else, so it takes the wall's own
+   scale rather than the page's. */
+body.tv .fresh{font-size:calc(var(--t-micro)*1.15)}
 /* ── The verdict ──
    One line under the heading saying what the whole section comes to, so the meeting can
    take a section without reading it. It carries the section's own colour as a bar down its

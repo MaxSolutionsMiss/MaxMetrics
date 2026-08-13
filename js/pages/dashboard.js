@@ -21,7 +21,7 @@ import {
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
   spark, bullet, chip, cardTrack, readingOf, derivedShipping, otifTarget, otdTarget,
   isNa, isMissing,
-  varianceChip, varianceTone, variancePct,
+  varianceChip, varianceTone, variancePct, VERDICT, verdictMark,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE, WALK, morningToday,
 } from '../readings.js';
 
@@ -1041,6 +1041,40 @@ const clockAt = when =>
   when.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).toLowerCase();
 const dayAt = when => `${when.getDate()} ${MONTHS[when.getMonth()].slice(0, 3)}`;
 
+// How old a file is, once, so nothing on the product can disagree about it.
+//
+// `sourceStrip` had this arithmetic inside it and rendered on the two entry screens and
+// nowhere else — so the freshness of the morning was visible only to the person filling it
+// in, and never to the fifteen people reading it off a wall. That is the wrong way round:
+// the coordinator knows when they pulled, and the room does not.
+function sourceAge(key) {
+  const seen = state.metrics?.source_seen || {};
+  const stamp = seen[key.toLowerCase()] || seen[key];
+  const when = stamp ? new Date(stamp) : null;
+  if (!when || Number.isNaN(+when)) return { mark: '·', said: 'no pull yet', tone: 'gap' };
+  const days = daysBetween(when.toISOString().slice(0, 10), state.date);
+  if (days <= 0) return { mark: '✓', said: clockAt(when), tone: 'ok', when };
+  if (days === 1) return { mark: '✓', said: `yesterday ${clockAt(when)}`, tone: '', when };
+  return { mark: '!', said: `${dayAt(when)} · ${days} days ago`, tone: 'warn', when, stale: true };
+}
+
+// Which file a section's readings come from. Safety, Labour and the comment sections are not
+// here because nothing fetches them — they are typed, and "no file" is the true answer
+// rather than a gap.
+const SECTION_SOURCE = {
+  quality: 'KPI', production: 'DOR', week: 'DOR', shipping: 'OTIF', financials: 'KPI',
+};
+
+// Said on the section's own heading, and on the wall above it.
+function freshLine(key) {
+  const file = SECTION_SOURCE[key];
+  if (!file) return '';
+  const age = sourceAge(file);
+  return `<span class="fresh fresh--${age.tone || 'old'}" title="${
+    esc(SOURCE_NAMES[file] || file)} last arrived ${esc(age.said)}"><b>${
+    esc(SOURCE_NAMES[file] || file)}</b> ${esc(age.said)}</span>`;
+}
+
 function sourceStrip() {
   const seen = state.metrics?.source_seen || {};
   // A mark and a time, because that is the question being asked: did it come in, and when.
@@ -2036,11 +2070,15 @@ const SECTIONS = {
 // ── Drawing the page ────────────────────────────────────────────────────────────
 
 function renderNav() {
+  // The dot in the rail is the same verdict as the card, and it was the same colour and
+  // nothing else. It carries the mark now, so the rail reads at a glance without relying on
+  // anybody being able to separate green from amber at nine pixels.
   const link = (key, label, icon, dot) => `<button class="rail__link" data-nav="${key}"
-    aria-current="${state.active === key}" title="${esc(label)}">
+    aria-current="${state.active === key}"
+    title="${esc(label)}${VERDICT[dot] ? ` \u2014 ${VERDICT[dot].word}` : ''}">
     <svg class="rail__ico" viewBox="0 0 24 24"><path d="${icon}"/></svg>
     <span class="rail__txt">${esc(label)}</span>
-    <span class="rail__dot rail__dot--${dot}"></span></button>`;
+    <span class="rail__dot rail__dot--${dot}">${VERDICT[dot]?.mark ?? ''}</span></button>`;
   const worstOfAll = band.worst(attention(state.findings).map(f => f.tone));
   $('#nav').innerHTML =
     VIEWS.map(key => link(key, NAV[key], ICONS[key],
@@ -2233,6 +2271,7 @@ const one = (key, solo = false) => {
   const fillable = solo && state.canEdit && !!FILL_FOR[key];
   return `<section class="sec"><div class="sec__head">
     <h2 class="sec__title">${TITLES[key]}</h2>
+    ${freshLine(key)}
     ${fillable ? modeSwitch() : ''}<div class="sec__rule"></div></div>
     ${state.filling && fillable ? sectionFill(key) : SECTIONS[key]()}</section>`;
 };
@@ -2930,6 +2969,7 @@ function renderWall() {
     <div class="wall__top">
       <h2>${esc((page.keys || [page.key]).map(k => TITLES[k] || k).join(' · '))} · ${
         esc(state.locations.find(l => l.id === state.location)?.name || '')}</h2>
+      ${(page.keys || [page.key]).map(freshLine).filter(Boolean).join('')}
       <span class="wall__date">${$('#date-long').textContent}</span>
     </div>
     <section class="sec">

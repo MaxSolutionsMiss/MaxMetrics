@@ -46,6 +46,32 @@ export const band = {
   worst: list => list.includes('stop') ? 'stop' : list.includes('warn') ? 'warn' : 'ok',
 };
 
+// The verdict said without using colour.
+//
+// Green, amber and red are the whole of what this product has ever said about a reading, and
+// on a wall that is not enough. Somewhere between one in twelve and one in twenty men cannot
+// separate the two that matter most; a meeting-room projector flattens both towards brown;
+// and a person glancing in from the floor at ten metres gets a wash, not a hue. Every one of
+// those is a normal Tuesday in a carton plant.
+//
+// So the tone is also a mark and a word. The mark rides in the card's title bar, where it is
+// the same size and the same place on every card and can be read before the number is; the
+// word is what a screen reader says, and what the mark means if somebody has to ask once.
+// Shapes rather than a tick, a bang and a cross alone, because shape survives distance and
+// low contrast better than a glyph does.
+export const VERDICT = {
+  ok:   { mark: '●', word: 'On target' },
+  warn: { mark: '▲', word: 'Near target' },
+  stop: { mark: '■', word: 'Off target' },
+  info: { mark: '○', word: 'For information' },
+};
+export const verdictMark = tone => {
+  const said = VERDICT[tone];
+  return said
+    ? `<span class="vmark" role="img" aria-label="${said.word}" title="${said.word}">${said.mark}</span>`
+    : '';
+};
+
 // What a department calls its own numbers.
 //
 // Windowing counts panes and foil stamping counts impressions. A plant reading "sheets"
@@ -784,6 +810,7 @@ export function listCard({ pkey, icon, label, tone, rows, empty = 'Nothing to re
     <div class="card__head">
       <span class="card__ico" aria-hidden="true">${icon || iconFor(pkey)}</span>
       <span class="card__label">${esc(label)}</span>
+      ${verdictMark(tone)}
     </div>
     <div class="card__body">
       <div class="card__mid">${shown.length
@@ -827,6 +854,7 @@ export function noteCard({ pkey, icon, label, text, html, tone = '', blank,
     <div class="card__head">
       <span class="card__ico" aria-hidden="true">${icon || iconFor(pkey)}</span>
       <span class="card__label">${esc(label)}</span>
+      ${verdictMark(tone)}
     </div>
     <div class="card__body">
       <div class="card__mid">${html || `<p class="cnote${text ? '' : ' cnote--none'}">${
@@ -865,6 +893,7 @@ export function metricCard({ chart, pkey, icon, label, tone, value, unit, percen
     <div class="card__head">
       <span class="card__ico" aria-hidden="true">${icon || iconFor(pkey)}</span>
       <span class="card__label">${esc(label)}</span>
+      ${verdictMark(tone)}
     </div>
     <div class="card__body">
       <div class="card__flag">${flag || ''}</div>
