@@ -14,8 +14,8 @@ import {
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=16386ee987e7';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=16386ee987e7';
+} from '../db.js?v=273321fafa49';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=273321fafa49';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
@@ -24,7 +24,7 @@ import {
   varianceChip, varianceTone, variancePct, VERDICT, verdictMark,
   FROM_FILE, SOURCE_NAMES, sourceOf,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE, WALK, morningToday,
-} from '../readings.js?v=16386ee987e7';
+} from '../readings.js?v=273321fafa49';
 
 const $ = selector => document.querySelector(selector);
 
@@ -2129,7 +2129,7 @@ const SECTIONS = {
     // "Budget", not "plan". The plant writes a budget; prorating it by elapsed days does
     // not make it a different thing, and two words for one number is one word too many.
     const pane = (key, title, actual, budget, tone, variance, percent, budgetRow,
-                  seriesField) => {
+                  seriesField, expected) => {
       const pace = budget ? Math.round(actual / budget * 100) : 0;
       return metricCard({
         chart: 'number', pkey: key, label: title, tone, medium: true,
@@ -2138,7 +2138,10 @@ const SECTIONS = {
         // Medium, like the other five-figure readings on the product. "$21.11M" at the size
         // that suits "98" is the widest thing on any card, and the width it took came out of
         // the graph underneath.
-        value: money(actual), sub: `${pace}% of budget`,
+        // "of budget" was wrong on a running month: `budget` here is the share of it
+        // expected by today, not the whole month's. On a closed month the two are the same
+        // and the word does no harm; on the twelfth of August they are not.
+        value: money(actual), sub: `${pace}% of expected`,
         heroEdit: { field: key === 'fin-mtd' ? 'fin_actual_mtd' : 'fin_actual_ytd',
                     attrs: `type="number" step="0.01" value="${
                       metric(key === 'fin-mtd' ? 'fin_actual_mtd' : 'fin_actual_ytd') ?? ''}"` },
@@ -2162,11 +2165,21 @@ const SECTIONS = {
           // good Thursday — which is the difference between a forecast and a relief.
           deltaTone: tone, series: metricSeries(seriesField),
         }),
+        // Budget, what was expected by today, what was actually done against it, and the
+        // percentage. Four facts, which is what the plant's own dashboard has carried for
+        // months and what this card was missing: it showed the budget and the variance and
+        // left the reader to work out the number in between. "We are $136K behind" is not a
+        // sentence anybody can say from "$3.03M" and "12.6%" — the expected figure is the
+        // one that makes the other two mean something.
+        // Three facts, not four. The budget, what was expected by today, and how far off
+        // that we are in money — which is the number somebody says out loud. A fourth cell
+        // for the percentage would have taken a fifth off the size of all of them, and the
+        // percentage is already the line under the figure.
         foot: footLine([
           budgetRow,
-          ['Moved', `<span class="tone--${tone || 'none'}">${
+          ['Expected', money(expected)],
+          ['Variance', `<span class="tone--${tone || 'none'}">${
             esc(`${variance >= 0 ? '+' : '\u2212'}${money(Math.abs(variance))}`)}</span>`],
-          ['Variance', chip(varianceTone(percent), variancePct(percent))],
         ]),
       });
     };
@@ -2181,9 +2194,9 @@ const SECTIONS = {
             down against a truncation no amount of shrinking could cure, and took the figure
             with it. The card's own title already says which month it is. */''}
       ${pane('fin-mtd', mtdTitle, actualMtd, planMtd, toneMtd,
-        varianceMtd, percentMtd, ['Budget', money(monthBudget)], 'fin_actual_mtd')}
+        varianceMtd, percentMtd, ['Budget', money(monthBudget)], 'fin_actual_mtd', planMtd)}
       ${pane('fin-ytd', 'Year to date', actualYtd, planYtd, toneYtd,
-        varianceYtd, percentYtd, ['Budget', money(yearBudget)], 'fin_actual_ytd')}
+        varianceYtd, percentYtd, ['Budget', money(yearBudget)], 'fin_actual_ytd', planYtd)}
     </div>`;
   },
 };

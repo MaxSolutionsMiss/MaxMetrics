@@ -376,6 +376,18 @@ body:not(.tv) .grid--cards{grid-auto-rows:minmax(var(--row-h,10rem),auto)}
    needs the top and the bottom to line up. It gives up the width on a narrow screen rather
    than pushing the grid sideways. */
 .card--wide{grid-column:span 2}
+/* Money gets half the row each.
+
+   There are two financial cards and they carry four facts apiece — the figure, the budget,
+   what was expected by today, and the gap. At a third of a row that is "$2.94M" over
+   "BUDGET EXPEC… VARIA…", which is the card truncating the words that make the number mean
+   something. Two to a row and nothing is abbreviated, and the reading the room asks about
+   most stops being the smallest thing on the screen.
+
+   Not `card--wide`: two cards each spanning two of three columns wrap, and on a four-column
+   screen they would leave a hole. Two columns for this grid says what is meant. */
+.grid--cards[data-grid="financials"]{grid-template-columns:repeat(2,minmax(0,1fr))}
+body.tv .grid--cards[data-grid="financials"]{grid-template-columns:none}
 /* Twice the height, so it stands beside two rows of department cards rather than one.
 
    `--row-h` is what `levelRows()` measures every card against, so two of them plus the gap
@@ -1153,20 +1165,33 @@ body.no-trends .ctrack__ser,body.no-trends .ctrack__yr{display:none}
    the two, so it is .62em of whatever the cell settles on and the question cannot arise.
 
    .62 is the ratio the page has always drawn — 11.5 over 19 — kept exactly. */
-.card .fs{font-size:min(calc(8.9*var(--u)),calc(182cqi/var(--fc,4)))}
+/* A fifth larger on the page, and not on the wall.
+
+   The foot is settled by the same expression at every size, and the room's report is that the
+   two are not equally right: on a wall it reads, and on a laptop showing every section at
+   once — where the cards are at their smallest and there are forty of them — "TARGET/HR
+   3,050" and "CLOSED as at 31 July" are the smallest type on the screen and the first thing
+   somebody leans in for.
+
+   So the page takes a fifth more and present mode takes what it had. One factor rather than a
+   second set of sizes, because the reason the foot went wrong in the first place was two
+   parallel sets of numbers for the same thing. */
+:root{--foot-up:1.2}
+body.tv{--foot-up:1}
+.card .fs{font-size:calc(min(calc(8.9*var(--u)),calc(182cqi/var(--fc,4)))*var(--foot-up))}
 .card .fs__v{font-size:1em}
 .card .fs__l{font-size:.62em}
-.card .foot--2 .fs{font-size:min(calc(8.9*var(--u)),calc(90cqi/var(--fc,4)))}
+.card .foot--2 .fs{font-size:calc(min(calc(8.9*var(--u)),calc(90cqi/var(--fc,4)))*var(--foot-up))}
 /* Three facts on one line are three thirds of a card's width, and at the scale a two-part
    foot uses they crowd each other. Target, against target and the hours are all context —
    the reading is above them — so the three-part row takes a tenth off. */
-.card .foot--3 .fs{font-size:min(calc(8*var(--u)),calc(57cqi/var(--fc,4)))}
-.card .foot--4 .fs{font-size:min(calc(8.9*var(--u)),calc(41cqi/var(--fc,4)))}
+.card .foot--3 .fs{font-size:calc(min(calc(8*var(--u)),calc(57cqi/var(--fc,4)))*var(--foot-up))}
+.card .foot--4 .fs{font-size:calc(min(calc(8.9*var(--u)),calc(41cqi/var(--fc,4)))*var(--foot-up))}
 /* One fact, two lines, like every other foot — the gap that used to separate a label from
    its value on one line would now separate two lines and put this card's rule above the
    next card's. */
 .card .foot--1 .fs{gap:0}
-.card .foot--1 .fs{font-size:min(calc(8.9*var(--u)),calc(128cqi/var(--fc,4)))}
+.card .foot--1 .fs{font-size:calc(min(calc(8.9*var(--u)),calc(128cqi/var(--fc,4)))*var(--foot-up))}
 
 /* The rule is a rule, not a verdict. */
 .fstat{display:flex;flex-direction:column;gap:1px;min-width:0}
