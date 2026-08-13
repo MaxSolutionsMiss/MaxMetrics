@@ -593,8 +593,23 @@ export const footLine = pairs => {
   // rows, which is what the fixed line-boxes were put in to prevent and what capping each
   // value by its own length would bring straight back.
   const widest = Math.max(6, ...shown.map(([label]) => chars(label)));
-  const longest = Math.max(4, ...shown.map(([, value]) => chars(value ?? '—')));
-  return `<div class="foot foot--${shown.length}" style="--lc:${widest};--fc:${longest}">${
+  // And how much the row holds altogether, which is the number that actually decides how
+  // large it can be drawn.
+  //
+  // The cap used to be "the longest value must fit a share of the card", which is the same
+  // number only while the values are about the same length. They are not on the money card:
+  // "▼ −5.4% (−$63K)" is fifteen characters beside "$3.03M" and "$1.17M", and requiring the
+  // long one to fit a third drew all three at a third of the size the row had room for — a
+  // foot whose figures came out smaller than their own captions. The columns are `auto`, so
+  // the long cell already takes more of the row than the short ones; what has to fit is the
+  // sum.
+  //
+  // One size still, for the same reason as before: three values at three sizes is a row that
+  // reads as three rows. This changes what the one size is worked out from, not that there is
+  // one of it.
+  const across = Math.max(8,
+    shown.reduce((total, [, value]) => total + chars(value ?? '—'), 0));
+  return `<div class="foot foot--${shown.length}" style="--lc:${widest};--fcs:${across}">${
     shown.map(([label, value, edit]) =>
     `<span class="fs${quiet(label) ? ' fs--quiet' : ''}"><span class="fs__l">${esc(label)}</span>` +
     `<span class="fs__v">${
@@ -846,6 +861,13 @@ let hidden = new Set();
 // list" would keep meaning "off" for those three for ever.
 export const DEFAULT_OFF = CARD_CATALOGUE.filter(c => c.off).map(c => c.key);
 export const hideCards = keys => { hidden = new Set(keys ?? DEFAULT_OFF); };
+// The same question, asked from outside.
+//
+// A card that is off is off everywhere, and the entry screen is a place it was still on:
+// Shipping's cards showed four percentages and Shipping's entry screen asked for six,
+// because the two rollups the plant had switched off still had a row apiece. A figure with
+// nowhere to be shown is a figure nobody should be asked to key.
+export const cardOn = key => !hidden.has(key);
 
 // How wide the number is about to be, in characters, so the card can cap its own type.
 //
