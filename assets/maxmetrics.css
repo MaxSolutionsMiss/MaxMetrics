@@ -911,6 +911,25 @@ body.no-trends .ctrack__ser,body.no-trends .ctrack__yr{display:none}
 /* The pictogram leads the title rather than accompanying it, at about a fifth again its
    height — enough to be the thing the eye lands on, not enough to be the thing it reads. */
 .card .card__head>.card__ico{font-size:1.2em}
+/* The verdict, as a shape, at the far end of the title bar.
+
+   Same size and same place on every card, so a row of eight can be read across before any of
+   the numbers are. Two thirds of the title's size and slightly transparent: it is a second
+   reading of something the colour has already said, and it must not compete with the words
+   beside it. */
+.card__head>.vmark{flex:none;font-size:.66em;line-height:1;opacity:.85}
+/* Where the reading came from: a grid for a workbook, a pencil for a person.
+
+   The quietest thing on the bar, on purpose. The question it answers — "is that the file or
+   a typo?" — is asked once, by one person, after a number has already surprised the room. It
+   has to be findable then and invisible the rest of the time. It takes the free space so the
+   two marks sit together as one small block rather than as clutter at both ends. */
+.card__head>.smark{margin-left:auto;flex:none;display:flex;align-items:center;opacity:.45}
+.card__head>.smark+.vmark{margin-left:.45em}
+.card__head>.smark svg{width:.62em;height:.62em;fill:none;stroke:currentColor;
+  stroke-width:1.9;stroke-linejoin:round;stroke-linecap:round}
+
+
 /* The flag row is reserved so a card that has one and a card that does not start their
    readings on the same line — but only on a screen where something is actually flagged.
    Reserved unconditionally it was thirty pixels of nothing at the top of every card on
@@ -2736,3 +2755,45 @@ body.tv.tv-brief .wall__dots{display:none}
 .wall--brief [data-fam="financials"]{--fam:var(--fam-financials)}
 .wall--brief [data-fam="maintenance"]{--fam:var(--fam-maintenance)}
 .wall--brief [data-fam="labour"]{--fam:var(--fam-labour)}
+
+/* ── A phone held in one hand ────────────────────────────────────────────────────
+   `--tap` has been declared at 44px since the first commit and used by nothing. Every
+   control on this product is 36px or less, and the two smallest — the pencil and the cross
+   beside a comment — are about thirteen, sitting a few pixels apart at the end of a line of
+   text. On a desk that is fine. On a phone, on a shop floor, held in one hand by somebody
+   who has just walked away from a press, it is a coin toss between changing a line and
+   deleting it.
+
+   So on a phone the controls take the tap size: every button and every field is 44, and the
+   two inline marks get a 40px hit area without growing on screen — the target is the padding
+   they sit in, not the glyph, which stays small because a large pencil beside a sentence is
+   noise.
+
+   The Save that ends a section sticks to the bottom of the window, because on a phone it is
+   otherwise below whatever the person is typing and reached by scrolling past their own
+   work. */
+@media(max-width:760px){
+  :root{--ctl-h:var(--tap)}
+  .inp{height:var(--tap);font-size:16px}
+  /* The table-cell field is 28px by design on a desk, where it sits in a row of them. On a
+     phone those rows are one column anyway, so there is nothing for it to line up with and
+     no reason for it to be the smallest target on the screen. */
+  .inp--cell{height:var(--tap);max-width:100%;font-size:16px}
+  /* Same for the total under a production figure, which is card-sized and so escapes the
+     rule above by being more specific than it. */
+  .card .inp--total{height:var(--tap);font-size:16px}
+  textarea.inp{height:auto;min-height:calc(var(--tap)*1.6);font-size:16px}
+  .jot__b{min-width:40px;min-height:40px;justify-content:center;display:inline-flex;
+    align-items:center;opacity:1}
+  .jot li{align-items:center;padding:var(--s1) var(--s2)}
+  .jot__do>.btn{height:var(--tap)}
+  .fill__go{position:sticky;bottom:0;z-index:5;padding:var(--s3) 0;
+    background:linear-gradient(to top,var(--ground) 72%,transparent);
+    display:flex;gap:var(--s2)}
+  .fill__go .btn{flex:1 1 auto;height:var(--tap);justify-content:center}
+  /* One field to a row. A label above its box already gives the box the width; on a phone
+     the pair below it must not try to share the line. */
+  .er--pair{grid-template-columns:1fr}
+  .er.er--jot{grid-template-columns:1fr;grid-template-areas:"lbl" "box" "do"}
+  .jot__do{flex-direction:row;justify-content:flex-end}
+}

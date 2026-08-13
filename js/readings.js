@@ -46,6 +46,49 @@ export const band = {
   worst: list => list.includes('stop') ? 'stop' : list.includes('warn') ? 'warn' : 'ok',
 };
 
+// Which file a reading arrives in, and what to call it.
+//
+// This lived on the dashboard, where only the entry screen used it. It belongs here, with
+// the other things that are true of a reading rather than of a screen, because the cards
+// need it too: a number that came out of a workbook and a number somebody typed look exactly
+// alike on a card, and when one of them is wrong the meeting stops to work out which kind it
+// is before it can work out what to do. That is a question the product can answer in a mark.
+export const FROM_FILE = {
+  DOR: ['qty', 'hours', 'uptime', 'make_ready', 'mr_count', 'pw_qty', 'pw_hours'],
+  KPI: ['coq', 'coq_ytd', 'coq_target', 'coq_ytd_target', 'ncr_today', 'ncr_mtd', 'ncr_ytd',
+        'complaints_internal_today', 'complaints_internal_mtd', 'complaints_internal',
+        'complaints_external_today', 'complaints_external_mtd', 'complaints_external',
+        'mtd_otif', 'ytd_otif', 'mtd_otd', 'ytd_otd', 'fin_actual_mtd', 'fin_actual_ytd'],
+  OTIF: ['jobs_shipped', 'jobs_on_time', 'late', 'shorts'],
+};
+export const SOURCE_NAMES = { DOR: 'DOR', OTIF: 'OTIF sheet', KPI: 'KPI workbook' };
+// `dept:printing:qty` is a `qty`. The prefix names the table, not the reading.
+export const sourceOf = name => {
+  const field = String(name ?? '').split(':').pop();
+  return Object.keys(FROM_FILE).find(file => FROM_FILE[file].includes(field)) || '';
+};
+
+// Where a reading came from, as a mark on the card.
+//
+// Two marks, and the absence of one is not a third: a grid for a reading a workbook
+// supplied, a pencil for one a person typed. Every card gets one or the other, because
+// "nothing here" would be the same thing the product said before and the whole point is that
+// a reader should not have to know which cards are which.
+//
+// It does not claim the figure has not been corrected since. Distinguishing "pulled" from
+// "pulled and then typed over" needs the import to mark its own writes, which it does not do
+// yet — so this says what kind of reading it is, which is the question asked first and the
+// one that decides who to turn to in the room.
+export const sourceMark = field => {
+  const file = sourceOf(field);
+  const said = file ? `Comes from the ${SOURCE_NAMES[file] || file}` : 'Entered by hand';
+  const glyph = file
+    ? '<path d="M4 4.5h16v15H4zM4 9.5h16M4 14.5h16M9.5 4.5v15M14.5 4.5v15"/>'
+    : '<path d="M4 20h4L19.5 8.5a2.1 2.1 0 10-3-3L5 17z"/>';
+  return `<span class="smark${file ? '' : ' smark--typed'}" role="img"
+    aria-label="${said}" title="${said}"><svg viewBox="0 0 24 24">${glyph}</svg></span>`;
+};
+
 // The verdict said without using colour.
 //
 // Green, amber and red are the whole of what this product has ever said about a reading, and
@@ -893,7 +936,7 @@ export function metricCard({ chart, pkey, icon, label, tone, value, unit, percen
     <div class="card__head">
       <span class="card__ico" aria-hidden="true">${icon || iconFor(pkey)}</span>
       <span class="card__label">${esc(label)}</span>
-      ${verdictMark(tone)}
+      ${sourceMark(heroEdit?.field || total?.edit?.field)}${verdictMark(tone)}
     </div>
     <div class="card__body">
       <div class="card__flag">${flag || ''}</div>
