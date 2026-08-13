@@ -14,16 +14,16 @@ import {
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=7e385a6cac71';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=7e385a6cac71';
+} from '../db.js?v=922bfc04e2d0';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=922bfc04e2d0';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
   spark, bullet, chip, cardTrack, readingOf, derivedShipping, otifTarget, otdTarget,
   isNa, isMissing,
-  varianceChip, varianceTone, variancePct,
+  varianceChip, varianceTone, variancePct, VERDICT, verdictMark,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE, WALK, morningToday,
-} from '../readings.js?v=7e385a6cac71';
+} from '../readings.js?v=922bfc04e2d0';
 
 const $ = selector => document.querySelector(selector);
 
@@ -1041,6 +1041,40 @@ const clockAt = when =>
   when.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).toLowerCase();
 const dayAt = when => `${when.getDate()} ${MONTHS[when.getMonth()].slice(0, 3)}`;
 
+// How old a file is, once, so nothing on the product can disagree about it.
+//
+// `sourceStrip` had this arithmetic inside it and rendered on the two entry screens and
+// nowhere else — so the freshness of the morning was visible only to the person filling it
+// in, and never to the fifteen people reading it off a wall. That is the wrong way round:
+// the coordinator knows when they pulled, and the room does not.
+function sourceAge(key) {
+  const seen = state.metrics?.source_seen || {};
+  const stamp = seen[key.toLowerCase()] || seen[key];
+  const when = stamp ? new Date(stamp) : null;
+  if (!when || Number.isNaN(+when)) return { mark: '·', said: 'no pull yet', tone: 'gap' };
+  const days = daysBetween(when.toISOString().slice(0, 10), state.date);
+  if (days <= 0) return { mark: '✓', said: clockAt(when), tone: 'ok', when };
+  if (days === 1) return { mark: '✓', said: `yesterday ${clockAt(when)}`, tone: '', when };
+  return { mark: '!', said: `${dayAt(when)} · ${days} days ago`, tone: 'warn', when, stale: true };
+}
+
+// Which file a section's readings come from. Safety, Labour and the comment sections are not
+// here because nothing fetches them — they are typed, and "no file" is the true answer
+// rather than a gap.
+const SECTION_SOURCE = {
+  quality: 'KPI', production: 'DOR', week: 'DOR', shipping: 'OTIF', financials: 'KPI',
+};
+
+// Said on the section's own heading, and on the wall above it.
+function freshLine(key) {
+  const file = SECTION_SOURCE[key];
+  if (!file) return '';
+  const age = sourceAge(file);
+  return `<span class="fresh fresh--${age.tone || 'old'}" title="${
+    esc(SOURCE_NAMES[file] || file)} last arrived ${esc(age.said)}"><b>${
+    esc(SOURCE_NAMES[file] || file)}</b> ${esc(age.said)}</span>`;
+}
+
 function sourceStrip() {
   const seen = state.metrics?.source_seen || {};
   // A mark and a time, because that is the question being asked: did it come in, and when.
@@ -2036,11 +2070,15 @@ const SECTIONS = {
 // ── Drawing the page ────────────────────────────────────────────────────────────
 
 function renderNav() {
+  // The dot in the rail is the same verdict as the card, and it was the same colour and
+  // nothing else. It carries the mark now, so the rail reads at a glance without relying on
+  // anybody being able to separate green from amber at nine pixels.
   const link = (key, label, icon, dot) => `<button class="rail__link" data-nav="${key}"
-    aria-current="${state.active === key}" title="${esc(label)}">
+    aria-current="${state.active === key}"
+    title="${esc(label)}${VERDICT[dot] ? ` \u2014 ${VERDICT[dot].word}` : ''}">
     <svg class="rail__ico" viewBox="0 0 24 24"><path d="${icon}"/></svg>
     <span class="rail__txt">${esc(label)}</span>
-    <span class="rail__dot rail__dot--${dot}"></span></button>`;
+    <span class="rail__dot rail__dot--${dot}">${VERDICT[dot]?.mark ?? ''}</span></button>`;
   const worstOfAll = band.worst(attention(state.findings).map(f => f.tone));
   $('#nav').innerHTML =
     VIEWS.map(key => link(key, NAV[key], ICONS[key],
@@ -2233,6 +2271,7 @@ const one = (key, solo = false) => {
   const fillable = solo && state.canEdit && !!FILL_FOR[key];
   return `<section class="sec"><div class="sec__head">
     <h2 class="sec__title">${TITLES[key]}</h2>
+    ${freshLine(key)}
     ${fillable ? modeSwitch() : ''}<div class="sec__rule"></div></div>
     ${state.filling && fillable ? sectionFill(key) : SECTIONS[key]()}</section>`;
 };
@@ -2930,6 +2969,7 @@ function renderWall() {
     <div class="wall__top">
       <h2>${esc((page.keys || [page.key]).map(k => TITLES[k] || k).join(' · '))} · ${
         esc(state.locations.find(l => l.id === state.location)?.name || '')}</h2>
+      ${(page.keys || [page.key]).map(freshLine).filter(Boolean).join('')}
       <span class="wall__date">${$('#date-long').textContent}</span>
     </div>
     <section class="sec">
@@ -2958,7 +2998,69 @@ let savedTimer;
 function noteSaved() {
   saved('Saving…');
   clearTimeout(savedTimer);
-  savedTimer = setTimeout(() => saved('All changes saved'), 700);
+  savedTimer = setTimeout(() => saved(unsent.size ? holdingText() : 'All changes saved'), 700);
+}
+
+// ── Writes that did not land ────────────────────────────────────────────────────
+//
+// A save used to fail like this: the error was caught, its message was put into the small
+// grey line at the top of the page, and that was the whole of it. The value stayed in local
+// state, so the person who typed it went on seeing their own number; the amber bar had
+// already come off the box when they left it; and the wall — reading from the database —
+// went on showing the old one. Two screens, two numbers, and the only notice was a line of
+// text next to the date that nobody looks at twice.
+//
+// That is the most dangerous shape a bug can take on this product. Everything else here is
+// about a number being wrong; this is about a number being wrong *and looking right to the
+// person who would have caught it*.
+//
+// So a write that fails is held, not dropped. It keeps its field marked, it is retried, and
+// while anything is outstanding the page says so in a place that cannot be scrolled past and
+// Present will not open. The morning cannot be published either — publishing a morning with
+// an unsent write in it is publishing a screen that does not match its own database.
+const unsent = new Map();
+const holdingText = () => `${unsent.size} change${unsent.size === 1 ? '' : 's'} not saved`;
+
+function markUnsent(name, value, why) {
+  unsent.set(name, { name, value, why });
+  paintUnsent();
+}
+function clearUnsent(name) {
+  if (unsent.delete(name)) paintUnsent();
+}
+
+// The banner, the marks on the fields, and the two doors that stay shut.
+function paintUnsent() {
+  const bar = $('#unsent');
+  if (bar) {
+    bar.classList.toggle('hide', unsent.size === 0);
+    const one = [...unsent.values()][0];
+    bar.querySelector('.unsent__t').textContent = unsent.size === 1
+      ? `1 change has not been saved — ${one.why}`
+      : `${unsent.size} changes have not been saved — ${one.why}`;
+  }
+  saved(unsent.size ? holdingText() : 'All changes saved');
+  $('#saved').classList.toggle('saved--bad', unsent.size > 0);
+  // A field that did not save keeps its mark until it does. `.inp--held` is the amber bar a
+  // box wears while it is being typed in; this is the red one it wears when the write failed,
+  // and unlike the amber one nothing takes it off but a successful write.
+  for (const box of document.querySelectorAll('[data-field]')) {
+    box.classList.toggle('inp--lost', unsent.has(box.dataset.field));
+  }
+  // Present mode and publishing are both statements that the morning is ready to be believed.
+  $('#tv-btn')?.toggleAttribute('disabled', unsent.size > 0);
+}
+
+// Try again, quietly, and keep trying. A dropped connection at half past seven comes back;
+// what must not happen is the coordinator having to notice and retype.
+let retryTimer;
+function retrySoon() {
+  clearTimeout(retryTimer);
+  if (!unsent.size) return;
+  retryTimer = setTimeout(async () => {
+    for (const held of [...unsent.values()]) await persist(held.name, held.value);
+    retrySoon();
+  }, 6000);
 }
 
 const parse = (element, raw) => {
@@ -2976,7 +3078,7 @@ async function persist(name, value) {
     else if (kind === 'labour') await saveLabour(state.location, state.date, first, { [second]: value });
     else if (kind === 'review') await saveReview(state.location, state.date, first, { [second]: value });
     else if (kind === 'budget') await saveBudget(state.location, dateOf(state.date).getFullYear(), Number(first), value ?? 0);
-    else await saveField(state.location, state.date, name, value);
+    else await saveField(state.location, state.date, name, value, beganAt(name));
     if (['jobs_shipped', 'late', 'shorts'].includes(name)) {
       const derived = derivedShipping(state.metrics);
       // A morning with nought jobs shipped has no percentage to store. The columns are
@@ -2990,10 +3092,49 @@ async function persist(name, value) {
         await saveField(state.location, state.date, 'otif', write.otif);
       }
     }
+    clearUnsent(name);
+    startedFrom.delete(name);
     noteSaved();
     recordEdit(state.location, state.date, name, value);
   } catch (error) {
-    saved(error.message);
+    // Somebody else moved this reading while it was being typed.
+    //
+    // Asked rather than resolved, because there is no rule that gets this right: the
+    // coordinator reading the DOR and the manager reading the sheet in their hand are both
+    // entitled to the number, and which is correct is a fact about the plant that the page
+    // does not have. Both values are put in the question, because "there is a conflict" is
+    // not a thing anybody can answer.
+    const clash = error.cause?.conflict ?? error.conflict;
+    if (clash) {
+      // The field's own name, said the way the screen says it, and a blank said as blank.
+      const label = String(name).replace(/_/g, ' ').replace(/\bmtd\b/, 'month to date')
+        .replace(/\bytd\b/, 'year to date').replace(/^./, c => c.toUpperCase());
+      const shown = value => (value === null || value === '' ? 'nothing'
+        : Number.isFinite(Number(value)) ? num(value) : String(value));
+      const keepMine = confirm(
+        `${label} \u2014 somebody else saved ${shown(clash.theirs)} while you were editing.`
+        + `\n\nYours is ${shown(clash.mine)}.`
+        + `\n\nOK replaces theirs with yours. Cancel keeps theirs.`);
+      startedFrom.delete(name);
+      if (keepMine) {
+        // Written without a guard this time: the question has been asked and answered.
+        try {
+          await saveField(state.location, state.date, name, value);
+          clearUnsent(name);
+          noteSaved();
+          recordEdit(state.location, state.date, name, value);
+        } catch (again) { markUnsent(name, value, again.message); retrySoon(); }
+      } else {
+        applyLocally(name, clash.theirs);
+        clearUnsent(name);
+        render();
+      }
+      return;
+    }
+    // Held rather than lost. The number stays on the screen — it is the person's own and
+    // they are right about it — and the page stops claiming it has been written down.
+    markUnsent(name, value, error.message || 'the network did not answer');
+    retrySoon();
   }
 }
 
@@ -3126,6 +3267,20 @@ document.addEventListener('change', event => {
   redrawKeepingCaret();
 });
 
+// What a field held when somebody started changing it.
+//
+// Recorded on focus, before the first keystroke, because that is the value the person is
+// deciding against — "it says 13,500 and it should be 53,460". It is what the write is
+// matched on, so a reading somebody else moved in the meantime is caught rather than
+// silently replaced. Cleared as soon as the write lands.
+const startedFrom = new Map();
+const beganAt = name => startedFrom.has(name) ? startedFrom.get(name) : undefined;
+
+document.addEventListener('focusin', event => {
+  const name = event.target?.dataset?.field;
+  if (name && !startedFrom.has(name)) startedFrom.set(name, readingOf(state.metrics, name) ?? null);
+});
+
 // Announcing where you are is a presence write only — it never touches the database.
 document.addEventListener('focusin', event => {
   const card = event.target.closest?.('[data-pkey]');
@@ -3237,8 +3392,8 @@ $('#edit-btn').addEventListener('click', () => {
   // Showing the fields is a personal view. It claims nothing and blocks nobody.
   const on = document.body.classList.toggle('editing');
   $('#edit-btn').textContent = on ? 'Done editing' : 'Edit mode';
-  // Leaving edit mode is finishing. See `goUp()`.
-  if (!on) goUp();
+  // Leaving edit mode is a person saying they have finished. See `goUp()`.
+  if (!on) goUp({ finished: true });
   paintPresence();
 });
 
@@ -3315,7 +3470,7 @@ document.addEventListener('click', async event => {
     tidy.disabled = true;
     tidy.textContent = 'Cleaning\u2026';
     try {
-      const answer = await tidyText(said);
+      const answer = await tidyText(said, state.location);
       if (answer.unavailable) {
         // No key at this plant. Take every Clean up button off the screen rather than leaving
         // one that cannot work — without a render, so nobody loses what they were typing.
@@ -3485,12 +3640,50 @@ document.addEventListener('click', event => {
 // the day is always incomplete, so the prompt would fire on a morning nobody had claimed was
 // finished. What was outstanding is still recorded against the publication, and the summary
 // screen has said how many readings are missing all along.
-async function goUp() {
-  if (!state.canEdit || !state.location || state.metrics?.status === 'published') return;
+async function goUp({ finished = false } = {}) {
+  if (!state.canEdit || !state.location) return;
+  // Publishing a morning that has a write still in the air puts a screen up that does not
+  // match its own database.
+  if (unsent.size) { toast(`${holdingText()}. The morning is not published yet.`); return; }
+
+  const gaps = absent(state.findings).length;
+  const already = state.metrics?.status === 'published';
+
+  // When the revision is cut, and why it is not cut on the first Save.
+  //
+  // Removing the Publish button was right and the first version of it published on the first
+  // section save, which was not. Somebody opens Enter at twenty past seven, fills in Safety,
+  // presses Save — and that became the permanent record of the morning: two safety readings
+  // and eight empty sections, stamped 07:21, with everything typed afterwards changing the
+  // live screen and none of it changing the thing in the publications table. The snapshot was
+  // of the moment the work started rather than the moment it finished.
+  //
+  // Three things count as finishing, and nothing else publishes:
+  //
+  //   · saving a section when there is nothing left to fill in anywhere;
+  //   · pressing Done editing, which is a person saying so in as many words;
+  //   · opening Present, because putting it on the wall is the strongest claim there is.
+  //
+  // Saving a half-filled morning simply saves it. The readings are in the database either
+  // way — publishing is not what makes them safe, it is what says the morning is finished —
+  // and the summary screen has always shown how many are still missing.
+  if (!already && !finished && gaps) return;
+
+  // A correction after the morning went up cuts a new revision rather than editing the old
+  // one. `publish_morning` numbers them, so the record is "this is what the room saw, and
+  // this is what we knew by nine" rather than one row quietly rewritten.
+  if (already && !finished) return;
+
   try {
-    await publish(state.location, state.date, { incomplete: absent(state.findings).length > 0 });
+    await publish(state.location, state.date, { incomplete: gaps > 0 });
+    const first = !already;
     if (state.metrics) state.metrics.status = 'published';
     renderHeader();
+    if (first) {
+      toast(gaps ? `Published with ${gaps} still to fill in.` : 'Published — every screen shows this now.');
+    } else {
+      toast('Correction published.');
+    }
   } catch (error) { toast(error.message); }
 }
 
@@ -3568,7 +3761,27 @@ function rotate(on) {
   $('#tv-play').setAttribute('aria-label', on ? 'Pause rotation' : 'Rotate every 18 seconds');
 }
 
+$('#unsent-retry').addEventListener('click', async () => {
+  saved('Saving…');
+  for (const held of [...unsent.values()]) await persist(held.name, held.value);
+});
+
+// A dropped connection usually comes back before anybody notices. When the browser says the
+// network is here again, the held writes go without waiting for the six-second timer.
+globalThis.addEventListener('online', () => {
+  if (unsent.size) $('#unsent-retry').click();
+});
+
 $('#tv-btn').addEventListener('click', () => {
+  // Present is a statement that the morning is ready to be believed by twenty people at
+  // once. It is not, while something on it has not reached the database.
+  if (unsent.size) {
+    toast(`${holdingText()}. Save them before presenting.`);
+    return;
+  }
+  // Putting the morning on the wall is the strongest claim anybody makes about it, so it is
+  // also the last moment it can be recorded as what the room was shown.
+  goUp({ finished: true });
   document.body.classList.add('tv');
   state.wallStep = 0;
   paintMode();
@@ -4222,6 +4435,14 @@ async function pullNow() {
     const pulled = await pullSources(state.location, state.date);
     const got = (pulled.sources || []).filter(s => s.ok && s.url);
     const failed = (pulled.sources || []).filter(s => !s.ok);
+    // A workbook that was delivered for some other morning is a failure with a date on it,
+    // and it is said out loud rather than folded into "nothing could be fetched". The flow
+    // that stopped running last Friday is exactly the thing this sentence has to name.
+    const stale = failed.filter(s => s.stale);
+    if (stale.length) {
+      toast(`${stale.map(s => s.name).join(', ')}: not delivered for this morning \u2014 `
+        + `${stale[0].note.replace(/^stale \u2014 /, '')}`);
+    }
     if (!got.length) {
       toast(failed[0] ? `${failed[0].name}: ${failed[0].note}` : 'Nothing could be fetched.');
       return;

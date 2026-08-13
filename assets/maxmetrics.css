@@ -194,9 +194,17 @@ html[data-rail="mini"]{--rail-w:62px}
 .rail__ico{width:19px;height:19px;flex:none;stroke:currentColor;fill:none;stroke-width:1.7;
   stroke-linecap:round;stroke-linejoin:round}
 .rail__txt{flex:1;min-width:0;white-space:nowrap;overflow:hidden}
-.rail__dot{width:7px;height:7px;border-radius:50%;flex:none}
-.rail__dot--ok{background:#4FBF85}.rail__dot--warn{background:#E09A42}.rail__dot--stop{background:#F0736A}
-.rail__dot--none{background:currentColor;opacity:.3}
+/* The same mark the cards carry, at the size the dot used to be.
+
+   The dot was a colour and nothing else, which made the rail the least readable thing on the
+   page for anybody who cannot separate green from amber — and the rail is what people use to
+   decide which section to open. The shape is drawn in the dot's own colour on nothing, rather
+   than in white on a disc: at nine pixels a filled disc with a glyph knocked out of it is a
+   smudge, and the shape on its own is not. */
+.rail__dot{flex:none;display:flex;align-items:center;justify-content:center;
+  width:11px;height:11px;font-size:11px;line-height:1;background:none}
+.rail__dot--ok{color:#4FBF85}.rail__dot--warn{color:#E09A42}.rail__dot--stop{color:#F0736A}
+.rail__dot--none{color:currentColor;opacity:.28}
 /* Plant, person, sign out — three lines, in that order.
    These were laid out as one nowrap line under `overflow:hidden`, so the name pushed the
    button off the edge and it was clipped away: the only way out of MaxMetrics was invisible
@@ -298,6 +306,20 @@ body.tv .sec__head::before{content:"";flex:1;height:1.5px;background:var(--rule)
 .sec__title{font-size:var(--t-title);font-weight:600;letter-spacing:-.015em;
   color:var(--ink);margin:0;white-space:nowrap;text-transform:none}
 .sec__rule{flex:1;height:1.5px;background:var(--rule)}
+/* Which file this section came out of, and when it arrived.
+
+   It lived on the entry screens and nowhere else, which meant the freshness of the morning
+   was known to the one person who did not need telling and hidden from the fifteen reading
+   it off a wall. Quiet where the answer is "this morning", because that is the ordinary
+   case and an ordinary case does not need a colour; amber and stated plainly when the file
+   is older than the morning it is being read as. */
+.fresh{flex:none;font-size:var(--t-micro);color:var(--ink-faint);white-space:nowrap}
+.fresh b{font-weight:700;color:var(--ink-muted)}
+.fresh--warn,.fresh--warn b{color:var(--warn)}
+.fresh--gap,.fresh--old{opacity:.75}
+/* On the wall it is read from ten metres like everything else, so it takes the wall's own
+   scale rather than the page's. */
+body.tv .fresh{font-size:calc(var(--t-micro)*1.15)}
 /* ── The verdict ──
    One line under the heading saying what the whole section comes to, so the meeting can
    take a section without reading it. It carries the section's own colour as a bar down its
@@ -1248,6 +1270,23 @@ body.tv .sec > .panel{max-width:none}
    look like an error, because a box you are still typing in is not one. It clears the
    instant the field is left, which is the instant it is written. */
 .inp--held{border-left:3px solid var(--warn)}
+/* A box whose write did not land. Red rather than amber, and it does not come off when the
+   field is left — only a successful write takes it off. */
+.inp--lost{border-left:3px solid var(--stop);background:var(--stop-wash)}
+
+/* The one thing on this product that follows you down the page.
+
+   Everything else lives where it belongs. This does not, because the failure it reports is
+   precisely that somebody believes a number was written down when it was not, and a notice
+   they can scroll away from is a notice that does not work. It sits above the content, over
+   the wall's own chrome, and it goes away when the write lands and not before. */
+.unsent{position:fixed;left:50%;transform:translateX(-50%);bottom:var(--s4);z-index:70;
+  display:flex;align-items:center;gap:var(--s3);max-width:min(92vw,640px);
+  padding:var(--s3) var(--s3) var(--s3) var(--s4);border-radius:var(--radius);
+  background:var(--stop);color:#fff;box-shadow:0 8px 28px rgba(0,0,0,.28)}
+.unsent__t{flex:1 1 auto;font-size:var(--t-small);font-weight:600;line-height:1.35}
+.unsent .btn{flex:none;background:#fff;color:var(--stop);border-color:#fff;font-weight:700}
+.saved--bad{color:var(--stop);font-weight:700}
 /* Overtime is a number and a set of ticks on one line: how many shifts, and which machines.
    It was a number and a free-text "why", and in every morning on file the why is empty —
    the room says "three shifts, Heidelberg and Omega", which is a count and a list, not a
