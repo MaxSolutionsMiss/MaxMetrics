@@ -14,8 +14,8 @@ import {
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=9725d527d4b4';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=9725d527d4b4';
+} from '../db.js?v=16386ee987e7';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=16386ee987e7';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
@@ -24,7 +24,7 @@ import {
   varianceChip, varianceTone, variancePct, VERDICT, verdictMark,
   FROM_FILE, SOURCE_NAMES, sourceOf,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE, WALK, morningToday,
-} from '../readings.js?v=9725d527d4b4';
+} from '../readings.js?v=16386ee987e7';
 
 const $ = selector => document.querySelector(selector);
 
@@ -764,7 +764,7 @@ function lastWeekCard() {
 function attentionEditor() {
   const at = state.attentionAt || ATTENTION[0][0];
   return jotEditor({ id: 'att', label: 'Who', options: ATTENTION, at,
-                     field: `review:${at}:note` });
+                     field: `review:${at}:note`, sign: false });
 }
 
 // Staffing, said by whoever it is about.
@@ -885,7 +885,15 @@ const tidyButton = field => state.tidyOff ? '' :
 // the day it was said. Correcting your own sentence is not a new statement by somebody else.
 const editingLine = field => state.jotEdit?.field === field ? state.jotEdit : null;
 
-function jotLines(field, id, label = 'Comment') {
+// `sign` is off for the board.
+//
+// A comment on a review card is a statement by a department about its own last twenty-four
+// hours, and whose it is matters. The board is a shared list of what the day turns on — five
+// people put five lines on it and the meeting reads them out — and the name that belongs to
+// each is the department it is filed under, which is already printed in front of it. A second
+// attribution there is initials next to a name, twice, on the one card the whole building
+// writes on.
+function jotLines(field, id, label = 'Comment', sign = true) {
   const lines = String(noteOf(field)).split(/\r?\n/).map(line => line.trim()).filter(Boolean);
   const open = editingLine(field);
   // The words on their own. The signature is held back and put on again when it is saved.
@@ -910,13 +918,41 @@ function jotLines(field, id, label = 'Comment') {
     </div>`;
 }
 
-function jotEditor({ id, label, options, at, field }) {
+// A picker for adding, and every line on the card for removing.
+//
+// The picker used to be the whole of it: choose a name, and the list under it was that name's
+// lines. Which meant the board — where ten departments can each have said something — showed
+// the die shop's line on the card and, in the editor below it, customer service's empty list,
+// because customer service is first in the list and the picker has to start somewhere. The
+// room's report was that lines could not be deleted. They could; they were three clicks away
+// behind a dropdown nobody had a reason to open.
+//
+// So the picker still chooses where a *new* line goes, and every line already on the card is
+// listed under it with its own cross and pencil, under the name of whoever said it. What can
+// be seen can be removed, which is the only rule this needed.
+function jotEditor({ id, label, options, at, field, sign = true }) {
+  const said = options.map(([key, name]) => {
+    const lines = String(noteOf(`review:${key}:note`)).split(/\r?\n/)
+      .map(line => line.trim()).filter(Boolean);
+    return lines.length ? { key, name, lines } : null;
+  }).filter(Boolean);
+  // The chosen name's own lines are drawn by `jotLines` below, so they are not drawn twice.
+  const others = said.filter(entry => entry.key !== at);
   return `<div class="er"><label for="${id}-who">${esc(label)}</label>
       <select class="inp" id="${id}-who" aria-label="${esc(label)}">
         ${options.map(([key, name]) =>
           `<option value="${esc(key)}"${key === at ? ' selected' : ''}>${esc(name)}</option>`).join('')}
       </select></div>
-    ${jotLines(field, id)}`;
+    ${jotLines(field, id, 'Comment', sign)}
+    ${others.length ? `<ul class="jot jot--rest">${others.flatMap(entry =>
+      entry.lines.map((line, index) =>
+        `<li><b class="sup__w">${esc(entry.name)}</b><span>${jotHtml(line)}</span>
+           <button type="button" class="jot__b" data-edit-line="review:${esc(entry.key)}:note"
+             data-line="${index}" aria-label="Change this line"
+             title="Change this line"><svg viewBox="0 0 24 24"><path
+               d="M4 20h4L19.5 8.5a2.1 2.1 0 10-3-3L5 17z"/></svg></button>
+           <button type="button" class="jot__b jot__x" data-drop="review:${esc(entry.key)}:note"
+             data-line="${index}" aria-label="Remove this line">×</button></li>`)).join('')}</ul>` : ''}`;
 }
 
 // The editor, used on the card in Edit mode and on the entry screen alike.
@@ -1200,6 +1236,15 @@ function fillShipping() {
       frow('Short', 'shorts', `type="number" min="0" value="${state.metrics?.shorts ?? ''}"`),
       frow('Cartons', 'cartons', `type="number" min="0" value="${state.metrics?.cartons ?? ''}"`,
         { echo: jobs && metric('cartons') ? `${num(Math.round(metric('cartons') / jobs))} per job` : '' }),
+      // The two for today take a row like everything else. They are worked out from the
+      // three counts above and written over whenever those move; this is where a person
+      // corrects them against the sheet in their hand.
+      frow('OTD today', 'otd',
+        `type="number" step="0.01" value="${state.metrics?.otd ?? ''}"`,
+        { echo: derived ? `worked out: <b>${derived.otd.toFixed(2)}%</b>` : '' }),
+      frow('OTIF today', 'otif',
+        `type="number" step="0.01" value="${state.metrics?.otif ?? ''}"`,
+        { echo: derived ? `worked out: <b>${derived.otif.toFixed(2)}%</b>` : '' }),
       frow('OTD month', 'mtd_otd',
         `type="number" step="0.01" value="${state.metrics?.mtd_otd ?? ''}"`),
       frow('OTD year', 'ytd_otd',
@@ -1209,12 +1254,16 @@ function fillShipping() {
       frow('OTIF year', 'ytd_otif',
         `type="number" step="0.01" value="${state.metrics?.ytd_otif ?? ''}"`),
     ].join('');
-  }, 'OTD and OTIF for today are worked out from jobs, late and short.');
+  }, 'OTD and OTIF for today are worked out from jobs, late and short \u2014 change any of '
+   + 'those three and both are worked out again.');
 }
 
 function fillMoney() {
+  const said = String(metric('fin_month') ?? '').slice(0, 10);
+  const named = /^\d{4}-\d{2}-\d{2}$/.test(said)
+    ? MONTHS[Number(said.slice(5, 7)) - 1] : '';
   return fgroup('Sales', () => [
-    frow('Month to date', 'fin_actual_mtd',
+    frow(named ? `Sales \u2014 ${named}` : 'Month to date', 'fin_actual_mtd',
       `type="number" step="0.01" value="${metric('fin_actual_mtd') ?? ''}"`,
       // The plan it is measured against is on the card; here it was "of $484K" and it was
       // the one echo on the screen that never fitted its column.
@@ -1708,7 +1757,10 @@ const SECTIONS = {
         // one hour and over twenty-four are different mornings, and the second figure the
         // room reads is always how many. So it sits under the number it explains, at about
         // half the size, which is where the plant's own dashboard has always had it.
-        total: { text: row.qty ? `${num(row.qty)} ${volumeLabel(config).toLowerCase()} total` : '',
+        // No "total". The figure above it is a rate and this one is the quantity — the word
+        // was doing no work that "85,287 sheets" under "3,218 sheets/hr" does not already do,
+        // and it was the busiest line on the card.
+        total: { text: row.qty ? `${num(row.qty)} ${volumeLabel(config).toLowerCase()}` : '',
                  label: volumeLabel(config),
                  edit: { field: `dept:${config.key}:qty`,
                          attrs: `type="number" value="${row.qty ?? ''}"` } },
@@ -1749,36 +1801,71 @@ const SECTIONS = {
     // the same weekday produced, and how that sat against the target. That is a list, and a
     // list is a card. Volume and hours are still typed where they are read, in the card's
     // own edit zone, for the mornings the DOR has not been imported.
-    const weekCard = () => listCard({
-      pkey: 'pw-week', icon: iconFor('week'), label: "Last week's productivity",
-      // `band.worst([])` is 'ok', which would put a green border on a card that has nothing
-      // in it — a verdict on a week nobody has logged.
-      tone: (tones => tones.length ? band.worst(tones) : '')(list.map(config => {
+    // Three readings a department is judged on, for the same weekday a week ago.
+    //
+    // It was one line per department carrying only what was made, because that is all the
+    // importer kept. It keeps all three now, so the card can be what the room asked for: a
+    // block per department — output, make-ready, uptime — divided from the next, at twice
+    // the height so it stands beside two rows of department cards rather than one.
+    //
+    // Each figure is judged the way its own card judges it: output against the department's
+    // rate target, make-ready against the make-ready target where lower is better, uptime
+    // against the uptime target. A reading the week did not produce is a dash rather than a
+    // nought, because a machine that did not run last Tuesday did not run at 0% uptime.
+    const weekCard = () => {
+      const cell = (label, text, tone) =>
+        `<div class="wkb__c"><span class="wkb__l">${esc(label)}</span>
+           <b class="wkb__v${tone ? ` tone--${tone}` : ''}">${text}</b></div>`;
+      const blocks = list.map(config => {
         const row = dept(config.key);
-        const rate = Number(row.pw_hours) ? Number(row.pw_qty) / Number(row.pw_hours) : 0;
-        return rate ? band.rate(rate, Number(row.target ?? config.target)) : '';
-      }).filter(Boolean)),
-      empty: 'Nothing logged for the same weekday last week.',
-      rows: list.map(config => {
-        const row = dept(config.key);
-        const rate = Number(row.pw_hours) ? Number(row.pw_qty) / Number(row.pw_hours) : 0;
+        const hours = Number(row.pw_hours) || 0;
+        const rate = hours ? Number(row.pw_qty) / hours : 0;
         const target = Number(row.target ?? config.target);
-        return [config.name,
-          rate ? `${num(Math.round(rate))} ${rate && target ? trend(rate, target) : ''}` : '\u2014',
-          rate ? band.rate(rate, target) : '',
-          rate ? `against ${num(Math.round(target))} ${rateLabel(config)}` : 'not logged'];
-      }).filter(row => row),
-      edit: list.map(config => {
-        const row = dept(config.key);
-        return `<div class="er er--pair"><label>${esc(config.name)}</label>
-          <input class="inp" type="number" data-field="dept:${config.key}:pw_qty"
-            aria-label="${esc(config.name)} \u2014 last week's ${esc(volumeLabel(config))}"
-            placeholder="${esc(volumeLabel(config))}" value="${row.pw_qty ?? ''}">
-          <input class="inp" type="number" step="0.1" data-field="dept:${config.key}:pw_hours"
-            aria-label="${esc(config.name)} \u2014 last week's hours"
-            placeholder="hours" value="${row.pw_hours ?? ''}"></div>`;
-      }).join(''),
-    });
+        const mr = row.pw_make_ready == null ? null : Number(row.pw_make_ready);
+        const mrTarget = Number(row.mr_target ?? config.mr_target ?? 0);
+        const up = row.pw_uptime == null ? null : Number(row.pw_uptime);
+        const upTarget = Number(row.uptime_target ?? config.uptime_target ?? 0);
+        if (!rate && mr == null && up == null) {
+          return `<div class="wkb"><div class="wkb__n">${esc(config.name)}</div>
+            <div class="wkb__r"><span class="wkb__none">Not logged</span></div></div>`;
+        }
+        return `<div class="wkb">
+          <div class="wkb__n">${esc(config.name)}<em>${
+            rate ? esc(`${num(Math.round(target))} ${rateLabel(config)} target`) : ''}</em></div>
+          <div class="wkb__r">
+            ${cell(rateLabel(config), rate ? num(Math.round(rate)) : '—',
+                   rate ? band.rate(rate, target) : '')}
+            ${cell('Make-ready', mr == null ? '—' : `${mr.toFixed(2)} h`,
+                   mr == null || !mrTarget ? '' : band.lower(mr, mrTarget))}
+            ${cell('Uptime', up == null ? '—' : `${(up * 100).toFixed(1)}%`,
+                   up == null || !upTarget ? '' : band.rate(up, upTarget))}
+          </div></div>`;
+      }).join('');
+
+      return noteCard({
+        pkey: 'pw-week', icon: iconFor('week'), label: "Last week's productivity", tall: true,
+        // `band.worst([])` is 'ok', which would put a green border on a card that has
+        // nothing in it — a verdict on a week nobody has logged.
+        tone: (tones => tones.length ? band.worst(tones) : '')(list.map(config => {
+          const row = dept(config.key);
+          const rate = Number(row.pw_hours) ? Number(row.pw_qty) / Number(row.pw_hours) : 0;
+          return rate ? band.rate(rate, Number(row.target ?? config.target)) : '';
+        }).filter(Boolean)),
+        html: blocks ? `<div class="wkb__all">${blocks}</div>` : '',
+        blank: !blocks,
+        prompt: 'Nothing logged for the same weekday last week.',
+        edit: list.map(config => {
+          const row = dept(config.key);
+          return `<div class="er er--pair"><label>${esc(config.name)}</label>
+            <input class="inp" type="number" data-field="dept:${config.key}:pw_qty"
+              aria-label="${esc(config.name)} — last week's ${esc(volumeLabel(config))}"
+              placeholder="${esc(volumeLabel(config))}" value="${row.pw_qty ?? ''}">
+            <input class="inp" type="number" step="0.1" data-field="dept:${config.key}:pw_hours"
+              aria-label="${esc(config.name)} — last week's hours"
+              placeholder="hours" value="${row.pw_hours ?? ''}"></div>`;
+        }).join(''),
+      });
+    };
 
     // The review notes are cards now, drawn by the same function every other note on the
     // product is drawn by. They were a fourth card shape — their own head, their own dot,
@@ -1874,13 +1961,22 @@ const SECTIONS = {
       }
       const tone = value == null ? '' : band.pct(Number(value), goal);
       const variance = value == null ? null : varianceChip(Number(value), goal, { digits: 2 });
-      // OTD and OTIF follow from jobs, late and short, so they have no field. The two
-      // roll-ups do, because nothing on this morning can work them out.
-      const typed = ['mtd_otif', 'ytd_otif', 'mtd_otd', 'ytd_otd'].includes(name);
+      // Every reading on this screen takes a field, including the two that are worked out.
+      //
+      // OTD and OTIF follow from jobs, late and short, so they had none — the argument being
+      // that a derived figure with its own box can be typed into until it disagrees with the
+      // counts printed beside it. That argument is right about the arithmetic and wrong about
+      // the room: the OTD sheet carries both percentages, the plant reads them off it, and a
+      // card that is the only one on the screen a person cannot correct reads as broken
+      // rather than as principled.
+      //
+      // So they are editable like the rest. The derivation stays the default and stays in
+      // charge: change jobs, late or short and both are worked out again and written over,
+      // which is what stops the two from drifting apart. Typing one is a correction that
+      // holds until the counts underneath it move.
       return ship(name, label, {
-        heroEdit: typed
-          ? { field: name, attrs: `type="number" step="0.01" value="${state.metrics?.[name] ?? ''}"` }
-          : null,
+        heroEdit: { field: name,
+                    attrs: `type="number" step="0.01" value="${state.metrics?.[name] ?? ''}"` },
         value: value == null ? '\u2014' : Number(value).toFixed(2), unit: value == null ? '' : '%',
         sub, tone, target: goal, floor: 90, ceiling: 100, series: metricSeries(name),
         foot: [['Target', `\u2265 ${goal}%`], ['Variance', variance]],
@@ -1975,14 +2071,44 @@ const SECTIONS = {
     // day before the dashboard date. A dashboard dated July 1 reports through June 30.
     const reportDate = dateOf(state.date);
     reportDate.setDate(reportDate.getDate() - 1);
-    const month = reportDate.getMonth();
-    const inMonth = new Date(reportDate.getFullYear(), month + 1, 0).getDate();
-    const elapsed = Math.max(1, reportDate.getDate());
+
+    // Which month the sales figure is actually for, and how much of it has happened.
+    //
+    // The KPI workbook is closed off monthly. `readKpi` takes the newest month row at or
+    // before this morning's, so until somebody fills in August's row the figure is July's —
+    // and July's is a *whole month*. This card was measuring it against August's budget
+    // prorated to the twelfth day, which is where "251% of budget" came from on a Thursday
+    // when nothing unusual had happened. The database shows it plainly: August the fourth
+    // read $0, the fifth read $254K climbing normally, and from the tenth it has read
+    // $2,944,740.01 every morning without moving — July's closed month, wearing August's
+    // label.
+    //
+    // So the month comes from the figure rather than from the calendar. Its own month means
+    // a live month-to-date figure and a budget prorated by the days elapsed; an earlier
+    // month means a closed month, measured against the whole of that month's budget. A
+    // morning with no month recorded — anything imported before the column existed — is
+    // treated as this month, which is what the card assumed before and no worse.
+    const said = String(metric('fin_month') ?? '').slice(0, 10);
+    const stated = /^\d{4}-\d{2}-\d{2}$/.test(said)
+      ? { year: Number(said.slice(0, 4)), month: Number(said.slice(5, 7)) - 1 } : null;
+    const onNow = { year: reportDate.getFullYear(), month: reportDate.getMonth() };
+    const closed = !!stated && (stated.year !== onNow.year || stated.month !== onNow.month);
+    const year = stated?.year ?? onNow.year;
+    const month = stated?.month ?? onNow.month;
+    const inMonth = new Date(year, month + 1, 0).getDate();
+    // A closed month has all of its days; a running one has the days up to yesterday.
+    const elapsed = closed ? inMonth : Math.max(1, reportDate.getDate());
 
     const monthBudget = budgetFor(month);
+    // Named, so nobody has to work out which month a figure belongs to from its size.
+    const monthName = `${MONTHS[month]}${year === onNow.year ? '' : ` ${year}`}`;
+    const mtdTitle = closed ? monthName : `${monthName} to date`;
     const yearBudget = Array.from({ length: 12 }, (_, i) => budgetFor(i)).reduce((a, b) => a + b, 0);
     const actualMtd = Number(metric('fin_actual_mtd') || 0);
     const actualYtd = Number(metric('fin_actual_ytd') || 0);
+    // A closed month is measured against the whole of its budget; a running one against the
+    // share of it that has elapsed. `elapsed` is already the month's own length when the
+    // month is closed, so this is one expression rather than two.
     const planMtd = monthBudget * (elapsed / inMonth);
     const varianceMtd = actualMtd - planMtd;
     const percentMtd = planMtd ? varianceMtd / planMtd * 100 : 0;
@@ -2054,7 +2180,7 @@ const SECTIONS = {
             not fit that at any size the label is allowed to take, so the fit went down and
             down against a truncation no amount of shrinking could cure, and took the figure
             with it. The card's own title already says which month it is. */''}
-      ${pane('fin-mtd', 'Month to date', actualMtd, planMtd, toneMtd,
+      ${pane('fin-mtd', mtdTitle, actualMtd, planMtd, toneMtd,
         varianceMtd, percentMtd, ['Budget', money(monthBudget)], 'fin_actual_mtd')}
       ${pane('fin-ytd', 'Year to date', actualYtd, planYtd, toneYtd,
         varianceYtd, percentYtd, ['Budget', money(yearBudget)], 'fin_actual_ytd')}
@@ -2665,7 +2791,10 @@ function levelRows() {
   if (!content) return;
   content.style.removeProperty('--row-h');
   const from = content.querySelector('.grid--cards[data-grid="production"]') ?? content;
-  const cards = [...from.querySelectorAll('.card')];
+  // A card that is deliberately two rows tall is not a candidate for the row height.
+  // Measuring it would set every card on the screen to twice the height it needs, and the
+  // tall card is sized off `--row-h` in turn — so the two would climb each other.
+  const cards = [...from.querySelectorAll('.card:not(.card--tall)')];
   if (!cards.length) return;
   const tallest = Math.max(...cards.map(card => card.getBoundingClientRect().height));
   if (tallest > 0) content.style.setProperty('--row-h', `${Math.round(tallest)}px`);
@@ -3507,7 +3636,7 @@ document.addEventListener('click', async event => {
       ? (SIGNED.exec(lines[open.line] || '')
           ? `${SIGNED.exec(lines[open.line])[1]} ${SIGNED.exec(lines[open.line])[2]} — ${typed}`
           : typed)
-      : signLine(typed);
+      : (isAttention(String(field).split(':')[1]) ? typed : signLine(typed));
     if (!said) { box?.focus(); return; }
     if (open) lines[open.line] = said; else lines.push(said);
     state.jotEdit = null;
@@ -4248,9 +4377,17 @@ async function applyImport({ quiet = false } = {}) {
     // there, Wednesday's four changeovers were weighted as two and the week's average came
     // out wrong in a way no single day's card would ever show.
     if (d.mr_count != null) writes.push([`dept:${d.dept_key}:mr_count`, d.mr_count]);
-    // And the same weekday a week ago, which is the whole of the productivity table.
+    // And the same weekday a week ago — all three readings, which is the whole of the
+    // productivity card.
     if (d.pw_qty != null) writes.push([`dept:${d.dept_key}:pw_qty`, d.pw_qty]);
     if (d.pw_hours != null) writes.push([`dept:${d.dept_key}:pw_hours`, d.pw_hours]);
+    if (d.pw_uptime != null) {
+      writes.push([`dept:${d.dept_key}:pw_uptime`, Number(d.pw_uptime.toFixed(4))]);
+    }
+    if (d.pw_make_ready != null) {
+      writes.push([`dept:${d.dept_key}:pw_make_ready`, Number(d.pw_make_ready.toFixed(3))]);
+    }
+    if (d.pw_mr_count != null) writes.push([`dept:${d.dept_key}:pw_mr_count`, d.pw_mr_count]);
   }
   if (p.shipping) {
     writes.push(['jobs_shipped', p.shipping.jobs_shipped], ['jobs_on_time', p.shipping.jobs_on_time],

@@ -18,7 +18,7 @@
 // to record. Neither is a warning, and neither holds up an import. An alarm that fires
 // every Monday about a Sunday nobody worked is one people learn to close without reading.
 
-import { openWorkbook, serialToISO } from './xlsx.js?v=9725d527d4b4';
+import { openWorkbook, serialToISO } from './xlsx.js?v=16386ee987e7';
 
 // ── Matching a column ───────────────────────────────────────────────────────────
 
@@ -436,6 +436,16 @@ export async function readKpi(workbook, { date }) {
   }
   put('fin_actual_mtd', num(latest.row, col.sales));
   put('fin_actual_ytd', salesYear);
+  // Which month the sales figure is for.
+  //
+  // `latest` is the newest month at or before the morning's own, so on a morning in August
+  // before August's row has been filled in it is July — and the figure is July's *whole
+  // month*, not August's first fortnight. The card called it "Month to date" and measured it
+  // against August's budget prorated to the day, which is how it came to report 251% of
+  // budget on an ordinary Thursday. It is the cost-of-quality mistake in a second place and
+  // it has the same fix: hand the month over with the figure and let the card say which one
+  // it is looking at.
+  metrics.fin_month = `${latest.year}-${String(latest.month + 1).padStart(2, '0')}-01`;
 
   // ── Today, from the raw log rather than the monthly roll-up ──────────────────
   //
@@ -1093,6 +1103,12 @@ export async function readFiles(files, { date, reported = [], operators = [] } =
     const was = before.find(b => b.dept_key === d.dept_key);
     d.pw_qty = was?.qty ?? null;
     d.pw_hours = was?.hours ?? null;
+    // Uptime and make-ready for the same weekday, from the same roll-up. They were computed
+    // in this call and dropped on the floor, because until now the card had one line per
+    // department and only room for what it made.
+    d.pw_uptime = was?.uptime ?? null;
+    d.pw_make_ready = was?.make_ready ?? null;
+    d.pw_mr_count = was?.mr_count ?? null;
   }
   // Shipping is counted on the day it is entered, not shifted: a truck that left yesterday
   // is recorded against yesterday and the morning reads that row directly.
@@ -1144,6 +1160,9 @@ export async function readFiles(files, { date, reported = [], operators = [] } =
       const was = week.find(b => b.dept_key === d.dept_key);
       d.pw_qty = was?.qty ?? null;
       d.pw_hours = was?.hours ?? null;
+      d.pw_uptime = was?.uptime ?? null;
+      d.pw_make_ready = was?.make_ready ?? null;
+      d.pw_mr_count = was?.mr_count ?? null;
     }
     return { date: day, window, departments: rolled, shipping: ship,
              period: shippingPeriod(shipping, window.to) };
