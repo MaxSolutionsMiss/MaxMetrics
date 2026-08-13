@@ -23,11 +23,15 @@
         <span class="login-brand__name">Max<b>Metrics</b></span>
       </div>
       <h1 class="login-title">Sign in</h1>
-      <p class="login-intro">Use the email and password assigned to your MaxMetrics account.</p>
+      <p class="login-intro">Use the username or email address and the password assigned to
+        your MaxMetrics account.</p>
       <form id="sign-in-form" novalidate>
         <div class="field">
-          <label class="field__label" for="email">Email</label>
-          <input class="inp inp--lg" id="email" name="email" type="email" autocomplete="username" required>
+          <label class="field__label" for="email">Username or email</label>
+          <!-- Not `type="email"`. Most of this plant signs in by name, and a browser that
+               refuses to submit "jsmith" because it has no @ in it is a locked door. -->
+          <input class="inp inp--lg" id="email" name="email" type="text" autocapitalize="none"
+            autocorrect="off" spellcheck="false" autocomplete="username" required>
         </div>
         <div class="field">
           <label class="field__label" for="password">Password</label>
@@ -52,11 +56,14 @@
         <span class="login-brand__name">Max<b>Metrics</b></span>
       </div>
       <h1 class="login-title">Reset your password</h1>
-      <p class="login-intro">Enter your email and MaxMetrics will send a secure reset link.</p>
+      <p class="login-intro">Enter the email address on your account and MaxMetrics will send
+        a secure reset link. If you sign in with a username there is no address to send it
+        to — ask an administrator to issue you a new password.</p>
       <form id="forgot-form" novalidate>
         <div class="field">
           <label class="field__label" for="reset-email">Email</label>
-          <input class="inp inp--lg" id="reset-email" type="email" autocomplete="username" required>
+          <input class="inp inp--lg" id="reset-email" type="text" autocapitalize="none"
+            autocorrect="off" spellcheck="false" autocomplete="username" required>
         </div>
         <p class="form-message" id="forgot-message" role="alert" aria-live="polite"></p>
         <button class="btn btn--primary btn--block" id="forgot-submit" type="submit">Send reset link</button>

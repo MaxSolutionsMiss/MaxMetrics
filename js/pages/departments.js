@@ -22,6 +22,7 @@ import {
   currentSession, signOut, myProfile, myLocations,
   loadDepartmentConfig, saveDepartmentConfig, addDepartmentConfig, ensureDepartmentRows,
   loadBudgets, saveBudget, loadPlant, savePlant,
+  asLogin, asIdentity, isUsername, USERNAME_RULE,
   peopleAt, grantAccess, revokeAccess, setAdmin, accessMatrix, allLocations,
   createPerson, updatePerson, resetPersonPassword, removePerson,
   loadSources, saveSource, addSource, dropSource, pullSources,
@@ -878,7 +879,8 @@ function plantAccess(person) {
 }
 
 const initialsOf = person => {
-  const source = person.pending ? person.email : (person.full_name || person.email || '?');
+  const source = person.pending ? asIdentity(person.email)
+    : (person.full_name || asIdentity(person.email) || '?');
   return source.split(/[\s.@_-]+/).filter(Boolean).slice(0, 2)
     .map(word => word[0].toUpperCase()).join('');
 };
@@ -905,8 +907,9 @@ function peoplePane() {
         <div class="pplf">
           <input class="inp" id="ed-name" type="text" value="${esc(person.full_name || '')}"
             placeholder="Full name" aria-label="Full name">
-          <input class="inp" id="ed-email" type="email" value="${esc(person.email || '')}"
-            placeholder="Email" aria-label="Email address">
+          <input class="inp" id="ed-email" type="text" autocapitalize="none"
+            autocorrect="off" spellcheck="false" value="${esc(asIdentity(person.email))}"
+            placeholder="Username or email" aria-label="Username or email address">
           <button class="btn btn--go" data-save-person="${esc(person.profile_id)}">Save</button>
           <button class="btn" data-cancel-person="1">Cancel</button>
           <span class="pplf__sp"></span>
@@ -923,11 +926,12 @@ function peoplePane() {
       <td class="ppl__n">
         <span class="who__a who__a--sm" style="background:${
           person.pending ? '#8A94A6' : '#6C4BB6'}">${esc(initialsOf(person))}</span>
-        <b>${esc(person.pending ? person.email.split('@')[0] : person.full_name)}</b>
+        <b>${esc(person.pending ? asIdentity(person.email).split('@')[0] : person.full_name)}</b>
         ${person.pending ? '<span class="pill pill--info">Invited</span>' : ''}
         ${person.profile_id === state.me?.id ? '<span class="pill pill--ok">You</span>' : ''}
       </td>
-      <td class="soft ppl__e">${esc(person.email)}</td>
+      <td class="soft ppl__e">${esc(asIdentity(person.email))}${
+        isUsername(person.email) ? ' <span class="pill pill--info">Username</span>' : ''}</td>
       <td class="ppl__l">${(() => {
         // Which plants, not what level here. "Can edit" told an administrator nothing about
         // the question they came to answer, which is whether this person can see Guelph.
@@ -966,7 +970,8 @@ function peoplePane() {
       </div></div>
       <div class="panel__body">
         ${people.length ? `<table class="tbl tbl--tight tbl--ppl"><thead><tr>
-          <th>Name</th><th>Email</th><th>Plants</th><th class="num">MaxMetrics</th><th></th>
+          <th>Name</th><th>Username or email</th><th>Plants</th>
+          <th class="num">MaxMetrics</th><th></th>
         </tr></thead><tbody>${people.map(inRow).join('')}</tbody></table>`
         : '<p class="cfg__none">Nobody yet.</p>'}
       </div></div>`;
@@ -978,8 +983,9 @@ function peoplePane() {
         <div class="addp">
           <input class="inp" id="add-name" type="text" placeholder="Full name"
             aria-label="Full name">
-          <input class="inp" id="add-email" type="email" placeholder="name@maxsolutions.ca"
-            aria-label="Email address">
+          <input class="inp" id="add-email" type="text" autocapitalize="none"
+            autocorrect="off" spellcheck="false" placeholder="Username or email address"
+            aria-label="Username or email address">
           <select class="inp" id="add-plant" aria-label="Which plant">
             ${(state.plants || []).map(pl =>
               `<option value="${esc(pl.id)}"${pl.id === state.location ? ' selected' : ''}
@@ -992,18 +998,24 @@ function peoplePane() {
           <button class="btn btn--go" id="add-person">Add</button>
         </div>
         <p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">
+          <b>A username is enough.</b> Most of the floor has no work email, so type a name
+          they will remember \u2014 <i>jsmith</i>, <i>anton.p</i>, <i>diecut.nights</i> \u2014 and
+          that is what they sign in with. An email address works the same way and is worth
+          using where somebody has one, because it is the only thing a password reset link
+          can be sent to; a username can only be reset by an administrator, here.</p>
+        <p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">
           One plant to start with. Open the account in <b>Users</b> afterwards to give it more
           \u2014 an account can hold a different level at every plant, and holds none at the
           ones it is not given.</p>
         ${made ? `<div class="madep">
           <div class="madep__t">${esc(made.reused ? 'Password reset for' : 'Account created for')}
-            <b>${esc(made.email)}</b></div>
+            <b>${esc(asIdentity(made.email))}</b></div>
           <div class="madep__p"><span>Temporary password</span><code>${esc(made.password)}</code>
             <button class="btn btn--ghost" id="copy-password">Copy</button></div>
           <p class="madep__s">Give them this once. MaxMetrics will require them to choose
             their own password the first time they sign in, and this one stops working the
             moment they do. It is not stored anywhere you can read it back — if it is
-            lost, press Add again for the same address and a new one is issued.</p>
+            lost, press Add again for the same username and a new one is issued.</p>
         </div>` : `<p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">
           MaxMetrics makes the account and hands you a temporary password to pass on. They
           choose their own the first time they sign in. Nothing is emailed — this project
@@ -1380,11 +1392,13 @@ document.addEventListener('click', async event => {
   }
   const savePerson = event.target.closest('[data-save-person]');
   if (savePerson) {
+    const email = identifierFrom($('#ed-email').value);
+    if (!email) return;
     try {
       await updatePerson({
         id: savePerson.dataset.savePerson,
         name: $('#ed-name').value.trim(),
-        email: $('#ed-email').value.trim(),
+        email,
       });
       state.editingPerson = null;
       await loadPeople();
@@ -1483,13 +1497,32 @@ const plantsFor = person => (state.plants || [])
 // is a sound mechanism and the wrong product: nobody was ever going to sign up, because
 // nothing told them to and nothing gave them a password. An administrator wants to type a
 // name and hand over credentials, the way they already do for everything else in the plant.
+// What was typed, checked and turned into what the account is keyed on. Returns null and
+// says why when it is neither a workable username nor something with an @ in it.
+function identifierFrom(typed) {
+  const said = String(typed).trim().toLowerCase();
+  if (!said) { toast('A username or an email address is needed.'); return null; }
+  if (said.includes('@')) {
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(said)) {
+      toast('That does not look like an email address.');
+      return null;
+    }
+    return said;
+  }
+  if (!USERNAME_RULE.test(said)) {
+    toast('A username is two to thirty characters: lower-case letters, numbers, and . _ or -');
+    return null;
+  }
+  return asLogin(said);
+}
+
 async function addPerson() {
-  const email = $('#add-email').value.trim();
+  const email = identifierFrom($('#add-email').value);
   const name = $('#add-name').value.trim();
   const level = $('#add-level').value;
   // Whichever plant was picked, not whichever one happens to be open in Configure.
   const plant = $('#add-plant')?.value || state.location;
-  if (!email) return toast('An email address is needed.');
+  if (!email) return;
   const button = $('#add-person');
   button.disabled = true;
   button.textContent = 'Adding…';

@@ -9,7 +9,7 @@
 // rather than against anything the caller says about themselves:
 //
 //   create   make the account, set a temporary password, grant this plant
-//   update   change the name or the email address
+//   update   change the name, the username or the email address
 //   reset    issue a new temporary password
 //   remove   delete the account
 //
@@ -34,6 +34,31 @@ const reply = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
     status, headers: { ...CORS, 'content-type': 'application/json' },
   });
+
+// Most of the plant has no work email, so an account can be a username instead.
+//
+// Supabase Auth signs people in by address, so a username is turned into one that can never
+// receive mail: `.invalid` is reserved by RFC 2606 and is guaranteed never to resolve. The
+// same rule is in `js/db.js`, because the sign-in page has to make the same translation
+// before it calls Auth and it cannot reach this file. It is enforced here rather than
+// trusted from there — a page can send anything, and what an account is keyed on is not
+// something to take on a page's word.
+const USERS_DOMAIN = 'users.maxmetrics.invalid';
+const USERNAME_RULE = /^[a-z0-9][a-z0-9._-]{1,29}$/;
+
+// An address is itself; a name becomes one; anything else is nothing.
+function asLogin(identifier: unknown): string {
+  const said = String(identifier ?? '').trim().toLowerCase();
+  if (!said) return '';
+  if (said.includes('@')) return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(said) ? said : '';
+  return USERNAME_RULE.test(said) ? `${said}@${USERS_DOMAIN}` : '';
+}
+
+// What a page should print. Never the synthetic address: nobody chose it, nobody can write
+// to it, and showing it invites somebody to try.
+const asIdentity = (address: string) =>
+  address.toLowerCase().endsWith(`@${USERS_DOMAIN}`)
+    ? address.slice(0, -(USERS_DOMAIN.length + 1)) : address;
 
 // Readable, sayable over a desk, and long enough that it is not worth attacking during the
 // ten minutes it exists for. No l, I, 1, O or 0 — every one of those has been misread off a
@@ -73,8 +98,11 @@ Deno.serve(async request => {
   // ── Change a name or an email ──
   if (action === 'update') {
     if (!body.id) return reply({ error: 'Which account?' }, 400);
-    const email = String(body.email ?? '').trim().toLowerCase();
+    const email = asLogin(body.email);
     const name = String(body.name ?? '').trim();
+    if (body.email && !email) {
+      return reply({ error: 'That is neither an email address nor a workable username.' }, 400);
+    }
     if (email) {
       const { error } = await admin.auth.admin.updateUserById(body.id, {
         email, email_confirm: true,
@@ -102,7 +130,7 @@ Deno.serve(async request => {
       user_metadata: { ...(found?.user?.user_metadata ?? {}), must_change_password: true },
     });
     if (error) return reply({ error: error.message }, 400);
-    return reply({ email: found?.user?.email ?? '', password, reused: true });
+    return reply({ email: asIdentity(found?.user?.email ?? ''), password, reused: true });
   }
 
   // ── Take an account away ──
@@ -122,10 +150,13 @@ Deno.serve(async request => {
   }
 
   // ── Make the account ──
-  const email = String(body.email ?? '').trim().toLowerCase();
+  const email = asLogin(body.email);
   const name = String(body.name ?? '').trim();
   const location = String(body.location ?? '').trim();
-  if (!email || !email.includes('@')) return reply({ error: 'An email address is needed.' }, 400);
+  if (!email) {
+    return reply({ error: 'A username, or an email address, is needed. A username is two to '
+      + 'thirty characters: lower-case letters, numbers, and . _ or -' }, 400);
+  }
   if (!location) return reply({ error: 'A plant is needed.' }, 400);
 
   const password = temporaryPassword();
@@ -136,7 +167,8 @@ Deno.serve(async request => {
     email,
     password,
     email_confirm: true,
-    user_metadata: { full_name: name || email.split('@')[0], must_change_password: true },
+    user_metadata: { full_name: name || asIdentity(email).split('@')[0],
+                     must_change_password: true },
   });
 
   let id = made?.user?.id;
@@ -147,7 +179,17 @@ Deno.serve(async request => {
     // person to be able to get in.
     const { data: list } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
     const found = list?.users?.find(u => (u.email ?? '').toLowerCase() === email);
-    if (!found) return reply({ error: error.message }, 400);
+    // Not "already there", then, and the one refusal worth naming is Auth turning down the
+    // synthetic address itself. The administrator can do nothing with "Unable to validate
+    // email address: invalid format" against a name they typed; they can do something with
+    // being told to use an email address for this person while the domain is sorted out.
+    if (!found) {
+      return reply({ error: email.endsWith(`@${USERS_DOMAIN}`)
+        ? `Sign-in would not accept the username "${asIdentity(email)}" (${error.message}). `
+          + 'Give this person an email address for now and report it — the internal domain '
+          + 'usernames are stored under needs changing.'
+        : error.message }, 400);
+    }
     id = found.id;
     reused = true;
     const { error: reset } = await admin.auth.admin.updateUserById(found.id, {
@@ -164,5 +206,5 @@ Deno.serve(async request => {
             { onConflict: 'profile_id,location_id' });
   if (grant) return reply({ error: grant.message }, 400);
 
-  return reply({ email, password, reused });
+  return reply({ email: asIdentity(email), password, reused });
 });

@@ -70,9 +70,52 @@ async function run(operation, { retry = 1, fallback } = {}) {
 
 // ── Who is signed in ────────────────────────────────────────────────────────────
 
-export const signIn = (email, password) =>
-  run(() => client.auth.signInWithPassword({ email, password }),
-      { retry: 0, fallback: 'That email and password did not match an account.' });
+// Most of the plant has no work email.
+//
+// Supabase Auth signs people in by email address, and a folding-carton floor is full of
+// people who have never had one — a crew leader who reports the night is not going to be
+// issued a mailbox so that a dashboard will let them in. So an account can be a username
+// instead, and a username is turned into an address nobody can ever receive mail at.
+//
+// `.invalid` is reserved by RFC 2606 for exactly this: it is guaranteed never to resolve,
+// so the address cannot be mistyped into somebody else's inbox, cannot be harvested, and
+// cannot quietly start working one day because a domain got registered. It is a key, and it
+// is shaped like an address only because the thing underneath demands that shape.
+//
+// The same rule is written a second time in `supabase/functions/people/index.ts`, because
+// that runs in Deno and cannot reach this file. It is one constant and one `includes('@')`,
+// and having the server enforce it rather than trust whatever a page sends is worth the
+// eleven duplicated characters.
+export const USERS_DOMAIN = 'users.maxmetrics.invalid';
+
+// What to hand Supabase. An address is itself; a username becomes one.
+export const asLogin = identifier => {
+  const said = String(identifier ?? '').trim().toLowerCase();
+  return !said || said.includes('@') ? said : `${said}@${USERS_DOMAIN}`;
+};
+
+// What to show a person. Nobody should ever be shown `jsmith@users.maxmetrics.invalid` —
+// they did not choose it, they cannot write to it, and printing it on the People screen
+// would have somebody trying to send it a password.
+export const asIdentity = address => {
+  const said = String(address ?? '').trim();
+  return said.toLowerCase().endsWith(`@${USERS_DOMAIN}`)
+    ? said.slice(0, -(USERS_DOMAIN.length + 1)) : said;
+};
+
+// Whether an account signs in by name rather than by address, which is the same question as
+// "can this person be sent a reset link".
+export const isUsername = address =>
+  String(address ?? '').trim().toLowerCase().endsWith(`@${USERS_DOMAIN}`);
+
+// A username has to survive being said across a room and typed by somebody else, so it is
+// the small alphabet: lower case, digits, and the three separators that are on every
+// keyboard. No spaces, because "the space is a dot" is a support call every time.
+export const USERNAME_RULE = /^[a-z0-9][a-z0-9._-]{1,29}$/;
+
+export const signIn = (identifier, password) =>
+  run(() => client.auth.signInWithPassword({ email: asLogin(identifier), password }),
+      { retry: 0, fallback: 'That username and password did not match an account.' });
 
 export const signOut = () => client.auth.signOut();
 
