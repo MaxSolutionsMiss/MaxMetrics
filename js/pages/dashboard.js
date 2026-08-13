@@ -14,8 +14,8 @@ import {
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=273321fafa49';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=273321fafa49';
+} from '../db.js?v=997771f7ca0d';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=997771f7ca0d';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
@@ -24,7 +24,7 @@ import {
   varianceChip, varianceTone, variancePct, VERDICT, verdictMark,
   FROM_FILE, SOURCE_NAMES, sourceOf,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE, WALK, morningToday,
-} from '../readings.js?v=273321fafa49';
+} from '../readings.js?v=997771f7ca0d';
 
 const $ = selector => document.querySelector(selector);
 
@@ -1708,11 +1708,14 @@ const SECTIONS = {
         track: cardTrack({ chart: 'number', actual: 0, target: 0, tone: shortTone,
           lowerIsBetter: true, series: metricSeries('shorts') }),
         heroEdit: { field: 'shorts', attrs: `type="number" min="0" value="${shortages ?? ''}"` },
-        foot: footLine([['Target', '0'], ['From', 'the OTD sheet']]),
+        // Where it comes from is on the title bar as a mark, on every card, in one place.
+        // Saying it again in words on this card alone made the one card whose foot is a
+        // single fact into the one card with a sentence in it.
+        foot: footLine([['Target', '0']]),
       })}
       ${coqCard('coq', month ? `COQ \u2014 ${month.label}` : 'COQ \u2014 last closed month',
                 'coq', 'coq_target',
-                month ? [['Closed', `as at ${month.closed}`]] : [])}
+                month ? [['Closed', month.closed]] : [])}
       ${coqCard('coqytd', 'COQ \u2014 year to date', 'coq_ytd', 'coq_ytd_target',
                 month ? [['Through', month.label]] : [])}
       ${counter('ncr', 'NCRs received', 'ncr')}
@@ -1813,9 +1816,19 @@ const SECTIONS = {
     // against the uptime target. A reading the week did not produce is a dash rather than a
     // nought, because a machine that did not run last Tuesday did not run at 0% uptime.
     const weekCard = () => {
-      const cell = (label, text, tone) =>
-        `<div class="wkb__c"><span class="wkb__l">${esc(label)}</span>
-           <b class="wkb__v${tone ? ` tone--${tone}` : ''}">${text}</b></div>`;
+      // A reading, and under it how far off target it was. The arrow is the direction the
+      // number moved against what it should have been, and the colour is whether that was
+      // good — which for make-ready is the opposite way round, because an hour saved setting
+      // up is an hour running.
+      const cell = (label, text, tone, actual, target, lowerIsBetter) => {
+        const off = actual != null && target
+          ? (actual - target) / target * 100 * (lowerIsBetter ? -1 : 1) : null;
+        return `<div class="wkb__c"><span class="wkb__l">${esc(label)}</span>
+           <b class="wkb__v${tone ? ` tone--${tone}` : ''}">${text}</b>
+           ${off == null ? '<i class="wkb__d"></i>'
+             : `<i class="wkb__d tone--${off >= 0 ? 'ok' : 'stop'}">${
+                 off >= 0 ? '▲' : '▼'} ${Math.abs(off).toFixed(1)}%</i>`}</div>`;
+      };
       const blocks = list.map(config => {
         const row = dept(config.key);
         const hours = Number(row.pw_hours) || 0;
@@ -1829,16 +1842,19 @@ const SECTIONS = {
           return `<div class="wkb"><div class="wkb__n">${esc(config.name)}</div>
             <div class="wkb__r"><span class="wkb__none">Not logged</span></div></div>`;
         }
+        // No target line beside the name. The department's own card carries the throughput
+        // target three cards to the left, and each reading now says its own distance from
+        // target underneath itself, which is the thing the target was there to let you work
+        // out.
         return `<div class="wkb">
-          <div class="wkb__n">${esc(config.name)}<em>${
-            rate ? esc(`${num(Math.round(target))} ${rateLabel(config)} target`) : ''}</em></div>
+          <div class="wkb__n">${esc(config.name)}</div>
           <div class="wkb__r">
             ${cell(rateLabel(config), rate ? num(Math.round(rate)) : '—',
-                   rate ? band.rate(rate, target) : '')}
+                   rate ? band.rate(rate, target) : '', rate || null, target)}
             ${cell('Make-ready', mr == null ? '—' : `${mr.toFixed(2)} h`,
-                   mr == null || !mrTarget ? '' : band.lower(mr, mrTarget))}
+                   mr == null || !mrTarget ? '' : band.lower(mr, mrTarget), mr, mrTarget, true)}
             ${cell('Uptime', up == null ? '—' : `${(up * 100).toFixed(1)}%`,
-                   up == null || !upTarget ? '' : band.rate(up, upTarget))}
+                   up == null || !upTarget ? '' : band.rate(up, upTarget), up, upTarget)}
           </div></div>`;
       }).join('');
 
@@ -1906,15 +1922,21 @@ const SECTIONS = {
       });
     }).join('');
 
-    // One grid, and the departments and the week they just had are in it together. A plant
-    // that adds a fourth and a fifth department wraps onto a second row and the week card
-    // wraps with them, which is what the full-width table could never do.
-    return `<div class="grid grid--cards" data-grid="production">${weekCard()}${
-      cards}</div>
-    ${review || supportCard() ? `<div class="sec__head" style="margin-top:var(--s3)">
-      <h3 class="sec__title" style="font-size:var(--t-lead)">Review \u2014 last 24 hours</h3>
-      <div class="sec__rule"></div></div>
-    <div class="grid grid--cards" data-grid="review">${review}</div>` : ''}`;
+    // One grid: the departments, the week they just had, and what each of them said about
+    // the last twenty-four hours.
+    //
+    // The review used to be a second grid under a second heading, which meant the page and
+    // the wall drew the same section two different ways — present mode has always put them
+    // together, and the room's verdict on the two is that the wall's is the right one. Three
+    // departments across, their three review cards directly underneath, and the week
+    // standing full height down the right-hand side. A department and what its manager said
+    // about it are one column, which is how the meeting reads them: nobody looks at die
+    // cutting's rate and then goes hunting two headings away for die cutting's sentence.
+    //
+    // The week card is written last and placed first by the grid, so the departments fill
+    // the row from the left and it takes the column at the end.
+    return `<div class="grid grid--cards grid--prod" data-grid="production"
+      style="--prod-cols:${list.length}">${cards}${review}${weekCard()}</div>`;
   },
 
   shipping: () => {

@@ -570,15 +570,34 @@ export const footLine = pairs => {
   // foot is a fraction of a card, and "Nov 20, 2025" at the size that suits "39" is wider
   // than half of one. Without it the date was the first thing to run out of room on every
   // card, which capped how large the whole card could be drawn.
-  const chars = text => String(text).replace(/<[^>]*>/g, '').trim().length || 1;
+  // A chip is wider than its own text: it carries padding and a border, and counting only
+  // the letters is how "▼ −34.0%" came to be sized as though it were eight bare characters
+  // and clipped to "−34.0…". Three characters is what the padding costs at every size,
+  // because the padding is in `em` like everything else on a card.
+  const chars = text => {
+    const raw = String(text ?? '');
+    const bare = raw.replace(/<[^>]*>/g, '').trim().length || 1;
+    return bare + (/class="chip/.test(raw) ? 3 : 0);
+  };
   // A fact whose label is a target is context rather than news, and goes quiet. Naming it
   // here rather than at every call site means a card cannot forget: there are eleven places
   // that print a target and they would not have stayed in step.
   const quiet = label => /^(target|target\/hr|record|budget|elapsed|through|of|expected|hours|crew hrs)$/i
     .test(String(label).trim());
-  return `<div class="foot foot--${shown.length}">${shown.map(([label, value, edit]) =>
-    `<span class="fs${quiet(label) ? ' fs--quiet' : ''}"><span class="fs__l" style="--lc:${chars(label)}">${esc(label)}</span>` +
-    `<span class="fs__v" style="--fc:${chars(value ?? '—')}">${
+  // The longest label in *this* row, on the row, so all of its labels are drawn at one size.
+  // Per cell they would each shrink to their own width and "BUDGET EXPECTED VARIANCE" would
+  // come out at three sizes; taken from the grid they would be settled by the longest label
+  // anywhere on the page, which on a screen carrying "LAST NEAR-MISS" is every label tiny.
+  // The longest label and the longest value in *this* row, on the row. One size per row for
+  // each: a row whose three values come out at three sizes is a row that reads as three
+  // rows, which is what the fixed line-boxes were put in to prevent and what capping each
+  // value by its own length would bring straight back.
+  const widest = Math.max(6, ...shown.map(([label]) => chars(label)));
+  const longest = Math.max(4, ...shown.map(([, value]) => chars(value ?? '—')));
+  return `<div class="foot foot--${shown.length}" style="--lc:${widest};--fc:${longest}">${
+    shown.map(([label, value, edit]) =>
+    `<span class="fs${quiet(label) ? ' fs--quiet' : ''}"><span class="fs__l">${esc(label)}</span>` +
+    `<span class="fs__v">${
       edit ? `<span class="view-only">${value ?? '—'}</span>` +
              `<input class="inp inp--foot edit-only" aria-label="${esc(label)}"
                 data-field="${esc(edit.field)}" ${edit.attrs || ''}>`
