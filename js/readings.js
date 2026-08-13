@@ -909,7 +909,8 @@ export function noteCard({ pkey, icon, label, text, html, tone = '', blank,
 }
 
 export function metricCard({ chart, pkey, icon, label, tone, value, unit, percent, markPercent,
-                             markLabel, sub, flag, foot, edit, medium, track, heroEdit, total }) {
+                             markLabel, sub, flag, foot, edit, medium, track, heroEdit, total,
+                             wide = false }) {
   const hero = showsHeroNumber(chart);
   const drawn = drawReading(chart, { percent, markPercent, markLabel, value, unit });
   const caption = hero
@@ -933,7 +934,7 @@ export function metricCard({ chart, pkey, icon, label, tone, value, unit, percen
       >${esc(total.text)}</div>${total.edit
     ? `<input class="inp inp--total edit-only" aria-label="${esc(total.label || 'Total')}"
         data-field="${esc(total.edit.field)}" ${total.edit.attrs || ''}>` : ''}`;
-  return `<div class="card card--${tone}" data-pkey="${esc(pkey)}">
+  return `<div class="card card--${tone}${wide ? ' card--wide' : ''}" data-pkey="${esc(pkey)}">
     <div class="card__head">
       <span class="card__ico" aria-hidden="true">${icon || iconFor(pkey)}</span>
       <span class="card__label">${esc(label)}</span>
