@@ -1248,6 +1248,23 @@ body.tv .sec > .panel{max-width:none}
    look like an error, because a box you are still typing in is not one. It clears the
    instant the field is left, which is the instant it is written. */
 .inp--held{border-left:3px solid var(--warn)}
+/* A box whose write did not land. Red rather than amber, and it does not come off when the
+   field is left — only a successful write takes it off. */
+.inp--lost{border-left:3px solid var(--stop);background:var(--stop-wash)}
+
+/* The one thing on this product that follows you down the page.
+
+   Everything else lives where it belongs. This does not, because the failure it reports is
+   precisely that somebody believes a number was written down when it was not, and a notice
+   they can scroll away from is a notice that does not work. It sits above the content, over
+   the wall's own chrome, and it goes away when the write lands and not before. */
+.unsent{position:fixed;left:50%;transform:translateX(-50%);bottom:var(--s4);z-index:70;
+  display:flex;align-items:center;gap:var(--s3);max-width:min(92vw,640px);
+  padding:var(--s3) var(--s3) var(--s3) var(--s4);border-radius:var(--radius);
+  background:var(--stop);color:#fff;box-shadow:0 8px 28px rgba(0,0,0,.28)}
+.unsent__t{flex:1 1 auto;font-size:var(--t-small);font-weight:600;line-height:1.35}
+.unsent .btn{flex:none;background:#fff;color:var(--stop);border-color:#fff;font-weight:700}
+.saved--bad{color:var(--stop);font-weight:700}
 /* Overtime is a number and a set of ticks on one line: how many shifts, and which machines.
    It was a number and a free-text "why", and in every morning on file the why is empty —
    the room says "three shifts, Heidelberg and Omega", which is a count and a list, not a

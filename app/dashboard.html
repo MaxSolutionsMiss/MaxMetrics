@@ -76,6 +76,15 @@
     </div>
   </div>
 
+  <!-- A write that did not land. Fixed to the bottom of the window rather than placed in the
+       page, because the whole failure it exists to prevent is somebody scrolling past the
+       notice and believing the number in front of them was saved. It is the only thing on
+       this product that follows you. -->
+  <div class="unsent hide" id="unsent" role="alert" aria-live="assertive">
+    <span class="unsent__t"></span>
+    <button class="btn btn--go" id="unsent-retry" type="button">Try again now</button>
+  </div>
+
   <!-- The importer. Nothing here writes until somebody has seen what it read. -->
   <dialog class="sheet" id="import-sheet" aria-label="Import the morning's files">
     <form method="dialog" class="sheet__head">

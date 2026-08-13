@@ -2958,7 +2958,69 @@ let savedTimer;
 function noteSaved() {
   saved('Saving…');
   clearTimeout(savedTimer);
-  savedTimer = setTimeout(() => saved('All changes saved'), 700);
+  savedTimer = setTimeout(() => saved(unsent.size ? holdingText() : 'All changes saved'), 700);
+}
+
+// ── Writes that did not land ────────────────────────────────────────────────────
+//
+// A save used to fail like this: the error was caught, its message was put into the small
+// grey line at the top of the page, and that was the whole of it. The value stayed in local
+// state, so the person who typed it went on seeing their own number; the amber bar had
+// already come off the box when they left it; and the wall — reading from the database —
+// went on showing the old one. Two screens, two numbers, and the only notice was a line of
+// text next to the date that nobody looks at twice.
+//
+// That is the most dangerous shape a bug can take on this product. Everything else here is
+// about a number being wrong; this is about a number being wrong *and looking right to the
+// person who would have caught it*.
+//
+// So a write that fails is held, not dropped. It keeps its field marked, it is retried, and
+// while anything is outstanding the page says so in a place that cannot be scrolled past and
+// Present will not open. The morning cannot be published either — publishing a morning with
+// an unsent write in it is publishing a screen that does not match its own database.
+const unsent = new Map();
+const holdingText = () => `${unsent.size} change${unsent.size === 1 ? '' : 's'} not saved`;
+
+function markUnsent(name, value, why) {
+  unsent.set(name, { name, value, why });
+  paintUnsent();
+}
+function clearUnsent(name) {
+  if (unsent.delete(name)) paintUnsent();
+}
+
+// The banner, the marks on the fields, and the two doors that stay shut.
+function paintUnsent() {
+  const bar = $('#unsent');
+  if (bar) {
+    bar.classList.toggle('hide', unsent.size === 0);
+    const one = [...unsent.values()][0];
+    bar.querySelector('.unsent__t').textContent = unsent.size === 1
+      ? `1 change has not been saved — ${one.why}`
+      : `${unsent.size} changes have not been saved — ${one.why}`;
+  }
+  saved(unsent.size ? holdingText() : 'All changes saved');
+  $('#saved').classList.toggle('saved--bad', unsent.size > 0);
+  // A field that did not save keeps its mark until it does. `.inp--held` is the amber bar a
+  // box wears while it is being typed in; this is the red one it wears when the write failed,
+  // and unlike the amber one nothing takes it off but a successful write.
+  for (const box of document.querySelectorAll('[data-field]')) {
+    box.classList.toggle('inp--lost', unsent.has(box.dataset.field));
+  }
+  // Present mode and publishing are both statements that the morning is ready to be believed.
+  $('#tv-btn')?.toggleAttribute('disabled', unsent.size > 0);
+}
+
+// Try again, quietly, and keep trying. A dropped connection at half past seven comes back;
+// what must not happen is the coordinator having to notice and retype.
+let retryTimer;
+function retrySoon() {
+  clearTimeout(retryTimer);
+  if (!unsent.size) return;
+  retryTimer = setTimeout(async () => {
+    for (const held of [...unsent.values()]) await persist(held.name, held.value);
+    retrySoon();
+  }, 6000);
 }
 
 const parse = (element, raw) => {
@@ -2990,10 +3052,14 @@ async function persist(name, value) {
         await saveField(state.location, state.date, 'otif', write.otif);
       }
     }
+    clearUnsent(name);
     noteSaved();
     recordEdit(state.location, state.date, name, value);
   } catch (error) {
-    saved(error.message);
+    // Held rather than lost. The number stays on the screen — it is the person's own and
+    // they are right about it — and the page stops claiming it has been written down.
+    markUnsent(name, value, error.message || 'the network did not answer');
+    retrySoon();
   }
 }
 
@@ -3487,6 +3553,9 @@ document.addEventListener('click', event => {
 // screen has said how many readings are missing all along.
 async function goUp() {
   if (!state.canEdit || !state.location || state.metrics?.status === 'published') return;
+  // Publishing a morning that has a write still in the air puts a screen up that does not
+  // match its own database.
+  if (unsent.size) { toast(`${holdingText()}. The morning is not published yet.`); return; }
   try {
     await publish(state.location, state.date, { incomplete: absent(state.findings).length > 0 });
     if (state.metrics) state.metrics.status = 'published';
@@ -3568,7 +3637,24 @@ function rotate(on) {
   $('#tv-play').setAttribute('aria-label', on ? 'Pause rotation' : 'Rotate every 18 seconds');
 }
 
+$('#unsent-retry').addEventListener('click', async () => {
+  saved('Saving…');
+  for (const held of [...unsent.values()]) await persist(held.name, held.value);
+});
+
+// A dropped connection usually comes back before anybody notices. When the browser says the
+// network is here again, the held writes go without waiting for the six-second timer.
+globalThis.addEventListener('online', () => {
+  if (unsent.size) $('#unsent-retry').click();
+});
+
 $('#tv-btn').addEventListener('click', () => {
+  // Present is a statement that the morning is ready to be believed by twenty people at
+  // once. It is not, while something on it has not reached the database.
+  if (unsent.size) {
+    toast(`${holdingText()}. Save them before presenting.`);
+    return;
+  }
   document.body.classList.add('tv');
   state.wallStep = 0;
   paintMode();
