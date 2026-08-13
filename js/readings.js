@@ -130,9 +130,16 @@ export function shortDate(value) {
   return Number.isNaN(+d) ? '—' : `${MONTHS[d.getMonth()].slice(0, 3)} ${d.getDate()}, ${d.getFullYear()}`;
 }
 
+// Two decimal places on the millions, always.
+//
+// This used to drop to one above ten million, to keep the widest figure on the product one
+// character narrower — the money hero is what `fitCards` shrinks a whole screen around. The
+// plant's answer to that trade was no: $21.1M and $21.11M are ten thousand dollars apart,
+// and a sales figure that rounds away ten thousand dollars is not a sales figure. The width
+// is the cost and it is the right way round.
 export function money(value) {
   const v = Number(value || 0), sign = v < 0 ? '-' : '', abs = Math.abs(v);
-  if (abs >= 1e6) return `${sign}$${(abs / 1e6).toFixed(abs >= 1e7 ? 1 : 2)}M`;
+  if (abs >= 1e6) return `${sign}$${(abs / 1e6).toFixed(2)}M`;
   if (abs >= 1e3) return `${sign}$${Math.round(abs / 1e3).toLocaleString()}K`;
   return `${sign}$${Math.round(abs).toLocaleString()}`;
 }
@@ -678,7 +685,9 @@ export const CARD_CATALOGUE = [
   { section: 'Safety',      key: 'injury',        name: 'Days since last injury' },
   { section: 'Safety',      key: 'nearmiss',      name: 'Days since near-miss' },
   { section: 'Quality',     key: 'shortages',     name: 'Shortage count' },
-  { section: 'Quality',     key: 'coq',           name: 'COQ \u2014 month to date' },
+  // Named "last closed month" rather than after a month, because this list is a catalogue of
+  // cards and the month on the card changes as the year runs.
+  { section: 'Quality',     key: 'coq',           name: 'COQ \u2014 last closed month' },
   { section: 'Quality',     key: 'coqytd',        name: 'COQ \u2014 year to date' },
   { section: 'Quality',     key: 'ncr',           name: 'NCRs received' },
   { section: 'Quality',     key: 'cint',          name: 'Internal complaints' },
