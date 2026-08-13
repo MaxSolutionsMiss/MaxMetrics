@@ -26,11 +26,11 @@ import {
   peopleAt, grantAccess, revokeAccess, setAdmin, accessMatrix, allLocations,
   createPerson, updatePerson, resetPersonPassword, removePerson,
   loadSources, saveSource, addSource, dropSource, pullSources,
-} from '../db.js?v=912f72b40726';
+} from '../db.js?v=5e3fba9ace80';
 import {
   esc, money, MONTHS, iconFor,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE, WALK, walkKeyFor, morningToday,
-} from '../readings.js?v=912f72b40726';
+} from '../readings.js?v=5e3fba9ace80';
 
 const $ = selector => document.querySelector(selector);
 
@@ -1464,6 +1464,22 @@ async function loadLinked() {
   catch (error) { state.sources = []; toast(error.message); }
 }
 
+// A to Z, by the name printed in the row.
+//
+// The list arrived in whatever order the database handed it back, which is roughly the order
+// people were added — meaningful to nobody, and unstable, so the row you were about to click
+// could be somewhere else the next time you opened the screen. Twenty accounts is already
+// long enough that finding one means reading every line.
+//
+// Sorted by what is actually shown: a person's name where they have one, and the username or
+// address where they do not, because an invited row shows the address and sorting it under an
+// empty name would put every invitation at the top. `localeCompare` rather than `<`, so
+// accented names land where a reader expects rather than after Z.
+const sortedPeople = people => [...(people || [])].sort((a, b) => {
+  const label = person => (person.full_name || asIdentity(person.email) || '').trim();
+  return label(a).localeCompare(label(b), undefined, { sensitivity: 'base' });
+});
+
 async function loadPeople() {
   try {
     // Three answers, together: who exists, which plants there are, and who can reach which.
@@ -1474,7 +1490,7 @@ async function loadPeople() {
       allLocations().catch(() => null),
       accessMatrix().catch(() => null),
     ]);
-    state.people = people;
+    state.people = sortedPeople(people);
     state.plants = plants?.length ? plants
       : state.locations.map(l => ({ id: l.id, name: l.name }));
     state.access = matrix || [];
