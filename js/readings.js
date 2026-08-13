@@ -730,7 +730,6 @@ export const CARD_CATALOGUE = [
   { section: 'Labour',      key: 'staffing',      name: 'Staffing notes' },
   // Not a reading. Everything on it is already on another card; what it adds is the order
   // they have to be dealt with in, which is the one thing the room writes down.
-  { section: 'Labour',      key: 'plan',          name: 'What to line up' },
   // The one card on the product that faces forwards, and the only one the whole building
   // writes on. It belongs in this list for the same reason the others do: a plant that runs
   // its morning without it should be able to say so once.

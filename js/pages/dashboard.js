@@ -14,8 +14,8 @@ import {
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=73c36a3c5823';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=73c36a3c5823';
+} from '../db.js?v=4449ff199c74';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=4449ff199c74';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
@@ -23,7 +23,7 @@ import {
   isNa, isMissing,
   varianceChip, varianceTone, variancePct,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE, WALK, morningToday,
-} from '../readings.js?v=73c36a3c5823';
+} from '../readings.js?v=4449ff199c74';
 
 const $ = selector => document.querySelector(selector);
 
@@ -66,6 +66,23 @@ const state = {
 // ── Reading the loaded morning ──────────────────────────────────────────────────
 
 const metric = field => readingOf(state.metrics, field);
+
+// Jobs short today, from the one column that holds it.
+//
+// This number was on the morning twice. Quality drew "Shortage count" from `shortages`, a
+// column nothing ever filled but a person; Shipping drew "Short" from `shorts`, which the
+// OTD sheet has carried in column E all along and the pull has always written. Two cards,
+// one fact, and only one of them arrived by itself — so the plant typed a figure into
+// Quality every morning that was already sitting in Shipping, and on the mornings nobody
+// typed, the two disagreed in public.
+//
+// One column now: `shorts`, the pulled one. `shortages` is read only as the fallback for the
+// mornings that were typed before this, so no history changes and nothing that was entered
+// by hand is lost.
+const shortJobs = () => {
+  const pulled = metric('shorts');
+  return pulled == null || pulled === '' ? metric('shortages') : pulled;
+};
 const dept = key => state.departments.find(d => d.dept_key === key) || {};
 const rateOf = row => Number(row?.hours) ? Number(row.qty) / Number(row.hours) : 0;
 const configured = () => state.config.filter(c => c.on_metrics);
@@ -462,56 +479,6 @@ const whenText = (row, brief) => {
     : shortDate(row.scheduled_on);
 };
 
-// What the morning implies somebody should do.
-//
-// Every other card on the product answers "what happened". This one answers the question the
-// room asks straight afterwards and then writes on a whiteboard: what are we lining up. It
-// is not a forecast and it is not a language model — it is the readings already on the page,
-// sorted by how soon they bite and said as an instruction rather than as a number.
-//
-// The rules are the plant's own, in the order the room would say them: something breaking
-// today, then a machine that is going to be down, then the departments that missed target,
-// then the overtime that is already booked, then what a department manager flagged in the
-// last twenty-four hours. Six lines, because a list nobody can read across a room is a list
-// nobody reads.
-//
-// It is a card, so it can be switched off in Configure like any other, and it is worked out
-// on the client from state the page already holds — nothing is stored, so it cannot go stale
-// against the readings it is drawn from.
-function planRows() {
-  const rows = [];
-  const soon = new Date(dateOf(state.date)); soon.setDate(soon.getDate() + 1);
-  const tomorrow = soon.toISOString().slice(0, 10);
-  for (const m of upcomingItems()) {
-    const due = !m.scheduled_on || m.scheduled_on <= tomorrow;
-    if (!due && m.status !== 'Overdue') continue;
-    rows.push([m.machine || m.dept || 'Maintenance',
-               m.hours ? `${m.hours} h` : whenText(m, true),
-               m.status === 'Overdue' ? 'stop' : 'warn',
-               [m.dept, m.note || m.item_type, whenText(m, true)].filter(Boolean).join(' · ')]);
-  }
-  for (const config of state.config.filter(c => c.active !== false)) {
-    const row = dept(config.key), rate = rateOf(row);
-    const target = Number(row.target ?? config.target);
-    if (!rate || !target || rate >= target) continue;
-    rows.push([config.name, `${(100 * (rate - target) / target).toFixed(1)}%`,
-               band.rate(rate, target) || 'warn',
-               `${num(Math.round(rate))} against ${num(Math.round(target))} ${rateLabel(config)}`]);
-  }
-  for (const config of state.config.filter(c => otShifts(c.key) > 0)) {
-    rows.push([config.name, `${otShifts(config.key)} shifts`, 'warn',
-               otMachines(config.key).map(m => m.name).join(', ') || 'overtime booked']);
-  }
-  for (const row of state.review.filter(r => r.status === 'stop' || r.status === 'warn')) {
-    const config = state.config.find(c => c.key === row.dept_key);
-    const first = String(row.note || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean)[0];
-    if (!first) continue;
-    rows.push([config?.name || row.dept_key, row.status === 'stop' ? 'Issue' : 'Watch',
-               row.status, first]);
-  }
-  return rows;
-}
-
 // A screen is one grid of cards. The key is what an arrangement the plant drags into is
 // stored against, so it has to name the screen rather than the group of cards — two grids on
 // one screen is two arrangements and a row that ends early.
@@ -583,7 +550,7 @@ function supportCard() {
     icon: '\u{1F4AC}',
     html: said.length ? `<ul class="rev__note rev__note--list sup__l">${said.map(s =>
       s.lines.map(line =>
-        `<li><b class="sup__w">${esc(s.name)}</b>${esc(line)}</li>`).join('')).join('')}</ul>` : '',
+        `<li><b class="sup__w">${esc(s.name)}</b>${jotHtml(line)}</li>`).join('')).join('')}</ul>` : '',
     blank: !said.length,
     prompt: 'Nothing from customer service, the die shop or prepress.',
     edit: supportEditor(),
@@ -625,7 +592,7 @@ function attentionCard() {
     tone: '',
     html: count ? `<ul class="rev__note rev__note--list sup__l">${said.map(entry =>
       entry.lines.map(line =>
-        `<li><b class="sup__w">${esc(entry.name)}</b>${esc(line)}</li>`).join('')).join('')}</ul>`
+        `<li><b class="sup__w">${esc(entry.name)}</b>${jotHtml(line)}</li>`).join('')).join('')}</ul>`
       : '',
     blank: !count,
     prompt: 'Nothing flagged for the day ahead. Anyone in the building can add a line.',
@@ -960,15 +927,13 @@ function labourCards() {
         otShifts(c.key) > 0 ? 'warn' : '', machineNames(c.key) || null]),
       empty: 'No departments configured.',
     })}
-    ${listCard({
-      pkey: 'plan', label: 'What to line up', icon: iconFor('week'),
-      tone: (rows => rows.some(r => r[2] === 'stop') ? 'stop'
-        : rows.length ? 'warn' : 'ok')(planRows()),
-      rows: planRows().map(([left, right, tone, sub]) =>
-        [left, right, tone === 'ok' ? '' : tone, sub]),
-      empty: 'Nothing outstanding from this morning.',
-      cap: 6,
-    })}
+    ${/* "What to line up" was here and is gone.
+          It listed the departments under target, the overtime booked and the review lines
+          flagged — every one of them a figure already on a card in the same morning, most of
+          them on a card in the same row. A reader who saw Die Cutting at −34% on the
+          production slide met it again three slides later with the same number beside it,
+          and the second showing added nothing except the chance of the two disagreeing. A
+          summary of a page the reader has just walked is not a summary, it is a repeat. */''}
     ${staffingCard()}
   `;
 }
@@ -1099,8 +1064,8 @@ function fillSafety() {
 
 function fillQuality() {
   return fgroup('Quality', () => {
-    const shortages = metric('shortages');
-    const rows = [frow('Jobs short', 'shortages',
+    const shortages = shortJobs();
+    const rows = [frow('Jobs short', 'shorts',
       `type="number" min="0" value="${shortages ?? ''}"`,
       { echo: shortages == null ? '' : Number(shortages) === 0
           ? '<b class="tone--ok">None</b>' : '<b class="tone--stop">Chase it</b>' })];
@@ -1554,7 +1519,7 @@ const SECTIONS = {
   // catching its own work, external has already reached a customer, and one number over
   // both hides the only distinction that matters.
   quality: () => {
-    const shortages = metric('shortages');
+    const shortages = shortJobs();
     const shortTone = shortages == null ? '' : band.shortage(Number(shortages));
     // Both cost-of-quality cards report the same closed month, so they are named from one
     // reading of it. If they were worked out separately they could disagree, and two cards
@@ -1616,9 +1581,9 @@ const SECTIONS = {
         // fresh every morning, and a week of it says whether two is a bad Tuesday or the
         // fourth bad Tuesday running. That is the question a bare number leaves open.
         track: cardTrack({ chart: 'number', actual: 0, target: 0, tone: shortTone,
-          lowerIsBetter: true, series: metricSeries('shortages') }),
-        heroEdit: { field: 'shortages', attrs: `type="number" min="0" value="${shortages ?? ''}"` },
-        foot: footLine([['Target', '0']]),
+          lowerIsBetter: true, series: metricSeries('shorts') }),
+        heroEdit: { field: 'shorts', attrs: `type="number" min="0" value="${shortages ?? ''}"` },
+        foot: footLine([['Target', '0'], ['From', 'the OTD sheet']]),
       })}
       ${coqCard('coq', month ? `COQ \u2014 ${month.label}` : 'COQ \u2014 last closed month',
                 'coq', 'coq_target',
@@ -2525,6 +2490,28 @@ function fitCards() {
       [...grid.querySelectorAll('.hero')]
         .map(h => Number(h.style.getPropertyValue('--hchars')) || 3)));
     for (const grid of group) grid.style.setProperty('--chars', String(widest));
+    // The same measurement for the foot, which never had one.
+    //
+    // `.fs__v` is capped by "how many characters it holds" over "how wide its column is" —
+    // and the character count was a CSS default of four that nothing ever set. So the cap
+    // was really "four characters", and it never bound: what actually decided the foot's
+    // size was `6.2*--cu`, a share of the card *before* `fitCards()` has had its say. The
+    // consequence is the one the room reported. On a sparse wall slide the fit runs the
+    // card's contents up by more than two, the figure goes from 66px to 281 — and the foot,
+    // which is not multiplied by the fit, stays where it was. A card whose parts stop
+    // growing together is a card that looks like two designs at the size it is read from.
+    //
+    // Measured, the cap becomes true, and the foot can be sized off `--u` like everything
+    // else above it without "Jul 31, 2026" running off the side of the card. The widest
+    // value and the widest label on the whole screen decide, for the same reason `--chars`
+    // does: two cards in a row drawing their feet at two sizes is the thing being fixed.
+    const longest = (selector, floor) => Math.max(floor, ...group.flatMap(grid =>
+      [...grid.querySelectorAll(selector)].map(part => (part.textContent || '').trim().length)));
+    const fc = longest('.fs__v', 3), lc = longest('.fs__l', 4);
+    for (const grid of group) {
+      grid.style.setProperty('--fc', String(fc));
+      grid.style.setProperty('--lc', String(lc));
+    }
     const box = cards[0].getBoundingClientRect();
     const probe = titleProbe(box.width || 300, box.height || 340);
     const titles = [...cards, ...probe.children]
@@ -3660,7 +3647,7 @@ function importPanel() {
   // from them, and what else is in them that MaxMetrics has never been told.
   const SECTION_FIELDS = {
     Safety: ['injury_last', 'injury_record', 'near_miss_last', 'near_miss_record'],
-    Quality: ['shortages', 'coq', 'coq_target', 'coq_ytd', 'coq_ytd_target', 'ncr_ytd',
+    Quality: ['shorts', 'coq', 'coq_target', 'coq_ytd', 'coq_ytd_target', 'ncr_ytd',
               'ncr_today', 'ncr_mtd', 'complaints_internal', 'complaints_external'],
     Shipping: ['jobs_shipped', 'jobs_on_time', 'cartons', 'late', 'shorts',
                'mtd_otif', 'ytd_otif', 'mtd_otd', 'ytd_otd'],
@@ -4260,7 +4247,7 @@ function exportMorning() {
              `record ${metric('injury_record') || ''} (last ${injury || ''})`]);
   rows.push(['Days since near-miss', miss ? daysBetween(miss, state.date) : '',
              `record ${metric('near_miss_record') || ''} (last ${miss || ''})`]);
-  rows.push(['Shortage count', metric('shortages') ?? '', 'target 0']);
+  rows.push(['Shortage count', shortJobs() ?? '', 'target 0']);
   // Named, so a spreadsheet of these does not read as a month-by-month series of the month
   // it was exported in.
   const coqFor = coqMonth();
