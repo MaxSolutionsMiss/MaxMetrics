@@ -294,9 +294,15 @@ export function loadHistory(location, fromDate, toDate) {
 // columns rather than seven mornings. Every morning of the month carries the month-to-date
 // count, so the month's total is the largest one written in it — which is why this reads
 // the running column rather than a monthly table there is no reason to keep.
+//
+// Cost of quality rides along for the same reason and reads the same way: it is a monthly
+// figure written on every morning after the month it covers has closed, and `coq_month` says
+// which month that is. Grouped by that column it gives one point per closed month — the only
+// honest line for a reading that does not move between months.
 export const loadYearCounts = (location, year) =>
   run(() => client.from('daily_metrics')
-    .select('metric_date, ncr_mtd, complaints_internal_mtd, complaints_external_mtd')
+    .select(`metric_date, ncr_mtd, complaints_internal_mtd, complaints_external_mtd,
+             coq, coq_ytd, coq_month`)
     .eq('location_id', location)
     .gte('metric_date', `${year}-01-01`).lte('metric_date', `${year}-12-31`)
     .order('metric_date'));

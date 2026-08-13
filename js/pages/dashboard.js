@@ -266,35 +266,135 @@ function streakCard(kind, label, lastField, recordField, word) {
   });
 }
 
-function coqCard(kind, label, valueField, targetField) {
+// Which month a cost-of-quality figure is for, named.
+//
+// Cost of quality is never a reading about today and never a reading about this month. The
+// claims, reruns, scrap and credits behind it are totted up after a month ends, so the
+// figure on the card every morning of August is July's — closed, final, and not moving
+// again until September. The card said "month to date", which told the room the opposite:
+// that it was August's, running, and would still change. Two cards, a printed report and a
+// trend line were all built on that reading of it.
+//
+// `coq_month` is the first of the month the figure covers, and it comes out of the workbook
+// with the figure because the page cannot work it out. A plant whose accounts close late
+// spends the first week of September still showing July, and no rule about "last month"
+// survives that. Where it is absent — a morning carried forward from before the column
+// existed — the card names no month rather than guessing at one, which would be the
+// same mistake in a smaller font.
+const coqMonth = () => {
+  const said = String(metric('coq_month') ?? '').slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(said)) return null;
+  const year = Number(said.slice(0, 4)), month = Number(said.slice(5, 7)) - 1;
+  if (month < 0 || month > 11) return null;
+  return {
+    // The year is said only when it is not the year on the screen: "COQ — July" in
+    // August, "COQ — December 2025" in January, which is how the room says it out loud.
+    label: year === Number(state.date.slice(0, 4)) ? MONTHS[month] : `${MONTHS[month]} ${year}`,
+    // The day the month shut, for the line under the number.
+    closed: `${new Date(Date.UTC(year, month + 1, 0)).getUTCDate()} ${MONTHS[month]}`,
+  };
+};
+
+// One point per month, not one per morning.
+//
+// The seven-day line under this card drew the same number seven times, and the comment that
+// defended it argued that "a month-to-date figure moves every time a claim lands" — a
+// shape this reading cannot have, because the month it reports is shut. The line worth
+// drawing is the year: each closed month once, in order. It is built from `coq_month` rather
+// than from the date of the morning, so a month that took a fortnight to close still lands
+// on its own month, and lands there once.
+const coqSeries = field => {
+  const seen = new Map();
+  for (const row of state.year || []) {
+    const value = row?.[field], month = row?.coq_month;
+    if (value == null || value === '' || !month) continue;
+    seen.set(String(month).slice(0, 7), Number(value));
+  }
+  return [...seen.keys()].sort().map(key => seen.get(key));
+};
+
+function coqCard(kind, label, valueField, targetField, lead = []) {
   const value = metric(valueField), target = Number(metric(targetField) || 0.85);
   const has = value != null && value !== '';
   const tone = has ? band.coq(Number(value), target) : '';
   const variance = has ? varianceChip(Number(value), target, { lowerIsBetter: true }) : null;
+  // Two points are not a line, and one closed month repeated is what the old series drew.
+  // Until three months have been read the card carries the bar against target and nothing
+  // else, which is the whole of what is known.
+  const series = coqSeries(valueField);
   return metricCard({
     chart: 'number', pkey: kind, label, tone,
     value: has ? Number(value).toFixed(2) : '\u2014', unit: '%', sub: 'of sales',
     percent: has ? Number(value) / (target * 1.6) * 100 : 0,
     markPercent: 100 / 1.6, markLabel: 'target',
-    // The bar against target, and the line under it.
-    //
-    // The line was dropped once, on the argument that cost of quality is a month-long figure
-    // and seven mornings of it is the same number seven times. That is true of a month that
-    // has closed and false of the one running: a month-to-date figure moves every time a
-    // claim lands, and its shape — creeping up all week, or flat since Monday — is the
-    // only warning the room gets before the month closes on the wrong side of target.
     track: has ? cardTrack({
       chart: 'number', actual: Number(value), target, tone, lowerIsBetter: true,
-      targetText: `Against \u2264 ${target.toFixed(2)}%`, series: metricSeries(valueField),
+      targetText: `Against \u2264 ${target.toFixed(2)}%`,
+      series: series.length > 2 ? series : [],
     }) : '',
     heroEdit: { field: valueField, attrs: `type="number" step="0.01" value="${value ?? ''}"` },
     foot: footLine([
+      ...lead,
       ['Target', `\u2264 ${target.toFixed(2)}%`,
         { field: targetField, attrs: `type="number" step="0.01" value="${target}"` }],
       ['Variance', variance],
     ]),
   });
 }
+
+// ── Who said it, and when ───────────────────────────────────────────────────────
+//
+// Every comment on this product was anonymous and undated. That is fine in the meeting,
+// where the person is standing there, and useless everywhere else the note goes: the printed
+// morning, the weekly summary, the card somebody opens in October to find out why the die
+// shop lost a day in August. "Waiting on a plate" is a fact with no owner and no clock on it.
+//
+// So a line is stamped as it is added: initials, a short date, the words. `FC 28 Aug — die 4
+// slow on nights`. It is written into the text of the note rather than into columns of its
+// own, and that is a deliberate choice rather than a shortcut. These lines are read in eight
+// places — three tables, a CSV export, a printed report, the weekly card, the old dashboard's
+// JSON — and a note whose attribution lives in a second table is a note that loses it at
+// every one of those doors. Stored in the line, it survives being copied into an email.
+//
+// Read back with `SIGNED`, so the page can draw the initials as a chip rather than as three
+// letters at the front of a sentence. A line that does not match — everything written before
+// today, and anything pasted in from elsewhere — is shown exactly as it always was.
+const SIGNED = /^([A-Z][A-Z]?[A-Z]?) (\d{1,2} [A-Z][a-z]{2}) \u2014 (.+)$/;
+
+// Two letters, from the profile if it has them and from the name if it does not.
+//
+// `profiles.initials` is set when an account is made and is editable, so it is the answer
+// wherever it exists. Deriving from the name is the fallback for the accounts that predate
+// it — "Andrew Orwood" gives AW the same way the People screen's avatars do, which is the
+// point: the letters beside a comment are the letters on that person's badge.
+const myInitials = () => {
+  const set = String(state.me?.initials ?? '').replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase();
+  if (set) return set;
+  return String(state.me?.full_name ?? '').split(/[\s.@_-]+/).filter(Boolean).slice(0, 2)
+    .map(word => word[0].toUpperCase()).join('');
+};
+
+// The day it was written, not the morning it is about.
+//
+// These are almost always the same day and the difference is the whole reason to record it:
+// a line added to Tuesday's card on Friday is a line somebody remembered late, and the card
+// should say so rather than quietly presenting it as having been said on Tuesday.
+const signLine = text => {
+  const clean = String(text ?? '').replace(/\s+/g, ' ').trim();
+  const who = myInitials();
+  // Nobody's initials, or a line that already carries somebody's: left alone. Signing a
+  // signed line twice is how "FC 28 Aug — AW 27 Aug — ..." happens.
+  if (!clean || !who || SIGNED.test(clean)) return clean;
+  return `${who} ${dayAt(new Date())} \u2014 ${clean}`;
+};
+
+// One line, drawn. The signature is a chip and the words are the words.
+const jotHtml = line => {
+  const said = SIGNED.exec(String(line));
+  if (!said) return esc(String(line));
+  return `<b class="sig" title="${esc(said[1])} on ${esc(said[2])}">${esc(said[1])}</b>`
+    + `<span class="sig__at">${esc(said[2])}</span>${esc(said[3])}`;
+};
 
 // A note is a list of things, so it is drawn as one.
 //
@@ -306,9 +406,9 @@ function bullets(text) {
   const lines = String(text || '').split(/\r?\n/).map(line => line.replace(/^[-*\u2022]\s*/, '').trim())
     .filter(Boolean);
   if (!lines.length) return `<div class="rev__note rev__note--none">No issues reported.</div>`;
-  if (lines.length === 1) return `<div class="rev__note">${esc(lines[0])}</div>`;
+  if (lines.length === 1) return `<div class="rev__note">${jotHtml(lines[0])}</div>`;
   return `<ul class="rev__note rev__note--list">${
-    lines.map(line => `<li>${esc(line)}</li>`).join('')}</ul>`;
+    lines.map(line => `<li>${jotHtml(line)}</li>`).join('')}</ul>`;
 }
 
 // ── Entering a number where the number is ───────────────────────────────────────
@@ -714,9 +814,9 @@ function staffingCard() {
     pkey: 'staffing', label: 'Staffing notes',
     html: plant.length || said.length
       ? `<ul class="rev__note rev__note--list sup__l">${
-          plant.map(line => `<li>${esc(line)}</li>`).join('')}${
+          plant.map(line => `<li>${jotHtml(line)}</li>`).join('')}${
           said.map(entry => entry.lines.map(line =>
-            `<li><b class="sup__w">${esc(entry.name)}</b>${esc(line)}</li>`).join('')).join('')
+            `<li><b class="sup__w">${esc(entry.name)}</b>${jotHtml(line)}</li>`).join('')).join('')
         }</ul>` : '',
     blank: !plant.length && !said.length,
     prompt: 'Call-ins, vacation, training — nothing entered.',
@@ -783,7 +883,7 @@ const tidyButton = field => state.tidyOff ? '' :
 function jotLines(field, id, label = 'Comment') {
   const lines = String(noteOf(field)).split(/\r?\n/).map(line => line.trim()).filter(Boolean);
   return `${lines.length ? `<ul class="jot">${lines.map((line, at) =>
-      `<li><span>${esc(line)}</span><button type="button" class="jot__x"
+      `<li><span>${jotHtml(line)}</span><button type="button" class="jot__x"
          data-drop="${esc(field)}" data-line="${at}"
          aria-label="Remove this line">\u00d7</button></li>`).join('')}</ul>` : ''}
     <div class="er er--jot"><label for="${esc(id)}-note">${esc(label)}</label>
@@ -1004,8 +1104,11 @@ function fillQuality() {
       `type="number" min="0" value="${shortages ?? ''}"`,
       { echo: shortages == null ? '' : Number(shortages) === 0
           ? '<b class="tone--ok">None</b>' : '<b class="tone--stop">Chase it</b>' })];
+    // "COQ month" invited somebody to type this month's figure into last month's reading.
+    const month = coqMonth();
     for (const [label, name, step] of [
-      ['COQ month', 'coq', '0.01'], ['COQ year', 'coq_ytd', '0.01'],
+      [month ? `COQ ${month.label}` : 'COQ last month', 'coq', '0.01'],
+      ['COQ year', 'coq_ytd', '0.01'],
     ]) {
       const value = metric(name), target = Number(metric(`${name}_target`) || 0.85);
       rows.push(frow(label, name, `type="number" step="${step}" value="${value ?? ''}"`,
@@ -1020,8 +1123,8 @@ function fillQuality() {
         { echo: mtd == null ? '' : `<b>${num(mtd)}</b> this month` }));
     }
     return rows.join('');
-  }, 'Counts are for the last twenty-four hours. Cost of quality and the counts come from '
-   + 'the monthly KPI workbook.');
+  }, 'Counts are for the last twenty-four hours. Cost of quality is the last month closed '
+   + 'off, not this one \u2014 it and the counts come from the monthly KPI workbook.');
 }
 
 function fillProduction() {
@@ -1453,6 +1556,10 @@ const SECTIONS = {
   quality: () => {
     const shortages = metric('shortages');
     const shortTone = shortages == null ? '' : band.shortage(Number(shortages));
+    // Both cost-of-quality cards report the same closed month, so they are named from one
+    // reading of it. If they were worked out separately they could disagree, and two cards
+    // side by side naming different months is worse than neither naming one.
+    const month = coqMonth();
     // Which cards a plant carries is one list in Configure now, checked by metricCard
     // itself, rather than three columns that only ever covered these three readings.
     // `name`, not `field` — the parameter was called `field` and shadowed the helper of
@@ -1513,8 +1620,11 @@ const SECTIONS = {
         heroEdit: { field: 'shortages', attrs: `type="number" min="0" value="${shortages ?? ''}"` },
         foot: footLine([['Target', '0']]),
       })}
-      ${coqCard('coq', 'COQ \u2014 month to date', 'coq', 'coq_target')}
-      ${coqCard('coqytd', 'COQ \u2014 year to date', 'coq_ytd', 'coq_ytd_target')}
+      ${coqCard('coq', month ? `COQ \u2014 ${month.label}` : 'COQ \u2014 last closed month',
+                'coq', 'coq_target',
+                month ? [['Closed', `as at ${month.closed}`]] : [])}
+      ${coqCard('coqytd', 'COQ \u2014 year to date', 'coq_ytd', 'coq_ytd_target',
+                month ? [['Through', month.label]] : [])}
       ${counter('ncr', 'NCRs received', 'ncr')}
       ${counter('cint', 'Internal complaints', 'complaints_internal')}
       ${counter('cext', 'Customer complaints', 'complaints_external')}
@@ -2885,55 +2995,98 @@ function applyLocally(name, value) {
   }
 }
 
-let redrawTimer, sendTimer;
-// The one write that has not gone yet. A field writes 450ms after the last keystroke, so at
-// the instant somebody presses Save the box they are still in is the one thing not saved —
-// which is the only box Save has any business worrying about.
+// Typing does not save, and typing does not redraw.
+//
+// It used to do both. A field wrote 450ms after the last keystroke and the whole page
+// redrew 900ms after it, putting the caret back afterwards. On paper that is a page that
+// keeps up with you. In a plant it is this: somebody types the "1" and the "5" of
+// 1,500,000, pauses to look at the sheet in their other hand, and the page rebuilds itself
+// underneath them, drops the caret at the front of the box, and the next digit lands in the
+// wrong place. Every number long enough to need a glance away was at risk, which is every
+// number that matters.
+//
+// Putting the caret "back where it was" was never possible either: `focus()` on a freshly
+// built `<input type="number">` cannot be given a caret position at all — the browser will
+// not accept a selection range on one — so the best the old code could do was land at one
+// end of the text. There is no version of redraw-while-typing that is safe here.
+//
+// So a box now behaves the way a box in a spreadsheet behaves. What you type changes only
+// what is on the screen. It is written when you leave the field, or press Enter, or press
+// Save — which is what `change` means on an input, and what the room asked for in the same
+// words: don't save it until I say I'm done.
+//
+// `waiting` is still the one write that has not gone. Save flushes it, because the box
+// somebody is still standing in is the only box Save has any business worrying about.
 let waiting = null;
 async function flushWrites() {
-  clearTimeout(sendTimer);
   const now = waiting;
   waiting = null;
   if (now) await persist(now.name, now.value);
 }
-document.addEventListener('input', event => {
-  const name = event.target.dataset?.field;
+
+// A redraw recalculates every rate, every colour and every verdict, so it rebuilds the
+// fields as well. Where the page still has to redraw with somebody in a box — leaving one
+// field for the next lands `change` on the first while the caret is already in the second —
+// this puts them back in it, with the caret where they left it wherever the browser allows.
+function redrawKeepingCaret() {
+  const at = document.activeElement;
+  const name = at?.dataset?.field;
+  const from = at?.selectionStart, to = at?.selectionEnd;
+  render();
   if (!name) return;
-  const value = parse(event.target, event.target.value);
+  const back = document.querySelector(`[data-field="${CSS.escape(name)}"]`);
+  if (!back) return;
+  back.focus();
+  // Number, date and colour inputs reject a selection range outright. Nothing to do for
+  // them but leave the caret where focus put it.
+  try { if (from != null) back.setSelectionRange(from, to); } catch { /* not a text box */ }
+}
+
+document.addEventListener('input', event => {
+  const box = event.target;
+  const name = box.dataset?.field;
+  if (!name) return;
+  // A dropdown and a tick have no half-typed state, so they are written by `change` below
+  // the instant they are touched rather than being held here.
+  if (box.tagName === 'SELECT' || box.type === 'checkbox') return;
+  const value = parse(box, box.value);
+  // The screen keeps up — the card behind the entry screen reads `state`, not the box — but
+  // nothing is written and nothing is rebuilt.
   applyLocally(name, value);
-
-  clearTimeout(sendTimer);
   waiting = { name, value };
-  sendTimer = setTimeout(() => { waiting = null; persist(name, value); }, 450);
-
-  // Redrawing recalculates every rate and colour, so it waits until typing pauses and
-  // then puts the caret back where it was.
-  clearTimeout(redrawTimer);
-  redrawTimer = setTimeout(() => {
-    const focused = document.activeElement?.dataset?.field;
-    render();
-    if (focused) document.querySelector(`[data-field="${CSS.escape(focused)}"]`)?.focus();
-  }, 900);
+  box.classList.add('inp--held');
 });
 
 document.addEventListener('change', event => {
-  const name = event.target.dataset?.field;
+  const box = event.target;
+  const name = box.dataset?.field;
   if (!name) return;
   // A tick is one of a set, so what is written is the whole set. Reading the boxes back off
   // the page rather than keeping a list beside them means the ticks and the row can never
   // disagree about which machines are running.
-  if (event.target.type === 'checkbox') {
+  if (box.type === 'checkbox') {
     const chosen = [...document.querySelectorAll(`input[type="checkbox"][data-field="${
-      CSS.escape(name)}"]`)].filter(box => box.checked).map(box => box.dataset.machine);
+      CSS.escape(name)}"]`)].filter(tick => tick.checked).map(tick => tick.dataset.machine);
     applyLocally(name, chosen);
     persist(name, chosen);
     render();
     return;
   }
-  if (event.target.tagName !== 'SELECT') return;
-  applyLocally(name, event.target.value);
-  persist(name, event.target.value);
-  render();
+  if (box.tagName === 'SELECT') {
+    applyLocally(name, box.value);
+    persist(name, box.value);
+    render();
+    return;
+  }
+  // Everything else — a number, a date, a line of text, a note. `change` on an input fires
+  // when the box is left or Enter is pressed and not before, which is exactly the moment
+  // the value is finished with.
+  const value = parse(box, box.value);
+  waiting = null;
+  box.classList.remove('inp--held');
+  applyLocally(name, value);
+  persist(name, value);
+  redrawKeepingCaret();
 });
 
 // Announcing where you are is a presence write only — it never touches the database.
@@ -3154,7 +3307,9 @@ document.addEventListener('click', async event => {
   if (add) {
     const field = add.dataset.add;
     const box = document.querySelector(`[data-jot="${CSS.escape(field)}"]`);
-    const said = String(box?.value || '').trim();
+    // Signed here rather than in the box, so what somebody types is what they see while
+    // they are typing it and Tidy never has the signature in front of it to correct.
+    const said = signLine(box?.value);
     if (!said) { box?.focus(); return; }
     const lines = String(noteOf(field)).split(/\r?\n/).map(l => l.trim()).filter(Boolean);
     const next = [...lines, said].join('\n');
@@ -3603,7 +3758,8 @@ function importPanel() {
       <td class="num big">${d.rate ? num(Math.round(d.rate)) : '\u2014'}</td>
       <td class="num soft">${d.uptime == null ? '\u2014' : (d.uptime * 100).toFixed(1) + '%'}</td>
       <td class="num soft">${d.make_ready == null ? '\u2014' : d.make_ready.toFixed(2) + ' h'}</td>
-      <td>${esc(d.machines.join(', '))} \u00b7 ${d.shifts} shift${d.shifts === 1 ? '' : 's'}</td>
+      <td>${esc(d.machines.join(', '))} \u00b7 ${d.shifts} shift${d.shifts === 1 ? '' : 's'}${
+        d.crews?.length ? ` \u00b7 ${esc(d.crews.join(' '))}` : ''}</td>
       <td>${changed ? '<span class="pill pill--warn">changes</span>'
                     : '<span class="pill pill--ok">same</span>'}</td></tr>`;
   }).join('');
@@ -3629,6 +3785,27 @@ function importPanel() {
       <td class="num">${p.shipping.otif.toFixed(2)}%</td></tr></tbody></table>`
     : `<p class="drop__note">No shipping row for ${shortDate(p.span.to)}.</p>`;
 
+  // A day that is only half keyed in, said out loud.
+  //
+  // The DOR is filled in as the shifts end, so a workbook read in the morning can hold a
+  // complete day or it can hold the day shift on its own — and in a total the two look
+  // exactly alike. On 13 August the pull read die cutting as 13,500 sheets over 16 hours
+  // five times running, which was the truth about the file and a quarter of the truth about
+  // the plant; by lunchtime the same reader on the same file gave 53,460 over 40. Nothing on
+  // the screen distinguished those, so the reader took the blame for the workbook.
+  //
+  // The crews in the figure are the whole of the fix. A department showing one crew where
+  // its neighbours show three is not a rule anybody has to be taught.
+  const crewSets = p.departments.map(d => (d.crews || []).length).filter(Boolean);
+  const thin = crewSets.length
+    ? p.departments.filter(d => (d.crews || []).length && (d.crews || []).length < Math.max(...crewSets))
+    : [];
+  const crewGap = thin.length ? `<p class="drop__bad">${
+      thin.map(d => `<b>${esc(state.config.find(c => c.key === d.dept_key)?.name || d.dept_key)}</b>
+        has only ${esc(d.crews.join(' and '))}`).join('; ')} in these files, where other
+      departments have ${Math.max(...crewSets)}. If the crews that follow have not keyed
+      their hours in yet, this is a part-day \u2014 pull again once they have.</p>` : '';
+
   const morningPanel = !p.production && !p.delivery ? '' : `
     <div class="sheet__sub">This morning \u00b7 ${esc(shortDate(state.date))}</div>
     ${gap}
@@ -3640,7 +3817,8 @@ function importPanel() {
       <th>From</th><th></th></tr></thead><tbody>${rows}</tbody></table>
       <p class="drop__note">Uptime is (make-ready + run) \u00f7 crewed and make-ready is
         MR hours \u00f7 number of make-readies, which is what the DOR\u2019s own Formulas tab
-        says. Both are imported.</p>` : ''}
+        says. Both are imported.</p>
+      ${crewGap}` : ''}
     ${p.shipping || p.departments.length ? `<div class="sheet__sub">Shipping</div>${ship}` : ''}`;
 
   // ── Everything else in the file ──
@@ -3797,6 +3975,16 @@ async function applyImport({ quiet = false } = {}) {
     // with the rest rather than left to be typed.
     if (d.uptime != null) writes.push([`dept:${d.dept_key}:uptime`, Number(d.uptime.toFixed(4))]);
     if (d.make_ready != null) writes.push([`dept:${d.dept_key}:make_ready`, Number(d.make_ready.toFixed(3))]);
+    // The count of changeovers behind that average, which was computed, stored on the
+    // department row and never written by the pull.
+    //
+    // It went unnoticed because nothing read it until the week card, and the week card is
+    // the one thing that cannot do without it: a week's average make-ready is the week's
+    // make-ready hours over the week's changeovers, so a day contributes in proportion to
+    // how many it had. With the column left at whatever an old import happened to put
+    // there, Wednesday's four changeovers were weighted as two and the week's average came
+    // out wrong in a way no single day's card would ever show.
+    if (d.mr_count != null) writes.push([`dept:${d.dept_key}:mr_count`, d.mr_count]);
     // And the same weekday a week ago, which is the whole of the productivity table.
     if (d.pw_qty != null) writes.push([`dept:${d.dept_key}:pw_qty`, d.pw_qty]);
     if (d.pw_hours != null) writes.push([`dept:${d.dept_key}:pw_hours`, d.pw_hours]);
@@ -4073,8 +4261,13 @@ function exportMorning() {
   rows.push(['Days since near-miss', miss ? daysBetween(miss, state.date) : '',
              `record ${metric('near_miss_record') || ''} (last ${miss || ''})`]);
   rows.push(['Shortage count', metric('shortages') ?? '', 'target 0']);
-  rows.push(['COQ month', metric('coq') ?? '', `target ${metric('coq_target') ?? 0.85}`]);
-  rows.push(['COQ year to date', metric('coq_ytd') ?? '', '']);
+  // Named, so a spreadsheet of these does not read as a month-by-month series of the month
+  // it was exported in.
+  const coqFor = coqMonth();
+  rows.push([`COQ ${coqFor ? coqFor.label : 'last closed month'}`, metric('coq') ?? '',
+             `target ${metric('coq_target') ?? 0.85}`]);
+  rows.push([`COQ year to date${coqFor ? ` through ${coqFor.label}` : ''}`,
+             metric('coq_ytd') ?? '', '']);
   rows.push([]);
 
   rows.push(['Production', 'Output', 'Crew hrs', 'Per hr', 'Target / hr', 'Uptime', 'Make-ready']);

@@ -219,12 +219,14 @@ export function rollup(shifts, from, to) {
     if (row.date < from || row.date > to) continue;
     const held = byDept.get(row.dept) ?? {
       dept_key: row.dept, unit: row.unit, qty: 0, hours: 0,
-      runHours: 0, mrCount: 0, mrHours: 0, machines: new Set(), teams: new Set(), rows: 0,
+      runHours: 0, mrCount: 0, mrHours: 0,
+      machines: new Set(), teams: new Set(), crews: new Set(), rows: 0,
     };
     held.qty += row.qty; held.hours += row.hours; held.runHours += row.runHours;
     held.mrCount += row.mrCount; held.mrHours += row.mrHours; held.rows += 1;
     if (row.machine) held.machines.add(row.machine);
     if (row.team) held.teams.add(row.team);
+    if (row.shift) held.crews.add(row.shift);
     byDept.set(row.dept, held);
   }
   return [...byDept.values()].map(d => ({
@@ -257,6 +259,20 @@ export function rollup(shifts, from, to) {
     machines: [...d.machines].sort(),
     teams: [...d.teams].sort(),
     shifts: d.rows,
+    // Which crews are in this figure — D, A, M — as against how many rows there are.
+    //
+    // A DOR is filled in as the shifts end, so a workbook read at seven in the morning can
+    // hold a complete day, or it can hold the day shift and nothing else, and the two are
+    // indistinguishable in a total. That is not a hypothetical: on 13 August the pull ran
+    // five times between 11:31 and 12:11 and each time read die cutting as 13,500 over 16
+    // hours, because that is genuinely all that had been keyed; the afternoon and midnight
+    // crews went in later and the 12:20 pull read 53,460 over 40. Nobody could tell from the
+    // card which of those they were looking at, and the plant quite reasonably concluded the
+    // reader was broken.
+    //
+    // The crews are the answer, because they are the thing that is missing. "D" beside a
+    // figure on a plant that runs three shifts is a sentence anybody on the floor can read.
+    crews: [...d.crews].sort(),
   }));
 }
 
@@ -515,6 +531,10 @@ export async function readKpi(workbook, { date }) {
 // The year to date is computed rather than read: the money for every month up to this one
 // over the sales for the same months. That is what a year-to-date cost of quality is, and it
 // cannot disagree with the twelve rows above it the way a typed-in cell can.
+//
+// And the month read is always a month that has *closed*. See the rule in the body: this is
+// the one thing about cost of quality that a reader has to know and cannot infer from the
+// sheet, because the sheet's open-month row looks exactly like a closed one.
 export const looksLikeCoq = names => names.some(n => /coq/i.test(n));
 
 export async function readCoqSheet(workbook, { date }) {
@@ -564,42 +584,73 @@ export async function readCoqSheet(workbook, { date }) {
     // A month with a name and no figures is a row waiting to be filled in, not a month.
     //
     // The plant types the twelve months in at the top of the year and fills them as each one
-    // closes, so on any day in August there is an August row carrying nothing but the word
-    // August. Read as the latest month it produced exactly one reading — a year to date — and
-    // left the month's own cost of quality and its target to whatever was on the card
-    // yesterday, which is a stale number wearing today's date. The plant's own rule is the
-    // right one and it falls straight out of this: show the last month that has been closed.
+    // closes, so on any day in August there is a September row carrying nothing but the word
+    // September. Counting those as months would put the year to date over twelve of them, four
+    // of which have not happened. (August's own row is excluded by the closed-month rule
+    // below, filled in or not; this is about the ones after it.)
     if (figure(row, col.percent) == null && figure(row, col.dollars) == null
         && figure(row, col.sales) == null) continue;
     months.push({ month, year: Number((label.match(/(20\d\d)/) || [])[1]) || sheetYear, row });
   }
-  const want = { year: Number(date.slice(0, 4)), month: Number(date.slice(5, 7)) - 1 };
-  const mine = months.filter(m => m.year === want.year);
+  // The month wanted is the month *before* this morning's, always.
+  //
+  // The plant does not know August's cost of quality in August. Claims, reruns, scrap and
+  // credits are totted up after the month ends, so the only figure that exists on any morning
+  // is the month before — and once it is set it does not move again.
+  //
+  // This reader used to ask for "the latest month with figures in it, up to and including
+  // this one". That is right on a morning where nobody has touched the open month's row, and
+  // wrong from the moment somebody types a sales figure into it. It went wrong on 12 August
+  // 2026: an August row appeared carrying part of a month, the reader took it as the latest,
+  // and the card showed 0.38% while the plant's July was something else entirely. The target
+  // moved from 0.85 to 1 on the same morning, which is the tell — a target does not change
+  // mid-year, so the reader had plainly moved onto a different row.
+  //
+  // Reading the open month is not a stale number or a rounding error. It is a different
+  // month, presented as this one, and no amount of care further down can recover from it. So
+  // the open month is out of reach here whatever anybody has typed into it.
+  const on = { year: Number(date.slice(0, 4)), month: Number(date.slice(5, 7)) - 1 };
+  const want = on.month === 0
+    ? { year: on.year - 1, month: 11 } : { year: on.year, month: on.month - 1 };
+
+  // January wants December, which belongs to last year's sheet — and these workbooks get
+  // rolled over some time after the year turns, so the one in front of us may still be last
+  // year's. Where the wanted year is not in the file, read the newest year that is, whole.
+  let year = want.year, cap = want.month;
+  let mine = months.filter(m => m.year === year);
   if (!mine.length) {
-    return { metrics: {}, notes: [`${sheet}: nothing for ${want.year}.`] };
+    const older = [...new Set(months.map(m => m.year))].filter(y => y && y < want.year);
+    if (!older.length) return { metrics: {}, notes: notes.concat(`${sheet}: nothing for ${want.year}.`) };
+    year = Math.max(...older); cap = 11; mine = months.filter(m => m.year === year);
+    notes.push(`${sheet}: no ${want.year} rows — read ${year} instead.`);
   }
 
-  const upto = mine.filter(m => m.month <= want.month);
-  const span = upto.length ? upto : mine;
+  const span = mine.filter(m => m.month <= cap);
+  if (!span.length) {
+    return { metrics: {}, notes: notes.concat(`${sheet}: no month of ${year} has been closed `
+      + `off yet — nothing before ${MONTH_KEYS[on.month].toUpperCase()} carries figures.`) };
+  }
   const latest = span.reduce((a, b) => (a.month > b.month ? a : b));
-  if (latest.month !== want.month) {
-    notes.push(`${sheet}: no row for ${MONTH_KEYS[want.month].toUpperCase()} yet — read `
+  if (latest.month !== cap) {
+    notes.push(`${sheet}: ${MONTH_KEYS[cap].toUpperCase()} is not closed off yet — read `
       + `${MONTH_KEYS[latest.month].toUpperCase()} instead.`);
   }
 
   const num = figure;
   // The sheet keeps its shares as fractions: 0.0023 is COQ at 0.23% of sales.
   const asPercent = value => (value == null ? null : Number((value * 100).toFixed(4)));
+  // A sheet that carries the money and the sales but not the share still knows the share.
+  const shareOf = row => {
+    const direct = asPercent(num(row, col.percent));
+    if (direct != null) return direct;
+    const money = num(row, col.dollars), sales = num(row, col.sales);
+    return money != null && sales ? Number((money / sales * 100).toFixed(4)) : null;
+  };
 
   const metrics = {};
   const put = (field, value) => { if (value != null && Number.isFinite(value)) metrics[field] = value; };
 
-  put('coq', asPercent(num(latest.row, col.percent)));
-  // A sheet that carries the money and the sales but not the share still knows the share.
-  if (metrics.coq == null) {
-    const money = num(latest.row, col.dollars), sales = num(latest.row, col.sales);
-    if (money != null && sales) put('coq', Number((money / sales * 100).toFixed(4)));
-  }
+  put('coq', shareOf(latest.row));
   put('coq_target', asPercent(num(latest.row, col.target)));
   put('coq_ytd_target', asPercent(num(latest.row, col.target)));
 
@@ -607,9 +658,30 @@ export async function readCoqSheet(workbook, { date }) {
   const sales = span.reduce((total, m) => total + (num(m.row, col.sales) || 0), 0);
   if (sales) put('coq_ytd', Number((money / sales * 100).toFixed(4)));
 
-  notes.push(`${sheet}: ${MONTH_KEYS[latest.month].toUpperCase()} ${want.year}, with the year `
-    + `to date over ${span.length} month(s).`);
-  return { metrics, notes, month: latest.month, sheet };
+  // Which month the figure is for, carried alongside it.
+  //
+  // Without this the product had no way to name the month on the card, so the card said
+  // "month to date" — the one thing this reading is not. The month travels with the figure
+  // rather than being worked out on the page, because the page does not know whether the
+  // sheet had last month closed off or was still a month behind.
+  if (metrics.coq != null) {
+    metrics.coq_month = `${latest.year}-${String(latest.month + 1).padStart(2, '0')}-01`;
+  }
+
+  // And every month the sheet carries, printed with its share.
+  //
+  // A wrong month is invisible on a card and obvious in a list. When somebody says the figure
+  // does not match the workbook, this line settles it in the import report without anybody
+  // opening the workbook or guessing at which row was taken.
+  notes.push(`${sheet} ${year} by month: ` + mine.map(m => {
+    const share = shareOf(m.row);
+    return `${MONTH_KEYS[m.month].toUpperCase()} ${share == null ? '—' : `${share}%`}`
+      + (m.month === latest.month ? ' ← read' : '');
+  }).join('  ·  '));
+
+  notes.push(`${sheet}: ${MONTH_KEYS[latest.month].toUpperCase()} ${year} — the last month `
+    + `closed off — with the year to date over ${span.length} month(s).`);
+  return { metrics, notes, month: latest.month, year, sheet };
 }
 
 // Every file dropped at once, sorted out by what is inside it rather than by its name —
