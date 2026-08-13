@@ -50,7 +50,7 @@ const state = {
   machines: [], upcoming: [], jotEdit: null,
   history: { metrics: [], departments: [] }, weeks: [], year: [], findings: [],
   verdicts: {}, plant: null,
-  team: [], live: null, wallStep: 0, wallMode: 'walk', rotating: false,
+  team: [], live: null, wallStep: 0, wallMode: 'walk', zoom: null, rotating: false,
   // Whether a section screen is showing its cards or asking for its readings. One answer for
   // all of them, because the work it exists for is going down the rail filling each in.
   filling: false,
@@ -540,10 +540,7 @@ function maintenanceCards() {
       pkey: 'maint-note', label: 'Maintenance notes',
       text: metric('maintenance_note'),
       prompt: 'No notes entered.',
-      edit: `<div class="er"><label>Notes</label><textarea class="inp"
-        aria-label="Maintenance notes"
-        data-field="maintenance_note">${esc(metric('maintenance_note') || '')}</textarea>${
-        writeAids('maintenance_note')}</div>`,
+      edit: jotLines('maintenance_note', 'maint', 'Notes'),
     })}
   `;
 }
@@ -820,11 +817,7 @@ function staffingEditor() {
   const at = state.staffAt || list[0]?.[0] || '';
   return jotEditor({ id: 'staff', label: 'Department', options: list, at,
                      field: `labour:${at}:note` })
-    + `<div class="er"><label for="staff-all">Whole plant</label>
-      <textarea class="inp" id="staff-all" rows="2" placeholder="one per line"
-        aria-label="Staffing notes for the whole plant"
-        data-field="staffing_note">${esc(metric('staffing_note') || '')}</textarea>${
-        writeAids('staffing_note')}</div>`;
+    + jotLines('staffing_note', 'staff-all', 'Whole plant');
 }
 
 // Where a note actually lives, given the name of its field. Three different tables behind
@@ -1431,10 +1424,7 @@ function fillNotes() {
         <span class="fr__l">${esc(config.name)}</span>
         <select class="inp fr__i fr__i--s" aria-label="${esc(config.name)} status"
           data-field="review:${esc(config.key)}:status">${reviewOptions(row.status)}</select>
-        <textarea class="inp fr__t" rows="1" placeholder="what happened \u2014 one per line"
-          aria-label="${esc(config.name)} \u2014 what happened"
-          data-field="review:${esc(config.key)}:note">${esc(row.note || '')}</textarea>
-        ${writeAids(`review:${config.key}:note`)}
+        ${jotLines(`review:${config.key}:note`, `fn-${config.key}`, 'What happened')}
       </div>`;
     });
     return rows.join('');
@@ -1449,10 +1439,7 @@ function fillNotes() {
 // No visible label: the group's own heading is the label, and printing it twice was two
 // lines to say one word.
 const noteRow = (field, placeholder, said) => `<div class="fr fr--note fr--wide fr--bare">
-  <textarea class="inp fr__t" rows="1" placeholder="${esc(placeholder)}"
-    aria-label="${esc(said)}"
-    data-field="${esc(field)}">${esc(metric(field) || '')}</textarea>
-  ${writeAids(field)}</div>`;
+  ${jotLines(field, `nr-${field.replace(/[^a-z_]/g, '')}`, said)}</div>`;
 
 const fillAttention = () => fgroup('Needs watching today', () => attentionEditor(),
   'Anyone in the building can add a line — pick who it is from and type it. Each line '
@@ -1879,7 +1866,12 @@ const SECTIONS = {
       const cell = (label, text, tone, actual, target, lowerIsBetter) => {
         const off = actual != null && target
           ? (actual - target) / target * 100 * (lowerIsBetter ? -1 : 1) : null;
-        return `<div class="wkb__c"><span class="wkb__l">${esc(label)}</span>
+        // The caption carries its own length, so it can be capped by how much of the card it
+        // has rather than by a flat ceiling. A third of a card fits "UPTIME" at a size that
+        // clips "MAKE-READY" and "CARTONS/HR", and a clipped caption is the card hiding the
+        // word that says what the number under it is.
+        return `<div class="wkb__c"><span class="wkb__l" style="--wl:${
+          String(label).length}">${esc(label)}</span>
            <b class="wkb__v${tone ? ` tone--${tone}` : ''}">${text}</b>
            ${off == null ? '<i class="wkb__d"></i>'
              : `<i class="wkb__d tone--${off >= 0 ? 'ok' : 'stop'}">${
@@ -2208,7 +2200,6 @@ const SECTIONS = {
     // not make it a different thing, and two words for one number is one word too many.
     const pane = (key, title, actual, budget, tone, variance, percent, budgetRow,
                   seriesField, expected) => {
-      const pace = budget ? Math.round(actual / budget * 100) : 0;
       return metricCard({
         chart: 'number', pkey: key, label: title, tone, medium: true,
         // The figure is the reading and the pace is what it means — the two things the
@@ -2216,10 +2207,18 @@ const SECTIONS = {
         // Medium, like the other five-figure readings on the product. "$21.11M" at the size
         // that suits "98" is the widest thing on any card, and the width it took came out of
         // the graph underneath.
-        // "of budget" was wrong on a running month: `budget` here is the share of it
-        // expected by today, not the whole month's. On a closed month the two are the same
-        // and the word does no harm; on the twelfth of August they are not.
-        value: money(actual), sub: `${pace}% of expected`,
+        //
+        // The pace is an arrow and a percentage now, not a sentence.
+        //
+        // "95% of expected" is a number you have to do arithmetic on before it means
+        // anything: ninety-five per cent of what was expected is five per cent short, and
+        // every reader was working that out for themselves in the one second a card gets.
+        // "▼ 5.4%" is the answer, in the form the rest of the product already uses for a
+        // variance, and it carries to the back of a room because an arrow does and a
+        // sentence does not. No sign in front of the number — the arrow is the sign, and
+        // printing both is saying it twice.
+        value: money(actual), sub: `${percent >= 0 ? '▲' : '▼'} ${Math.abs(percent).toFixed(1)}%`,
+        subTone: tone || 'none',
         heroEdit: { field: key === 'fin-mtd' ? 'fin_actual_mtd' : 'fin_actual_ytd',
                     attrs: `type="number" step="0.01" value="${
                       metric(key === 'fin-mtd' ? 'fin_actual_mtd' : 'fin_actual_ytd') ?? ''}"` },
@@ -3020,7 +3019,23 @@ function wallPages() {
     // room needed off it was five columns wide. Both are cards, so the exception has nothing
     // left to except, and a screen is one grid again.
     if (!cards.length) continue;
-    const deal = state.wallMode === 'all' ? { cols: 1, rows: 1 } : bestGrid(cards.length);
+    // Production is arranged rather than dealt, because it is the one section whose cards
+    // are not interchangeable.
+    //
+    // Three departments across the top, what each of them reported in the last twenty-four
+    // hours directly underneath its own department, and last week's productivity down the
+    // right across both rows. That is what the page draws and what the room reads it as: a
+    // column is a department. `bestGrid` knows none of that — it sees seven cards, deals
+    // them four and three, and the tall card that is two rows high on the page tore the
+    // arrangement open and ran off the bottom of the slide.
+    //
+    // Its column count is the departments plus one for the tall card, and it is two rows
+    // deep, which comes out at the same card size `bestGrid` was choosing anyway. The
+    // stylesheet does the placing, from the same two rules the page uses.
+    const tall = cards.filter(card => card.classList.contains('card--tall')).length;
+    const prod = key === 'production' && tall === 1 && cards.length > 2;
+    const across = prod ? Math.max(1, Math.round((cards.length - tall) / 2)) : 0;
+    const deal = prod ? { cols: across + 1, rows: 2, prod: across } : bestGrid(cards.length);
     // A section of sentences never shares a slide. Everything else may be packed.
     pages.push({ key, ...deal, solo: solo.has(key) || key === 'attention', count: cards.length,
                  html: cards.map(card => card.outerHTML).join('') });
@@ -3039,7 +3054,8 @@ function wallPages() {
   const packed = [];
   for (const page of pages) {
     const last = packed[packed.length - 1];
-    if (!page.solo && last && !last.solo && last.count + page.count <= 6) {
+    if (!page.solo && !page.prod && last && !last.solo && !last.prod
+        && last.count + page.count <= 6) {
       last.count += page.count;
       last.html += page.html;
       last.keys = [...(last.keys || [last.key]), page.key];
@@ -3084,17 +3100,50 @@ function snapCols(count, box) {
 
 function renderWallPage(pages) {
   const content = $('#content');
-  content.className = 'content wall wall--snap';
   const shown = pages.filter(p => p.html);
+  // The names across the top are buttons, and pressing one brings that section forward.
+  //
+  // One page is forty cards at the size forty cards can be, which answers "is the plant all
+  // right" and cannot answer "what does Quality say" — for that the room had to leave the
+  // page, walk the slides to the right one, and walk back. The chips were already there,
+  // already the colour of the section, already the thing an eye goes to. Pressing one deals
+  // that section at the size the walk deals it, in the middle of the screen; pressing another
+  // swaps; pressing the lit one puts the whole morning back. It is present mode on demand,
+  // driven by a person rather than by a step counter.
+  //
+  // The bar itself does not move between the two. That is the point of doing it here rather
+  // than by jumping into the walk: what you pressed stays where you pressed it, lit, with
+  // everything else still beside it.
+  const up = shown.find(p => p.key === state.zoom) || null;
+  content.className = `content wall${up ? ' wall--up' : ' wall--snap'}`;
   content.innerHTML = `
     <div class="wall__top">
       <h2>${esc(state.locations.find(l => l.id === state.location)?.name || '')}</h2>
       <div class="legend">${shown.map(p =>
-        `<span class="legend__i" data-fam="${esc(p.key)}">${esc(TITLES[p.key])}</span>`).join('')}</div>
+        `<button type="button" class="legend__i${p === up ? ' legend__i--on' : ''}"
+           data-zoom="${esc(p.key)}" data-fam="${esc(p.key)}"
+           aria-pressed="${p === up}">${esc(TITLES[p.key])}</button>`).join('')}</div>
       <span class="wall__date">${$('#date-long').textContent}</span>
     </div>
-    <div class="grid grid--cards grid--snap" data-grid="wall">${shown.map(p => p.html).join('')}</div>`;
+    ${up
+      ? `<div class="grid grid--cards${up.prod ? ' grid--prod' : ''}" data-grid="${esc(up.key)}"
+             style="--wall-cols:${up.cols};--wall-rows:${up.rows}${
+               up.prod ? `;--prod-cols:${up.prod}` : ''}">${up.html}</div>`
+      : `<div class="grid grid--cards grid--snap" data-grid="wall">${
+          shown.map(p => p.html).join('')}</div>`}`;
+  // A magnified section is measured against the room it has rather than against the screen.
+  //
+  // `--wall-h` on the walk is the screen less a fixed allowance for the chrome, which is right
+  // there because the chrome is one line. Here the chip bar wraps to two lines on a narrow
+  // screen and three on a phone, so the allowance is whatever is left after it — which the
+  // browser has just worked out, and which is exactly what this reads back.
+  const front = content.querySelector('.grid--cards:not(.grid--snap)');
+  if (front) {
+    front.style.setProperty('--wall-h', `${Math.round(front.getBoundingClientRect().height)}px`);
+    return;
+  }
   const grid = content.querySelector('.grid--snap');
+  if (!grid) return;
   const count = grid.querySelectorAll(':scope > .card').length;
   if (!count) return;
   const box = grid.getBoundingClientRect();
@@ -3199,8 +3248,10 @@ function renderWall() {
       <span class="wall__date">${$('#date-long').textContent}</span>
     </div>
     <section class="sec">
-      <div class="grid grid--cards" data-grid="${esc(page.key)}"
-           style="--wall-cols:${page.cols};--wall-rows:${page.rows}">${page.html}</div>
+      <div class="grid grid--cards${page.prod ? ' grid--prod' : ''}"
+           data-grid="${esc(page.key)}"
+           style="--wall-cols:${page.cols};--wall-rows:${page.rows}${
+             page.prod ? `;--prod-cols:${page.prod}` : ''}">${page.html}</div>
     </section>
     <div class="wall__dots">${pages.map((p, i) =>
       `<span class="wall__dot${i === at ? ' wall__dot--on' : ''}"
@@ -4079,8 +4130,25 @@ $('#tv-mode').addEventListener('click', () => {
   state.wallMode = nextMode(state.wallMode);
   if (state.wallMode !== 'walk') rotate(false);
   state.wallStep = 0;
+  // Leaving the page leaves whatever it had brought forward. Coming back to a screen still
+  // holding one section from four minutes ago is a screen that has not been put away.
+  state.zoom = null;
   paintMode();
   renderWall();
+  fitCards();
+});
+
+// Bringing a section forward on the one page, and putting it back.
+//
+// The same chip does both, which is what makes it a control rather than a menu: pressing an
+// unlit one swaps to that section, pressing the lit one restores the whole morning. There is
+// nothing else to learn and nothing to go back through.
+document.addEventListener('click', event => {
+  const chip = event.target.closest?.('[data-zoom]');
+  if (!chip) return;
+  state.zoom = state.zoom === chip.dataset.zoom ? null : chip.dataset.zoom;
+  renderWall();
+  applyCardOrder();
   fitCards();
 });
 

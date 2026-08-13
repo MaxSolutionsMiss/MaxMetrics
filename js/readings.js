@@ -950,12 +950,17 @@ export function noteCard({ pkey, icon, label, text, html, tone = '', blank,
 }
 
 export function metricCard({ chart, pkey, icon, label, tone, value, unit, percent, markPercent,
-                             markLabel, sub, flag, foot, edit, medium, track, heroEdit, total,
-                             wide = false }) {
+                             markLabel, sub, subTone, flag, foot, edit, medium, track, heroEdit,
+                             total, wide = false }) {
   const hero = showsHeroNumber(chart);
   const drawn = drawReading(chart, { percent, markPercent, markLabel, value, unit });
+  // `subTone` colours the caption under the figure and is how the money says its pace: an
+  // arrow and a percentage, red under and green over, rather than a sentence. It is the one
+  // caption on the product that is a reading in its own right, so it is the one that gets a
+  // colour; everything else under a figure is a unit or an explanation and stays quiet.
   const caption = hero
-    ? (sub ? `<div class="unit">${esc(sub)}</div>` : '')
+    ? (sub ? `<div class="unit${subTone ? ` unit--pace tone--${subTone}` : ''}">${
+        esc(sub)}</div>` : '')
     : ((unit && !ridesInside(unit)) || sub
         ? `<div class="unit unit--under">${esc([unit && !ridesInside(unit) ? unit : '', sub]
             .filter(Boolean).join(' · '))}</div>`

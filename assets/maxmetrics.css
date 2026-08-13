@@ -408,6 +408,19 @@ body:not(.tv) .grid--cards{grid-auto-rows:minmax(var(--row-h,10rem),auto)}
     grid-template-columns:repeat(var(--prod-cols,3),minmax(0,1fr)) minmax(0,1fr)}
   body:not(.tv) .grid--prod .card--tall{grid-column:-2/-1;grid-row:1/span 2}
 }
+/* And on the wall, from the same two rules.
+   The slide was being dealt by `bestGrid`, which sees seven cards and knows nothing about
+   which of them belong together: it laid them out four and three, put the week between two
+   departments, and the card that is two rows high ran off the bottom of the screen. The
+   count and the row depth are settled in `wallPages` now; these place them.
+   `--card-w` rather than `1fr`, because that is how every other wall grid is measured — the
+   width is worked out on the grid from the columns it was given, and the tall card takes two
+   rows of that width plus the gutter between them rather than the `--row-h` the page uses,
+   which nothing sets in present mode. */
+body.tv .grid--prod{
+  grid-template-columns:repeat(var(--prod-cols,3),var(--card-w)) var(--card-w)}
+body.tv .grid--prod .card--tall{grid-column:-2/-1;grid-row:1/span 2;
+  min-height:0;height:calc(2*var(--card-h) + var(--wall-gap))}
 
 /* One block per department: the name, then the three readings it is judged on.
 
@@ -424,25 +437,43 @@ body:not(.tv) .grid--cards{grid-auto-rows:minmax(var(--row-h,10rem),auto)}
   gap:calc(1*var(--u,3px));
   padding-bottom:calc(2.4*var(--u,3px));border-bottom:1px solid var(--rule)}
 .wkb:last-child{border-bottom:none;padding-bottom:0}
+/* Sized off the card, like everything else on a card.
+
+   These four were `clamp(a*--scale, b*--u, c*--scale)` — a floor and a ceiling in page
+   pixels around a card-relative middle — and the floor is what went wrong. On the one-page
+   overview every card is a tile a few hundred pixels tall and `--scale` is 1.8, so the floor
+   held the department name at 23px inside a card whose own figures were drawing at nine.
+   The card burst its cell, pushed the row it was in, and set type at sizes nothing else on
+   the page used — which is exactly what the room reported: one card in a different design
+   from the forty around it.
+
+   `--u` alone is the rule the rest of the product follows: it is the card's own hundredth
+   times the fit the screen settled on, so a card that is small draws small and the whole
+   page moves together. The multipliers are a fifth larger than the old middles, which is the
+   other half of the ask — on a page of cards this is the one that is two rows tall and it
+   had been reading smaller than its neighbours, not larger. */
 .wkb__n{display:flex;align-items:baseline;justify-content:space-between;gap:var(--s2);
   font-family:var(--font-condensed);font-weight:700;
-  font-size:clamp(calc(13px*var(--scale)),calc(4.6*var(--u,3px)),calc(15px*var(--scale)));
+  font-size:calc(5.5*var(--u,3px));
   color:var(--ink)}
 .wkb__n em{font-style:normal;font-weight:400;color:var(--ink-faint);white-space:nowrap;
   font-size:.78em}
 .wkb__r{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--s2)}
 .wkb__c{display:flex;flex-direction:column;min-width:0}
+/* And the caption is capped by its own length as well, the way a foot label is. A third of a
+   card fits "UPTIME" at a size that clips "MAKE-READY"; `--wl` is how many characters this
+   one holds, set on the element by the card that drew it. */
 .wkb__l{font-family:var(--font-condensed);text-transform:uppercase;letter-spacing:.06em;
   font-weight:700;color:var(--ink-faint);white-space:nowrap;overflow:hidden;
   text-overflow:ellipsis;
-  font-size:clamp(calc(9.5px*var(--scale)),calc(3.2*var(--u,3px)),calc(11px*var(--scale)))}
+  font-size:min(calc(3.8*var(--u,3px)),calc(37cqi/var(--wl,9)))}
 .wkb__v{font-family:var(--font-num);font-weight:600;line-height:1.2;color:var(--ink);
-  font-size:clamp(calc(15px*var(--scale)),calc(5.6*var(--u,3px)),calc(19px*var(--scale)))}
+  font-size:calc(6.7*var(--u,3px))}
 /* How far off target, under the reading it belongs to. Reserved whether or not there is one,
    so three columns with two answers between them still line up. */
 .wkb__d{font-style:normal;font-family:var(--font-num);font-weight:700;line-height:1.3;
   min-height:1.3em;white-space:nowrap;
-  font-size:clamp(calc(10px*var(--scale)),calc(3.4*var(--u,3px)),calc(12.5px*var(--scale)))}
+  font-size:calc(4.1*var(--u,3px))}
 .wkb__none{font-style:italic;color:var(--ink-faint);font-size:var(--t-small)}
 /* The board is sentences, and sentences on this one card are the reading rather than a
    caption under one. A step up from the other note cards on the page, and on its own slide
@@ -1670,6 +1701,10 @@ body.tv .card__mid{flex:1 1 auto}
    they ran out of card and truncated to "LAST 7 MORNI…", which is a label that has
    stopped being a label. They grow more slowly than the numbers they sit under. */
 .unit--under{text-align:center}
+/* The money's pace, under its figure. A reading rather than a caption, so it takes the
+   verdict's colour and a little more weight than a unit does — and no more than a little,
+   because the figure above it is the news and this is what the figure means. */
+.unit--pace{font-weight:700;color:inherit}
 .tvbar{display:none;position:fixed;bottom:16px;right:16px;z-index:60;gap:4px;background:var(--surface);
   border:1px solid var(--rule-strong);border-radius:99px;padding:5px;box-shadow:0 6px 24px rgba(0,0,0,.2);
   opacity:.25;transition:opacity .2s}
@@ -2685,6 +2720,18 @@ body.tv .util{display:none}
   padding:5px 0}
 .fr--note .fr__l{padding-top:6px}
 .fr--note .fr__t{grid-column:1/-1}
+/* A note row on the entry screen is the same comment box the cards carry: the lines already
+   written, each with its pencil and its cross, and under them a box with Clean up, Rewrite
+   and Add. Both parts run the full width of the row, under the name and the status. */
+.fr--note > .jot,.fr--note > .er{grid-column:1/-1}
+.fr--note > .er--jot > label{font-size:9.5px;text-transform:uppercase;letter-spacing:.07em;
+  font-weight:700;color:var(--ink-muted)}
+/* Three of these stack in one group, so the box is a line shorter here than on a card. */
+.fr--note .er--jot textarea{min-height:calc(1.9*var(--ctl-h))}
+/* A row that is the only thing under its own heading does not print the heading twice. The
+   caption stays for anything reading the page aloud and comes off the screen. */
+.fr--bare > .er--jot > label{position:absolute;width:1px;height:1px;overflow:hidden;
+  clip-path:inset(50%);white-space:nowrap}
 .fr--bare{grid-template-columns:minmax(0,1fr);padding-top:0}
 .fr--wide{grid-template-columns:1fr}
 .fr__i--s{text-align:left;padding:0 4px}
@@ -2821,10 +2868,26 @@ body.tv.tv-all #tv-next,body.tv.tv-all #tv-prev{display:none}
 .wall--snap [data-fam="maintenance"]{--fam:var(--fam-maintenance);--famlit:var(--famlit-maintenance)}
 .wall--snap [data-fam="labour"]{--fam:var(--fam-labour);--famlit:var(--famlit-labour)}
 .legend{display:flex;flex-wrap:wrap;gap:6px 10px;margin-left:var(--s4);min-width:0}
+/* The section names are buttons on the one page: press one and it comes forward at the size
+   the walk draws it, press it again and the whole morning comes back. Unpressed they look
+   exactly as they did when they were labels, because that is what they still are most of the
+   time — the lit one gains a ring and the rest go quiet, which is the smallest thing that can
+   say "this is the one you are looking at" on a bar of seven colours. */
 .legend__i{font-family:var(--font-condensed);font-weight:700;text-transform:uppercase;
   letter-spacing:.09em;font-size:calc(11px*var(--scale));color:#fff;
   padding:3px 9px;border-radius:3px;white-space:nowrap;background:var(--fam,#55606E);
-  box-shadow:inset 0 -2px 0 var(--famlit,transparent)}
+  box-shadow:inset 0 -2px 0 var(--famlit,transparent);
+  border:0;cursor:pointer;font-family:var(--font-condensed)}
+.legend__i:hover{filter:brightness(1.12)}
+.legend__i:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.wall--up .legend__i{opacity:.45}
+.wall--up .legend__i--on{opacity:1;box-shadow:inset 0 -2px 0 var(--famlit,transparent),
+  0 0 0 2px var(--surface),0 0 0 4px var(--fam,#55606E)}
+
+/* A section brought forward fills what the chip bar leaves, and is centred in it. The card
+   size is worked out from `--wall-h`, which `renderWallPage` measures rather than assumes:
+   the bar is one line on a wall and three on a phone. */
+.wall--up .grid--cards{flex:1 1 auto;min-height:0}
 
 body.tv.tv-all .grid.grid--cards.grid--snap{flex:1 1 auto;min-height:0;display:grid;
   gap:var(--s2);grid-template-columns:repeat(var(--snap-cols,6),minmax(0,1fr));
@@ -2838,7 +2901,21 @@ body.tv.tv-all .grid.grid--cards.grid--snap{flex:1 1 auto;min-height:0;display:g
    zero, and the whole page drew at zero size. Blank cards with their rules still showing is
    exactly what that looks like. */
 body.tv .grid--cards{align-items:stretch}
-body.tv.tv-all .grid--snap .card{container-type:size;min-width:0;min-height:0}
+/* One page is a different room from the walk, and `--scale` has to know it.
+
+   Half a dozen things on a card — a note, a list row, the week's captions — are written as
+   `clamp(13px*--scale, n*--u, 14px*--scale)`: follow the card, but never below the page's own
+   body size and never above it by much. Those floors are right on a desk and right on the
+   walk, where a card is most of a screen. Here a card is a tile a couple of hundred pixels
+   tall and `--scale` is 1.8, so the floor was holding a sentence at 23px inside a card whose
+   own figure was drawing at nine. The note cards burst their cells, pushed the rows they were
+   in, and set type at sizes nothing else on the page used — one card in a different design
+   from the forty around it, which is what the room reported.
+
+   Every other card-relative unit is already neutralised for this room on the next line. This
+   is the same statement for the type that is pinned to the page rather than to the card: on
+   one page there is no "page size" to be pinned to, because the whole morning is the page. */
+body.tv.tv-all .grid--snap .card{container-type:size;min-width:0;min-height:0;--scale:1}
 body.tv.tv-all .grid--snap .card *{--cu:min(1cqi,calc(1cqb/1.132));
   --u:calc(var(--cu)*var(--fit,1))}
 body.tv.tv-all .grid--snap .card__head{font-size:min(9cqi,var(--tcap,99px));
