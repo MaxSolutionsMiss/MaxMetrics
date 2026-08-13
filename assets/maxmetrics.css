@@ -114,7 +114,7 @@
      and a bar that changed colour with it would be a second, louder verdict. */
   --card-bar:#4A5162;
   --card-r-max:1.45;
-  --wall-cols:4; --wall-rows:1; --wall-cap:23; --wall-chrome:150px;
+  --wall-cols:4; --wall-rows:1; --wall-cap:30; --wall-chrome:150px;
   /* The title bar. One grey on every card, on purpose: the verdict lives in the number,
      and a bar that changed colour with it would be a second, louder verdict. */
   --card-bar:#4A5162;
@@ -765,10 +765,33 @@ body.no-trends .ctrack__ser,body.no-trends .ctrack__yr{display:none}
 .fs--quiet .fs__l,.fs--quiet .fs__v{color:var(--ink-faint)}
 .foot--3 .fs:nth-child(2){text-align:center;align-items:center}
 .fs{display:flex;flex-direction:column;gap:0;min-width:0}
-.fs__l{font-family:var(--font-condensed);font-size:calc(11.5px*var(--scale));
+/* The foot is part of the card, so it is measured in the card.
+
+   It was the one thing on a card that was not. Everything above it — the title, the figure,
+   the bar, the trend — is a multiple of `--u`, one per cent of the card, which is what makes
+   "the wall is the page's card, larger" true rather than aspirational. The foot was a fixed
+   pixel size times `--scale`, and the two do not grow at the same rate: on the page a card
+   drew its figure at 66px over a foot at 20px, a ratio of about three to one, and in present
+   mode the same card drew 281px over 27px — better than ten to one. The room read that as
+   the foot being tiny, and it was right: the proportion the card was designed at survives on
+   a desk and collapses on a wall, which is the one place the numbers are read from across a
+   room.
+
+   So both terms are card-relative now, at exactly the ratio the page already had — 8.9 and
+   5.7 hundredths of the card, which is 19.6px and 12.6px on the card the page draws today,
+   unchanged to the pixel.
+
+   The second term is a ceiling rather than a floor, and it is doing real work. A foot cell
+   is a third or a quarter of the card's width, and "LAST NEAR-MISS" over "Jul 31, 2026" at a
+   full share of a wall card is wider than the cell it sits in — it would truncate to an
+   ellipsis, and `fitCards()` reads a truncation as an overflow and shrinks the whole screen
+   to cure it. The cap is what stops the foot from taking the card down with it. */
+.fs__l{font-family:var(--font-condensed);
+  font-size:min(calc(5.7*var(--u,2.2px)),calc(16px*var(--scale)));
   text-transform:uppercase;letter-spacing:.06em;font-weight:700;color:var(--ink-faint);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
-.fs__v{font-family:var(--font-num);font-size:calc(19px*var(--scale));
+.fs__v{font-family:var(--font-num);
+  font-size:min(calc(8.9*var(--u,2.2px)),calc(30px*var(--scale)));
   font-weight:600;line-height:1.2;letter-spacing:-.01em;color:var(--ink);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 /* One fact keeps the same two-line shape as the rest, centred.
@@ -777,7 +800,7 @@ body.no-trends .ctrack__ser,body.no-trends .ctrack__yr{display:none}
    below the rule on the COQ card beside it. Whatever the foot holds, it holds it the same
    way. */
 .foot--1 .fs{align-items:center;text-align:center}
-.foot--1 .fs__l{font-size:calc(12px*var(--scale))}
+.foot--1 .fs__l{font-size:min(calc(6*var(--u,2.2px)),calc(17px*var(--scale)))}
 /* ── Everything on a card is measured in the card ──────────────────────────────
    `--u` is one per cent of the card, and every length below is a multiple of it. Because a
    card and its contents can only change size together, "the wall is the page's card,
@@ -982,25 +1005,48 @@ body.no-trends .ctrack__ser,body.no-trends .ctrack__yr{display:none}
    rules that do not line up, which is exactly what the room reported. Fixing the line boxes
    rather than the type keeps the caps doing their job (nothing is truncated) and takes their
    side effect away (nothing moves). */
-.card .fs__l{line-height:calc(5.2*var(--cu))}
-.card .fs__v{line-height:calc(8.4*var(--cu))}
-.card .fs__l{font-size:min(calc(4*var(--cu)),calc(170cqi/var(--lc,6)))}
-.card .fs__v{font-size:min(calc(6.2*var(--cu)),calc(150cqi/var(--fc,4)))}
-.card .foot--2 .fs__l{font-size:min(calc(4*var(--cu)),calc(82cqi/var(--lc,6)))}
-.card .foot--2 .fs__v{font-size:min(calc(6.2*var(--cu)),calc(74cqi/var(--fc,4)))}
+.card .fs__l{line-height:1.35}
+.card .fs__v{line-height:1.25}
+/* `--u`, not `--cu` — the fit belongs to the foot as much as to the figure above it.
+
+   `--cu` is the card's own hundredth; `--u` is that times `--fit`, the one factor
+   `fitCards()` settles per screen so everything on a card grows and shrinks together. The
+   foot was the only part of a card measured in `--cu`, and the effect was invisible on a
+   desk (where the fit is a little under one) and unmissable on a wall, where a sparse slide
+   runs the fit past two: the figure went to 281px and the foot stayed at 27, on the same
+   card, and the room quite reasonably said the bottom of every card had gone tiny.
+
+   The multipliers are the old ones divided by about .7, which is what the fit comes to on a
+   full page — so a card on the page is drawn exactly as it was, to the pixel, and a card on
+   the wall gains the whole of what the fit was already giving everything else.
+
+   The second term is what stops that from truncating, and it only works now that
+   `fitCards()` measures `--lc` and `--fc` instead of leaving them at a default of six and
+   four that nothing ever set. */
+/* One size per foot cell, set on the cell, with the label a fixed fraction of it.
+
+   Label and value used to cap themselves separately — a share of the card against their own
+   character counts — and the two caps do not bind at the same moment. On a wall card the
+   value hit its length cap and the label did not, so "LAST NEAR-MISS" came out larger than
+   "Jul 31, 2026" underneath it and clipped to "LAST NEAR-…": a foot whose quiet half was
+   shouting and whose loud half was not. The label is context and can never be the bigger of
+   the two, so it is .62em of whatever the cell settles on and the question cannot arise.
+
+   .62 is the ratio the page has always drawn — 11.5 over 19 — kept exactly. */
+.card .fs{font-size:min(calc(8.9*var(--u)),calc(182cqi/var(--fc,4)))}
+.card .fs__v{font-size:1em}
+.card .fs__l{font-size:.62em}
+.card .foot--2 .fs{font-size:min(calc(8.9*var(--u)),calc(90cqi/var(--fc,4)))}
 /* Three facts on one line are three thirds of a card's width, and at the scale a two-part
    foot uses they crowd each other. Target, against target and the hours are all context —
    the reading is above them — so the three-part row takes a tenth off. */
-.card .foot--3 .fs__l{font-size:min(calc(3.6*var(--cu)),calc(53cqi/var(--lc,6)))}
-.card .foot--3 .fs__v{font-size:min(calc(5.6*var(--cu)),calc(47cqi/var(--fc,4)))}
-.card .foot--4 .fs__l{font-size:min(calc(4*var(--cu)),calc(38cqi/var(--lc,6)))}
-.card .foot--4 .fs__v{font-size:min(calc(6.2*var(--cu)),calc(34cqi/var(--fc,4)))}
+.card .foot--3 .fs{font-size:min(calc(8*var(--u)),calc(57cqi/var(--fc,4)))}
+.card .foot--4 .fs{font-size:min(calc(8.9*var(--u)),calc(41cqi/var(--fc,4)))}
 /* One fact, two lines, like every other foot — the gap that used to separate a label from
    its value on one line would now separate two lines and put this card's rule above the
    next card's. */
 .card .foot--1 .fs{gap:0}
-.card .foot--1 .fs__l{font-size:min(calc(4.2*var(--cu)),calc(115cqi/var(--lc,6)))}
-.card .foot--1 .fs__v{font-size:min(calc(6.2*var(--cu)),calc(105cqi/var(--fc,4)))}
+.card .foot--1 .fs{font-size:min(calc(8.9*var(--u)),calc(128cqi/var(--fc,4)))}
 
 /* The rule is a rule, not a verdict. */
 .fstat{display:flex;flex-direction:column;gap:1px;min-width:0}
@@ -1095,7 +1141,15 @@ body.tv .sec > .panel{max-width:none}
 
 /* The last twenty-four hours, read back as the list they were typed as. It is the body of
    a note card now rather than a block of its own, so it takes the card's own type scale. */
-.rev__note{font-size:calc(4.6*var(--u,4px));line-height:1.45;color:var(--ink)}
+/* A sentence on a card, at the size a sentence is read at.
+
+   `4.6*--u` is right in proportion and wrong in absolute terms at both ends: 10px on the
+   page, which is below anything else on the product, and on the wall it is the only text in
+   the room that a person has to walk towards. The floor puts it at the page's own body size;
+   the ceiling stops a three-line note from pushing a card's own height out. Both are in
+   `--scale`, so present mode carries them up with everything else. */
+.rev__note{font-size:clamp(calc(13px*var(--scale)),calc(4.6*var(--u,4px)),calc(15px*var(--scale)));
+  line-height:1.45;color:var(--ink)}
 
 .fin{display:grid;grid-template-columns:1fr 1fr;gap:var(--s5)}
 @media(max-width:880px){.fin{grid-template-columns:1fr}}
@@ -1701,7 +1755,7 @@ body.tv .content.wall{display:flex;flex-direction:column;gap:var(--s4);
    "Gl\u2026  3 shifts \u00b7 Heidelberg, Omega" has cut the only word that says which row it is;
    "Gluing  3 shifts \u00b7 Heidelb\u2026" still tells you what you are looking at. */
 .clist__l{display:flex;flex-direction:column;gap:0;flex:1 1 auto;min-width:0}
-.clist__l b{font-family:var(--font-condensed);font-size:calc(5*var(--cu));font-weight:600;
+.clist__l b{font-family:var(--font-condensed);font-size:calc(5*var(--u));font-weight:600;
   color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* Sized against the card rather than against the fit factor — all of it, now, not just the
    quiet line.
@@ -1711,13 +1765,13 @@ body.tv .content.wall{display:flex;flex-direction:column;gap:var(--s4);
    colliding with each other, which is the opposite of what a list is for. A list is read,
    not glanced at from ten metres; it belongs at the card's own scale whatever slack the
    screen happens to have. */
-.clist__l i{font-style:normal;font-family:var(--font-condensed);font-size:calc(4.4*var(--cu));
+.clist__l i{font-style:normal;font-family:var(--font-condensed);font-size:calc(4.4*var(--u));
   font-weight:600;color:var(--ink-faint);white-space:nowrap;overflow:hidden;
   text-overflow:ellipsis;letter-spacing:.02em}
-.clist__r{font-family:var(--font-num);font-size:calc(5*var(--cu));font-weight:700;
+.clist__r{font-family:var(--font-num);font-size:calc(5*var(--u));font-weight:700;
   color:var(--ink-muted);white-space:nowrap;flex:none}
-.clist__more{font-size:calc(3.8*var(--cu));color:var(--ink-faint);padding-top:calc(1.2*var(--cu))}
-.clist__none,.cnote{font-size:calc(4.6*var(--cu));line-height:1.4;color:var(--ink);
+.clist__more{font-size:calc(3.8*var(--u));color:var(--ink-faint);padding-top:calc(1.2*var(--cu))}
+.clist__none,.cnote{font-size:calc(4.6*var(--u));line-height:1.4;color:var(--ink);
   text-align:center;margin:0}
 .cnote--none,.clist__none{color:var(--ink-faint);font-style:italic}
 

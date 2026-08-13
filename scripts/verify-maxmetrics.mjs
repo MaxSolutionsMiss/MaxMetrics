@@ -5,6 +5,7 @@
 // is protecting does not belong in this file.
 
 import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { execSync } from 'node:child_process';
 import { join, extname, sep } from 'node:path';
 
 const failures = [];
@@ -16,10 +17,25 @@ const fail = (rule, detail) => failures.push(`${rule}\n    ${detail}`);
 // are published.
 const NOT_SOURCE = new Set(['.git', 'node_modules', '_site', '.gh-pages']);
 
+// And nothing git is ignoring.
+//
+// The browser harness writes `_dash.html` and `_stub-db.js` to the root — a whole second
+// page that loads a second network module, which is exactly what these rules exist to
+// forbid and exactly what this file is not. Listing them here by name would mean this check
+// and `.gitignore` drifting apart; asking git is asking the one authority on what is source.
+// Where git is not available the answer is "nothing", which is the behaviour this had before.
+const IGNORED = (() => {
+  try {
+    return new Set(execSync('git ls-files --others --ignored --exclude-standard --directory',
+      { encoding: 'utf8' }).split('\n').map(line => line.replace(/\/$/, '')).filter(Boolean));
+  } catch { return new Set(); }
+})();
+
 function walk(dir, out = []) {
   for (const entry of readdirSync(dir)) {
     if (NOT_SOURCE.has(entry)) continue;
     const path = join(dir, entry);
+    if (IGNORED.has(path) || IGNORED.has(path.replace(/^\.\//, ''))) continue;
     if (statSync(path).isDirectory()) walk(path, out);
     else out.push(path);
   }

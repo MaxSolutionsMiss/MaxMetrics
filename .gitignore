@@ -10,3 +10,6 @@ _shot.html
 _stub-db.js
 _fonts/
 _site/
+
+# The browser harness's own scripts and fixtures.
+scratchpad/
