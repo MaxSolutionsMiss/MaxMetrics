@@ -563,6 +563,29 @@ export const dropSource = id =>
 export const resetMorning = (location, date) =>
   run(() => client.rpc('reset_morning', { loc: location, d: date }), { retry: 0 });
 
+// Spelling and grammar on a comment, and nothing else.
+//
+// `tidy/index.ts` runs on Supabase because the key it needs must never reach a page. It
+// answers one of three ways: the corrected text, an `error` the page shows and then leaves
+// the person's own words alone, or `unavailable` — which means no key is configured for this
+// plant and the button should stop offering something that cannot work.
+export async function tidyText(text) {
+  const session = await currentSession();
+  if (!session) throw new Error('Sign in first.');
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/tidy`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: SUPABASE_PUBLISHABLE_KEY,
+      Authorization: `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({ text }),
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(body.error || 'Tidy-up could not run.');
+  return body;
+}
+
 // `only` is one source's id — the Test button beside a link, which asks the one question
 // somebody pasting a link actually has: does this one work? A whole-plant pull to find out
 // takes three fetches and answers about all of them.

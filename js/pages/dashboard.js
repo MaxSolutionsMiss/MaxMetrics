@@ -8,13 +8,14 @@
 import {
   currentSession, signOut, myProfile, myLocations, savePreference, savePlant,
   openDay, loadDay, loadHistory, loadWeeks, loadBudgets, loadYearCounts, loadMachines,
+  tidyText,
   loadUpcoming, addMaintenance, saveMaintenance, removeMaintenance,
   saveField, saveDepartment, saveReview,
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=5e3fba9ace80';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=5e3fba9ace80';
+} from '../db.js?v=74d613bfda5c';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=74d613bfda5c';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
@@ -22,7 +23,7 @@ import {
   isNa, isMissing,
   varianceChip, varianceTone, variancePct,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE, WALK, morningToday,
-} from '../readings.js?v=5e3fba9ace80';
+} from '../readings.js?v=74d613bfda5c';
 
 const $ = selector => document.querySelector(selector);
 
@@ -54,6 +55,10 @@ const state = {
   filling: false,
   // Which of customer service, the die shop and prepress the comment box is currently on.
   supportAt: null, staffAt: null, attentionAt: null,
+  // Set once, when the tidy function reports that this plant has no key configured. It is
+  // not persisted: a plant that adds a key gets the buttons back on the next page load
+  // rather than needing anything cleared.
+  tidyOff: false,
   // Which screen the entry rail is on.
   fillAt: 'safety',
 };
@@ -757,6 +762,24 @@ function noteOf(field) {
 // The lines and the Add box on their own, for a card that already knows whose note it is —
 // a review card is headed with the department's name, so a picker above it would be asking a
 // question the card has already answered.
+// Spelling and grammar, on the line you just typed, before it is saved.
+//
+// The people who write on these cards are standing at a press with a phone in one hand, and
+// what they write is worth reading and is often spelled the way it sounds. The meeting reads
+// it perfectly; the report that goes out of the building, and the person reading it in three
+// months, do not.
+//
+// So: a button beside Add, which corrects the box and shows an Undo. Not a rewrite, not a
+// summary, not a politer version — spelling, grammar and punctuation, and the writer sees
+// the result in their own box and can put their own words back with one click. Nothing is
+// changed behind anybody, and nothing already saved is touched.
+//
+// It is gone entirely when the plant has no key configured, rather than being a button that
+// fails in somebody's hand.
+const tidyButton = field => state.tidyOff ? '' :
+  `<button type="button" class="btn jot__tidy" data-tidy="${esc(field)}"
+     title="Fix the spelling and grammar of what you have typed">Tidy</button>`;
+
 function jotLines(field, id, label = 'Comment') {
   const lines = String(noteOf(field)).split(/\r?\n/).map(line => line.trim()).filter(Boolean);
   return `${lines.length ? `<ul class="jot">${lines.map((line, at) =>
@@ -766,7 +789,8 @@ function jotLines(field, id, label = 'Comment') {
     <div class="er er--jot"><label for="${esc(id)}-note">${esc(label)}</label>
       <textarea class="inp" id="${esc(id)}-note" rows="2" data-jot="${esc(field)}"
         placeholder="one line, then Add" aria-label="${esc(label)}"></textarea>
-      <button type="button" class="btn btn--go jot__add" data-add="${esc(field)}">Add</button>
+      <span class="jot__do">${tidyButton(field)}<button type="button"
+        class="btn btn--go jot__add" data-add="${esc(field)}">Add</button></span>
     </div>`;
 }
 
@@ -3074,7 +3098,58 @@ document.addEventListener('change', event => {
 // list of them. Both go straight to `persist` rather than through the typing path — there is
 // nothing to debounce about a button, and the point of the button is that the person knows
 // it happened the moment they press it.
+// Tidy, and the Undo that has to come with it.
+//
+// This one does not re-render. Everything else on this page redraws from state after a
+// change, and a redraw here would throw away whatever else the person has typed — the box is
+// not saved yet, that is the whole point of tidying before Add. So it edits the two elements
+// it is about and nothing else.
+//
+// The button becomes Undo and carries the original wording, which is the smallest form of
+// "you can put yours back" that does not need a second control or a dialogue. Press Add and
+// the line saves as it stands; press Undo and the box is exactly what you typed.
 document.addEventListener('click', async event => {
+  const tidy = event.target.closest?.('[data-tidy]');
+  if (tidy) {
+    const box = document.querySelector(`[data-jot="${CSS.escape(tidy.dataset.tidy)}"]`);
+    if (!box) return;
+    if (tidy.dataset.was != null) {
+      box.value = tidy.dataset.was;
+      delete tidy.dataset.was;
+      tidy.textContent = 'Tidy';
+      box.focus();
+      return;
+    }
+    const said = String(box.value || '').trim();
+    if (!said) { box.focus(); return; }
+    tidy.disabled = true;
+    tidy.textContent = 'Tidying\u2026';
+    try {
+      const answer = await tidyText(said);
+      if (answer.unavailable) {
+        // No key at this plant. Take every Tidy button off the screen rather than leaving
+        // one that cannot work — without a render, so nobody loses what they were typing.
+        state.tidyOff = true;
+        document.querySelectorAll('[data-tidy]').forEach(button => button.remove());
+        toast(answer.error || 'Tidy-up is not set up for this plant.');
+        return;
+      }
+      if (answer.error) { toast(answer.error); return; }
+      if (answer.text === said) { toast('Nothing to fix.'); return; }
+      tidy.dataset.was = said;
+      box.value = answer.text;
+      tidy.textContent = 'Undo';
+      toast('Tidied \u2014 press Add to save it, or Undo for your own words.');
+    } catch (error) {
+      toast(error.message);
+    } finally {
+      if (tidy.isConnected) {
+        tidy.disabled = false;
+        if (tidy.textContent === 'Tidying\u2026') tidy.textContent = 'Tidy';
+      }
+    }
+    return;
+  }
   const add = event.target.closest?.('[data-add]');
   if (add) {
     const field = add.dataset.add;
