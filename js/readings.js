@@ -660,6 +660,17 @@ export const WALK = [
   ['safety',      'Safety'],
   ['quality',     'Quality'],
   ['production',  'Production'],
+  // Customer service, the die shop and prepress: a section, because it is a place somebody
+  // comes to rather than a card somebody scrolls past.
+  //
+  // It was one card at the foot of Production's grid, and the argument for promoting it is
+  // the argument that promoted the board. A CSR opening MaxMetrics has exactly one thing to
+  // do on it and had to walk through four departments and their last twenty-four hours to
+  // reach it, on a screen that is not theirs and mostly not about them. A section is a door
+  // with their name on it: it appears in the rail, it has its own screen, and Enter's
+  // sub-rail and the wall walk pick it up from the same list as everything else instead of
+  // naming it as an exception in three places.
+  ['support',     'Customer service, die shop & prepress', 'Front of house'],
   // Straight after the departments and before anything leaves the building, because it is
   // the same subject one zoom out: the cards above say what the plant did overnight, this
   // says what it did over the seven days that finished. On most mornings it is not there at
@@ -695,7 +706,7 @@ export const CARD_CATALOGUE = [
   // The rest of Production is the plant's own departments, set on the Departments screen.
   // These two are not departments, so they are the production cards that live here.
   { section: 'Production',  key: 'pw-week',       name: "Last week's productivity" },
-  { section: 'Production',  key: 'support',       name: 'Customer service, die shop & prepress' },
+  { section: 'Front of house', key: 'support',    name: 'Customer service, die shop & prepress' },
   // One card, one section. A plant that reviews its week off a spreadsheet on Monday can
   // untick it here and the section goes with it, the same as any other.
   { section: 'Last week',   key: 'week',          name: 'Last week by department' },
