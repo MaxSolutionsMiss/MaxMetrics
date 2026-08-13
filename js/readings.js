@@ -653,6 +653,11 @@ export const WALK = [
   ['safety',      'Safety'],
   ['quality',     'Quality'],
   ['production',  'Production'],
+  // Straight after the departments and before anything leaves the building, because it is
+  // the same subject one zoom out: the cards above say what the plant did overnight, this
+  // says what it did over the seven days that finished. On most mornings it is not there at
+  // all — `order()` drops it unless it is Monday or the plant has asked for it daily.
+  ['week',        'Last week'],
   ['shipping',    'Shipping'],
   ['financials',  'Financials'],
   ['maintenance', 'Upcoming maintenance', 'Maintenance'],
@@ -682,6 +687,9 @@ export const CARD_CATALOGUE = [
   // These two are not departments, so they are the production cards that live here.
   { section: 'Production',  key: 'pw-week',       name: "Last week's productivity" },
   { section: 'Production',  key: 'support',       name: 'Customer service, die shop & prepress' },
+  // One card, one section. A plant that reviews its week off a spreadsheet on Monday can
+  // untick it here and the section goes with it, the same as any other.
+  { section: 'Last week',   key: 'week',          name: 'Last week by department' },
   { section: 'Shipping',    key: 'jobs_shipped',  name: 'Jobs shipped' },
   { section: 'Shipping',    key: 'cartons',       name: 'Cartons' },
   { section: 'Shipping',    key: 'late',          name: 'Late' },

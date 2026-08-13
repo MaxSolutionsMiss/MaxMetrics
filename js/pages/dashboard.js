@@ -7,14 +7,14 @@
 
 import {
   currentSession, signOut, myProfile, myLocations, savePreference, savePlant,
-  openDay, loadDay, loadHistory, loadBudgets, loadYearCounts, loadMachines,
+  openDay, loadDay, loadHistory, loadWeeks, loadBudgets, loadYearCounts, loadMachines,
   loadUpcoming, addMaintenance, saveMaintenance, removeMaintenance,
   saveField, saveDepartment, saveReview,
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=957cc5ce14ad';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=957cc5ce14ad';
+} from '../db.js?v=9a146e3cc72a';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=9a146e3cc72a';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
@@ -22,7 +22,7 @@ import {
   isNa, isMissing,
   varianceChip, varianceTone, variancePct,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE, WALK, morningToday,
-} from '../readings.js?v=957cc5ce14ad';
+} from '../readings.js?v=9a146e3cc72a';
 
 const $ = selector => document.querySelector(selector);
 
@@ -46,7 +46,8 @@ const state = {
   location: null, date: today(), active: 'overview',
   metrics: null, departments: [], review: [], maintenance: [], labour: [], config: [], budgets: [],
   machines: [], upcoming: [],
-  history: { metrics: [], departments: [] }, year: [], findings: [], verdicts: {}, plant: null,
+  history: { metrics: [], departments: [] }, weeks: [], year: [], findings: [],
+  verdicts: {}, plant: null,
   team: [], live: null, wallStep: 0, wallMode: 'walk', rotating: false,
   // Whether a section screen is showing its cards or asking for its readings. One answer for
   // all of them, because the work it exists for is going down the rail filling each in.
@@ -152,6 +153,8 @@ const ICONS = {
   quality:     'M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.9-5.2-2.8-5.2 2.8 1-5.9-4.3-4.1 5.9-.9z',
   // A pin. The one section that is about what is coming rather than what happened.
   attention:   'M9 3.5h6l-1 5 3.5 3.5H6.5L10 8.5zM12 12.5V21',
+  // A calendar, because the section is a date range rather than a subject.
+  week:        'M4.6 6.6h14.8v12.8H4.6zM4.6 10.4h14.8M8.6 4.2v3.4M15.4 4.2v3.4',
   production:  'M4 20V9l5 3V9l5 3V4l6 4v12z',
   shipping:    'M3 7h11v9H3zM14 10h4l3 3v3h-7zM7 19a1.6 1.6 0 100-3.2A1.6 1.6 0 007 19zM17.5 19a1.6 1.6 0 100-3.2 1.6 1.6 0 000 3.2z',
   maintenance: 'M14.5 6.5a3.5 3.5 0 01-4.6 4.6L5 16l3 3 4.9-4.9a3.5 3.5 0 004.6-4.6l-2.4 2.4-2.1-2.1z',
@@ -181,18 +184,28 @@ const ORDER = WALK.map(([key]) => key);
 // merged by default, which put a booking list and a shift count under one heading and
 // made the tallest screen on the product out of two short ones. `merge_upkeep` is the
 // plant's own answer and it is off until somebody turns it on.
-const order = () => ORDER.filter(key => key !== 'maintenance' || !state.plant?.merge_upkeep);
+// Last week is a Monday section. The rule is about the meeting rather than the data — the
+// week that finished is equally finished on Thursday — so it is read off the calendar rather
+// than stored, and `week_daily` is the plant's way of overruling it when the review slips or
+// when a shutdown means everyone wants the week in front of them every morning.
+//
+// The day is the morning's own date, not the wall clock, so reopening last Monday to correct
+// it shows the same screen the meeting saw.
+const weekIsDue = () => state.plant?.week_daily || dateOf(state.date).getDay() === 1;
+const order = () => ORDER
+  .filter(key => key !== 'maintenance' || !state.plant?.merge_upkeep)
+  .filter(key => key !== 'week' || weekIsDue());
 const TITLES = {
   safety: 'Safety', quality: 'Quality', production: 'Production', shipping: 'Shipping',
   maintenance: 'Upcoming maintenance', labour: 'Labour & Overtime', financials: 'Financials',
-  attention: 'Needs watching today',
+  attention: 'Needs watching today', week: 'Last week',
   // Support is an entry screen rather than a dashboard section, so it never needed a title
   // here - until Save-and-next started naming the screen it was about to move to, and found
   // nothing. The button read "Next next" and the toast said "Saved. undefined next."
   support: 'Customer service',
 };
 const NAV = { labour: 'Labour', line: 'Summary', fill: 'Enter',
-              maintenance: 'Maintenance', attention: 'Needs watching' };
+              maintenance: 'Maintenance', attention: 'Needs watching', week: 'Last week' };
 Object.assign(TITLES, { line: 'Morning summary', fill: 'Enter the morning' });
 Object.assign(ICONS, {
   line:  'M4 6h16M4 12h10M4 18h6',
@@ -512,6 +525,156 @@ function attentionCard() {
     blank: !count,
     prompt: 'Nothing flagged for the day ahead. Anyone in the building can add a line.',
     edit: attentionEditor(),
+  });
+}
+
+// ── Last week ───────────────────────────────────────────────────────────────────
+//
+// The seven days that finished, one row per department, four columns.
+//
+// Monday morning the room stops reporting the night and reports the week, and it has been
+// doing it off a spreadsheet somebody rebuilds by hand. Every figure in it is already on the
+// product — `daily_departments` carries output, hours, uptime and make-ready for every
+// department for every morning — so the card is arithmetic over rows that are already there
+// rather than anything new to type.
+
+// Monday to Sunday, the last one that is over.
+//
+// Anchored to the Monday of the morning's own week rather than to "seven days ago", so the
+// card says the same thing all week: a review that slips to Wednesday still reviews the week
+// that finished, not Tuesday-to-Monday. The fortnight is loaded because the volume column is
+// read against the week before it — see below for why that, and not a target.
+const weekSpan = (date = state.date) => {
+  const monday = addDays(date, -((dateOf(date).getDay() + 6) % 7));
+  return { from: addDays(monday, -7), to: addDays(monday, -1),
+           priorFrom: addDays(monday, -14), priorTo: addDays(monday, -8) };
+};
+
+// What a department did over a span, added up the way each figure is actually made.
+//
+// The three ratios are weighted, and this is the whole reason the card is worth building
+// rather than eyeballing seven mornings. A week's rate is its total output over its total
+// hours — the mean of seven daily rates gives a two-hour Saturday the same say as a
+// twelve-hour Tuesday and comes out wrong every time a short shift runs badly. Uptime is
+// weighted by crewed hours for the same reason, and make-ready by the number of changeovers,
+// because a day with one changeover is not evidence the way a day with nine is.
+//
+// A department with no rows in the span has not been quiet — it has not been logged, and the
+// card says so rather than drawing a nought.
+function weekTotals(rows, key) {
+  const mine = rows.filter(row => row.dept_key === key);
+  const sum = (field, over) => mine.reduce((total, row) => {
+    const value = Number(row[field]), weight = over ? Number(row[over]) : 1;
+    return Number.isFinite(value) && Number.isFinite(weight) && (!over || weight > 0)
+      ? total + value * weight : total;
+  }, 0);
+  const weight = field => mine.reduce((total, row) => {
+    const value = Number(row[field.value]), w = Number(row[field.by]);
+    return Number.isFinite(value) && Number.isFinite(w) && w > 0 ? total + w : total;
+  }, 0);
+  const qty = sum('qty'), hours = sum('hours');
+  const upHours = weight({ value: 'uptime', by: 'hours' });
+  const mrCount = weight({ value: 'make_ready', by: 'mr_count' });
+  // Where the DOR never wrote a changeover count, an unweighted mean is the best that can be
+  // said, and saying it is better than saying nothing about make-ready for the whole week.
+  const mrPlain = mine.map(row => Number(row.make_ready)).filter(Number.isFinite);
+  return {
+    days: mine.length, qty, hours,
+    rate: hours > 0 ? qty / hours : null,
+    uptime: upHours > 0 ? sum('uptime', 'hours') / upHours : null,
+    makeReady: mrCount > 0 ? sum('make_ready', 'mr_count') / mrCount
+      : mrPlain.length ? mrPlain.reduce((a, b) => a + b, 0) / mrPlain.length : null,
+  };
+}
+
+// One figure, what it is measured against, and how far off it landed.
+//
+// The bar is the same `bullet` the rest of the product draws its targets with, so a week read
+// off this card and a morning read off the card above it say "target" in the same shape. The
+// chip is `varianceChip` for the same reason: four sections were each inventing their own
+// way to print a variance and they were unified for one screen, not for six.
+// The verdict is the caller's, because each of these four readings is judged by its own
+// rule — a rate is amber at nine tenths of target, make-ready is amber at a fifth over, and
+// a week's volume against the week before it is not judged against a target at all.
+const weekCell = (text, actual, target, { tone = '', lowerIsBetter = false, digits = 1,
+                                          floor = 0, ceiling = 0, note = '' } = {}) => {
+  if (text == null) return '<td class="wkt__x">—</td>';
+  const against = Number.isFinite(Number(actual))
+    && Number.isFinite(Number(target)) && Number(target);
+  return `<td>
+    <span class="wkt__v">${text}</span>
+    ${against ? bullet({ actual, target, tone, floor, ceiling, lowerIsBetter }) : ''}
+    ${against ? varianceChip(actual, target, { digits, lowerIsBetter }) || '' : ''}
+    ${note ? `<span class="wkt__n">${esc(note)}</span>` : ''}</td>`;
+};
+
+// "3–9 August", and "27 July – 2 August" when the week straddles two of them. The year
+// is left off: a card headed "last week" is not ambiguous about which year it means, and
+// `shortDate` twice over spends a third of the title bar saying 2026 to nobody.
+const weekLabel = (from, to) => {
+  const a = dateOf(from), b = dateOf(to);
+  return a.getMonth() === b.getMonth()
+    ? `${a.getDate()}–${b.getDate()} ${MONTHS[b.getMonth()]}`
+    : `${a.getDate()} ${MONTHS[a.getMonth()]} – ${b.getDate()} ${MONTHS[b.getMonth()]}`;
+};
+
+function lastWeekCard() {
+  const list = configured();
+  const span = weekSpan();
+  const rows = state.weeks || [];
+  const inSpan = (from, to) => rows.filter(row =>
+    String(row.metric_date) >= from && String(row.metric_date) <= to);
+  const week = inSpan(span.from, span.to), prior = inSpan(span.priorFrom, span.priorTo);
+  const logged = list.map(config => weekTotals(week, config.key)).some(t => t.days);
+
+  const body = list.map(config => {
+    const now = weekTotals(week, config.key);
+    const was = weekTotals(prior, config.key);
+    const target = Number(config.target) || null;
+    const uptimeTarget = Number(config.uptime_target) || null;
+    const mrTarget = Number(config.mr_target) || null;
+    if (!now.days) return `<tr><th>${esc(config.name)}</th>
+      <td class="wkt__x" colspan="4">Nothing logged for the week</td></tr>`;
+    return `<tr><th>${esc(config.name)}<span class="wkt__d">${now.days} day${
+      now.days === 1 ? '' : 's'} · ${Math.round(now.hours)} h</span></th>
+      ${weekCell(num(Math.round(now.qty)), now.qty, was.qty || null, {
+        // Volume is the one column with no target of its own. A week's output is hours times
+        // rate, and the hours are a schedule rather than a promise — a department that ran
+        // four days because that is all there was to run has not missed anything. So it is
+        // read against the week before it, which is the comparison the room makes anyway,
+        // and the rate column beside it carries the argument about speed.
+        tone: varianceTone(was.qty ? (now.qty - was.qty) / Math.abs(was.qty) * 100 : NaN),
+      })}
+      ${weekCell(now.rate ? num(Math.round(now.rate)) : null, now.rate, target,
+                 { tone: band.rate(now.rate, target) })}
+      ${weekCell(now.uptime == null ? null : `${(now.uptime * 100).toFixed(1)}%`,
+                 now.uptime == null ? null : now.uptime * 100,
+                 uptimeTarget ? uptimeTarget * 100 : null,
+                 { tone: band.rate(now.uptime * 100, uptimeTarget * 100),
+                   floor: 60, ceiling: 100 })}
+      ${weekCell(now.makeReady == null ? null : `${now.makeReady.toFixed(2)} h`,
+                 now.makeReady, mrTarget,
+                 { tone: band.lower(now.makeReady, mrTarget), lowerIsBetter: true })}
+    </tr>`;
+  }).join('');
+
+  return noteCard({
+    pkey: 'week', wide: true, icon: iconFor('week'),
+    label: `Last week · ${weekLabel(span.from, span.to)}`,
+    // No verdict colour on the head. Four readings across three departments do not add up to
+    // one tone, and picking the worst of twelve would paint the card red every week that one
+    // press had one bad changeover.
+    tone: '',
+    blank: !logged,
+    prompt: 'No mornings were logged for the week. Import the DOR for those days and the '
+      + 'week fills itself in.',
+    html: logged ? `<table class="wkt">
+      <thead><tr><th></th>
+        ${[['Volume', 'vs week before'], ['Per hour', 'vs target'],
+           ['Uptime', 'vs target'], ['Make-ready', 'vs target']]
+          .map(([name, against]) => `<th>${name}<span class="wkt__a">${against}</span></th>`)
+          .join('')}</tr></thead>
+      <tbody>${body}</tbody></table>` : '',
   });
 }
 
@@ -1624,6 +1787,10 @@ const SECTIONS = {
     (mergedUpkeep() ? maintenanceCards() : '') + labourCards()),
 
   attention: () => cardGrid('attention', attentionCard()),
+
+  // One card, and it is the width of two. The same shape as the board: a section that
+  // holds a single wide card rather than a row of narrow ones.
+  week: () => cardGrid('week', lastWeekCard()),
 
   financials: () => {
     // Billing is reviewed the next morning, so the financial picture reports through the
@@ -2767,16 +2934,19 @@ async function open(location, date) {
   try {
     if (state.canEdit) await openDay(location, date);
     const from = new Date(dateOf(date)); from.setDate(from.getDate() - 6);
-    const [day, budgets, history, months, machines, upcoming] = await Promise.all([
+    const fortnight = weekSpan(date);
+    const [day, budgets, history, months, machines, upcoming, weeks] = await Promise.all([
       loadDay(location, date),
       loadBudgets(location, dateOf(date).getFullYear()),
       loadHistory(location, from.toISOString().slice(0, 10), date),
       loadYearCounts(location, dateOf(date).getFullYear()),
       loadMachines(location),
       loadUpcoming(location, date),
+      loadWeeks(location, fortnight.priorFrom, fortnight.to),
     ]);
     Object.assign(state, day, { budgets: budgets || [], history, year: months || [],
-                                machines: machines || [], upcoming: upcoming || [] });
+                                machines: machines || [], upcoming: upcoming || [],
+                                weeks: weeks || [] });
     saved('All changes saved');
   } catch (error) {
     $('#content').innerHTML = `<div class="loading">${esc(error.message)}</div>`;
@@ -3686,12 +3856,14 @@ async function applyImport({ quiet = false } = {}) {
   importState.preview = null;
   if (!quiet) $('#import-sheet').close();
   if (mornings) {
-    const [day, history, months] = await Promise.all([
+    const fortnight = weekSpan();
+    const [day, history, months, weeks] = await Promise.all([
       loadDay(state.location, state.date),
       loadHistory(state.location, addDays(state.date, -6), state.date),
       loadYearCounts(state.location, dateOf(state.date).getFullYear()),
+      loadWeeks(state.location, fortnight.priorFrom, fortnight.to),
     ]);
-    Object.assign(state, day, { history, year: months || [] });
+    Object.assign(state, day, { history, year: months || [], weeks: weeks || [] });
   }
   render();
   if (!quiet) {

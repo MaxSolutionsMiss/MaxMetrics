@@ -25,11 +25,11 @@ import {
   peopleAt, grantAccess, revokeAccess, setAdmin, accessMatrix, allLocations,
   createPerson, updatePerson, resetPersonPassword, removePerson,
   loadSources, saveSource, addSource, dropSource, pullSources,
-} from '../db.js?v=957cc5ce14ad';
+} from '../db.js?v=9a146e3cc72a';
 import {
   esc, money, MONTHS, iconFor,
-  volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE, walkKeyFor, morningToday,
-} from '../readings.js?v=957cc5ce14ad';
+  volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE, WALK, walkKeyFor, morningToday,
+} from '../readings.js?v=9a146e3cc72a';
 
 const $ = selector => document.querySelector(selector);
 
@@ -423,11 +423,11 @@ function shippingPane() {
 // arrangement is worked out after the cards are built and not before.
 // The seven families, in the order the meeting walks them, so the one-page switches read in
 // the same order as the screen they govern.
-const FAMILIES = [
-  ['safety', 'Safety'], ['quality', 'Quality'], ['production', 'Production'],
-  ['shipping', 'Shipping'], ['financials', 'Financials'],
-  ['maintenance', 'Maintenance'], ['labour', 'Labour & Overtime'],
-];
+// Read off the walk rather than written out again. This was a second copy of the same list
+// and it had already drifted: the board went in as a section and never appeared here, so
+// "Needs watching, off the one page" was a question the screen could not be asked. Derived,
+// a section added to the walk turns up here the morning it is added.
+const FAMILIES = WALK.map(([key, name, catalogue]) => [key, catalogue || name]);
 
 function qualityPane() {
   const hidden = new Set(state.plant?.hidden_cards || []);
@@ -493,6 +493,14 @@ function qualityPane() {
         <p class="cfg__none" style="font-style:normal;color:var(--ink-faint)">
           Off, each gets its own screen. On, they share one, which suits a plant with two
           bookings a week and nothing else to say about either.</p>
+        <label class="tog cfg__card" style="margin-top:var(--s3)">
+          <input type="checkbox" data-plant="week_daily"${
+            state.plant?.week_daily ? ' checked' : ''}${canEdit() ? '' : ' disabled'}>
+          <span>Show Last week every morning, not only on Mondays</span></label>
+        <p class="cfg__none" style="font-style:normal;color:var(--ink-faint)">
+          Off, the week that finished appears on Monday and is gone by Tuesday, which is when
+          the plant reviews it. On, it stays up all week — for a review that slips, or a
+          shutdown everyone is watching the week against.</p>
         <label class="tog cfg__card" style="margin-top:var(--s3)">
           <input type="checkbox" data-plant="hide_trends"${
             state.plant?.hide_trends ? ' checked' : ''}${canEdit() ? '' : ' disabled'}>
