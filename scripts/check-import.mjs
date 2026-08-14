@@ -109,15 +109,20 @@ async function checkKpi() {
   if (m.ncr_ytd !== 46) bad.push(`ncr_ytd ${m.ncr_ytd}, expected 46`);
   if (m.complaints_internal !== 38) bad.push(`complaints_internal ${m.complaints_internal}, expected 38`);
   if (m.complaints_external !== 12) bad.push(`complaints_external ${m.complaints_external}, expected 12`);
-  if (m.mtd_otif !== 98) bad.push(`mtd_otif ${m.mtd_otif}, expected 98`);
-  // 566 OTIF deliveries of 600.
-  if (Math.abs(m.ytd_otif - 94.3333) > 0.001) bad.push(`ytd_otif ${m.ytd_otif}, expected 94.3333`);
-  if (m.fin_actual_mtd !== 2000000) bad.push(`fin_actual_mtd ${m.fin_actual_mtd}`);
-  if (m.fin_actual_ytd !== 4000000) bad.push(`fin_actual_ytd ${m.fin_actual_ytd}`);
+  // OTIF and the sales figure are not this workbook's to give.
+  //
+  // It carries columns for all four, which is why it used to write them, and it is closed off
+  // a month at a time — so on any morning before the month is closed the figure it hands over
+  // is last month's whole month. OTIF comes from the OTD sheet's daily rows and sales is
+  // typed; a reader that returns them here is a reader that has started disagreeing with the
+  // one that owns them.
+  for (const field of ['mtd_otif', 'ytd_otif', 'fin_actual_mtd', 'fin_actual_ytd', 'fin_month']) {
+    if (m[field] !== undefined) bad.push(`${field} came from the KPI workbook: ${m[field]}`);
+  }
 
   // A month the sheet has not been closed off for yet reads the last one it has, and says so.
   const august = await readKpi(KPI, { date: '2026-08-10' });
-  if (august.metrics.fin_actual_mtd !== 1000000) bad.push('August did not fall back to April');
+  if (august.metrics.coq === undefined) bad.push('August did not fall back to April');
   if (!august.notes.some(n => /no row for AUG/.test(n))) bad.push('August fell back without saying so');
   return bad;
 }

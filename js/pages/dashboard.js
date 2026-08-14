@@ -1903,7 +1903,8 @@ const SECTIONS = {
         return `<div class="wkb__m">
            <span class="wkb__c"><span class="wkb__l" style="--wl:${
              String(label).length}">${esc(label)}</span>
-             <span class="wkb__t">${aim ? esc(aim) : ''}</span></span>
+             <span class="wkb__t" style="--tl:${
+             String(aim || '').length || 1}">${aim ? esc(aim) : ''}</span></span>
            <b class="wkb__v${tone ? ` tone--${tone}` : ''}">${text}</b>
            ${off == null ? '<i class="wkb__d"></i>'
              : `<i class="wkb__d tone--${off >= 0 ? 'ok' : 'stop'}">${

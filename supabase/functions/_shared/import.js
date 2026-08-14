@@ -429,23 +429,24 @@ export async function readKpi(workbook, { date }) {
   put('ncr_ytd', (internal || 0) + (supplier || 0));
   put('complaints_internal', internal);
   put('complaints_external', sum(col.complaints));
-  put('mtd_otif', asPercent(num(latest.row, col.otifPercent)));
-  const otifYear = sum(col.otif), deliveriesYear = sum(col.deliveries);
-  if (otifYear != null && deliveriesYear) {
-    put('ytd_otif', Number((otifYear / deliveriesYear * 100).toFixed(4)));
-  }
-  put('fin_actual_mtd', num(latest.row, col.sales));
-  put('fin_actual_ytd', salesYear);
-  // Which month the sales figure is for.
+  // OTIF is not read here, and the sales figure is not read anywhere.
   //
-  // `latest` is the newest month at or before the morning's own, so on a morning in August
-  // before August's row has been filled in it is July — and the figure is July's *whole
-  // month*, not August's first fortnight. The card called it "Month to date" and measured it
-  // against August's budget prorated to the day, which is how it came to report 251% of
-  // budget on an ordinary Thursday. It is the cost-of-quality mistake in a second place and
-  // it has the same fix: hand the month over with the figure and let the card say which one
-  // it is looking at.
-  metrics.fin_month = `${latest.year}-${String(latest.month + 1).padStart(2, '0')}-01`;
+  // Two workbooks were writing month-to-date and year-to-date OTIF: this one, from its own
+  // OTIF column, and the OTD sheet, from the day-by-day counts. Whichever pull ran last won,
+  // and this one is the wrong of the two by construction — it is closed off a month at a
+  // time, so on the fourteenth of August its newest row is July and "month to date" was last
+  // month's whole month wearing this month's label. The OTD sheet has a row per day and is
+  // the plant's own source for OTIF, so it is the only one that writes it now.
+  //
+  // The sales figure is typed. It was read off this sheet's shipped-dollars column, which has
+  // the same month-behind problem and no way to be right on an ordinary Thursday: the room
+  // has watched it report a closed month as a month to date more than once. It is the one
+  // reading on the product that starts blank every morning and is filled in by the person who
+  // knows it, which is what the entry screen has claimed about it all along.
+  // No `fin_month` either. It existed to say which month the sales figure this reader handed
+  // over belonged to — a closed July wearing an August label was the whole reason it was
+  // added. Nothing hands one over now: the figure is typed on the morning it is about, so the
+  // month it covers is the morning's own and the card can say so without being told.
 
   // ── Today, from the raw log rather than the monthly roll-up ──────────────────
   //
