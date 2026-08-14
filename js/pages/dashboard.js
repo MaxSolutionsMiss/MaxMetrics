@@ -14,8 +14,8 @@ import {
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=934b13f120b6';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=934b13f120b6';
+} from '../db.js?v=d6b2249e1c66';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=d6b2249e1c66';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
@@ -24,7 +24,7 @@ import {
   varianceChip, varianceTone, variancePct, VERDICT, verdictMark,
   FROM_FILE, SOURCE_NAMES, sourceOf,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE, WALK, morningToday,
-} from '../readings.js?v=934b13f120b6';
+} from '../readings.js?v=d6b2249e1c66';
 
 const $ = selector => document.querySelector(selector);
 
@@ -889,13 +889,13 @@ const TONES = [
 //
 // The Undo sits in the same slot and is hidden until there is something to undo, so the row
 // is two controls wide whatever state it is in.
-const writeAids = field => state.tidyOff ? '' :
+const writeAids = field =>
   `<span class="aid">
      <button type="button" class="btn jot__tidy hide" data-undo="${esc(field)}">Undo</button>
-     <select class="inp aid__tone" data-tone="${esc(field)}"
+     <select class="inp aid__tone" data-tone="${esc(field)}"${state.tidyOff ? ' disabled' : ''}
        aria-label="Rewrite what you have typed"
        title="Rewrite what you have typed">
-       <option value="\u2014">Rewrite\u2026</option>
+       <option value="\u2014">${state.tidyOff ? 'Rewrite \u2014 not set up' : 'Rewrite\u2026'}</option>
        ${TONES.map(([key, name]) =>
          `<option value="${key}">${esc(name)}</option>`).join('')}
      </select>
@@ -1861,20 +1861,41 @@ const SECTIONS = {
       // number moved against what it should have been, and the colour is whether that was
       // good — which for make-ready is the opposite way round, because an hour saved setting
       // up is an hour running.
-      const cell = (label, text, tone, actual, target, lowerIsBetter) => {
+      // A row per reading, not a column per reading.
+      //
+      // Three readings side by side is the shape a wide card wants, and this card is the one
+      // on the product that is deliberately narrow and two rows tall — it stands beside a
+      // column of department cards. Side by side in that shape gave each figure a third of
+      // 300 pixels and left two thirds of the height empty, which is what the room saw: type
+      // smaller than everything around it in a card three-quarters blank.
+      //
+      // Down the card, each reading gets the full width and the card gets used. It is also
+      // the arrangement the overtime list already uses two cards to the left — a name on the
+      // left, its figure on the right — so the section reads as one design.
+      //
+      // Four facts to a row, which is what every other card's foot carries and what this one
+      // was missing: the caption, the reading, how far off target it was, and the target.
+      // The target came out once on the argument that the department's own card carries it.
+      // That was true of throughput and never true of the other two, and it is the wrong
+      // argument anyway — "89.7%, down 1.5%" is a sentence you cannot finish without knowing
+      // what it was aiming at, and nobody should have to hold a number from another card to
+      // finish it.
+      const cell = (label, text, tone, actual, target, lowerIsBetter, aim) => {
         const off = actual != null && target
           ? (actual - target) / target * 100 * (lowerIsBetter ? -1 : 1) : null;
         // The caption carries its own length, so it can be capped by how much of the card it
-        // has rather than by a flat ceiling. A third of a card fits "UPTIME" at a size that
-        // clips "MAKE-READY" and "CARTONS/HR", and a clipped caption is the card hiding the
-        // word that says what the number under it is.
-        return `<div class="wkb__c"><span class="wkb__l" style="--wl:${
-          String(label).length}">${esc(label)}</span>
+        // has rather than by a flat ceiling. A clipped caption is the card hiding the word
+        // that says what the number beside it is.
+        return `<div class="wkb__m">
+           <span class="wkb__c"><span class="wkb__l" style="--wl:${
+             String(label).length}">${esc(label)}</span>
+             <span class="wkb__t">${aim ? esc(aim) : ''}</span></span>
            <b class="wkb__v${tone ? ` tone--${tone}` : ''}">${text}</b>
            ${off == null ? '<i class="wkb__d"></i>'
              : `<i class="wkb__d tone--${off >= 0 ? 'ok' : 'stop'}">${
                  off >= 0 ? '▲' : '▼'} ${Math.abs(off).toFixed(1)}%</i>`}</div>`;
       };
+
       const blocks = list.map(config => {
         const row = dept(config.key);
         const hours = Number(row.pw_hours) || 0;
@@ -1888,19 +1909,28 @@ const SECTIONS = {
           return `<div class="wkb"><div class="wkb__n">${esc(config.name)}</div>
             <div class="wkb__r"><span class="wkb__none">Not logged</span></div></div>`;
         }
-        // No target line beside the name. The department's own card carries the throughput
-        // target three cards to the left, and each reading now says its own distance from
-        // target underneath itself, which is the thing the target was there to let you work
-        // out.
+        // No target line beside the name — each of the three readings carries its own,
+        // underneath itself, where the number it belongs to is.
+        // What it made and how long it ran, beside the name. Both were already read to work
+        // the rate out and then thrown away, and they are the two facts a reader asks for
+        // the moment a rate surprises them: 5,920 an hour is a different week at 26 hours
+        // than at 40.
+        const made = [
+          Number(row.pw_qty) ? `${num(Math.round(row.pw_qty))} ${esc(config.unit || 'units')}` : '',
+          hours ? `${num(hours)} h` : '',
+        ].filter(Boolean).join(' \u00b7 ');
         return `<div class="wkb">
-          <div class="wkb__n">${esc(config.name)}</div>
+          <div class="wkb__n">${esc(config.name)}${made ? `<em>${made}</em>` : ''}</div>
           <div class="wkb__r">
             ${cell(rateLabel(config), rate ? num(Math.round(rate)) : '—',
-                   rate ? band.rate(rate, target) : '', rate || null, target)}
+                   rate ? band.rate(rate, target) : '', rate || null, target, false,
+                   target ? `Target ${num(Math.round(target))}` : '')}
             ${cell('Make-ready', mr == null ? '—' : `${mr.toFixed(2)} h`,
-                   mr == null || !mrTarget ? '' : band.lower(mr, mrTarget), mr, mrTarget, true)}
+                   mr == null || !mrTarget ? '' : band.lower(mr, mrTarget), mr, mrTarget, true,
+                   mrTarget ? `Target ${mrTarget.toFixed(2)} h` : '')}
             ${cell('Uptime', up == null ? '—' : `${(up * 100).toFixed(1)}%`,
-                   up == null || !upTarget ? '' : band.rate(up, upTarget), up, upTarget)}
+                   up == null || !upTarget ? '' : band.rate(up, upTarget), up, upTarget, false,
+                   upTarget ? `Target ${(upTarget * 100).toFixed(0)}%` : '')}
           </div></div>`;
       }).join('');
 
@@ -3757,12 +3787,25 @@ const aidSaved = box => {
   box.dispatchEvent(new Event('change', { bubbles: true }));
 };
 
-// No key at this plant. Take every one of these off the screen rather than leaving controls
-// that cannot work — without a render, so nobody loses what they were typing.
+// No key at this plant. Say so on the control rather than taking it off the screen.
+//
+// It used to remove itself — the argument being that a control which cannot work is worse
+// than no control. That argument was wrong in the one way that matters: a control that
+// vanishes when you press it looks exactly like a control that is broken, and the person who
+// pressed it is left with a box, no button and no idea what happened. The room reported it as
+// "nothing happened" and then as "the rewrite button is gone".
+//
+// So it stays where it is, disabled, saying what is wrong. No render, so nobody loses what
+// they were typing, and one line of the menu carries the reason.
 const aidsOff = said => {
   state.tidyOff = true;
-  document.querySelectorAll('.aid').forEach(span => span.remove());
-  toast(said || 'Rewriting is not set up for this plant.');
+  for (const menu of document.querySelectorAll('[data-tone]')) {
+    menu.disabled = true;
+    const first = menu.querySelector('option');
+    if (first) first.textContent = 'Rewrite \u2014 not set up';
+    menu.title = said || 'Rewriting needs an API key in this plant\u2019s settings.';
+  }
+  toast(said || 'Rewriting is not set up for this plant. It needs an API key in settings.');
 };
 
 // One call for every one of them, because from the writer's side they are one act: something

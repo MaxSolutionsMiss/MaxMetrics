@@ -432,48 +432,64 @@ body.tv .grid--prod .card--tall{grid-column:-2/-1;grid-row:1/span 2;
   gap:calc(2.4*var(--u,3px))}
 /* The departments divide the card's height between them rather than stacking at the top of
    it. A card that is deliberately twice as tall and three quarters empty is a card that
-   looks like a mistake. */
+   looks like a mistake — which is what this was before each reading gained its target and
+   the type came up to the size of the cards beside it. */
 .wkb{display:flex;flex:1 1 0;flex-direction:column;justify-content:center;
-  gap:calc(1*var(--u,3px));
+  gap:calc(1.4*var(--u,3px));
   padding-bottom:calc(2.4*var(--u,3px));border-bottom:1px solid var(--rule)}
 .wkb:last-child{border-bottom:none;padding-bottom:0}
 /* Sized off the card, like everything else on a card.
 
-   These four were `clamp(a*--scale, b*--u, c*--scale)` — a floor and a ceiling in page
-   pixels around a card-relative middle — and the floor is what went wrong. On the one-page
-   overview every card is a tile a few hundred pixels tall and `--scale` is 1.8, so the floor
-   held the department name at 23px inside a card whose own figures were drawing at nine.
-   The card burst its cell, pushed the row it was in, and set type at sizes nothing else on
-   the page used — which is exactly what the room reported: one card in a different design
-   from the forty around it.
+   These were `clamp(a*--scale, b*--u, c*--scale)` — a floor and a ceiling in page pixels
+   around a card-relative middle — and the floor is what went wrong. On the one-page overview
+   every card is a tile a few hundred pixels tall and `--scale` is 1.8, so the floor held the
+   department name at 23px inside a card whose own figures were drawing at nine. The card
+   burst its cell, pushed the row it was in, and set type at sizes nothing else on the page
+   used — one card in a different design from the forty around it.
 
-   `--u` alone is the rule the rest of the product follows: it is the card's own hundredth
-   times the fit the screen settled on, so a card that is small draws small and the whole
-   page moves together. The multipliers are a fifth larger than the old middles, which is the
-   other half of the ask — on a page of cards this is the one that is two rows tall and it
-   had been reading smaller than its neighbours, not larger. */
+   `--u` alone is the rule the rest of the product follows: the card's own hundredth times the
+   fit the screen settled on, so a card that is small draws small and the whole page moves
+   together. The multipliers are set so this card's readings sit at the size of the foot
+   figures on the cards beside it, which is what "make it match" means here. */
 .wkb__n{display:flex;align-items:baseline;justify-content:space-between;gap:var(--s2);
-  font-family:var(--font-condensed);font-weight:700;
-  font-size:calc(5.5*var(--u,3px));
-  color:var(--ink)}
+  font-family:var(--font-condensed);font-weight:700;min-width:0;
+  font-size:calc(6.8*var(--u,3px));letter-spacing:.01em;
+  color:var(--ink);padding-bottom:calc(.8*var(--u,3px));
+  border-bottom:1px solid var(--rule-soft)}
+/* What it made and how long it ran, beside the name. It gives way first: the department is
+   which line you are reading and the volume is a detail on it, so a narrow card ellipsises
+   the volume rather than the name. */
 .wkb__n em{font-style:normal;font-weight:400;color:var(--ink-faint);white-space:nowrap;
-  font-size:.78em}
-.wkb__r{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--s2)}
-.wkb__c{display:flex;flex-direction:column;min-width:0}
-/* And the caption is capped by its own length as well, the way a foot label is. A third of a
-   card fits "UPTIME" at a size that clips "MAKE-READY"; `--wl` is how many characters this
-   one holds, set on the element by the card that drew it. */
+  font-size:.72em;min-width:0;overflow:hidden;text-overflow:ellipsis}
+/* A row per reading, down the card, rather than three across it. This card is the narrow
+   two-row one that stands beside a column of department cards; three across gave each figure
+   a third of its width and left two thirds of its height empty. */
+.wkb__r{display:flex;flex-direction:column;gap:calc(1.2*var(--u,3px))}
+/* Caption and target on the left, the reading and its distance from target on the right —
+   the same shape the overtime list uses two cards along, so the section reads as one design.
+   Baselines, so the reading and the caption sit on one line whatever their sizes. */
+.wkb__m{display:grid;grid-template-columns:minmax(0,1fr) auto auto;
+  gap:calc(1.4*var(--u,3px));align-items:baseline;min-width:0}
+.wkb__c{display:flex;flex-direction:column;min-width:0;gap:0}
+/* The caption is capped by its own length as well, the way a foot label is. `--wl` is how
+   many characters this one holds, set on the element by the card that drew it. */
 .wkb__l{font-family:var(--font-condensed);text-transform:uppercase;letter-spacing:.06em;
   font-weight:700;color:var(--ink-faint);white-space:nowrap;overflow:hidden;
-  text-overflow:ellipsis;
-  font-size:min(calc(3.8*var(--u,3px)),calc(37cqi/var(--wl,9)))}
-.wkb__v{font-family:var(--font-num);font-weight:600;line-height:1.2;color:var(--ink);
-  font-size:calc(6.7*var(--u,3px))}
-/* How far off target, under the reading it belongs to. Reserved whether or not there is one,
-   so three columns with two answers between them still line up. */
+  text-overflow:ellipsis;line-height:1.25;
+  font-size:min(calc(4.5*var(--u,3px)),calc(44cqi/var(--wl,9)))}
+.wkb__v{font-family:var(--font-num);font-weight:600;line-height:1.15;color:var(--ink);
+  white-space:nowrap;text-align:right;
+  font-size:calc(8.8*var(--u,3px))}
+/* How far off target, beside the reading it belongs to. A fixed width whether or not there is
+   one, so a column of three keeps its right-hand edge. */
 .wkb__d{font-style:normal;font-family:var(--font-num);font-weight:700;line-height:1.3;
-  min-height:1.3em;white-space:nowrap;
-  font-size:calc(4.1*var(--u,3px))}
+  white-space:nowrap;text-align:right;min-width:5.2em;
+  font-size:calc(4.9*var(--u,3px))}
+/* What it was aiming at, under its own caption. Quiet, because it is context rather than
+   news — the same rule the foot follows for a target. */
+.wkb__t{font-family:var(--font-num);font-weight:600;color:var(--ink-faint);line-height:1.3;
+  min-height:1.3em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  font-size:calc(4.0*var(--u,3px))}
 .wkb__none{font-style:italic;color:var(--ink-faint);font-size:var(--t-small)}
 /* The board is sentences, and sentences on this one card are the reading rather than a
    caption under one. A step up from the other note cards on the page, and on its own slide
@@ -2855,7 +2871,10 @@ body.tv.tv-all #tv-next,body.tv.tv-all #tv-prev{display:none}
    on a label. Each carries a lit version of itself for the strip under the title, which is
    what makes the family readable from across a room rather than merely different.
    Maintenance and Labour are one screen for most plants, so most collages carry six. */
-.wall--snap{
+/* The palette is the same in both shapes of the one page: the whole morning, and one
+   section of it brought forward. The chips keep their colours either way — a plant that has
+   learned "shipping is purple" should not have to relearn it when a button is pressed. */
+.wall--snap,.wall--up{
   --fam-safety:#0E6F5F;      --famlit-safety:#3ECBAC;
   --fam-quality:#1E5FA8;     --famlit-quality:#6FB0F2;
   --fam-production:#5240B8;  --famlit-production:#A493F2;
@@ -2866,34 +2885,93 @@ body.tv.tv-all #tv-next,body.tv.tv-all #tv-prev{display:none}
 /* One place decides which family a thing belongs to. The bar, the strip, the wash and the
    legend chip all read `--fam` and `--famlit`, so adding a family is two lines here rather
    than four rules in four blocks. */
-.wall--snap [data-fam="safety"]{--fam:var(--fam-safety);--famlit:var(--famlit-safety)}
-.wall--snap [data-fam="quality"]{--fam:var(--fam-quality);--famlit:var(--famlit-quality)}
-.wall--snap [data-fam="production"]{--fam:var(--fam-production);--famlit:var(--famlit-production)}
-.wall--snap [data-fam="shipping"]{--fam:var(--fam-shipping);--famlit:var(--famlit-shipping)}
-.wall--snap [data-fam="financials"]{--fam:var(--fam-financials);--famlit:var(--famlit-financials)}
-.wall--snap [data-fam="maintenance"]{--fam:var(--fam-maintenance);--famlit:var(--famlit-maintenance)}
-.wall--snap [data-fam="labour"]{--fam:var(--fam-labour);--famlit:var(--famlit-labour)}
+.wall--snap [data-fam="safety"],.wall--up [data-fam="safety"]{--fam:var(--fam-safety);--famlit:var(--famlit-safety)}
+.wall--snap [data-fam="quality"],.wall--up [data-fam="quality"]{--fam:var(--fam-quality);--famlit:var(--famlit-quality)}
+.wall--snap [data-fam="production"],.wall--up [data-fam="production"]{--fam:var(--fam-production);--famlit:var(--famlit-production)}
+.wall--snap [data-fam="shipping"],.wall--up [data-fam="shipping"]{--fam:var(--fam-shipping);--famlit:var(--famlit-shipping)}
+.wall--snap [data-fam="financials"],.wall--up [data-fam="financials"]{--fam:var(--fam-financials);--famlit:var(--famlit-financials)}
+.wall--snap [data-fam="maintenance"],.wall--up [data-fam="maintenance"]{--fam:var(--fam-maintenance);--famlit:var(--famlit-maintenance)}
+.wall--snap [data-fam="labour"],.wall--up [data-fam="labour"]{--fam:var(--fam-labour);--famlit:var(--famlit-labour)}
 .legend{display:flex;flex-wrap:wrap;gap:6px 10px;margin-left:var(--s4);min-width:0}
 /* The section names are buttons on the one page: press one and it comes forward at the size
-   the walk draws it, press it again and the whole morning comes back. Unpressed they look
-   exactly as they did when they were labels, because that is what they still are most of the
-   time — the lit one gains a ring and the rest go quiet, which is the smallest thing that can
-   say "this is the one you are looking at" on a bar of seven colours. */
+   the walk draws it, press it again and the whole morning comes back.
+
+   They are pills rather than tabs. A row of seven flat rectangles in seven colours reads as a
+   legend — a key to what the colours mean — and this is a row of controls, so it is shaped
+   like one: a rounded chip that sits a little off the page, lifts under the pointer, and
+   presses down when it is the one you are on. The colour is still the section's own, which is
+   the whole reason the bar works from across a room.
+
+   The lit one keeps its colour at full strength and gains a ring in the page's own ground, so
+   it reads as raised out of the row. The rest go quiet rather than grey: still their own
+   colour, just standing back, because a plant that has learned "shipping is purple" should
+   not have to relearn it every time somebody presses a button. */
+.legend{align-items:center}
 .legend__i{font-family:var(--font-condensed);font-weight:700;text-transform:uppercase;
   letter-spacing:.09em;font-size:calc(11px*var(--scale));color:#fff;
-  padding:3px 9px;border-radius:3px;white-space:nowrap;background:var(--fam,#55606E);
-  box-shadow:inset 0 -2px 0 var(--famlit,transparent);
-  border:0;cursor:pointer;font-family:var(--font-condensed)}
-.legend__i:hover{filter:brightness(1.12)}
-.legend__i:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
-.wall--up .legend__i{opacity:.45}
-.wall--up .legend__i--on{opacity:1;box-shadow:inset 0 -2px 0 var(--famlit,transparent),
-  0 0 0 2px var(--surface),0 0 0 4px var(--fam,#55606E)}
+  padding:5px 13px;border-radius:999px;white-space:nowrap;background:var(--fam,#55606E);
+  box-shadow:0 1px 2px rgba(16,24,40,.16),inset 0 -2px 0 rgba(0,0,0,.13);
+  border:0;cursor:pointer;
+  transition:transform var(--motion,.12s) ease,box-shadow var(--motion,.12s) ease,
+    opacity var(--motion,.12s) ease,filter var(--motion,.12s) ease}
+.legend__i:hover{filter:brightness(1.1);transform:translateY(-1px);
+  box-shadow:0 3px 8px rgba(16,24,40,.22),inset 0 -2px 0 rgba(0,0,0,.13)}
+.legend__i:active{transform:translateY(1px) scale(.98);
+  box-shadow:0 1px 1px rgba(16,24,40,.2),inset 0 2px 3px rgba(0,0,0,.18)}
+.legend__i:focus-visible{outline:2px solid var(--brand);outline-offset:3px}
+.wall--up .legend__i{opacity:.5;filter:saturate(.7)}
+.wall--up .legend__i:hover{opacity:.85;filter:saturate(1)}
+.wall--up .legend__i--on{opacity:1;filter:none;transform:translateY(-1px);
+  box-shadow:0 0 0 3px var(--surface),0 0 0 5px var(--fam,#55606E),
+    0 4px 10px rgba(16,24,40,.24)}
+
+/* The plant's name and the date, at the head of one page.
+   The name is the largest condensed line on the product and the date sits under it in the
+   same colour the walk uses, so the two shapes are recognisably the same screen. */
+body.tv.tv-all .wall__top h2{font-size:calc(var(--t-title)*1.25);letter-spacing:.08em}
 
 /* A section brought forward fills what the chip bar leaves, and is centred in it. The card
    size is worked out from `--wall-h`, which `renderWallPage` measures rather than assumes:
    the bar is one line on a wall and three on a phone. */
 .wall--up .grid--cards{flex:1 1 auto;min-height:0}
+
+/* Something happens when the button is pressed.
+
+   Pressing a chip replaces the whole grid, and a replacement that arrives fully formed is
+   indistinguishable from a page that was always like that — the room's report was that they
+   wanted to see the action. So the cards come up: each one rises a little and fades in, a few
+   milliseconds after the one before it, which reads as the section assembling rather than as
+   forty things blinking at once. Coming back to the whole morning does the same thing more
+   quickly, because forty cards staggered at the same rate would take a second and a half.
+
+   Cheap on purpose: `transform` and `opacity` only, which the compositor does without
+   touching layout, on a screen that may be a corridor television.
+
+   The stagger is capped at eight steps, so the ninth card and the fortieth start together. */
+@keyframes cardUp{
+  from{opacity:0;transform:translateY(calc(1.4*var(--s4))) scale(.965)}
+  to{opacity:1;transform:none}}
+.wall--up .grid--cards>.card{animation:cardUp .34s cubic-bezier(.2,.75,.3,1) backwards}
+.wall--up .grid--cards>.card:nth-child(2){animation-delay:.045s}
+.wall--up .grid--cards>.card:nth-child(3){animation-delay:.09s}
+.wall--up .grid--cards>.card:nth-child(4){animation-delay:.135s}
+.wall--up .grid--cards>.card:nth-child(5){animation-delay:.18s}
+.wall--up .grid--cards>.card:nth-child(6){animation-delay:.225s}
+.wall--up .grid--cards>.card:nth-child(7){animation-delay:.27s}
+.wall--up .grid--cards>.card:nth-child(n+8){animation-delay:.3s}
+@keyframes cardBack{
+  from{opacity:0;transform:scale(.97)}
+  to{opacity:1;transform:none}}
+.wall--snap .grid--snap>.card{animation:cardBack .22s ease-out backwards}
+.wall--snap .grid--snap>.card:nth-child(n+2){animation-delay:.02s}
+.wall--snap .grid--snap>.card:nth-child(n+9){animation-delay:.04s}
+.wall--snap .grid--snap>.card:nth-child(n+17){animation-delay:.06s}
+.wall--snap .grid--snap>.card:nth-child(n+25){animation-delay:.08s}
+/* A screen that has been asked not to move does not move. */
+@media(prefers-reduced-motion:reduce){
+  .wall--up .grid--cards>.card,.wall--snap .grid--snap>.card{animation:none}
+  .legend__i,.legend__i:hover,.legend__i:active{transition:none;transform:none}
+}
 
 body.tv.tv-all .grid.grid--cards.grid--snap{flex:1 1 auto;min-height:0;display:grid;
   gap:var(--s2);grid-template-columns:repeat(var(--snap-cols,6),minmax(0,1fr));
