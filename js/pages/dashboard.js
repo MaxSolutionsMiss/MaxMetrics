@@ -540,10 +540,24 @@ function maintenanceCards() {
       rows: items.map(m => [m.dept || '—', esc(whenText(m)), band.maint(m.status),
         [m.machine, m.hours ? `${m.hours} h` : '', m.note].filter(Boolean).join(' · ') || null]),
       empty: 'Nothing booked in.',
-      cap: 6,
-      // Booked, changed and removed on the card, like everything else. Folded into a column
-      // because a card is not six boxes wide; it is the same six boxes the entry screen has.
-      edit: `${maintRows({ tight: true })}
+      // As many as the room it is being drawn in can hold.
+      //
+      // Eight on a slide of its own and on the page, because the card is twice as wide and
+      // has the height for them. Three on the one page, where the same card is one tile
+      // among forty and eight bookings burst it — and where the reader is glancing at the
+      // whole plant rather than reading the schedule. "and 5 more" is the honest thing to
+      // say to somebody who is looking at forty cards at once.
+      cap: onePage() ? 4 : 8,
+      // Twice the width, and the bookings go back to one line each.
+      //
+      // A booking is six things — department, machine, hours, what for, when and what state —
+      // and at one card's width they folded to three short lines apiece, so five bookings was
+      // fifteen rows of boxes to read down and fill in. Six across is how the entry screen has
+      // always drawn them and it is the shape the work has: one row is one booking, and the
+      // column a box is in tells you what it is without a caption. The card was the only place
+      // that could not have it, for want of the width.
+      wide: true,
+      edit: `${maintRows()}
         <button class="btn btn--ghost ez__add" id="maint-add">Add an item</button>`,
     })}
     ${noteCard({
@@ -888,13 +902,18 @@ function noteOf(field) {
 //
 // Spelling is first because it is the one that changes least, and the only one anybody
 // reaches for without thinking about it.
+// Three, because a menu is a decision and six of them is a decision nobody standing at a
+// press wants to make. These are the three a morning report actually needs: correct it, make
+// it readable, make it brief. "Fuller sentences", "More formal" and "Warmer" were the ones
+// that served a reader somewhere else — head office, a customer — and the box this sits on is
+// read by the room that wrote it.
+//
+// Spelling is first because it is the one that changes least and the only one anybody reaches
+// for without thinking about it.
 const TONES = [
   ['',       'Fix spelling'],
   ['plain',  'Plain English'],
   ['short',  'Shorter'],
-  ['full',   'Fuller sentences'],
-  ['formal', 'More formal'],
-  ['warm',   'Warmer'],
 ];
 
 // Every box on the product that takes a sentence gets this, which is what was asked for and
@@ -3109,6 +3128,9 @@ function bestGrid(count, share = 1) {
 // showed each one only once it had already been answered, which is the one moment nobody
 // needs to see it.
 const ALWAYS_UP = /^(rev-|attention$|support$|staffing$)/;
+// The collage, as opposed to the walk or the page. A card that is drawn in all three has to
+// be able to ask, because a tile among forty holds a fraction of what a slide does.
+const onePage = () => document.body.classList.contains('tv') && state.wallMode === 'all';
 const wallHidden = () => new Set(state.plant?.wall_hidden || []);
 // The one page is a different room from the walk and now keeps a different list. A plant that
 // wants its sales out of the corridor but still in the meeting says so once, here.

@@ -888,11 +888,11 @@ const heroChars = (value, unit) => (String(value ?? '').length
 // which departments, and what state each one is in. Same bar, same body, same grid, so a
 // screen of them is still a screen of cards.
 export function listCard({ pkey, icon, label, tone, rows, empty = 'Nothing to report.',
-                           cap = 8, edit }) {
+                           cap = 8, edit, wide = false }) {
   if (hidden.has(pkey)) return '';
   const shown = (rows || []).slice(0, cap);
   const over = (rows || []).length - shown.length;
-  return `<div class="card card--${tone || ''}" data-pkey="${esc(pkey)}">
+  return `<div class="card card--${tone || ''}${wide ? ' card--wide' : ''}" data-pkey="${esc(pkey)}">
     <div class="card__head">
       <span class="card__ico" aria-hidden="true">${icon || iconFor(pkey)}</span>
       <span class="card__label">${esc(label)}</span>
