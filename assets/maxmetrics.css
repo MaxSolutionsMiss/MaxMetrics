@@ -1721,6 +1721,33 @@ body.tv .card__mid{flex:1 1 auto}
    they ran out of card and truncated to "LAST 7 MORNI…", which is a label that has
    stopped being a label. They grow more slowly than the numbers they sit under. */
 .unit--under{text-align:center}
+/* Two readings on one card, side by side.
+
+   Each half is a caption over a figure, and the two figures are drawn at one size — off the
+   longer of them, which `pairCard` counts and hands over as `--dchars`. Two readings at two
+   sizes reads as a number with a footnote beside it, which is the opposite of what a pair is
+   for: they are equals or they are not a pair.
+
+   Half the card's width apiece, so the length cap is half the hero's. The rule under them is
+   what says they are two answers rather than one number split by a space. */
+.duo{display:grid;grid-template-columns:1fr 1fr;align-items:center;width:100%;
+  column-gap:calc(2*var(--u,3px));margin-block:auto}
+.duo__c{display:flex;flex-direction:column;align-items:center;min-width:0;
+  gap:calc(1.4*var(--u,3px))}
+.duo__c+.duo__c{border-left:1px solid var(--rule)}
+.duo__l{font-family:var(--font-condensed);text-transform:uppercase;letter-spacing:.07em;
+  font-weight:700;color:var(--ink-muted);white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;max-width:100%;
+  font-size:min(calc(4.4*var(--u,3px)),9cqi)}
+.duo__v{font-family:var(--font-num);font-weight:600;line-height:.95;letter-spacing:-.01em;
+  color:var(--ink);white-space:nowrap;
+  display:flex;align-items:baseline;justify-content:center;gap:.12em;
+  font-size:min(calc(17*var(--u,3px)),calc(88cqi/var(--dchars,3)))}
+.duo__u{font-family:var(--font);font-size:.34em;font-weight:400;color:var(--ink-muted);
+  letter-spacing:0}
+@media(max-width:520px){.duo{grid-template-columns:1fr;row-gap:var(--s3)}
+  .duo__c+.duo__c{border-left:0;border-top:1px solid var(--rule);padding-top:var(--s3)}}
+
 /* The money's pace, under its figure. A reading rather than a caption, so it takes the
    verdict's colour and more weight than a unit does — the figure above it is the news and
    this is what the figure means, which is the second thing anybody reads off the card and
