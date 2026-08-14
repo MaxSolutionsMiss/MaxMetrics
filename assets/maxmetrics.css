@@ -2780,6 +2780,15 @@ body.tv .util{display:none}
    the width of a page, and the alternative was the one section on the product where the
    answer to "change this" was "go somewhere else". */
 .ez .fr--maint2{grid-template-columns:minmax(0,1fr) minmax(0,1fr) 1.2rem}
+/* A booking on one line, on the card that is twice as wide. Six boxes and a cross, at the
+   proportions the entry screen uses — department and machine take the words, hours takes a
+   digit or two, what-for takes the rest, and the date and the state are fixed to what they
+   hold. Ruled off each other because without column headings the rows would run together. */
+.ez .fr--maint{grid-template-columns:minmax(0,1.1fr) minmax(0,1.2fr) 3.4rem minmax(0,1.3fr)
+  7.2rem minmax(0,1.2fr) 1.2rem;gap:6px;align-items:center;
+  padding:5px 0;border-bottom:1px solid var(--rule-soft)}
+.ez .fr--maint:last-of-type{border-bottom:0}
+.ez .fr--maint .fr__i{height:26px}
 .ez .fr--ot{grid-template-columns:minmax(0,1fr) 4.6rem 6.2rem;row-gap:3px}
 .ez .fr--ot .fr__x{grid-column:1/-1}
 .ez__add{margin-top:var(--s2);height:var(--ctl-h)}
@@ -3078,6 +3087,11 @@ body.tv.tv-all .grid--snap .card__flag{display:none}
    come off are on the same card two clicks away, at the size the walk draws it. */
 body.tv.tv-all .grid--snap .wkb__t,
 body.tv.tv-all .grid--snap .wkb__n em{display:none}
+/* And the quieter second line under a list row goes with them, for the same reason: "40\" Press
+   · 2 h · WEEKLY" under "Printing" is four-pixel type on a tile among forty, and dropping it
+   is what lets twice as many rows be named at all. The name and its figure stay, which is
+   what a glance is for; the detail is on the same card two clicks away. */
+body.tv.tv-all .grid--snap .clist__l i{display:none}
 body.tv.tv-all .grid--snap .wkb__r{gap:calc(.6*var(--u,3px))}
 
 /* A card sheds what it cannot draw, and it decides for itself.
