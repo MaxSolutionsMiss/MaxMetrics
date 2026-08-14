@@ -14,8 +14,8 @@ import {
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=941e3a0b5801';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=941e3a0b5801';
+} from '../db.js?v=39112490925c';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=39112490925c';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
@@ -24,7 +24,7 @@ import {
   varianceChip, varianceTone, variancePct, VERDICT, verdictMark,
   FROM_FILE, SOURCE_NAMES, sourceOf,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE, WALK, morningToday,
-} from '../readings.js?v=941e3a0b5801';
+} from '../readings.js?v=39112490925c';
 
 const $ = selector => document.querySelector(selector);
 
@@ -3104,9 +3104,11 @@ function bestGrid(count, share = 1) {
 // rather than reads. "Die Cutting — not confirmed yet" is not an empty card, it is the
 // question being asked of the room; an empty board is the meeting being asked what today
 // needs; an empty front-of-house card is the same question put to the people who take the
-// calls. Dropping them showed each one only once it had already been answered, which is the
-// one moment nobody needs to see it.
-const ALWAYS_UP = /^(rev-|attention$|support$)/;
+// calls; and staffing is the question the room asks before any other — who is off, who is on,
+// who is on vacation — which is why the overtime beside it is read second. Dropping them
+// showed each one only once it had already been answered, which is the one moment nobody
+// needs to see it.
+const ALWAYS_UP = /^(rev-|attention$|support$|staffing$)/;
 const wallHidden = () => new Set(state.plant?.wall_hidden || []);
 // The one page is a different room from the walk and now keeps a different list. A plant that
 // wants its sales out of the corridor but still in the meeting says so once, here.
