@@ -581,59 +581,57 @@ body.tv .card--wide{grid-column:auto}
 
    Above, the box runs the full width of the card and lines up with the note above it, which
    is the other half of what was wrong: the field was inset from everything it belonged to. */
-/* `.er.er--jot`, because the plain `.er` rule is declared further down this file and would
-   otherwise win on equal specificity and turn this back into a single column. */
-.er.er--jot{display:grid;grid-template-columns:minmax(0,1fr) auto;
-  grid-template-areas:"lbl lbl" "box do";align-items:stretch;gap:var(--s1) var(--s2)}
+/* The box gets the card's width and the controls go under it.
+
+   They used to stand in a column beside it, which was right when there was one of them and
+   wrong by the time there were three: on a card a third of a screen wide the column took
+   half the row, and the box people actually type into was left holding two words at a time.
+   The room's report was exactly that — the buttons are excessively wide and the field is
+   very small — and it is the same mistake the label made before it moved above the box. The
+   part that is written in every morning gets the width; the part that is pressed afterwards
+   gets a corner.
+
+   Under and to the right, because that is where a toolbar goes: out of the reading order
+   until you have finished writing, and then the first thing under your hand.
+
+   `.er.er--jot`, because the plain `.er` rule is declared further down this file and would
+   otherwise win on equal specificity. */
+.er.er--jot{display:grid;grid-template-columns:minmax(0,1fr);
+  grid-template-areas:"lbl" "box" "do";align-items:stretch;gap:var(--s1)}
 .er--jot>label{grid-area:lbl}
 .er--jot>textarea{grid-area:box}
 .er--jot>.jot__do{grid-area:do}
 .er--jot textarea{min-height:calc(2.4*var(--ctl-h))}
-/* Tidy above Add rather than beside it. Beside, the two read as a pair of equals and the
-   eye has to choose between them every time; stacked, Add is the button and Tidy is the
-   thing you can do to the line first.
-
-   Top of Tidy level with the top of the box, bottom of Add level with the bottom of it —
-   `space-between` in a column stretched to the box's own height. The two used to divide the
-   height between them, which made a pair of tall soft-cornered blocks the same size as the
-   thing they act on; at a fixed control height they read as buttons beside a box. */
-.jot__do{display:flex;flex-direction:column;justify-content:space-between;
-  gap:var(--s2);align-self:stretch}
+/* A row, right-aligned, and no wider than what is in it. */
+.jot__do{display:flex;flex-direction:row;justify-content:flex-end;align-items:center;
+  gap:var(--s2);flex-wrap:wrap}
 .jot__do>.btn,.jot__do>.aid>.btn{flex:none;height:var(--ctl-h);padding:0 var(--s3);
   white-space:nowrap}
 .jot__add{white-space:nowrap}
 
-/* The two things a person can do to what they have typed, kept together.
+/* What a person can do to what they have typed, kept together.
 
-   They travel as a pair because they are one idea — something the machine can do to your
-   words, with one way back — and because every box that takes a sentence now carries them.
-   Grouping them in one element is also what lets `space-between` in `jot__do` keep meaning
-   "aids at the top, Add at the bottom" with three controls instead of two.
-
-   On a jotted card the pair stacks in the column beside the box. Everywhere else the box is
-   full width and the pair sits under it, pushed to the right, where a toolbar under a text
-   box belongs. */
-.aid{display:flex;flex-direction:column;gap:var(--s2);align-items:stretch}
+   Rewrite and its Undo occupy one slot: the menu is showing until something has been done to
+   the box and the Undo is showing afterwards, so the row is two controls wide in either
+   state rather than growing a third. Every box that takes a sentence carries the pair. */
+.aid{display:flex;flex-direction:row;align-items:center;gap:var(--s2)}
 .jot__do>.aid{flex:none}
-.er:not(.er--jot)>.aid,.fr>.aid{flex-direction:row;justify-content:flex-end;
-  align-items:center;gap:var(--s2);margin-top:var(--s1)}
+.er:not(.er--jot)>.aid,.fr>.aid{justify-content:flex-end;margin-top:var(--s1)}
 .fr>.aid{grid-column:1/-1}
 /* Quieter than Add, and not `btn--quiet` — that variant turns red on hover, which it earns
-   beside "Remove account" and does not earn here. */
-.jot__tidy{white-space:nowrap;color:var(--ink-muted)}
+   beside "Remove account" and does not earn here. Violet rather than a warning colour: undo
+   is a way back, not a mistake. */
+.jot__tidy{white-space:nowrap;color:var(--brand);border-color:var(--brand);
+  background:var(--brand-wash)}
 .jot__tidy:hover{color:var(--brand);border-color:var(--brand);background:var(--brand-wash)}
-/* Holding the words you typed. Violet rather than a warning colour: undo is a way back, not
-   a mistake. */
-.jot__tidy[data-was]{color:var(--brand);border-color:var(--brand);background:var(--brand-wash)}
 /* Rewrite reads as the button it sits beside rather than as a field. It is a menu of verbs —
    nothing stays chosen — so a select drawn like the boxes above it would claim to be a
-   setting the note is now under. */
-/* `select.` rather than the class alone: `.inp` is declared further down this file and would
+   setting the note is now under.
+   `select.` rather than the class alone: `.inp` is declared further down this file and would
    otherwise win on equal specificity and stretch this to the width of the box. */
 select.aid__tone{width:auto;flex:none;height:var(--ctl-h);padding:0 var(--s2);
   font-weight:600;color:var(--ink-muted);cursor:pointer}
 select.aid__tone:hover{color:var(--brand);border-color:var(--brand);background:var(--brand-wash)}
-
 /* Who wrote a comment, and when.
 
    After the sentence, not in front of it. Leading initials made a column of notes begin with
@@ -2732,6 +2730,14 @@ body.tv .util{display:none}
    caption stays for anything reading the page aloud and comes off the screen. */
 .fr--bare > .er--jot > label{position:absolute;width:1px;height:1px;overflow:hidden;
   clip-path:inset(50%);white-space:nowrap}
+/* Rows inside a card's edit zone. The entry screen's six-box booking folds to three short
+   lines here, and overtime's shift box and machine ticks stack the same way — a card is not
+   the width of a page, and the alternative was the one section on the product where the
+   answer to "change this" was "go somewhere else". */
+.ez .fr--maint2{grid-template-columns:minmax(0,1fr) minmax(0,1fr) 1.2rem}
+.ez .fr--ot{grid-template-columns:minmax(0,1fr) 4.6rem;row-gap:2px}
+.ez .fr--ot .fr__x{grid-column:1/-1}
+.ez__add{margin-top:var(--s2);height:var(--ctl-h)}
 .fr--bare{grid-template-columns:minmax(0,1fr);padding-top:0}
 .fr--wide{grid-template-columns:1fr}
 .fr__i--s{text-align:left;padding:0 4px}

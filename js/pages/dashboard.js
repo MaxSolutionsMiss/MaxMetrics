@@ -535,6 +535,10 @@ function maintenanceCards() {
         [m.machine, m.hours ? `${m.hours} h` : '', m.note].filter(Boolean).join(' · ') || null]),
       empty: 'Nothing booked in.',
       cap: 6,
+      // Booked, changed and removed on the card, like everything else. Folded into a column
+      // because a card is not six boxes wide; it is the same six boxes the entry screen has.
+      edit: `${maintRows({ tight: true })}
+        <button class="btn btn--ghost ez__add" id="maint-add">Add an item</button>`,
     })}
     ${noteCard({
       pkey: 'maint-note', label: 'Maintenance notes',
@@ -852,46 +856,26 @@ function noteOf(field) {
 // it perfectly; the report that goes out of the building, and the person reading it in three
 // months, do not.
 //
-// So: a button beside Add, which corrects the box and shows an Undo. Not a rewrite, not a
-// summary, not a politer version — spelling, grammar and punctuation, and the writer sees
-// the result in their own box and can put their own words back with one click. Nothing is
-// changed behind anybody, and nothing already saved is touched.
+// So: a control beside Add, which does something to the box and shows an Undo. The writer
+// sees the result in their own box and can put their own words back with one click. Nothing
+// is changed behind anybody, and nothing already saved is touched.
 //
-// It is gone entirely when the plant has no key configured, rather than being a button that
+// It is gone entirely when the plant has no key configured, rather than being a control that
 // fails in somebody's hand.
-// "Clean up", not "Tidy".
 //
-// The room's report on the button was that it does rather more than tidy — it takes a line
-// typed one-handed at a press and gives back a sentence — and that "Tidy" undersold it
-// enough that people did not press it. The name is the whole of the invitation on a button
-// nobody is required to use.
+// Two controls, not three.
 //
-// The words it is not called are as considered as the one it is. "Proofread" and "Proof"
-// are out: in a folding-carton plant a proof is a thing prepress sends a customer, and a
-// button that borrows that word in a comment box is a button that means something else on
-// this floor. "Polish" is out because on a button, capitalised, it reads as the nationality
-// first — in a plant that runs three shifts of a mixed workforce that is not a subtle
-// problem. "Rewrite" is out because it would be a promise this deliberately does not keep.
+// It was Clean up, Rewrite and Add. Clean up did one narrow thing — spelling, grammar and
+// punctuation, nothing else — and it earned its own button while it was the only thing here.
+// Beside a menu of five rewrites it is the sixth entry in that menu wearing a button, and
+// three controls in a column beside a comment box is a toolbar taller than the box it acts
+// on. So spelling is the first thing in the menu, where a reader looking for "make this
+// read better" finds it, and the box gets the width the buttons were taking.
 //
-// "Clean up" says what happens to the line and claims nothing about what it will become.
-// The function behind it is still called `tidy` — renaming a deployed edge function costs a
-// redeploy and buys nothing, and the name on the button is the only one anybody reads.
-//
-// And a rewrite beside it, which is the other half of the same request. Clean up deals with
-// how a line is spelled; this deals with how it reads — plainer, shorter, in whole
-// sentences, in the register of a report, or worded so it does not land on a person. The
-// room asked for it in those words: people want to change the tone of what they wrote, not
-// only its spelling.
-//
-// A dropdown rather than five buttons, because five buttons beside a comment box is a
-// toolbar and this is a box somebody types two lines into. It reads "Rewrite" until it is
-// opened, does its work on being chosen, and goes back to reading "Rewrite" — a menu of
-// verbs, not a setting that stays set.
-//
-// Both share one Undo, on the Clean up button, because they share one box: whatever the last
-// thing done to it was, one click puts back exactly what was typed. Two undos for one box
-// would be two ways back to the same place.
+// Spelling is first because it is the one that changes least, and the only one anybody
+// reaches for without thinking about it.
 const TONES = [
+  ['',       'Fix spelling'],
   ['plain',  'Plain English'],
   ['short',  'Shorter'],
   ['full',   'Fuller sentences'],
@@ -899,17 +883,19 @@ const TONES = [
   ['warm',   'Warmer'],
 ];
 
-// Every box on the product that takes a sentence gets both, which is what was asked for and
-// is also the only defensible rule: a person who has learned that a comment box can fix its
-// own spelling should not have to remember which four boxes can.
+// Every box on the product that takes a sentence gets this, which is what was asked for and
+// is also the only defensible rule: a person who has learned that a comment box can rewrite
+// itself should not have to remember which four boxes can.
+//
+// The Undo sits in the same slot and is hidden until there is something to undo, so the row
+// is two controls wide whatever state it is in.
 const writeAids = field => state.tidyOff ? '' :
   `<span class="aid">
-     <button type="button" class="btn jot__tidy" data-tidy="${esc(field)}"
-       title="Fix the spelling, grammar and punctuation of what you have typed">Clean up</button>
+     <button type="button" class="btn jot__tidy hide" data-undo="${esc(field)}">Undo</button>
      <select class="inp aid__tone" data-tone="${esc(field)}"
        aria-label="Rewrite what you have typed"
-       title="Rewrite what you have typed, in a tone you pick">
-       <option value="">Rewrite\u2026</option>
+       title="Rewrite what you have typed">
+       <option value="\u2014">Rewrite\u2026</option>
        ${TONES.map(([key, name]) =>
          `<option value="${key}">${esc(name)}</option>`).join('')}
      </select>
@@ -1046,6 +1032,7 @@ function labourCards() {
     })}
     ${listCard({
       pkey: 'ot-list', label: 'Overtime by department',
+      edit: otRows(),
       // "Three shifts, Heidelberg and Omega" is the whole of what the room says about a
       // department's overtime, so it is the whole of what the card prints — the count
       // against the name, and the machines on the quieter line under it.
@@ -1323,9 +1310,15 @@ function fillMoney() {
   ].join(''), 'Both come from the monthly KPI workbook.');
 }
 
-function fillOvertime() {
+// The overtime rows, which the entry screen and the card both draw.
+//
+// The card used to be read-only, and Maintenance & Labour was the one section on the product
+// where the answer to "change this" was "go to the entry screen". Every other card carries
+// its own edit zone; these two were left behind because their contents are rows rather than
+// a figure, which is a fact about how they are drawn and not a reason.
+function otRows() {
   const list = state.config.filter(c => c.active !== false);
-  return fgroup('Overtime', () => list.map(c => {
+  return list.map(c => {
     const chosen = new Set(labourRow(c.key)?.machines || []);
     const machines = machinesIn(c.key);
     return `<div class="fr fr--ot">
@@ -1339,8 +1332,11 @@ function fillOvertime() {
           data-machine="${esc(m.code)}"${chosen.has(m.code) ? ' checked' : ''}>
           <span>${esc(m.name)}</span></label>`).join('')}</span>` : ''}</span>
     </div>`;
-  }).join(''), 'Leave a department blank if it is not running overtime.');
+  }).join('');
 }
+
+const fillOvertime = () => fgroup('Overtime', () => otRows(),
+  'Leave a department blank if it is not running overtime.');
 
 // Maintenance is a group like every other group here. It was the section's own panel dropped
 // at the foot of the page, which made it the one thing on the screen that looked like it came
@@ -1352,7 +1348,7 @@ function fillOvertime() {
 // it — leaving Quality and Sales ending a third of the way down with nothing under them and
 // the whole block ragged along the bottom. Narrow, the same six wrap to three short lines
 // per booking and the group drops into a column beside the others.
-function fillMaintenance({ tight = false } = {}) {
+function maintRows({ tight = false } = {}) {
   const items = upcomingItems();
   const depts = state.config.filter(c => c.active !== false);
   // Six boxes on a row with the headings above them, which reads perfectly and tells a
@@ -1384,16 +1380,18 @@ function fillMaintenance({ tight = false } = {}) {
   // The column headings are what makes six unlabelled boxes readable in a row. Wrapped to
   // three lines they label nothing, so narrow drops them — every box carries its own
   // placeholder and `aria-label` regardless.
-  return `<section class="fg${tight ? ' fg--maint2' : ' fg--wide'}">
+  return `${tight ? '' : `<div class="fr fr--maint fr--head"><span>Department</span><span>Machine</span>
+      <span>Hours</span><span>What for</span><span>When</span><span>Status</span><span></span></div>`}
+    ${rows.join('') || '<p class="fg__note">Nothing booked in.</p>'}`;
+}
+
+const fillMaintenance = ({ tight = false } = {}) =>
+  `<section class="fg${tight ? ' fg--maint2' : ' fg--wide'}">
     <h3 class="fg__h">Upcoming maintenance
       <button class="btn btn--ghost fg__add" id="maint-add">Add an item</button></h3>
-    <div class="fg__rows">
-      ${tight ? '' : `<div class="fr fr--maint fr--head"><span>Department</span><span>Machine</span>
-        <span>Hours</span><span>What for</span><span>When</span><span>Status</span><span></span></div>`}
-      ${rows.join('') || '<p class="fg__note">Nothing booked in.</p>'}
-    </div>
+    <div class="fg__rows">${maintRows({ tight })}</div>
   </section>`;
-}
+
 
 function fillSupport() {
   return fgroup('Customer service, die shop & prepress', () => {
@@ -3764,68 +3762,78 @@ const aidSaved = box => {
 const aidsOff = said => {
   state.tidyOff = true;
   document.querySelectorAll('.aid').forEach(span => span.remove());
-  toast(said || 'Clean-up is not set up for this plant.');
+  toast(said || 'Rewriting is not set up for this plant.');
 };
 
-// One call for both, because from the writer's side they are one act: something happens to
-// the box, you look at it, and you keep it or you put yours back.
-async function runAid(control, box, tone, busy, done) {
-  const undo = control.closest('.aid')?.querySelector('[data-tidy]') ?? control;
+// One call for every one of them, because from the writer's side they are one act: something
+// happens to the box, you look at it, and you keep it or you put yours back.
+//
+// The Undo lives beside the menu and is hidden until there is something to undo, so what is
+// on screen is always "Rewrite, Add" or "Undo, Add" and never three things at once.
+async function runAid(control, box, tone, done) {
+  const group = control.closest('.aid');
+  const undo = group?.querySelector('[data-undo]');
   const said = String(box.value || '').trim();
   if (!said) { box.focus(); return; }
   control.disabled = true;
-  const wasLabel = undo.textContent;
-  undo.textContent = busy;
+  // The menu says what it is doing where it normally says what it can do, so the person who
+  // pressed it is not watching a control that looks idle.
+  const holding = control.querySelector('option');
+  const wasLabel = holding?.textContent;
+  if (holding) holding.textContent = 'Working\u2026';
   try {
     const answer = await tidyText(said, state.location, tone);
     if (answer.unavailable) { aidsOff(answer.error); return; }
     if (answer.error) { toast(answer.error); return; }
-    if (answer.text === said) { toast('Nothing to change.'); return; }
-    // The words the writer typed, held on the Clean up button whichever control did the
-    // work. One box, one way back.
-    if (undo.dataset.was == null) undo.dataset.was = said;
+    if (answer.text === said) { toast('Nothing to change \u2014 it already reads that way.'); return; }
+    // The words the writer typed. One box, one way back, whichever entry did the work.
+    if (undo && undo.dataset.was == null) undo.dataset.was = said;
     box.value = answer.text;
     aidSaved(box);
-    undo.textContent = 'Undo';
+    undo?.classList.remove('hide');
+    control.classList.add('hide');
     toast(`${done} \u2014 or Undo for your own words.`);
   } catch (error) {
     toast(error.message);
   } finally {
     control.disabled = false;
-    if (undo.isConnected && undo.textContent === busy) undo.textContent = wasLabel;
+    if (holding) holding.textContent = wasLabel;
   }
 }
 
 // Rewrite is a menu of verbs, so it acts on being chosen and then forgets what was chosen.
 // Leaving "Shorter" showing would make it look like a setting the box is now under, when what
 // happened is that the box was made shorter once.
+//
+// The resting entry carries an em dash rather than an empty string, because "Fix spelling" is
+// the empty tone — no register change, just the spelling — and the two have to be told apart.
 document.addEventListener('change', async event => {
   const tone = event.target.closest?.('[data-tone]');
-  if (!tone || !tone.value) return;
+  if (!tone || tone.value === '\u2014') return;
   const asked = tone.value;
-  tone.value = '';
+  tone.value = '\u2014';
   const box = aidBox(tone);
   if (!box) return;
   const named = (TONES.find(([key]) => key === asked) || [, asked])[1];
-  await runAid(tone, box, asked, 'Rewriting\u2026', `Rewritten \u2014 ${named.toLowerCase()}`);
+  await runAid(tone, box, asked, `Rewritten \u2014 ${named.toLowerCase()}`);
 });
 
 document.addEventListener('click', async event => {
-  const tidy = event.target.closest?.('[data-tidy]');
-  if (tidy) {
-    const box = aidBox(tidy);
+  const undo = event.target.closest?.('[data-undo]');
+  if (undo) {
+    const box = aidBox(undo);
     if (!box) return;
-    if (tidy.dataset.was != null) {
-      box.value = tidy.dataset.was;
-      delete tidy.dataset.was;
+    if (undo.dataset.was != null) {
+      box.value = undo.dataset.was;
+      delete undo.dataset.was;
       aidSaved(box);
-      tidy.textContent = 'Clean up';
-      box.focus();
-      return;
     }
-    await runAid(tidy, box, '', 'Cleaning\u2026', 'Cleaned up');
+    undo.classList.add('hide');
+    undo.closest('.aid')?.querySelector('[data-tone]')?.classList.remove('hide');
+    box.focus();
     return;
   }
+
   const add = event.target.closest?.('[data-add]');
   if (add) {
     const field = add.dataset.add;
