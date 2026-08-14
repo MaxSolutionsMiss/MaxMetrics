@@ -2894,36 +2894,43 @@ body.tv.tv-all #tv-next,body.tv.tv-all #tv-prev{display:none}
 .wall--snap [data-fam="labour"],.wall--up [data-fam="labour"]{--fam:var(--fam-labour);--famlit:var(--famlit-labour)}
 .legend{display:flex;flex-wrap:wrap;gap:6px 10px;margin-left:var(--s4);min-width:0}
 /* The section names are buttons on the one page: press one and it comes forward at the size
-   the walk draws it, press it again and the whole morning comes back.
+   the walk draws it, press it again or press All and the whole morning comes back.
 
-   They are pills rather than tabs. A row of seven flat rectangles in seven colours reads as a
-   legend — a key to what the colours mean — and this is a row of controls, so it is shaped
-   like one: a rounded chip that sits a little off the page, lifts under the pointer, and
-   presses down when it is the one you are on. The colour is still the section's own, which is
-   the whole reason the bar works from across a room.
+   Rectangles with the corners taken off, not pills. Fully round reads as a filter chip on a
+   phone — small, dismissible, one of many — and this is a row of seven views of a plant on a
+   wall. A tile with a 6px radius is the same shape as the cards under it and as the bar
+   across the top of each one, which is the point: the row is a small map of the screen it
+   sits above.
+
+   They are also the row somebody reads from ten metres, so the type is up a tenth on what the
+   legend used and the chip has the padding to carry it.
 
    The lit one keeps its colour at full strength and gains a ring in the page's own ground, so
    it reads as raised out of the row. The rest go quiet rather than grey: still their own
    colour, just standing back, because a plant that has learned "shipping is purple" should
    not have to relearn it every time somebody presses a button. */
-.legend{align-items:center}
+.legend{align-items:center;gap:7px 8px}
 .legend__i{font-family:var(--font-condensed);font-weight:700;text-transform:uppercase;
-  letter-spacing:.09em;font-size:calc(11px*var(--scale));color:#fff;
-  padding:5px 13px;border-radius:999px;white-space:nowrap;background:var(--fam,#55606E);
-  box-shadow:0 1px 2px rgba(16,24,40,.16),inset 0 -2px 0 rgba(0,0,0,.13);
-  border:0;cursor:pointer;
+  letter-spacing:.08em;font-size:calc(12.1px*var(--scale));color:#fff;
+  padding:6px 14px;border-radius:6px;white-space:nowrap;background:var(--fam,#55606E);
+  box-shadow:0 1px 2px rgba(16,24,40,.18),inset 0 -2px 0 rgba(0,0,0,.14);
+  border:0;cursor:pointer;line-height:1.15;
   transition:transform var(--motion,.12s) ease,box-shadow var(--motion,.12s) ease,
     opacity var(--motion,.12s) ease,filter var(--motion,.12s) ease}
 .legend__i:hover{filter:brightness(1.1);transform:translateY(-1px);
-  box-shadow:0 3px 8px rgba(16,24,40,.22),inset 0 -2px 0 rgba(0,0,0,.13)}
-.legend__i:active{transform:translateY(1px) scale(.98);
+  box-shadow:0 3px 8px rgba(16,24,40,.22),inset 0 -2px 0 rgba(0,0,0,.14)}
+.legend__i:active{transform:translateY(1px) scale(.985);
   box-shadow:0 1px 1px rgba(16,24,40,.2),inset 0 2px 3px rgba(0,0,0,.18)}
 .legend__i:focus-visible{outline:2px solid var(--brand);outline-offset:3px}
+/* All belongs to no section, so it takes the product's own colour rather than borrowing a
+   family's — and it is a shade darker than the row so it reads as the one that governs it. */
+.legend__i--all{background:var(--ink);letter-spacing:.1em}
 .wall--up .legend__i{opacity:.5;filter:saturate(.7)}
 .wall--up .legend__i:hover{opacity:.85;filter:saturate(1)}
-.wall--up .legend__i--on{opacity:1;filter:none;transform:translateY(-1px);
-  box-shadow:0 0 0 3px var(--surface),0 0 0 5px var(--fam,#55606E),
+.legend__i--on{opacity:1;filter:none;transform:translateY(-1px);
+  box-shadow:0 0 0 3px var(--surface),0 0 0 5px var(--fam,var(--ink)),
     0 4px 10px rgba(16,24,40,.24)}
+.wall--up .legend__i--on{opacity:1;filter:none}
 
 /* The plant's name and the date, at the head of one page.
    The name is the largest condensed line on the product and the date sits under it in the
@@ -3015,6 +3022,14 @@ body.tv.tv-all .grid--snap .card__head{font-size:min(9cqi,var(--tcap,99px));
 body.tv.tv-all .grid--snap .card{background:color-mix(in srgb,var(--fam,#888) 7%,var(--surface));
   border-color:color-mix(in srgb,var(--fam,#888) 26%,var(--rule))}
 body.tv.tv-all .grid--snap .card__flag{display:none}
+/* One page is a thumbnail of every card at once, and two of last week's four facts do not
+   survive being drawn at that size: the target under each caption and the volume beside each
+   department name are four-pixel type nobody reads, and twelve rows of them burst the tile.
+   The reading and its distance from target stay, which is what a glance is for; the two that
+   come off are on the same card two clicks away, at the size the walk draws it. */
+body.tv.tv-all .grid--snap .wkb__t,
+body.tv.tv-all .grid--snap .wkb__n em{display:none}
+body.tv.tv-all .grid--snap .wkb__r{gap:calc(.6*var(--u,3px))}
 
 /* A card sheds what it cannot draw, and it decides for itself.
    `container-type:size` is already on for the sizing, so each card can be asked how tall it
