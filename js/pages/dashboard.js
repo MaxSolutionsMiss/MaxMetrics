@@ -14,8 +14,8 @@ import {
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=27a9f6fe74ba';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=27a9f6fe74ba';
+} from '../db.js?v=b25545fc5ac3';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=b25545fc5ac3';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
@@ -24,7 +24,7 @@ import {
   varianceChip, varianceTone, variancePct, VERDICT, verdictMark,
   FROM_FILE, SOURCE_NAMES, sourceOf,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE, WALK, morningToday,
-} from '../readings.js?v=27a9f6fe74ba';
+} from '../readings.js?v=b25545fc5ac3';
 
 const $ = selector => document.querySelector(selector);
 
@@ -3046,6 +3046,17 @@ function bestGrid(count, share = 1) {
 // is entitled to say so without taking the card off the dashboard. The list holds section
 // keys and card keys alike, so it is "not the money" or "not that one card", whichever the
 // plant meant.
+// The cards that go up whether or not anything has been written on them.
+//
+// A blank note card is dropped from the wall — four cards reading "No issues reported" on a
+// screen the floor walks past is four cards of nothing. These three are the exception, and
+// they are the exception for one reason: they are the parts of the morning the meeting *does*
+// rather than reads. "Die Cutting — not confirmed yet" is not an empty card, it is the
+// question being asked of the room; an empty board is the meeting being asked what today
+// needs; an empty front-of-house card is the same question put to the people who take the
+// calls. Dropping them showed each one only once it had already been answered, which is the
+// one moment nobody needs to see it.
+const ALWAYS_UP = /^(rev-|attention$|support$)/;
 const wallHidden = () => new Set(state.plant?.wall_hidden || []);
 // The one page is a different room from the walk and now keeps a different list. A plant that
 // wants its sales out of the corridor but still in the meeting says so once, here.
@@ -3075,12 +3086,14 @@ function wallPages() {
         // is not an empty card, it is the question being asked of the room. Dropping them
         // meant the wall showed the review only once every department had already answered,
         // which is the one moment nobody needs to see it.
-        && (card.dataset.empty !== '1'
-            || card.parentElement?.dataset.grid === 'review'
-            // And the board for the day ahead, for the same reason: an empty one is the
-            // meeting being asked what today needs, which is the question the last slide
-            // exists to put. It was being dropped on exactly the mornings it was wanted.
-            || card.dataset.pkey === 'attention'));
+        //
+        // Named by their own keys, not by which grid they are in. The test used to be
+        // `parentElement.dataset.grid === 'review'`, which was true while the review had a
+        // grid of its own and stopped being true the day Production became one arrangement —
+        // a department's rate above its own review card. Nothing failed loudly; the review
+        // simply went missing from the wall on every morning nobody had written on it yet,
+        // which is every morning at the moment the meeting starts.
+        && (card.dataset.empty !== '1' || ALWAYS_UP.test(card.dataset.pkey || '')));
     // Which section a card belongs to, carried on the card. The collage has no headings —
     // the bar's colour is the heading — so this is the only thing that groups them.
     for (const card of cards) card.dataset.fam = key;
@@ -3168,6 +3181,32 @@ function snapCols(count, box) {
   return best.cols;
 }
 
+// The chip row fits the width it has, whatever that is.
+//
+// It wrapped before — two lines on a laptop, three on a narrow one — which pushed the cards
+// down the screen and gave the header a different height on every machine the plant owns. A
+// row of controls that reflows is a row whose buttons move every time you look at it.
+//
+// Measured rather than guessed, for the same reason the card titles are: how wide "CUSTOMER
+// SERVICE, DIE SHOP & PREPRESS" comes out depends on which letters are in it. The row is
+// asked whether it overflows, and the multiplier comes down in eighths until it does not.
+// Eighteen steps reaches a third of full size, which is past the point where the ellipsis on
+// the longest name is the better answer — and the stylesheet leaves it that ellipsis rather
+// than a second line.
+function fitLegend(legend) {
+  if (!legend) return;
+  legend.style.removeProperty('--chip');
+  legend.classList.remove('legend--tight');
+  let chip = 1;
+  for (let step = 0; step < 15 && legend.scrollWidth > legend.clientWidth + 1; step++) {
+    chip -= 0.04;
+    legend.style.setProperty('--chip', String(chip));
+  }
+  // Still too wide at 40% of full size, which is a phone. The names give way rather than the
+  // row: the chips are allowed to shrink and ellipsise from here, longest first.
+  if (legend.scrollWidth > legend.clientWidth + 1) legend.classList.add('legend--tight');
+}
+
 function renderWallPage(pages) {
   const content = $('#content');
   const shown = pages.filter(p => p.html);
@@ -3209,6 +3248,7 @@ function renderWallPage(pages) {
                up.prod ? `;--prod-cols:${up.prod}` : ''}">${up.html}</div>`
       : `<div class="grid grid--cards grid--snap" data-grid="wall">${
           shown.map(p => p.html).join('')}</div>`}`;
+  fitLegend(content.querySelector('.legend'));
   // A magnified section is measured against the room it has rather than against the screen.
   //
   // `--wall-h` on the walk is the screen less a fixed allowance for the chrome, which is right

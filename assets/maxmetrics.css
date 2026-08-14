@@ -2909,10 +2909,24 @@ body.tv.tv-all #tv-next,body.tv.tv-all #tv-prev{display:none}
    it reads as raised out of the row. The rest go quiet rather than grey: still their own
    colour, just standing back, because a plant that has learned "shipping is purple" should
    not have to relearn it every time somebody presses a button. */
-.legend{align-items:center;gap:7px 8px}
+/* One line, always.
+
+   The row wrapped to two lines on a laptop and three on a narrow one, which pushed the cards
+   down the screen and made the header a different height on every machine the plant owns —
+   and a row of controls that reflows is a row whose buttons are in a different place every
+   time you look at it. It does not wrap now. It shrinks: `fitLegend` measures the row against
+   the space it has and sets `--chip`, so eight chips fit a wall at full size and the same
+   eight fit a laptop a little smaller. Past the point where shrinking stops being readable
+   the longest name gives way to an ellipsis rather than the row giving way to a second line.
+
+   `--chip` is a multiplier on the type and on the padding together, so a chip keeps its
+   proportions as it comes down rather than turning into a thin strip of text. */
+.legend{align-items:center;gap:8px;flex-wrap:nowrap;flex:1 1 auto;min-width:0;overflow:hidden}
 .legend__i{font-family:var(--font-condensed);font-weight:700;text-transform:uppercase;
-  letter-spacing:.08em;font-size:calc(12.1px*var(--scale));color:#fff;
-  padding:6px 14px;border-radius:6px;white-space:nowrap;background:var(--fam,#55606E);
+  letter-spacing:.08em;font-size:calc(12.1px*var(--scale)*var(--chip,1));color:#fff;
+  flex:none;overflow:hidden;text-overflow:ellipsis;
+  padding:calc(6px*var(--chip,1)) calc(14px*var(--chip,1));
+  border-radius:6px;white-space:nowrap;background:var(--fam,#55606E);
   box-shadow:0 1px 2px rgba(16,24,40,.18),inset 0 -2px 0 rgba(0,0,0,.14);
   border:0;cursor:pointer;line-height:1.15;
   transition:transform var(--motion,.12s) ease,box-shadow var(--motion,.12s) ease,
@@ -2925,6 +2939,11 @@ body.tv.tv-all #tv-next,body.tv.tv-all #tv-prev{display:none}
 /* All belongs to no section, so it takes the product's own colour rather than borrowing a
    family's — and it is a shade darker than the row so it reads as the one that governs it. */
 .legend__i--all{background:var(--ink);letter-spacing:.1em}
+/* Past the point where shrinking the type is still readable, the names give way instead of
+   the row. They shrink in proportion, so the long one loses its tail first and the short ones
+   are untouched — and All, which is three letters and the way back, never gives way at all. */
+.legend--tight .legend__i{flex:0 1 auto;min-width:2.6em}
+.legend--tight .legend__i--all{flex:none}
 .wall--up .legend__i{opacity:.5;filter:saturate(.7)}
 .wall--up .legend__i:hover{opacity:.85;filter:saturate(1)}
 .legend__i--on{opacity:1;filter:none;transform:translateY(-1px);
