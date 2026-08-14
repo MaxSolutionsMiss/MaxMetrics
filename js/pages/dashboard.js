@@ -14,8 +14,8 @@ import {
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=b794b5084124';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=b794b5084124';
+} from '../db.js?v=76b0060f127b';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=76b0060f127b';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
@@ -24,7 +24,7 @@ import {
   varianceChip, varianceTone, variancePct, VERDICT, verdictMark,
   FROM_FILE, SOURCE_NAMES, sourceOf,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE, WALK, morningToday,
-} from '../readings.js?v=b794b5084124';
+} from '../readings.js?v=76b0060f127b';
 
 const $ = selector => document.querySelector(selector);
 
@@ -1903,7 +1903,8 @@ const SECTIONS = {
         return `<div class="wkb__m">
            <span class="wkb__c"><span class="wkb__l" style="--wl:${
              String(label).length}">${esc(label)}</span>
-             <span class="wkb__t">${aim ? esc(aim) : ''}</span></span>
+             <span class="wkb__t" style="--tl:${
+             String(aim || '').length || 1}">${aim ? esc(aim) : ''}</span></span>
            <b class="wkb__v${tone ? ` tone--${tone}` : ''}">${text}</b>
            ${off == null ? '<i class="wkb__d"></i>'
              : `<i class="wkb__d tone--${off >= 0 ? 'ok' : 'stop'}">${
