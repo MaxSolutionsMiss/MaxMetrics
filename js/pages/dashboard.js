@@ -14,8 +14,8 @@ import {
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=d6b2249e1c66';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=d6b2249e1c66';
+} from '../db.js?v=27a9f6fe74ba';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=27a9f6fe74ba';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
@@ -24,7 +24,7 @@ import {
   varianceChip, varianceTone, variancePct, VERDICT, verdictMark,
   FROM_FILE, SOURCE_NAMES, sourceOf,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE, WALK, morningToday,
-} from '../readings.js?v=d6b2249e1c66';
+} from '../readings.js?v=27a9f6fe74ba';
 
 const $ = selector => document.querySelector(selector);
 
@@ -2728,6 +2728,28 @@ function roomIn(card) {
 // govern how large the figure beside it is drawn.
 function overflows(card) {
   if (usedBy(card) > roomIn(card) + 1) return true;
+  // A list that has outgrown the box it is in.
+  //
+  // `usedBy` measures the body's rows by their layout boxes, and a box whose contents overrun
+  // it reports its own height, not its contents'. That is the right answer for a hero, which
+  // overruns its line box by design; it is the wrong answer for the three things on this
+  // product that are lists — last week's departments, the overtime rows, and a note read back
+  // as bullets. Those grow with the morning, and when they outgrow the card the card is full
+  // whatever its layout box says. Last week's three departments overran their card by twenty
+  // pixels on a magnified section and the fit went on climbing past it.
+  // `usedBy` measures the body's rows by their layout boxes, and a box whose contents overrun
+  // it reports its own height, not its contents'. That is the right answer for a hero, which
+  // overruns its line box by design; it is the wrong answer for the middle zone, which is the
+  // one that takes whatever height is left over and is therefore the one a list grows out of.
+  // Last week's three departments overran it by twenty pixels on a magnified section and the
+  // climb went straight past, because every layout box it measured still reported the size it
+  // had been given.
+  //
+  // Three pixels of tolerance, not one: a hero at .95 line-height leaves a glyph or two
+  // hanging past the zone on some faces, and that is not a card running out of room.
+  for (const zone of card.querySelectorAll('.card__mid')) {
+    if (zone.scrollHeight > zone.clientHeight + 3) return true;
+  }
   for (const part of card.querySelectorAll(
     '.flag,.hero,.unit,.total,.fs__v,.ctrack__l,.ctrack__d')) {
     // Half a pixel, not one.
@@ -2893,6 +2915,26 @@ function fitCards() {
       set(fit);
     }
     group.forEach(grid => grid.classList.remove('measuring'));
+    // One last look with the zones switched back on.
+    //
+    // Everything above is measured in `measuring`, which stacks a card's three zones so they
+    // each take their content height — that is what has to fit, and it is the only state in
+    // which the climb can push against anything. It is also a state in which nothing can
+    // overflow: the middle zone is `flex:0 0 auto` there and grows to whatever is in it. So a
+    // card can pass every check in the loop and still, once the zones go back on and the
+    // middle one is clamped to what is left, have a list hanging twenty pixels past the
+    // bottom of it. Last week's three departments did exactly that on a magnified section.
+    //
+    // This is the same question asked of the finished card. Bounded, because it is a safety
+    // net rather than a search: a dozen steps takes a fifth off the size, and anything that
+    // still does not fit at that point is not going to.
+    const spilling = () => cards.some(card =>
+      [...card.querySelectorAll('.card__mid')].some(zone =>
+        zone.scrollHeight > zone.clientHeight + 3));
+    for (let guard = 0; guard < 12 && fit > FIT_MIN && spilling(); guard++) {
+      fit -= 0.02;
+      set(fit);
+    }
   }
   levelRows();
 }
@@ -3147,7 +3189,15 @@ function renderWallPage(pages) {
   content.innerHTML = `
     <div class="wall__top">
       <h2>${esc(state.locations.find(l => l.id === state.location)?.name || '')}</h2>
-      <div class="legend">${shown.map(p =>
+      <div class="legend">
+        ${/* All, first, because "show me everything again" is the thing a person wants most
+              often and it was only reachable by remembering which chip was lit and pressing
+              that one. It is a chip like the others rather than a back arrow: the row is a
+              set of views and this is one of them, so it lights the same way and sits where
+              a reader's eye starts. */''}
+        <button type="button" class="legend__i legend__i--all${up ? '' : ' legend__i--on'}"
+          data-zoom="" aria-pressed="${!up}">All</button>
+        ${shown.map(p =>
         `<button type="button" class="legend__i${p === up ? ' legend__i--on' : ''}"
            data-zoom="${esc(p.key)}" data-fam="${esc(p.key)}"
            aria-pressed="${p === up}">${esc(TITLES[p.key])}</button>`).join('')}</div>
@@ -4197,7 +4247,9 @@ $('#tv-mode').addEventListener('click', () => {
 document.addEventListener('click', event => {
   const chip = event.target.closest?.('[data-zoom]');
   if (!chip) return;
-  state.zoom = state.zoom === chip.dataset.zoom ? null : chip.dataset.zoom;
+  // All carries no key, and pressing the lit one puts the morning back the same way.
+  const key = chip.dataset.zoom;
+  state.zoom = !key || key === state.zoom ? null : key;
   renderWall();
   applyCardOrder();
   fitCards();
