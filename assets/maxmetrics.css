@@ -1716,9 +1716,29 @@ body.tv .card__mid{flex:1 1 auto}
    stopped being a label. They grow more slowly than the numbers they sit under. */
 .unit--under{text-align:center}
 /* The money's pace, under its figure. A reading rather than a caption, so it takes the
-   verdict's colour and a little more weight than a unit does — and no more than a little,
-   because the figure above it is the news and this is what the figure means. */
-.unit--pace{font-weight:700;color:inherit}
+   verdict's colour and more weight than a unit does — the figure above it is the news and
+   this is what the figure means, which is the second thing anybody reads off the card and
+   was being drawn at the size of a unit label.
+
+   Nearly twice the type and a clear line of air above it. At a unit's size and a unit's
+   spacing it read as a footnote to the number rather than as a reading of its own, and sat
+   so close to the figure that the two ran together. It is still well under half the figure,
+   because the order the card is read in has not changed. */
+/* Capped against the card as well as scaled by the fit, because the figure above it is. The
+   hero stops growing when its glyphs reach the card's width — six of them for "$1.11M" — and
+   a pace sized on `--u` alone kept climbing past it, coming out a quarter of the figure on a
+   desk and nearly half of it on a wall. Both terms together hold it at about a third of the
+   figure wherever the card is drawn. */
+.card .unit--pace{font-weight:700;
+  font-size:min(calc(8.2*var(--u)),8.4cqi);
+  margin-top:min(calc(7*var(--u)),calc(42cqi/var(--chars,3)))}
+/* The verdict's colour, spelled out for this one element. `.card .unit` sets the muted ink
+   and outranks a bare `tone--stop`, so a pace that is a reading rather than a caption has to
+   say which colour it takes at the same weight of selector. */
+.card .unit--pace.tone--ok{color:var(--ok)}
+.card .unit--pace.tone--warn{color:var(--warn)}
+.card .unit--pace.tone--stop{color:var(--stop)}
+.card .unit--pace.tone--none{color:var(--ink-muted)}
 .tvbar{display:none;position:fixed;bottom:16px;right:16px;z-index:60;gap:4px;background:var(--surface);
   border:1px solid var(--rule-strong);border-radius:99px;padding:5px;box-shadow:0 6px 24px rgba(0,0,0,.2);
   opacity:.25;transition:opacity .2s}

@@ -14,8 +14,8 @@ import {
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=b25545fc5ac3';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=b25545fc5ac3';
+} from '../db.js?v=b794b5084124';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=b794b5084124';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
@@ -24,7 +24,7 @@ import {
   varianceChip, varianceTone, variancePct, VERDICT, verdictMark,
   FROM_FILE, SOURCE_NAMES, sourceOf,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE, WALK, morningToday,
-} from '../readings.js?v=b25545fc5ac3';
+} from '../readings.js?v=b794b5084124';
 
 const $ = selector => document.querySelector(selector);
 
@@ -54,7 +54,7 @@ const state = {
   // Whether a section screen is showing its cards or asking for its readings. One answer for
   // all of them, because the work it exists for is going down the rail filling each in.
   filling: false,
-  // Which of customer service, the die shop and prepress the comment box is currently on.
+  // Which of the front-of-house departments the comment box is currently on.
   supportAt: null, staffAt: null, attentionAt: null,
   // Set once, when the tidy function reports that this plant has no key configured. It is
   // not persisted: a plant that adds a key gets the buttons back on the next page load
@@ -90,9 +90,9 @@ const configured = () => state.config.filter(c => c.on_metrics);
 
 // ── The departments that do not make anything ───────────────────────────────────
 //
-// Customer service, the die shop and prepress have no output, no hours and no rate, so they
-// are not departments in the sense the Departments screen means — a plant that added them
-// there would get three production cards asking for sheets per hour. What they have is
+// Front of house has no output, no hours and no rate, so its four are not departments in the
+// sense the Departments screen means — a plant that added them there would get four
+// production cards asking for sheets per hour. What they have is
 // something to say, occasionally: a job held for a plate, a customer chasing, a die on
 // order. One card, one comment at a time, and whoever is speaking picks which of the three
 // they are. That is the whole of it, because that is the whole of what they asked for.
@@ -105,6 +105,11 @@ const SUPPORT = [
   ['customer_service', 'Customer service'],
   ['die_shop', 'Die shop'],
   ['prepress', 'Prepress'],
+  // Supply chain belongs here rather than among the departments for the same reason the
+  // other three do: it has no machine, no output and no hours, and what it has to say about
+  // a morning is a sentence. A late board delivery is the front of the building telling the
+  // floor what its day is going to look like.
+  ['supply_chain', 'Supply chain'],
 ];
 // Everyone who can put something on the board for the day ahead.
 //
@@ -119,6 +124,7 @@ const ATTENTION = [
   ['next_customer_service', 'Customer service'],
   ['next_estimating',       'Estimating'],
   ['next_scheduling',       'Scheduling'],
+  ['next_supply_chain',     'Supply chain'],
   ['next_prepress',         'Prepress'],
   ['next_die_shop',         'Die shop'],
   ['next_printing',         'Printing'],
@@ -222,14 +228,14 @@ const order = () => ORDER
   .filter(key => key !== 'week' || weekIsDue());
 const TITLES = {
   safety: 'Safety', quality: 'Quality', production: 'Production', shipping: 'Shipping',
-  maintenance: 'Upcoming maintenance', labour: 'Labour & Overtime', financials: 'Financials',
+  maintenance: 'Maintenance', labour: 'Labour & Overtime', financials: 'Financials',
   attention: 'Needs watching today', week: 'Last week',
   // Named in full on its own screen. The rail says "Front of house", which is what the
   // building calls these three when it is not naming them one at a time.
   // Support is an entry screen rather than a dashboard section, so it never needed a title
   // here - until Save-and-next started naming the screen it was about to move to, and found
   // nothing. The button read "Next next" and the toast said "Saved. undefined next."
-  support: 'Customer service, die shop & prepress',
+  support: 'Front of house',
 };
 const NAV = { labour: 'Labour', line: 'Summary', fill: 'Enter',
               maintenance: 'Maintenance', attention: 'Needs watching', week: 'Last week',
@@ -549,7 +555,7 @@ function maintenanceCards() {
   `;
 }
 
-// ── Customer service, the die shop and prepress ─────────────────────────────────
+// ── Front of house ──────────────────────────────────────────────────────────────
 //
 // One card for all three, with whoever has said something named on their own line. Three
 // cards would be three empty cards most mornings, which is a section of the screen spent
@@ -566,7 +572,15 @@ function supportCard() {
   }).filter(Boolean);
 
   return noteCard({
-    pkey: 'support', label: 'Customer service, die shop & prepress',
+    // "Front of house", not the four names spelled out.
+    //
+    // It was "Customer service, die shop & prepress" while there were three of them, and a
+    // fourth makes it a sentence rather than a title — forty-eight characters in a bar that
+    // caps every title on the product to fit the shortest card on the screen, which would
+    // shrink every other title beside it. The rail has called this section Front of house
+    // since it was promoted to one, so the card now agrees with the rail. Who is in it is
+    // said where it belongs: in the picker, on each line, and in the prompt when it is empty.
+    pkey: 'support', label: 'Front of house',
     // Twice the width, like the board. A section holding one card should not draw it at the
     // width of one of four, with three empty cells beside it — and what is in it is
     // sentences, which want the width more than any reading on the product does.
@@ -575,7 +589,7 @@ function supportCard() {
       s.lines.map(line =>
         `<li><b class="sup__w">${esc(s.name)}</b>${jotHtml(line)}</li>`).join('')).join('')}</ul>` : '',
     blank: !said.length,
-    prompt: 'Nothing from customer service, the die shop or prepress.',
+    prompt: 'Nothing from customer service, the die shop, prepress or supply chain.',
     edit: supportEditor(),
   });
 }
@@ -590,8 +604,8 @@ function supportCard() {
 //
 // It is stored in `daily_review`, on keys prefixed `next_`. That table is already the place
 // for a dated note against a name that is not always a configured department — customer
-// service, the die shop and prepress have lived in it since the support card — so this adds a
-// naming convention rather than a table, and inherits the writes, the edit trail and the
+// service, the die shop, prepress and supply chain have lived in it since the support card —
+// so this adds a naming convention rather than a table, and inherits the writes, the edit trail and the
 // live updates that come with it. The prefix is what keeps the two apart, and both readers
 // filter on it rather than assuming.
 //
@@ -1394,7 +1408,7 @@ const fillMaintenance = ({ tight = false } = {}) =>
 
 
 function fillSupport() {
-  return fgroup('Customer service, die shop & prepress', () => {
+  return fgroup('Front of house', () => {
     const at = state.supportAt || SUPPORT[0][0];
     // The same picker, list and Add button as every other card somebody writes sentences on.
     // This screen had a layout of its own — a select and a one-line box on a `fr` row — which
@@ -2421,8 +2435,7 @@ function paintPresence() {
 const FILL_FOR = {
   safety:      () => fillSafety(),
   quality:     () => fillQuality(),
-  // Customer service, the die shop and prepress get their own screen rather than a group at
-  // the foot of Production. They are not production, they answer to nobody on that screen,
+  // Front of house gets its own screen rather than a group at the foot of Production. They are not production, they answer to nobody on that screen,
   // and buried under four departments and their last twenty-four hours the invitation went
   // unseen — which for a box nobody is required to fill in means never filled in.
   support:     () => fillSupport(),
@@ -2539,6 +2552,9 @@ function render() {
   // it from one place.
   document.body.classList.toggle('no-trends', !!state.plant?.hide_trends);
   // One section or two, and the heading says which.
+  // Merged, Labour's screen carries the bookings as well and its title has to say so. Split,
+  // the two are separate sections with separate names — and Maintenance is then the section
+  // rather than the card, so it is not called "Upcoming maintenance" twice down one screen.
   TITLES.labour = state.plant?.merge_upkeep ? 'Maintenance & Labour' : 'Labour & Overtime';
   state.findings = assess(state);
   state.verdicts = verdicts(state, state.findings);
