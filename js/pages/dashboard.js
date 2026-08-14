@@ -1031,7 +1031,14 @@ function labourCards() {
       ? ['0', 'No overtime this morning']
       : [String(total), `${running.length} department${running.length === 1 ? '' : 's'} on overtime`];
 
-  return `${metricCard({
+  // Staffing first, then the overtime.
+  //
+  // Who is in is the question the room asks before any other: who called in, who is on
+  // vacation, who is training. The overtime follows from it — a department books a Saturday
+  // *because* two people are off — so reading them the other way round is reading the answer
+  // before the question. They were in the order the code happened to build them.
+  return `${staffingCard()}
+    ${metricCard({
       chart: 'number', pkey: 'ot-total', label: 'Overtime shifts',
       tone: total > 0 ? 'warn' : entered ? 'ok' : '',
       value: headline[0], sub: `shifts · ${headline[1]}`,
@@ -1050,9 +1057,13 @@ function labourCards() {
       // "Three shifts, Heidelberg and Omega" is the whole of what the room says about a
       // department's overtime, so it is the whole of what the card prints — the count
       // against the name, and the machines on the quieter line under it.
+      // The quieter line under the name says when and on what — "Weekend · Heidelberg, Bobst"
+      // — because a reader who has just seen "3 shifts" asks both in that order.
       rows: list.map(c => [c.name,
         otShifts(c.key) ? `${otShifts(c.key)} shift${otShifts(c.key) === 1 ? '' : 's'}` : '—',
-        otShifts(c.key) > 0 ? 'warn' : '', machineNames(c.key) || null]),
+        otShifts(c.key) > 0 ? 'warn' : '',
+        [otShifts(c.key) ? otWhenName(c.key) : '', machineNames(c.key)]
+          .filter(Boolean).join(' \u00b7 ') || null]),
       empty: 'No departments configured.',
     })}
     ${/* "What to line up" was here and is gone.
@@ -1062,7 +1073,6 @@ function labourCards() {
           production slide met it again three slides later with the same number beside it,
           and the second showing added nothing except the chance of the two disagreeing. A
           summary of a page the reader has just walked is not a summary, it is a repeat. */''}
-    ${staffingCard()}
   `;
 }
 
@@ -1330,6 +1340,23 @@ function fillMoney() {
 // where the answer to "change this" was "go to the entry screen". Every other card carries
 // its own edit zone; these two were left behind because their contents are rows rather than
 // a figure, which is a fact about how they are drawn and not a reason.
+// Weekday or weekend, beside the count.
+//
+// "Gluing, three shifts" is two different facts depending which. Three on a Tuesday is a
+// plant catching up inside its own week, on crews who are already in; three on a Saturday is
+// a day the plant does not normally have, at a rate that is not time and a half, from people
+// who had made other plans. The meeting treats the two completely differently and has been
+// asking which out loud every morning because the card printed one number for both.
+//
+// Blank is a real answer and stays first: on most mornings nobody has said, and "weekday" is
+// not the same claim as silence.
+const OT_WHEN = [['', 'When'], ['weekday', 'Weekday'], ['weekend', 'Weekend']];
+const otWhen = key => String(labourRow(key)?.ot_when || '');
+// The blank option is labelled for the box it sits in — an unfilled select reading "When"
+// asks the question — and that label is not a reading. A row nobody has answered says nothing
+// on the card rather than saying "When".
+const otWhenName = key => (OT_WHEN.find(([v]) => v && v === otWhen(key)) || [, ''])[1];
+
 function otRows() {
   const list = state.config.filter(c => c.active !== false);
   return list.map(c => {
@@ -1341,6 +1368,10 @@ function otRows() {
         type="number" step="0.5" min="0" placeholder="shifts"
         aria-label="${esc(c.name)} overtime shifts"
         value="${labourRow(c.key)?.ot_shifts ?? ''}">
+      <select class="inp fr__i fr__i--s fr__i--w" data-field="labour:${esc(c.key)}:ot_when"
+        aria-label="${esc(c.name)} \u2014 weekday or weekend">${OT_WHEN.map(([value, name]) =>
+        `<option value="${value}"${value === otWhen(c.key) ? ' selected' : ''}>${
+          esc(name)}</option>`).join('')}</select>
       <span class="fr__x">${machines.length ? `<span class="ticks">${machines.map(m =>
         `<label class="tick2"><input type="checkbox" data-field="labour:${esc(c.key)}:machines"
           data-machine="${esc(m.code)}"${chosen.has(m.code) ? ' checked' : ''}>
@@ -2446,7 +2477,9 @@ const FILL_FOR = {
   shipping:    () => fillShipping(),
   financials:  () => fillMoney(),
   attention:   () => fillAttention(),
-  labour:      () => fillOvertime() + fillStaffing()
+  // Staffing before overtime, the same way the cards read. Who is in is the question the
+  // room asks first and the overtime is what follows from the answer.
+  labour:      () => fillStaffing() + fillOvertime()
                    + (mergedUpkeep() ? fillMaintenance({ tight: true }) + fillMaintNote() : ''),
   maintenance: () => fillMaintenance({ tight: true }) + fillMaintNote(),
 };
@@ -2469,7 +2502,7 @@ const FILL_TABS = [
   { key: 'production',  sub: 'Output and hours, and the last 24 hours' },
   { key: 'shipping',    sub: 'Jobs, cartons, late, short' },
   { key: 'financials',  sub: "Yesterday's sales" },
-  { key: 'labour',      sub: 'Overtime and staffing' },
+  { key: 'labour',      sub: 'Staffing and overtime' },
   { key: 'maintenance', name: 'Maintenance', sub: 'What is booked in, and notes' },
   { key: 'attention',   name: 'Needs watching today',
     sub: 'What the day ahead turns on \u2014 anyone can add a line' },
