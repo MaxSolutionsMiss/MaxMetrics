@@ -693,6 +693,11 @@ export const ICONS = {
                     'M16.4 11.4a2.8 2.8 0 1 0 0-5.6', 'M17 14.2a5.4 5.4 0 0 1 3.6 5.1']),
   'ot-list':  MARK(FACTORY),
   staffing:   MARK(PERSON),
+  // Customer service's two: a clock for how long a confirmation takes, and two stacked
+  // sheets for the orders logged against the orders booked.
+  'csr-confirm': MARK(['M12 5.6a6.4 6.4 0 100 12.8 6.4 6.4 0 100-12.8', 'M12 8.6v3.6l2.6 1.6']),
+  'csr-orders':  MARK(['M5.4 7.4h9.2v9.2H5.4z', 'M9.4 5.4h9.2v9.2',
+                       'M7.6 10.6h4.8M7.6 13.4h3.2']),
   // Departments, and the fallback for one a plant invents
   printing:   MARK(['M7 4.2h10v4.4H7z', 'M4.6 8.6h14.8v6.2H4.6z', 'M7 14.8h10v5H7z', 'M16.4 11.2h.01']),
   diecutting: MARK(['M7.4 20.2a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0 5.2zM16.6 20.2a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0 5.2z',
@@ -811,6 +816,8 @@ export const CARD_CATALOGUE = [
   // The rest of Production is the plant's own departments, set on the Departments screen.
   // These two are not departments, so they are the production cards that live here.
   { section: 'Production',  key: 'pw-week',       name: "Last week's productivity" },
+  { section: 'Front of house', key: 'csr-confirm', name: 'Order confirmation' },
+  { section: 'Front of house', key: 'csr-orders',  name: 'Orders logged and booked' },
   { section: 'Front of house', key: 'support',    name: 'Customer service, die shop, prepress, supply chain' },
   // One card, one section. A plant that reviews its week off a spreadsheet on Monday can
   // untick it here and the section goes with it, the same as any other.
@@ -946,6 +953,49 @@ export function noteCard({ pkey, icon, label, text, html, tone = '', blank,
     <div class="card__body">
       <div class="card__mid">${html || `<p class="cnote${text ? '' : ' cnote--none'}">${
         esc(text || prompt)}</p>`}</div>
+      ${edit ? `<div class="ez">${edit}</div>` : ''}
+    </div>
+  </div>`;
+}
+
+// A card that is two readings rather than one.
+//
+// Everything else on this product answers one question with one figure, and that is the right
+// shape for nearly all of it: a card with two numbers on it makes the reader choose which one
+// the card is about. Two of customer service's readings are not like that. "Month to date 2.8
+// days, year to date 2.9" is one fact about one thing said over two windows, and "42 logged,
+// 38 booked" is one fact whose whole meaning is the gap between the halves — split across two
+// cards, the reader has to hold the first while finding the second, which is precisely the
+// arithmetic the card exists to do for them.
+//
+// So: one bar, one verdict, one foot, and the body divided down the middle. Each half carries
+// its own caption above its figure, because without them a pair of numbers side by side is a
+// riddle. `each` is `[caption, value, unit]`.
+//
+// The figures are sized off the longer of the two rather than each off itself. Two readings
+// at two sizes on one card reads as a big number and a footnote, which is the opposite of
+// what a pair is for — they are equals or they are not a pair.
+export function pairCard({ pkey, icon, label, tone, each, foot, edit, wide = false }) {
+  if (hidden.has(pkey)) return '';
+  const shown = (each || []).filter(Boolean);
+  const chars = Math.max(1, ...shown.map(([, value]) => String(value ?? '').length));
+  return `<div class="card card--${tone || ''}${wide ? ' card--wide' : ''}"
+    data-pkey="${esc(pkey)}">
+    <div class="card__head">
+      <span class="card__ico" aria-hidden="true">${icon || iconFor(pkey)}</span>
+      <span class="card__label">${esc(label)}</span>
+      ${verdictMark(tone)}
+    </div>
+    <div class="card__body">
+      <div class="card__mid">
+        <div class="duo" style="--dchars:${chars}">${shown.map(([caption, value, unit]) =>
+          `<div class="duo__c">
+             <span class="duo__l">${esc(caption)}</span>
+             <b class="duo__v">${esc(String(value ?? '\u2014'))}${
+               unit ? `<small class="duo__u">${esc(unit)}</small>` : ''}</b>
+           </div>`).join('')}</div>
+      </div>
+      ${foot || ''}
       ${edit ? `<div class="ez">${edit}</div>` : ''}
     </div>
   </div>`;

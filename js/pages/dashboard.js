@@ -14,17 +14,18 @@ import {
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=ae81e74bff62';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=ae81e74bff62';
+} from '../db.js?v=2522bc20ddb2';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=2522bc20ddb2';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
-  metricCard, listCard, noteCard, footLine, drawReading, showsHeroNumber, iconFor, hideCards,
+  metricCard, listCard, noteCard, pairCard, footLine, drawReading, showsHeroNumber, iconFor,
+  hideCards,
   spark, bullet, chip, cardTrack, readingOf, derivedShipping, otifTarget, otdTarget, cardOn,
   isNa, isMissing,
   varianceChip, varianceTone, variancePct, VERDICT, verdictMark,
   FROM_FILE, SOURCE_NAMES, sourceOf,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE, WALK, morningToday,
-} from '../readings.js?v=ae81e74bff62';
+} from '../readings.js?v=2522bc20ddb2';
 
 const $ = selector => document.querySelector(selector);
 
@@ -547,7 +548,7 @@ function maintenanceCards() {
       // among forty and eight bookings burst it — and where the reader is glancing at the
       // whole plant rather than reading the schedule. "and 5 more" is the honest thing to
       // say to somebody who is looking at forty cards at once.
-      cap: onePage() ? 4 : 8,
+      cap: onePage() ? 3 : 8,
       // Twice the width, and the bookings go back to one line each.
       //
       // A booking is six things — department, machine, hours, what for, when and what state —
@@ -585,7 +586,7 @@ function supportCard() {
     return lines.length ? { name, lines } : null;
   }).filter(Boolean);
 
-  return noteCard({
+  return `${confirmCard()}${ordersCard()}${noteCard({
     // "Front of house", not the four names spelled out.
     //
     // It was "Customer service, die shop & prepress" while there were three of them, and a
@@ -605,6 +606,51 @@ function supportCard() {
     blank: !said.length,
     prompt: 'Nothing from customer service, the die shop, prepress or supply chain.',
     edit: supportEditor(),
+  })}`;
+}
+
+// How long a confirmation takes, and how the booking is keeping up.
+//
+// Front of house has been a card of sentences since it was added — what the CSRs, the die
+// shop, prepress and supply chain want the floor to know — and it is the one section with
+// nothing measured on it. These are the two things the plant does measure about it, and both
+// have lived in a workbook nobody at the meeting opens.
+//
+// Both are pairs rather than four cards. "Month to date 2.8 days, year to date 2.9" is one
+// fact said over two windows, and "42 logged, 38 booked" is one fact whose whole meaning is
+// the gap between its halves. Split across four cards a reader has to hold the first while
+// finding the second, which is exactly the arithmetic a card exists to save them.
+const CONFIRM_TARGET = 3;
+
+function confirmCard() {
+  const mtd = metric('csr_confirm_mtd'), ytd = metric('csr_confirm_ytd');
+  const days = value => value == null || value === '' ? null : Number(value);
+  const shown = value => days(value) == null ? '\u2014' : days(value).toFixed(1);
+  // Lower is better here, which is the only reading on the product where three is a ceiling
+  // rather than a floor. The verdict is the month's, because the month is the one anybody can
+  // still do something about.
+  const tone = days(mtd) == null ? '' : band.lower(days(mtd), CONFIRM_TARGET);
+  return pairCard({
+    pkey: 'csr-confirm', label: 'Order confirmation', tone,
+    each: [['Month to date', shown(mtd), 'days'], ['Year to date', shown(ytd), 'days']],
+    foot: footLine([['Target', `\u2264 ${CONFIRM_TARGET} days`],
+                    ['Against', 'the PO date']]),
+  });
+}
+
+function ordersCard() {
+  const logged = metric('csr_orders_logged'), booked = metric('csr_orders_booked');
+  const count = value => value == null || value === '' ? null : Number(value);
+  const shown = value => count(value) == null ? '\u2014' : num(count(value));
+  // No verdict. The plant has not set a target for these and inventing one here would put a
+  // colour on a card that means nothing. The gap is the reading, and it is stated rather than
+  // judged: what is left to book is a fact about today's work, not a pass or a fail.
+  const left = count(logged) != null && count(booked) != null
+    ? count(logged) - count(booked) : null;
+  return pairCard({
+    pkey: 'csr-orders', label: 'Orders logged and booked', tone: '',
+    each: [['Logged', shown(logged), ''], ['Booked in GT', shown(booked), '']],
+    foot: footLine([['Still to book', left == null ? null : num(left)]]),
   });
 }
 
@@ -1072,6 +1118,10 @@ function labourCards() {
     })}
     ${listCard({
       pkey: 'ot-list', label: 'Overtime by department',
+      // Three on the one page, for the same reason the bookings are three there: a tile among
+      // forty holds a fraction of what a slide does, and "and 1 more" is the honest thing to
+      // say to somebody glancing at the whole plant.
+      cap: onePage() ? 3 : 8,
       edit: otRows(),
       // "Three shifts, Heidelberg and Omega" is the whole of what the room says about a
       // department's overtime, so it is the whole of what the card prints — the count
@@ -1457,8 +1507,29 @@ const fillMaintenance = ({ tight = false } = {}) =>
   </section>`;
 
 
+// The four figures behind customer service's two cards.
+//
+// Typed here whether or not the docket-flow workbook is being read, for the same reason every
+// other reading on this screen can be: a morning is not held up by a file that did not arrive.
+const fillCsr = () => fgroup('Customer service', () => [
+  frow('Confirmation \u2014 month', 'csr_confirm_mtd',
+    `type="number" step="0.1" min="0" value="${metric('csr_confirm_mtd') ?? ''}"`,
+    { echo: 'days from the PO date' }),
+  frow('Confirmation \u2014 year', 'csr_confirm_ytd',
+    `type="number" step="0.1" min="0" value="${metric('csr_confirm_ytd') ?? ''}"`,
+    { echo: `target \u2264 ${CONFIRM_TARGET} days` }),
+  frow('Orders logged', 'csr_orders_logged',
+    `type="number" min="0" step="1" value="${metric('csr_orders_logged') ?? ''}"`),
+  frow('Orders booked in GT', 'csr_orders_booked',
+    `type="number" min="0" step="1" value="${metric('csr_orders_booked') ?? ''}"`,
+    { echo: metric('csr_orders_logged') != null && metric('csr_orders_booked') != null
+        ? `<b>${num(metric('csr_orders_logged') - metric('csr_orders_booked'))}</b> still to book`
+        : '' }),
+].join(''), 'From the docket-flow tracker \u2014 how long a confirmation takes, and how the '
+ + 'booking is keeping up with what came in.');
+
 function fillSupport() {
-  return fgroup('Front of house', () => {
+  return fillCsr() + fgroup('Front of house', () => {
     const at = state.supportAt || SUPPORT[0][0];
     // The same picker, list and Add button as every other card somebody writes sentences on.
     // This screen had a layout of its own — a select and a one-line box on a `fr` row — which
@@ -2516,8 +2587,8 @@ const nextToFill = key => {
 const FILL_TABS = [
   { key: 'safety',      sub: 'Injuries and near-misses' },
   { key: 'quality',     sub: 'Shortages, NCRs, complaints, COQ' },
-  { key: 'support',     name: 'Customer service, prepress & die shop',
-    sub: 'Whatever the front of the building wants said' },
+  { key: 'support',     name: 'Front of house',
+    sub: 'Confirmation times, orders booked, and whatever the front of the building wants said' },
   { key: 'production',  sub: 'Output and hours, and the last 24 hours' },
   { key: 'shipping',    sub: 'Jobs, cartons, late, short' },
   { key: 'financials',  sub: "Yesterday's sales" },

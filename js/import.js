@@ -18,7 +18,7 @@
 // to record. Neither is a warning, and neither holds up an import. An alarm that fires
 // every Monday about a Sunday nobody worked is one people learn to close without reading.
 
-import { openWorkbook, serialToISO } from './xlsx.js?v=ae81e74bff62';
+import { openWorkbook, serialToISO } from './xlsx.js?v=2522bc20ddb2';
 
 // ── Matching a column ───────────────────────────────────────────────────────────
 
@@ -343,6 +343,112 @@ export function shippingPeriod(days, through) {
   if (month.otd != null) { out.mtd_otd = month.otd; out.mtd_otif = month.otif; }
   if (year.otd != null) { out.ytd_otd = year.otd; out.ytd_otif = year.otif; }
   return Object.keys(out).length ? out : null;
+}
+
+// ── Customer service: the docket-flow tracker ───────────────────────────────────
+//
+// Two readings the plant measures about the front of the building and keeps in one workbook
+// nobody at the meeting opens.
+//
+// **How long a confirmation takes.** The tracker is one row per docket, and two of its dates
+// are the whole of this: when the purchase order arrived from the customer, and when customer
+// service sent the confirmation back. The corporate goal is three days or fewer. So the
+// reading is the mean gap between the two dates, over the orders confirmed this month and
+// over the year — a row with only one of the two dates is a docket still in flight and is not
+// part of either mean.
+//
+// **Orders logged against orders booked.** A second tab counts what came in from customers
+// and what has been booked into Globetek. No arithmetic: two totals, read off.
+//
+// Both are found by name rather than by position, with the letters the plant uses as the
+// fallback. `E` and `M` are where the two dates sit today and a column inserted to the left of
+// either would move them silently — so the header is asked first, every time, and the letter
+// is used only when the header cannot be recognised. Which of the two happened is said in the
+// notes, because "read by position" is a thing somebody should be told rather than left to
+// discover when the figure goes strange.
+const looksLikeCsr = names =>
+  names.some(n => /tracker/i.test(n)) && names.some(n => /book/i.test(n) && /log/i.test(n));
+
+// Column E and column M, counting from zero.
+const PO_LETTER = 4, CONFIRM_LETTER = 12;
+
+export async function readCsr(workbook, { date }) {
+  const notes = [];
+  const metrics = {};
+  const sheet = workbook.sheetNames.find(n => /tracker/i.test(n));
+  if (sheet) {
+    const rows = await workbook.rows(sheet);
+    const header = findHeaderRow(rows, ['po']) || { at: 0 };
+    const head = (rows[header.at] || []).map(bare);
+    const find = (...wanted) => head.findIndex(h => h && wanted.some(w => h.includes(bare(w))));
+    // "PO date", "PO received", "date received" — and never the confirmation column, which
+    // also has "date" in it.
+    let poAt = find('podate', 'poreceived', 'poreceiveddate', 'datepo', 'receiveddate');
+    let confirmAt = find('confirmationsent', 'confirmationdate', 'dateconfirmed',
+                         'confirmsent', 'orderconfirmation');
+    if (poAt < 0 || confirmAt < 0) {
+      poAt = PO_LETTER; confirmAt = CONFIRM_LETTER;
+      notes.push(`${sheet}: could not recognise the PO and confirmation headings, so columns E `
+        + `and M were read by position. Check the figures against the sheet.`);
+    }
+    const month = date.slice(0, 7), year = date.slice(0, 4);
+    const gaps = { month: [], year: [] };
+    for (const row of rows.slice(header.at + 1)) {
+      const po = serialToISO(row?.[poAt]);
+      const confirmed = serialToISO(row?.[confirmAt]);
+      // A docket with only one of the two dates is still in flight. It is not a nought-day
+      // confirmation and it is not a late one; it is not an answer yet.
+      if (!po || !confirmed) continue;
+      const days = (Date.parse(confirmed) - Date.parse(po)) / 86400000;
+      if (!Number.isFinite(days) || days < 0) continue;
+      // Filed by when the confirmation went out, because that is the month the plant did the
+      // work in. A PO that arrived in July and was confirmed in August is August's answer.
+      if (confirmed.slice(0, 4) === year) gaps.year.push(days);
+      if (confirmed.slice(0, 7) === month) gaps.month.push(days);
+    }
+    const mean = list => list.length
+      ? Number((list.reduce((a, b) => a + b, 0) / list.length).toFixed(2)) : null;
+    if (mean(gaps.month) != null) metrics.csr_confirm_mtd = mean(gaps.month);
+    if (mean(gaps.year) != null) metrics.csr_confirm_ytd = mean(gaps.year);
+    if (!gaps.year.length) {
+      notes.push(`${sheet}: no rows with both a PO date and a confirmation date in ${year}.`);
+    }
+  } else {
+    notes.push('No tracker tab found, so confirmation times could not be read.');
+  }
+
+  // Orders logged and orders booked. Two totals on a tab that names them, wherever on it they
+  // sit: the sheet is a summary rather than a table, so this looks for the words and takes the
+  // first number on the same row or under the same heading.
+  const other = workbook.sheetNames.find(n => /book/i.test(n) && /log/i.test(n));
+  if (other) {
+    const rows = await workbook.rows(other);
+    const firstNumber = cells => {
+      for (const cell of cells) {
+        const value = number(cell);
+        if (value != null && Number.isFinite(value)) return value;
+      }
+      return null;
+    };
+    for (const row of rows || []) {
+      const said = (row || []).map(bare).join(' ');
+      if (!said) continue;
+      const rest = (row || []).filter(c => number(c) != null);
+      if (metrics.csr_orders_logged == null && /log/.test(said) && !/book/.test(said)) {
+        const value = firstNumber(rest);
+        if (value != null) metrics.csr_orders_logged = Math.round(value);
+      }
+      if (metrics.csr_orders_booked == null && /book/.test(said) && !/log/.test(said)) {
+        const value = firstNumber(rest);
+        if (value != null) metrics.csr_orders_booked = Math.round(value);
+      }
+    }
+    if (metrics.csr_orders_logged == null || metrics.csr_orders_booked == null) {
+      notes.push(`${other}: could not find both a logged and a booked total. `
+        + `Type them on the entry screen and send the tab so this can be read properly.`);
+    }
+  }
+  return { metrics, notes };
 }
 
 // ── What the page hands the reader ──────────────────────────────────────────────
@@ -736,6 +842,10 @@ export const JSON_FIELDS = {
   otif:             ['otif', 'ontimeinfull', 'otifpercent'],
   mtd_otif:         ['mtdotif', 'otifmtd', 'monthtodateotif'],
   ytd_otif:         ['ytdotif', 'otifytd', 'yeartodateotif'],
+  csr_confirm_mtd:  ['csrconfirmmtd', 'confirmationmtd', 'confirmdaysmtd', 'confirmationdaysmtd'],
+  csr_confirm_ytd:  ['csrconfirmytd', 'confirmationytd', 'confirmdaysytd', 'confirmationdaysytd'],
+  csr_orders_logged: ['csrorderslogged', 'orderslogged', 'ordersreceived', 'logged'],
+  csr_orders_booked: ['csrordersbooked', 'ordersbooked', 'bookedingt', 'booked'],
   ncr_ytd:          ['ncr', 'ncrytd', 'ncrs', 'ncrsreceived', 'ncrreceived', 'ncrcount'],
   complaints_internal: ['complaintsinternal', 'internalcomplaints', 'internal'],
   complaints_external: ['complaintsexternal', 'externalcomplaints', 'customercomplaints', 'external'],
@@ -1033,6 +1143,22 @@ export async function readFiles(files, { date, reported = [], operators = [] } =
       if (Object.keys(read.metrics).length) coqDay = { date, metrics: read.metrics, departments: {} };
       sources.push({ file: file.name, kind: 'quality',
                      rows: Object.keys(read.metrics).length });
+    } else if (looksLikeCsr(names)) {
+      // Customer service's two readings. Through the same door as the KPI workbook — one
+      // dated record of readings — so the preview, the coverage strip and the never-overwrite
+      // rule all apply to it unchanged.
+      const read = await readCsr(workbook, { date });
+      notes.push(...read.notes.map(n => `${file.name}: ${n}`));
+      if (Object.keys(read.metrics).length) {
+        const day = { date, metrics: read.metrics, departments: {} };
+        json = json
+          ? { days: json.days.concat([day]),
+              recognised: [...new Set(json.recognised.concat(Object.keys(read.metrics)))].sort(),
+              unknown: json.unknown }
+          : { days: [day], recognised: Object.keys(read.metrics).sort(), unknown: [] };
+        sources.push({ file: file.name, kind: 'customer service',
+                       rows: Object.keys(read.metrics).length });
+      }
     } else if (looksLikeShipping(names)) {
       const read = await readShipping(workbook);
       shipping = read.days;
