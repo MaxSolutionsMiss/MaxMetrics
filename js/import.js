@@ -18,7 +18,7 @@
 // to record. Neither is a warning, and neither holds up an import. An alarm that fires
 // every Monday about a Sunday nobody worked is one people learn to close without reading.
 
-import { openWorkbook, serialToISO } from './xlsx.js?v=acd49644b6c7';
+import { openWorkbook, serialToISO } from './xlsx.js?v=66b35b4e9e25';
 
 // ── Matching a column ───────────────────────────────────────────────────────────
 
@@ -54,7 +54,11 @@ export function findHeaderRow(rows, wanted, limit = 12) {
   let best = { at: -1, hits: 0 };
   for (let at = 0; at < Math.min(limit, rows.length); at++) {
     const cells = (rows[at] || []).map(normalise);
-    const hits = wanted.filter(field => FIELDS[field].some(spelling => cells.includes(spelling))).length;
+    // `FIELDS[field] || []` because a caller asking for a field this table has never heard
+    // of is asking a fair question — "is there a PO column here?" — and the honest answer is
+    // no, not a TypeError. It answered with one for a fortnight.
+    const hits = wanted
+      .filter(field => (FIELDS[field] || []).some(spelling => cells.includes(spelling))).length;
     if (hits > best.hits) best = { at, hits };
   }
   return best.hits >= 2 ? best : null;
@@ -384,6 +388,9 @@ const looksLikeCsr = (names, filename = '') =>
 
 // Column E and column M, counting from zero.
 const PO_LETTER = 4, CONFIRM_LETTER = 12;
+// So a note about a column can say "E" — which is how the plant refers to it — rather
+// than the index this file counts in.
+const COLUMN_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
 export async function readCsr(workbook, { date }) {
   const notes = [];
@@ -391,7 +398,19 @@ export async function readCsr(workbook, { date }) {
   const sheet = workbook.sheetNames.find(n => /tracker/i.test(n));
   if (sheet) {
     const rows = await workbook.rows(sheet);
-    const header = findHeaderRow(rows, ['po']) || { at: 0 };
+    // Its own search for the header row, rather than `findHeaderRow`, which knows only the
+    // columns the production and shipping sheets use and was being asked about a `po` field
+    // that does not exist in its list. This sheet's two columns are its own, so it looks for
+    // them itself: the first row in the top twelve that names both a PO and a confirmation.
+    const header = { at: (() => {
+      const isPo = c => c && (c === 'po' || c.startsWith('po') || (c.includes('po') && c.includes('date')));
+      const isConfirm = c => c && c.includes('confirm');
+      for (let at = 0; at < Math.min(12, rows.length); at++) {
+        const cells = (rows[at] || []).map(bare);
+        if (cells.some(isPo) && cells.some(isConfirm)) return at;
+      }
+      return 0;
+    })() };
     const head = (rows[header.at] || []).map(bare);
     const find = (...wanted) => head.findIndex(h => h && wanted.some(w => h.includes(bare(w))));
     // "PO date", "PO received", "date received" — and never the confirmation column, which
@@ -404,14 +423,31 @@ export async function readCsr(workbook, { date }) {
       notes.push(`${sheet}: could not recognise the PO and confirmation headings, so columns E `
         + `and M were read by position. Check the figures against the sheet.`);
     }
+    // Excel keeps dates as serial numbers and `serialToISO` answers only for those. A
+    // tracker that has been pasted out of an email, or typed, carries text instead — and
+    // text handed to `serialToISO` comes back null, which is indistinguishable from a docket
+    // that has no confirmation date yet. So a plain ISO date is accepted as well, and rows
+    // where both cells are filled but neither could be read are counted rather than passed
+    // over, so the notes can say the column is not dates instead of reporting no dockets.
+    const asISO = cell => {
+      const serial = serialToISO(cell);
+      if (serial) return serial;
+      const said = /^(\d{4}-\d{2}-\d{2})/.exec(String(cell ?? '').trim());
+      return said ? said[1] : null;
+    };
+    const filled = cell => cell != null && String(cell).trim() !== '';
+    let unread = 0;
     const month = date.slice(0, 7), year = date.slice(0, 4);
     const gaps = { month: [], year: [] };
     for (const row of rows.slice(header.at + 1)) {
-      const po = serialToISO(row?.[poAt]);
-      const confirmed = serialToISO(row?.[confirmAt]);
+      const po = asISO(row?.[poAt]);
+      const confirmed = asISO(row?.[confirmAt]);
       // A docket with only one of the two dates is still in flight. It is not a nought-day
       // confirmation and it is not a late one; it is not an answer yet.
-      if (!po || !confirmed) continue;
+      if (!po || !confirmed) {
+        if (filled(row?.[poAt]) && filled(row?.[confirmAt])) unread++;
+        continue;
+      }
       const days = (Date.parse(confirmed) - Date.parse(po)) / 86400000;
       if (!Number.isFinite(days) || days < 0) continue;
       // Filed by when the confirmation went out, because that is the month the plant did the
@@ -424,7 +460,12 @@ export async function readCsr(workbook, { date }) {
     if (mean(gaps.month) != null) metrics.csr_confirm_mtd = mean(gaps.month);
     if (mean(gaps.year) != null) metrics.csr_confirm_ytd = mean(gaps.year);
     if (!gaps.year.length) {
-      notes.push(`${sheet}: no rows with both a PO date and a confirmation date in ${year}.`);
+      notes.push(unread
+        ? `${sheet}: ${unread} row${unread === 1 ? ' has' : 's have'} both dates filled in but `
+          + `in a form that could not be read as a date — check that columns `
+          + `${COLUMN_LETTERS[poAt] ?? poAt + 1} and ${COLUMN_LETTERS[confirmAt] ?? confirmAt + 1} are the PO `
+          + `and confirmation dates and are formatted as dates.`
+        : `${sheet}: no rows with both a PO date and a confirmation date in ${year}.`);
     }
   } else {
     notes.push('No tracker tab found, so confirmation times could not be read.');
@@ -436,17 +477,28 @@ export async function readCsr(workbook, { date }) {
   const other = workbook.sheetNames.find(n => /book/i.test(n) && /log/i.test(n));
   if (other) {
     const rows = await workbook.rows(other);
+    // A count, or nothing — deliberately not `number()`, which answers 0 for anything it
+    // cannot read. That is the right answer for a blank quantity cell in a production sheet
+    // and the wrong one here: this sheet is labels beside figures, so `number('Orders
+    // logged')` returning 0 made the label itself look like the count, and both readings
+    // went to the card as nought. A count has to be a number or it has to be absent.
+    const count = cell => {
+      if (cell == null || cell === '') return null;
+      if (typeof cell === 'number') return Number.isFinite(cell) ? cell : null;
+      const text = String(cell).replace(/[\s,]/g, '');
+      return /^-?\d+(\.\d+)?$/.test(text) ? Number(text) : null;
+    };
     const firstNumber = cells => {
       for (const cell of cells) {
-        const value = number(cell);
-        if (value != null && Number.isFinite(value)) return value;
+        const value = count(cell);
+        if (value != null) return value;
       }
       return null;
     };
     for (const row of rows || []) {
       const said = (row || []).map(bare).join(' ');
       if (!said) continue;
-      const rest = (row || []).filter(c => number(c) != null);
+      const rest = (row || []).filter(c => count(c) != null);
       if (metrics.csr_orders_logged == null && /log/.test(said) && !/book/.test(said)) {
         const value = firstNumber(rest);
         if (value != null) metrics.csr_orders_logged = Math.round(value);
@@ -1127,100 +1179,113 @@ export async function readFiles(files, { date, reported = [], operators = [] } =
       continue;
     }
     const names = workbook.sheetNames;
-    if (looksLikeDor(names)) {
-      const read = await readDor(workbook, { matchName });
-      shifts = shifts.concat(read.shifts);
-      notes.push(...read.notes.map(n => `${file.name}: ${n}`));
-      sources.push({ file: file.name, kind: 'production', rows: read.shifts.length });
-    } else if (looksLikeKpi(names)) {
-      // Monthly quality, and the sales and OTIF that sit on the same row. It goes through
-      // the same door as an old-dashboard export — one dated record of readings — so the
-      // preview, the coverage strip and the never-overwrite rule all apply unchanged.
-      const read = await readKpi(workbook, { date });
-      notes.push(...read.notes.map(n => `${file.name}: ${n}`));
-      if (Object.keys(read.metrics).length) {
-        const day = { date, metrics: read.metrics, departments: {} };
-        json = json
-          ? { days: json.days.concat([day]),
-              recognised: [...new Set(json.recognised.concat(Object.keys(read.metrics)))].sort(),
-              unknown: json.unknown }
-          : { days: [day], recognised: Object.keys(read.metrics).sort(), unknown: [] };
-        sources.push({ file: file.name, kind: 'quality', rows: Object.keys(read.metrics).length });
-      }
-    } else if (looksLikeCoq(names)) {
-      // A workbook with a COQ tab and no `PLZ DO NOT TOUCH` — Mississauga's second quality
-      // file. It goes through the same door as the one above: one dated record of readings,
-      // previewed and never overwriting anything typed.
-      const read = await readCoqSheet(workbook, { date });
-      notes.push(...read.notes.map(n => `${file.name}: ${n}`));
-      if (Object.keys(read.metrics).length) coqDay = { date, metrics: read.metrics, departments: {} };
-      sources.push({ file: file.name, kind: 'quality',
-                     rows: Object.keys(read.metrics).length });
-    } else if (looksLikeCsr(names, file.name)) {
-      // Customer service's two readings. Through the same door as the KPI workbook — one
-      // dated record of readings — so the preview, the coverage strip and the never-overwrite
-      // rule all apply to it unchanged.
-      const read = await readCsr(workbook, { date });
-      notes.push(...read.notes.map(n => `${file.name}: ${n}`));
-      if (Object.keys(read.metrics).length) {
-        const day = { date, metrics: read.metrics, departments: {} };
-        json = json
-          ? { days: json.days.concat([day]),
-              recognised: [...new Set(json.recognised.concat(Object.keys(read.metrics)))].sort(),
-              unknown: json.unknown }
-          : { days: [day], recognised: Object.keys(read.metrics).sort(), unknown: [] };
-        sources.push({ file: file.name, kind: 'customer service',
+    // One workbook that cannot be read must not take the other four down with it.
+    //
+    // Until now a parser that threw — a heading this file spells differently, a tab that is
+    // a picture, a bug in a reader written last week — came out of `readFiles` and ended the
+    // whole import. Five workbooks arrive every morning and the plant does not get four of
+    // them and a complaint about the fifth; it gets a toast with a JavaScript sentence in it
+    // and no data at all. The file that failed is named, its reason is kept, and the
+    // remaining files are read.
+    try {
+      if (looksLikeDor(names)) {
+        const read = await readDor(workbook, { matchName });
+        shifts = shifts.concat(read.shifts);
+        notes.push(...read.notes.map(n => `${file.name}: ${n}`));
+        sources.push({ file: file.name, kind: 'production', rows: read.shifts.length });
+      } else if (looksLikeKpi(names)) {
+        // Monthly quality, and the sales and OTIF that sit on the same row. It goes through
+        // the same door as an old-dashboard export — one dated record of readings — so the
+        // preview, the coverage strip and the never-overwrite rule all apply unchanged.
+        const read = await readKpi(workbook, { date });
+        notes.push(...read.notes.map(n => `${file.name}: ${n}`));
+        if (Object.keys(read.metrics).length) {
+          const day = { date, metrics: read.metrics, departments: {} };
+          json = json
+            ? { days: json.days.concat([day]),
+                recognised: [...new Set(json.recognised.concat(Object.keys(read.metrics)))].sort(),
+                unknown: json.unknown }
+            : { days: [day], recognised: Object.keys(read.metrics).sort(), unknown: [] };
+          sources.push({ file: file.name, kind: 'quality', rows: Object.keys(read.metrics).length });
+        }
+      } else if (looksLikeCoq(names)) {
+        // A workbook with a COQ tab and no `PLZ DO NOT TOUCH` — Mississauga's second quality
+        // file. It goes through the same door as the one above: one dated record of readings,
+        // previewed and never overwriting anything typed.
+        const read = await readCoqSheet(workbook, { date });
+        notes.push(...read.notes.map(n => `${file.name}: ${n}`));
+        if (Object.keys(read.metrics).length) coqDay = { date, metrics: read.metrics, departments: {} };
+        sources.push({ file: file.name, kind: 'quality',
                        rows: Object.keys(read.metrics).length });
+      } else if (looksLikeCsr(names, file.name)) {
+        // Customer service's two readings. Through the same door as the KPI workbook — one
+        // dated record of readings — so the preview, the coverage strip and the never-overwrite
+        // rule all apply to it unchanged.
+        const read = await readCsr(workbook, { date });
+        notes.push(...read.notes.map(n => `${file.name}: ${n}`));
+        if (Object.keys(read.metrics).length) {
+          const day = { date, metrics: read.metrics, departments: {} };
+          json = json
+            ? { days: json.days.concat([day]),
+                recognised: [...new Set(json.recognised.concat(Object.keys(read.metrics)))].sort(),
+                unknown: json.unknown }
+            : { days: [day], recognised: Object.keys(read.metrics).sort(), unknown: [] };
+          sources.push({ file: file.name, kind: 'customer service',
+                         rows: Object.keys(read.metrics).length });
+        }
+      } else if (looksLikeShipping(names)) {
+        const read = await readShipping(workbook);
+        shipping = read.days;
+        notes.push(...read.notes.map(n => `${file.name}: ${n}`));
+        sources.push({ file: file.name, kind: 'shipping', rows: read.days.length });
+      } else {
+        // A file the reader could not place still arrived, so it still appears in the list of
+        // what arrived. Leaving it out of `sources` and mentioning it in a note at the bottom
+        // is how a dropped folder of six workbooks can look like a clean import of three.
+        //
+        // And it says what is *in* it, sheet by sheet, with each sheet's header row.
+        //
+        // "Nothing recognisable" is a true statement that leaves the plant no move to make.
+        // Every one of these files is readable — it is laid out differently from the ones the
+        // parsers were written against, and the whole of the difference is which tab the
+        // numbers are on and what the columns are called. Printing those turns a dead end into
+        // a list somebody can send on, and the parser gets written against the real file
+        // rather than against a guess about it. The JSON importer has done this with its
+        // unrecognised keys from the beginning; a workbook deserves the same.
+        // The first few rows of each tab, not just the header.
+        //
+        // A header row alone is enough for a table and useless for the shape these quality
+        // workbooks are actually in: a COQ sheet is a title, a row of months down the side and
+        // one column of figures, with the year to date on a row of its own further down. Column
+        // letters are printed beside them because that is how the plant talks about the file —
+        // "the year to date is D16" — and because a reader written against a label survives a
+        // row being inserted, while one written against D16 does not. Both together are what
+        // makes a parser writable without the file in hand.
+        const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWX';
+        const peek = [];
+        for (const sheet of names.slice(0, 8)) {
+          let head = [], grid = [];
+          try {
+            const rows = await workbook.rows(sheet);
+            const filled = (rows || []).map((row, at) => ({ at, row: row || [] }))
+              .filter(r => r.row.some(cell => cell != null && String(cell).trim() !== ''));
+            const cell = value => String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, 22);
+            grid = filled.slice(0, 8).map(r => ({
+              row: r.at + 1, cells: r.row.slice(0, 8).map(cell),
+            }));
+            const at = filled.find(r =>
+              r.row.filter(c => c != null && String(c).trim() !== '').length >= 2);
+            head = (at?.row || []).slice(0, 12).map(cell).filter(Boolean);
+          } catch { /* a sheet that will not open still gets its name printed */ }
+          peek.push({ sheet, head, grid, letters: LETTERS.slice(0, 8).split('') });
+        }
+        sources.push({ file: file.name, kind: 'unknown', rows: names.length,
+                       sheets: names.slice(0, 6), peek });
+        notes.push(`${file.name}: nothing recognisable — sheets are ${names.slice(0, 4).join(', ')}.`);
       }
-    } else if (looksLikeShipping(names)) {
-      const read = await readShipping(workbook);
-      shipping = read.days;
-      notes.push(...read.notes.map(n => `${file.name}: ${n}`));
-      sources.push({ file: file.name, kind: 'shipping', rows: read.days.length });
-    } else {
-      // A file the reader could not place still arrived, so it still appears in the list of
-      // what arrived. Leaving it out of `sources` and mentioning it in a note at the bottom
-      // is how a dropped folder of six workbooks can look like a clean import of three.
-      //
-      // And it says what is *in* it, sheet by sheet, with each sheet's header row.
-      //
-      // "Nothing recognisable" is a true statement that leaves the plant no move to make.
-      // Every one of these files is readable — it is laid out differently from the ones the
-      // parsers were written against, and the whole of the difference is which tab the
-      // numbers are on and what the columns are called. Printing those turns a dead end into
-      // a list somebody can send on, and the parser gets written against the real file
-      // rather than against a guess about it. The JSON importer has done this with its
-      // unrecognised keys from the beginning; a workbook deserves the same.
-      // The first few rows of each tab, not just the header.
-      //
-      // A header row alone is enough for a table and useless for the shape these quality
-      // workbooks are actually in: a COQ sheet is a title, a row of months down the side and
-      // one column of figures, with the year to date on a row of its own further down. Column
-      // letters are printed beside them because that is how the plant talks about the file —
-      // "the year to date is D16" — and because a reader written against a label survives a
-      // row being inserted, while one written against D16 does not. Both together are what
-      // makes a parser writable without the file in hand.
-      const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWX';
-      const peek = [];
-      for (const sheet of names.slice(0, 8)) {
-        let head = [], grid = [];
-        try {
-          const rows = await workbook.rows(sheet);
-          const filled = (rows || []).map((row, at) => ({ at, row: row || [] }))
-            .filter(r => r.row.some(cell => cell != null && String(cell).trim() !== ''));
-          const cell = value => String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, 22);
-          grid = filled.slice(0, 8).map(r => ({
-            row: r.at + 1, cells: r.row.slice(0, 8).map(cell),
-          }));
-          const at = filled.find(r =>
-            r.row.filter(c => c != null && String(c).trim() !== '').length >= 2);
-          head = (at?.row || []).slice(0, 12).map(cell).filter(Boolean);
-        } catch { /* a sheet that will not open still gets its name printed */ }
-        peek.push({ sheet, head, grid, letters: LETTERS.slice(0, 8).split('') });
-      }
-      sources.push({ file: file.name, kind: 'unknown', rows: names.length,
-                     sheets: names.slice(0, 6), peek });
-      notes.push(`${file.name}: nothing recognisable — sheets are ${names.slice(0, 4).join(', ')}.`);
+    } catch (cause) {
+      sources.push({ file: file.name, kind: 'unreadable', rows: 0, why: cause.message });
+      notes.push(`${file.name}: could not be read — ${cause.message}`);
     }
   }
 
