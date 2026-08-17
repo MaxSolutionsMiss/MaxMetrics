@@ -14,8 +14,8 @@ import {
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=6f7918ba438f';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=6f7918ba438f';
+} from '../db.js?v=4cf63c94a02e';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=4cf63c94a02e';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, pairCard, footLine, drawReading, showsHeroNumber, iconFor,
@@ -25,7 +25,7 @@ import {
   varianceChip, varianceTone, variancePct, VERDICT, verdictMark,
   FROM_FILE, SOURCE_NAMES, sourceOf,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE, WALK, morningToday,
-} from '../readings.js?v=6f7918ba438f';
+} from '../readings.js?v=4cf63c94a02e';
 
 const $ = selector => document.querySelector(selector);
 
@@ -647,7 +647,6 @@ function ordersCard() {
     return value == null || value === '' ? null : Number(value);
   };
   const shown = key => count(key) == null ? '\u2014' : num(count(key));
-  const monthLine = key => count(key) == null ? '' : `${num(count(key))} month to date`;
   // No verdict. The plant has not set a target for either count, and inventing one would put
   // a colour on a card that means nothing.
   //
@@ -660,15 +659,22 @@ function ordersCard() {
   // finished — that is the pair the meeting opens on. Month to date sits under each as the
   // pace the month is setting, and the year is at the foot, where the size of the thing
   // belongs: read once, not compared.
+  // Last week only, for now.
+  //
+  // The month and the year came off the same two columns and disagreed with each other by
+  // three orders of magnitude — 8 logged last week against 8,255 this year, with month to
+  // date identical to year to date. Two columns of one table cannot both be counts of orders
+  // and differ like that, so one of them is not a count, and until somebody has the real
+  // figures in front of them there is no telling which. The week is the reading the meeting
+  // opens on and the one that looked right; it is the one kept.
+  //
+  // The other four fields are still filled on every pull and still sit on the entry screen.
+  // Nothing has been thrown away — when the year's numbers are known, the foot and the
+  // month lines go back in a line each.
   return pairCard({
     pkey: 'csr-orders', label: 'Orders booked vs logged in GT', tone: '',
-    each: [
-      ['Logged last week', shown('csr_orders_logged_wk'), '', monthLine('csr_orders_logged_mtd')],
-      ['Booked in GT last week', shown('csr_orders_booked_wk'), '',
-       monthLine('csr_orders_booked_mtd')],
-    ],
-    foot: footLine([['Logged this year', shown('csr_orders_logged')],
-                    ['Booked this year', shown('csr_orders_booked')]]),
+    each: [['Logged last week', shown('csr_orders_logged_wk'), ''],
+           ['Booked in GT last week', shown('csr_orders_booked_wk'), '']],
   });
 }
 
