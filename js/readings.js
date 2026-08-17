@@ -767,8 +767,7 @@ export const iconFor = (key, chosen) => {
 export const WALK = [
   ['safety',      'Safety'],
   ['quality',     'Quality'],
-  ['production',  'Production'],
-  // Front of house — customer service, the die shop, prepress and supply chain: a section,
+  // Customer service — with the die shop, prepress and supply chain alongside it: a section,
   // because it is a place somebody comes to rather than a card somebody scrolls past.
   //
   // It was one card at the foot of Production's grid, and the argument for promoting it is
@@ -778,9 +777,19 @@ export const WALK = [
   // with their name on it: it appears in the rail, it has its own screen, and Enter's
   // sub-rail and the wall walk pick it up from the same list as everything else instead of
   // naming it as an exception in three places.
-  // One name in both columns now. Four departments spelled out is a sentence rather than a
-  // title, and it is the name the rail has given this section since it was promoted to one.
-  ['support',     'Front of house'],
+  //
+  // Named for customer service rather than for the counter they all stand behind. "Front of
+  // house" was the building's phrase for the four of them together, and it read as a place
+  // rather than as a subject — a room the meeting walked past on the way to Production.
+  // The readings on it are customer service's readings, the people who open it are CSRs,
+  // and the plant asks about it by that name.
+  //
+  // Before Production, not after. It sits with Quality because that is the order the
+  // morning actually runs in: what the customer asked for, then how well it was made, then
+  // what the floor made. Reading the plant's output before reading the orders it came from
+  // put the answer ahead of the question.
+  ['support',     'Customer service'],
+  ['production',  'Production'],
   // Straight after the departments and before anything leaves the building, because it is
   // the same subject one zoom out: the cards above say what the plant did overnight, this
   // says what it did over the seven days that finished. On most mornings it is not there at
@@ -816,9 +825,9 @@ export const CARD_CATALOGUE = [
   // The rest of Production is the plant's own departments, set on the Departments screen.
   // These two are not departments, so they are the production cards that live here.
   { section: 'Production',  key: 'pw-week',       name: "Last week's productivity" },
-  { section: 'Front of house', key: 'csr-confirm', name: 'Order confirmation' },
-  { section: 'Front of house', key: 'csr-orders',  name: 'Orders logged and booked' },
-  { section: 'Front of house', key: 'support',    name: 'Customer service, die shop, prepress, supply chain' },
+  { section: 'Customer service', key: 'csr-confirm', name: 'Order confirmation' },
+  { section: 'Customer service', key: 'csr-orders',  name: 'Orders logged and booked' },
+  { section: 'Customer service', key: 'support',    name: 'Customer service, die shop, prepress, supply chain' },
   // One card, one section. A plant that reviews its week off a spreadsheet on Monday can
   // untick it here and the section goes with it, the same as any other.
   { section: 'Last week',   key: 'week',          name: 'Last week by department' },
