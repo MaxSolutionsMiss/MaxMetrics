@@ -18,7 +18,7 @@
 // to record. Neither is a warning, and neither holds up an import. An alarm that fires
 // every Monday about a Sunday nobody worked is one people learn to close without reading.
 
-import { openWorkbook, serialToISO } from './xlsx.js?v=ce60b2a563d8';
+import { openWorkbook, serialToISO } from './xlsx.js?v=84484a20adf2';
 
 // ── Matching a column ───────────────────────────────────────────────────────────
 
@@ -422,6 +422,14 @@ export async function readCsr(workbook, { date }) {
       poAt = PO_LETTER; confirmAt = CONFIRM_LETTER;
       notes.push(`${sheet}: could not recognise the PO and confirmation headings, so columns E `
         + `and M were read by position. Check the figures against the sheet.`);
+    } else {
+      // Which two columns were read, and what they are called. A mean of twenty-two days
+      // against a three-day target is either the plant's real answer or the wrong column,
+      // and the two look identical on the card. Saying it here is the difference between
+      // checking it in five seconds and taking it on trust.
+      notes.push(`${sheet}: PO date from column ${COLUMN_LETTERS[poAt] ?? poAt + 1} `
+        + `("${head[poAt]}"), confirmation from column `
+        + `${COLUMN_LETTERS[confirmAt] ?? confirmAt + 1} ("${head[confirmAt]}").`);
     }
     // Excel keeps dates as serial numbers and `serialToISO` answers only for those. A
     // tracker that has been pasted out of an email, or typed, carries text instead — and
@@ -459,6 +467,13 @@ export async function readCsr(workbook, { date }) {
       ? Number((list.reduce((a, b) => a + b, 0) / list.length).toFixed(2)) : null;
     if (mean(gaps.month) != null) metrics.csr_confirm_mtd = mean(gaps.month);
     if (mean(gaps.year) != null) metrics.csr_confirm_ytd = mean(gaps.year);
+    // How many dockets each mean stands on. A month built from four is not the same claim as
+    // a month built from four hundred, and the card has room for neither number.
+    if (gaps.year.length) {
+      notes.push(`${sheet}: month to date is the mean of ${gaps.month.length} `
+        + `docket${gaps.month.length === 1 ? '' : 's'}, year to date of ${gaps.year.length}`
+        + `${unread ? `, with ${unread} skipped for unreadable dates` : ''}.`);
+    }
     if (!gaps.year.length) {
       notes.push(unread
         ? `${sheet}: ${unread} row${unread === 1 ? ' has' : 's have'} both dates filled in but `
@@ -474,8 +489,19 @@ export async function readCsr(workbook, { date }) {
   // Orders logged and orders booked. Two totals on a tab that names them, wherever on it they
   // sit: the sheet is a summary rather than a table, so this looks for the words and takes the
   // first number on the same row or under the same heading.
-  const other = workbook.sheetNames.find(n => /book/i.test(n) && /log/i.test(n));
-  if (other) {
+  // Every tab except the tracker, not a tab whose name says "booked" and "logged".
+  //
+  // Requiring the name to carry both words was a guess about a workbook nobody here had
+  // opened, and it was wrong: the tracker read fine and these two came back blank, because
+  // the second tab is called whatever its author called it. What the totals are named
+  // matters — the rows are found by their labels — but what the *sheet* is named does not,
+  // so it is no longer asked. Tabs are tried in order and the first that yields a total
+  // wins; a workbook that grows a third tab costs one more pass over a summary sheet.
+  const others = workbook.sheetNames.filter(n => n !== sheet);
+  const looked = [];
+  for (const other of others) {
+    if (metrics.csr_orders_logged != null && metrics.csr_orders_booked != null) break;
+    looked.push(other);
     const rows = await workbook.rows(other);
     // A count, or nothing — deliberately not `number()`, which answers 0 for anything it
     // cannot read. That is the right answer for a blank quantity cell in a production sheet
@@ -508,10 +534,11 @@ export async function readCsr(workbook, { date }) {
         if (value != null) metrics.csr_orders_booked = Math.round(value);
       }
     }
-    if (metrics.csr_orders_logged == null || metrics.csr_orders_booked == null) {
-      notes.push(`${other}: could not find both a logged and a booked total. `
-        + `Type them on the entry screen and send the tab so this can be read properly.`);
-    }
+  }
+  if (metrics.csr_orders_logged == null || metrics.csr_orders_booked == null) {
+    notes.push(`Could not find both a logged and a booked total. Looked at `
+      + `${looked.length ? looked.join(', ') : 'no other tab'}. Type them on the entry screen, `
+      + `and say what the two totals are labelled so this can be read properly.`);
   }
   return { metrics, notes };
 }
