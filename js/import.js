@@ -366,8 +366,21 @@ export function shippingPeriod(days, through) {
 // is used only when the header cannot be recognised. Which of the two happened is said in the
 // notes, because "read by position" is a thing somebody should be told rather than left to
 // discover when the figure goes strange.
-const looksLikeCsr = names =>
-  names.some(n => /tracker/i.test(n)) && names.some(n => /book/i.test(n) && /log/i.test(n));
+// Recognised by its name first, and only then by its tabs. Every other workbook in here is
+// identified by what is inside it, because every other workbook arrives with a name nobody
+// chose — an export called `data (3).xlsx` says nothing. This one is different: it is
+// delivered by name, the staged copy is named after the source it was filed against, and
+// that source is named after the workbook itself. `Docket Flow - CSR KPIs.xlsx` is a surer
+// signal than any guess about tabs.
+//
+// The tab test stays as the fallback, because a plant that drags the file in under some
+// other name should still be read. But it is the fallback and not the rule: it was written
+// from a description of Mississauga's two tabs rather than from the file, and a workbook
+// whose tabs get renamed — or whose second tab turns out never to have said "log" and
+// "booked" in the first place — must not silently stop being customer service.
+const looksLikeCsr = (names, filename = '') =>
+  /docket/i.test(filename)
+  || (names.some(n => /tracker/i.test(n)) && names.some(n => /book/i.test(n) && /log/i.test(n)));
 
 // Column E and column M, counting from zero.
 const PO_LETTER = 4, CONFIRM_LETTER = 12;
@@ -1143,7 +1156,7 @@ export async function readFiles(files, { date, reported = [], operators = [] } =
       if (Object.keys(read.metrics).length) coqDay = { date, metrics: read.metrics, departments: {} };
       sources.push({ file: file.name, kind: 'quality',
                      rows: Object.keys(read.metrics).length });
-    } else if (looksLikeCsr(names)) {
+    } else if (looksLikeCsr(names, file.name)) {
       // Customer service's two readings. Through the same door as the KPI workbook — one
       // dated record of readings — so the preview, the coverage strip and the never-overwrite
       // rule all apply to it unchanged.
