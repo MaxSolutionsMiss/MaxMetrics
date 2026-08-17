@@ -77,7 +77,11 @@
 
   /* Exactly two radii, and one control height for everything that can be clicked. */
   --radius:5px; --radius-lg:7px;
-  --ctl-h:36px; --tap:44px; --topbar-h:52px; --rail-w:196px; --motion:.12s;
+  --ctl-h:36px; --tap:44px; --topbar-h:52px; --rail-w:224px; --motion:.12s;
+  /* 196px cut "Customer service" off at "Customer serv" and "Needs watching" at
+     "Needs watchin". Measured rather than guessed: the longest label wants 114px of
+     the 94px the old rail left it, so 224px clears the widest by 4px and leaves room
+     for a section named longer than any of these. */
 
   /* One shadow in the product, and it is for things that float above the page. A card is
      not one of those: MaxDock's cards are a border on a white ground and nothing else. */
@@ -193,7 +197,10 @@ html[data-rail="mini"]{--rail-w:62px}
 .rail__link[aria-current="true"]{background:var(--brand);color:#fff;font-weight:500}
 .rail__ico{width:19px;height:19px;flex:none;stroke:currentColor;fill:none;stroke-width:1.7;
   stroke-linecap:round;stroke-linejoin:round}
-.rail__txt{flex:1;min-width:0;white-space:nowrap;overflow:hidden}
+/* Ellipsis rather than a hard cut. The rail is wide enough for every label the product
+   has, and this is what happens to the one it does not: "Something long…" reads as a
+   name that did not fit, where "Something lon" reads as a bug. */
+.rail__txt{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* The same mark the cards carry, at the size the dot used to be.
 
    The dot was a colour and nothing else, which made the rail the least readable thing on the
