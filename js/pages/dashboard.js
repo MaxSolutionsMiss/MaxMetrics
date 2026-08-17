@@ -14,8 +14,8 @@ import {
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=66b35b4e9e25';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=66b35b4e9e25';
+} from '../db.js?v=ce60b2a563d8';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=ce60b2a563d8';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, pairCard, footLine, drawReading, showsHeroNumber, iconFor,
@@ -25,7 +25,7 @@ import {
   varianceChip, varianceTone, variancePct, VERDICT, verdictMark,
   FROM_FILE, SOURCE_NAMES, sourceOf,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE, WALK, morningToday,
-} from '../readings.js?v=66b35b4e9e25';
+} from '../readings.js?v=ce60b2a563d8';
 
 const $ = selector => document.querySelector(selector);
 
@@ -231,16 +231,17 @@ const TITLES = {
   safety: 'Safety', quality: 'Quality', production: 'Production', shipping: 'Shipping',
   maintenance: 'Maintenance', labour: 'Labour & Overtime', financials: 'Financials',
   attention: 'Needs watching today', week: 'Last week',
-  // Named in full on its own screen. The rail says "Front of house", which is what the
-  // building calls these three when it is not naming them one at a time.
+  // One name in the rail and on the screen, and it is customer service's. The building
+  // said "front of house" for the four of them together, but that named the counter rather
+  // than the subject, and nobody asks how front of house is doing — they ask about CSR.
   // Support is an entry screen rather than a dashboard section, so it never needed a title
   // here - until Save-and-next started naming the screen it was about to move to, and found
   // nothing. The button read "Next next" and the toast said "Saved. undefined next."
-  support: 'Front of house',
+  support: 'Customer service',
 };
 const NAV = { labour: 'Labour', line: 'Summary', fill: 'Enter',
               maintenance: 'Maintenance', attention: 'Needs watching', week: 'Last week',
-              support: 'Front of house' };
+              support: 'Customer service' };
 Object.assign(TITLES, { line: 'Morning summary', fill: 'Enter the morning' });
 Object.assign(ICONS, {
   line:  'M4 6h16M4 12h10M4 18h6',
@@ -587,7 +588,7 @@ function supportCard() {
   }).filter(Boolean);
 
   return `${confirmCard()}${ordersCard()}${noteCard({
-    // "Front of house", not the four names spelled out.
+    // "Customer service", not the four names spelled out.
     //
     // It was "Customer service, die shop & prepress" while there were three of them, and a
     // fourth makes it a sentence rather than a title — forty-eight characters in a bar that
@@ -595,7 +596,7 @@ function supportCard() {
     // shrink every other title beside it. The rail has called this section Front of house
     // since it was promoted to one, so the card now agrees with the rail. Who is in it is
     // said where it belongs: in the picker, on each line, and in the prompt when it is empty.
-    pkey: 'support', label: 'Front of house',
+    pkey: 'support', label: 'Customer service',
     // Twice the width, like the board. A section holding one card should not draw it at the
     // width of one of four, with three empty cells beside it — and what is in it is
     // sentences, which want the width more than any reading on the product does.
@@ -1529,7 +1530,7 @@ const fillCsr = () => fgroup('Customer service', () => [
  + 'booking is keeping up with what came in.');
 
 function fillSupport() {
-  return fillCsr() + fgroup('Front of house', () => {
+  return fillCsr() + fgroup('Customer service', () => {
     const at = state.supportAt || SUPPORT[0][0];
     // The same picker, list and Add button as every other card somebody writes sentences on.
     // This screen had a layout of its own — a select and a one-line box on a `fr` row — which
@@ -2587,7 +2588,7 @@ const nextToFill = key => {
 const FILL_TABS = [
   { key: 'safety',      sub: 'Injuries and near-misses' },
   { key: 'quality',     sub: 'Shortages, NCRs, complaints, COQ' },
-  { key: 'support',     name: 'Front of house',
+  { key: 'support',     name: 'Customer service',
     sub: 'Confirmation times, orders booked, and whatever the front of the building wants said' },
   { key: 'production',  sub: 'Output and hours, and the last 24 hours' },
   { key: 'shipping',    sub: 'Jobs, cartons, late, short' },
