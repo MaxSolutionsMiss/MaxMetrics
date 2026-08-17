@@ -103,9 +103,13 @@ const configured = () => state.config.filter(c => c.on_metrics);
 // rows has to know the difference, which is what `isSupport` is for: these are notes, never
 // readings, so nothing counts them as missing and nothing flags them.
 const SUPPORT = [
+  // In the order an order meets them. A job is taken, priced, made ready, tooled and
+  // supplied before a press ever turns, and reading them in that order is how somebody
+  // following a late job down the list finds where it stopped.
   ['customer_service', 'Customer service'],
-  ['die_shop', 'Die shop'],
+  ['estimating', 'Estimating'],
   ['prepress', 'Prepress'],
+  ['die_shop', 'Die shop'],
   // Supply chain belongs here rather than among the departments for the same reason the
   // other three do: it has no machine, no output and no hours, and what it has to say about
   // a morning is a sentence. A late board delivery is the front of the building telling the
@@ -223,25 +227,23 @@ const ORDER = WALK.map(([key]) => key);
 //
 // The day is the morning's own date, not the wall clock, so reopening last Monday to correct
 // it shows the same screen the meeting saw.
-const weekIsDue = () => state.plant?.week_daily || dateOf(state.date).getDay() === 1;
 const order = () => ORDER
-  .filter(key => key !== 'maintenance' || !state.plant?.merge_upkeep)
-  .filter(key => key !== 'week' || weekIsDue());
+  .filter(key => key !== 'maintenance' || !state.plant?.merge_upkeep);
 const TITLES = {
   safety: 'Safety', quality: 'Quality', production: 'Production', shipping: 'Shipping',
   maintenance: 'Maintenance', labour: 'Labour & Overtime', financials: 'Financials',
   attention: 'Watch list', week: 'Last week',
-  // One name in the rail and on the screen, and it is customer service's. The building
-  // said "front of house" for the four of them together, but that named the counter rather
-  // than the subject, and nobody asks how front of house is doing — they ask about CSR.
+  // Pre-production: customer service, prepress, the die shop and supply chain — everything
+  // an order passes through before it reaches a press. "Front of house" named the counter
+  // rather than the subject, and "Customer service" named one of the four for all of them.
   // Support is an entry screen rather than a dashboard section, so it never needed a title
   // here - until Save-and-next started naming the screen it was about to move to, and found
   // nothing. The button read "Next next" and the toast said "Saved. undefined next."
-  support: 'Customer service',
+  support: 'Pre-production',
 };
 const NAV = { labour: 'Labour', line: 'Summary', fill: 'Enter',
               maintenance: 'Maintenance', attention: 'Watch list', week: 'Last week',
-              support: 'Customer service' };
+              support: 'Pre-production' };
 Object.assign(TITLES, { line: 'Morning summary', fill: 'Enter the morning' });
 Object.assign(ICONS, {
   line:  'M4 6h16M4 12h10M4 18h6',
@@ -596,7 +598,7 @@ function supportCard() {
     // shrink every other title beside it. The rail has called this section Front of house
     // since it was promoted to one, so the card now agrees with the rail. Who is in it is
     // said where it belongs: in the picker, on each line, and in the prompt when it is empty.
-    pkey: 'support', label: 'Customer service',
+    pkey: 'support', label: 'Pre-production notes',
     // Twice the width, like the board. A section holding one card should not draw it at the
     // width of one of four, with three empty cells beside it — and what is in it is
     // sentences, which want the width more than any reading on the product does.
@@ -605,7 +607,7 @@ function supportCard() {
       s.lines.map(line =>
         `<li><b class="sup__w">${esc(s.name)}</b>${jotHtml(line)}</li>`).join('')).join('')}</ul>` : '',
     blank: !said.length,
-    prompt: 'Nothing from customer service, the die shop, prepress or supply chain.',
+    prompt: 'Nothing from customer service, estimating, prepress, the die shop or supply chain.',
     edit: supportEditor(),
   })}`;
 }
@@ -640,18 +642,33 @@ function confirmCard() {
 }
 
 function ordersCard() {
-  const logged = metric('csr_orders_logged'), booked = metric('csr_orders_booked');
-  const count = value => value == null || value === '' ? null : Number(value);
-  const shown = value => count(value) == null ? '\u2014' : num(count(value));
-  // No verdict. The plant has not set a target for these and inventing one here would put a
-  // colour on a card that means nothing. The gap is the reading, and it is stated rather than
-  // judged: what is left to book is a fact about today's work, not a pass or a fail.
-  const left = count(logged) != null && count(booked) != null
-    ? count(logged) - count(booked) : null;
+  const count = key => {
+    const value = metric(key);
+    return value == null || value === '' ? null : Number(value);
+  };
+  const shown = key => count(key) == null ? '\u2014' : num(count(key));
+  const monthLine = key => count(key) == null ? '' : `${num(count(key))} month to date`;
+  // No verdict. The plant has not set a target for either count, and inventing one would put
+  // a colour on a card that means nothing.
+  //
+  // "Still to book" has gone. It was the gap between the two, offered as the backlog, and it
+  // was wrong twice over: it printed minus forty-six thousand when a year of bookings met a
+  // week of orders, and even with both figures right it is not a number anybody here manages
+  // against. A reading nobody acts on is a reading taking up room.
+  //
+  // Last week is the headline because pre-production reports on a Monday about the week that
+  // finished — that is the pair the meeting opens on. Month to date sits under each as the
+  // pace the month is setting, and the year is at the foot, where the size of the thing
+  // belongs: read once, not compared.
   return pairCard({
-    pkey: 'csr-orders', label: 'Orders logged and booked', tone: '',
-    each: [['Logged', shown(logged), ''], ['Booked in GT', shown(booked), '']],
-    foot: footLine([['Still to book', left == null ? null : num(left)]]),
+    pkey: 'csr-orders', label: 'Orders booked vs logged in GT', tone: '',
+    each: [
+      ['Logged last week', shown('csr_orders_logged_wk'), '', monthLine('csr_orders_logged_mtd')],
+      ['Booked in GT last week', shown('csr_orders_booked_wk'), '',
+       monthLine('csr_orders_booked_mtd')],
+    ],
+    foot: footLine([['Logged this year', shown('csr_orders_logged')],
+                    ['Booked this year', shown('csr_orders_booked')]]),
   });
 }
 
@@ -1523,20 +1540,26 @@ const fillMaintenance = ({ tight = false } = {}) =>
 //
 // Typed here whether or not the docket-flow workbook is being read, for the same reason every
 // other reading on this screen can be: a morning is not held up by a file that did not arrive.
-const fillCsr = () => fgroup('Customer service', () => [
+const fillCsr = () => fgroup('Orders and confirmations', () => [
   frow('Confirmation \u2014 month', 'csr_confirm_mtd',
     `type="number" step="0.1" min="0" value="${metric('csr_confirm_mtd') ?? ''}"`,
     { echo: 'days from the PO date' }),
   frow('Confirmation \u2014 year', 'csr_confirm_ytd',
     `type="number" step="0.1" min="0" value="${metric('csr_confirm_ytd') ?? ''}"`,
     { echo: `target \u2264 ${CONFIRM_TARGET} days` }),
-  frow('Orders logged', 'csr_orders_logged',
+  frow('Logged \u2014 last week', 'csr_orders_logged_wk',
+    `type="number" min="0" step="1" value="${metric('csr_orders_logged_wk') ?? ''}"`,
+    { echo: 'Monday to Sunday, the week that finished' }),
+  frow('Booked in GT \u2014 last week', 'csr_orders_booked_wk',
+    `type="number" min="0" step="1" value="${metric('csr_orders_booked_wk') ?? ''}"`),
+  frow('Logged \u2014 month', 'csr_orders_logged_mtd',
+    `type="number" min="0" step="1" value="${metric('csr_orders_logged_mtd') ?? ''}"`),
+  frow('Booked in GT \u2014 month', 'csr_orders_booked_mtd',
+    `type="number" min="0" step="1" value="${metric('csr_orders_booked_mtd') ?? ''}"`),
+  frow('Logged \u2014 year', 'csr_orders_logged',
     `type="number" min="0" step="1" value="${metric('csr_orders_logged') ?? ''}"`),
-  frow('Orders booked in GT', 'csr_orders_booked',
-    `type="number" min="0" step="1" value="${metric('csr_orders_booked') ?? ''}"`,
-    { echo: metric('csr_orders_logged') != null && metric('csr_orders_booked') != null
-        ? `<b>${num(metric('csr_orders_logged') - metric('csr_orders_booked'))}</b> still to book`
-        : '' }),
+  frow('Booked in GT \u2014 year', 'csr_orders_booked',
+    `type="number" min="0" step="1" value="${metric('csr_orders_booked') ?? ''}"`),
 ].join(''), 'From the docket-flow tracker \u2014 how long a confirmation takes, and how the '
  + 'booking is keeping up with what came in.');
 
@@ -1547,7 +1570,7 @@ function fillSupport() {
   // *other* three had said, because with a picker you could only ever see one at a time and
   // somebody typing into prepress still needs to know the die shop has covered it. With all
   // four boxes on screen that row repeats the box above it.
-  return fillCsr() + fgroup('Customer service', () => supportEditor(),
+  return fillCsr() + fgroup('Notes', () => supportEditor(),
     'Whoever has something to say — none of it is required.');
 }
 
@@ -2590,7 +2613,7 @@ const nextToFill = key => {
 const FILL_TABS = [
   { key: 'safety',      sub: 'Injuries and near-misses' },
   { key: 'quality',     sub: 'Shortages, NCRs, complaints, COQ' },
-  { key: 'support',     name: 'Customer service',
+  { key: 'support',     name: 'Pre-production',
     sub: 'Confirmation times, orders booked, and whatever the front of the building wants said' },
   { key: 'production',  sub: 'Output and hours, and the last 24 hours' },
   { key: 'shipping',    sub: 'Jobs, cartons, late, short' },

@@ -788,13 +788,15 @@ export const WALK = [
   // morning actually runs in: what the customer asked for, then how well it was made, then
   // what the floor made. Reading the plant's output before reading the orders it came from
   // put the answer ahead of the question.
-  ['support',     'Customer service'],
+  ['support',     'Pre-production'],
   ['production',  'Production'],
-  // Straight after the departments and before anything leaves the building, because it is
-  // the same subject one zoom out: the cards above say what the plant did overnight, this
-  // says what it did over the seven days that finished. On most mornings it is not there at
-  // all — `order()` drops it unless it is Monday or the plant has asked for it daily.
-  ['week',        'Last week'],
+  // Last week is Production's, not a section of its own.
+  //
+  // It was in the rail because it is a different question from the last twenty-four hours,
+  // and it sat under its own heading on Mondays and vanished on every other day. But
+  // Production's grid has drawn the week card down its right-hand side all along, so the
+  // rail entry opened a screen showing a card the reader had already scrolled past. One
+  // heading, one card, and a section that no longer appears and disappears by weekday.
   ['shipping',    'Shipping'],
   ['financials',  'Financials'],
   ['maintenance', 'Upcoming maintenance', 'Maintenance'],
@@ -825,12 +827,12 @@ export const CARD_CATALOGUE = [
   // The rest of Production is the plant's own departments, set on the Departments screen.
   // These two are not departments, so they are the production cards that live here.
   { section: 'Production',  key: 'pw-week',       name: "Last week's productivity" },
-  { section: 'Customer service', key: 'csr-confirm', name: 'Order confirmation' },
-  { section: 'Customer service', key: 'csr-orders',  name: 'Orders logged and booked' },
-  { section: 'Customer service', key: 'support',    name: 'Customer service, die shop, prepress, supply chain' },
+  { section: 'Pre-production', key: 'csr-confirm', name: 'Order confirmation' },
+  { section: 'Pre-production', key: 'csr-orders',  name: 'Orders booked vs logged in GT' },
+  { section: 'Pre-production', key: 'support',    name: 'Pre-production notes' },
   // One card, one section. A plant that reviews its week off a spreadsheet on Monday can
   // untick it here and the section goes with it, the same as any other.
-  { section: 'Last week',   key: 'week',          name: 'Last week by department' },
+  { section: 'Production',  key: 'week',          name: 'Last week by department' },
   { section: 'Shipping',    key: 'jobs_shipped',  name: 'Jobs shipped' },
   { section: 'Shipping',    key: 'cartons',       name: 'Cartons' },
   { section: 'Shipping',    key: 'late',          name: 'Late' },
@@ -997,11 +999,12 @@ export function pairCard({ pkey, icon, label, tone, each, foot, edit, wide = fal
     </div>
     <div class="card__body">
       <div class="card__mid">
-        <div class="duo" style="--dchars:${chars}">${shown.map(([caption, value, unit]) =>
+        <div class="duo" style="--dchars:${chars}">${shown.map(([caption, value, unit, sub]) =>
           `<div class="duo__c">
              <span class="duo__l">${esc(caption)}</span>
              <b class="duo__v">${esc(String(value ?? '\u2014'))}${
-               unit ? `<small class="duo__u">${esc(unit)}</small>` : ''}</b>
+               unit ? `<small class="duo__u">${esc(unit)}</small>` : ''}</b>${
+             sub ? `<span class="duo__s">${esc(sub)}</span>` : ''}
            </div>`).join('')}</div>
       </div>
       ${foot || ''}
