@@ -14,8 +14,8 @@ import {
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=1d89a0afe39e';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=1d89a0afe39e';
+} from '../db.js?v=cd73aa92d0e8';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=cd73aa92d0e8';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, pairCard, footLine, drawReading, showsHeroNumber, iconFor,
@@ -25,7 +25,7 @@ import {
   varianceChip, varianceTone, variancePct, VERDICT, verdictMark,
   FROM_FILE, SOURCE_NAMES, sourceOf,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE, WALK, morningToday,
-} from '../readings.js?v=1d89a0afe39e';
+} from '../readings.js?v=cd73aa92d0e8';
 
 const $ = selector => document.querySelector(selector);
 
@@ -2173,8 +2173,17 @@ const SECTIONS = {
     //
     // The week card is written last and placed first by the grid, so the departments fill
     // the row from the left and it takes the column at the end.
+    //
+    // `lastWeekCard()` rather than the `pw-week` card that used to stand here. There were
+    // two cards about last week and the plant had both on screen at once: this one, headed
+    // "Last week's productivity", reading the same-weekday-a-week-ago figures and saying
+    // "Not logged" against all three departments because nobody types those in; and the real
+    // one underneath its own heading, headed with the dates and carrying volume, rate,
+    // uptime and make-ready off the DOR. One of the two had the answer and the other had the
+    // better position. Now the one with the answer has the position, and the heading below
+    // it is gone.
     return `<div class="grid grid--cards grid--prod" data-grid="production"
-      style="--prod-cols:${list.length}">${cards}${review}${weekCard()}</div>`;
+      style="--prod-cols:${list.length}">${cards}${review}${lastWeekCard()}</div>`;
   },
 
   shipping: () => {
