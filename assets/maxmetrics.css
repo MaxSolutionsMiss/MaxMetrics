@@ -378,6 +378,13 @@ body.tv .verdict{font-size:var(--t-lead)}
   grid-auto-rows:minmax(10rem,auto);
   justify-content:start;align-items:stretch}
 body:not(.tv) .grid--cards{grid-auto-rows:minmax(var(--row-h,10rem),auto)}
+/* Pre-production's two cards are not the same size and should not pretend to be. The notes
+   card carries a labelled box for each of five departments; the reading beside it is two
+   numbers. Stretched to match, the short one became a tower with its figures marooned in
+   the middle — the height of the tallest card in the row is the wrong height for every
+   other card in it whenever one of them is an editor. Each keeps its own height here; the
+   sections whose cards really are alike are untouched. */
+body:not(.tv) .grid--cards[data-grid="support"]{align-items:start}
 /* Two columns wide, one card tall. For the one card on the product whose body is sentences
    people have written rather than a number: ten words need the width and a row of cards
    needs the top and the bottom to line up. It gives up the width on a narrow screen rather
