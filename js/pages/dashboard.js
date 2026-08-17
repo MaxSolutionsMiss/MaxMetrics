@@ -56,7 +56,7 @@ const state = {
   // all of them, because the work it exists for is going down the rail filling each in.
   filling: false,
   // Which of the front-of-house departments the comment box is currently on.
-  supportAt: null, staffAt: null, attentionAt: null,
+  staffAt: null, attentionAt: null,
   // Set once, when the tidy function reports that this plant has no key configured. It is
   // not persisted: a plant that adds a key gets the buttons back on the next page load
   // rather than needing anything cleared.
@@ -230,7 +230,7 @@ const order = () => ORDER
 const TITLES = {
   safety: 'Safety', quality: 'Quality', production: 'Production', shipping: 'Shipping',
   maintenance: 'Maintenance', labour: 'Labour & Overtime', financials: 'Financials',
-  attention: 'Needs watching today', week: 'Last week',
+  attention: 'Watch list', week: 'Last week',
   // One name in the rail and on the screen, and it is customer service's. The building
   // said "front of house" for the four of them together, but that named the counter rather
   // than the subject, and nobody asks how front of house is doing — they ask about CSR.
@@ -240,7 +240,7 @@ const TITLES = {
   support: 'Customer service',
 };
 const NAV = { labour: 'Labour', line: 'Summary', fill: 'Enter',
-              maintenance: 'Maintenance', attention: 'Needs watching', week: 'Last week',
+              maintenance: 'Maintenance', attention: 'Watch list', week: 'Last week',
               support: 'Customer service' };
 Object.assign(TITLES, { line: 'Morning summary', fill: 'Enter the morning' });
 Object.assign(ICONS, {
@@ -681,7 +681,7 @@ function attentionCard() {
   const count = said.reduce((total, entry) => total + entry.lines.length, 0);
 
   return noteCard({
-    pkey: 'attention', label: 'Needs watching today', icon: iconFor('attention'), wide: true,
+    pkey: 'attention', label: 'Watch list', icon: iconFor('attention'), wide: true,
     // No verdict tone. Green, amber and red mean "against target" everywhere else on the
     // product, and there is no target here — a morning with five things to watch is not a
     // worse morning than one with two, it is a busier one. The card is violet instead, the
@@ -1070,9 +1070,20 @@ function jotEditor({ id, label, options, at, field, sign = true }) {
 // morning. Choosing a department loads what that department has already said today, so it
 // is also how yesterday's sentence gets corrected.
 function supportEditor() {
-  const at = state.supportAt || SUPPORT[0][0];
-  return jotEditor({ id: 'sup', label: 'Who', options: SUPPORT, at,
-                     field: `review:${at}:note` });
+  // A labelled box each, not one box behind a picker.
+  //
+  // The picker was compact and it hid three of the four. Somebody opening this section saw
+  // "Who: Customer service" over a comment box and had no way of knowing the die shop,
+  // prepress and supply chain were in there too without opening a dropdown to find out —
+  // which is how the plant came to report that die shop and prepress were missing from the
+  // section altogether. They were not missing. They were one click further away than anybody
+  // thought to click, which for a box nobody knows to look in is the same thing.
+  //
+  // Four boxes cost three more rows on the widest card on the product. Each keeps its own
+  // lines, its own Add and its own signature, so nothing is shared between them and nobody
+  // has to remember to put the picker back where they found it.
+  return SUPPORT.map(([key, name]) =>
+    jotLines(`review:${key}:note`, `sup-${key}`, name)).join('');
 }
 
 // The plant names a department "Die Cutting" and the machine list keys it "diecutting".
@@ -1530,23 +1541,14 @@ const fillCsr = () => fgroup('Customer service', () => [
  + 'booking is keeping up with what came in.');
 
 function fillSupport() {
-  return fillCsr() + fgroup('Customer service', () => {
-    const at = state.supportAt || SUPPORT[0][0];
-    // The same picker, list and Add button as every other card somebody writes sentences on.
-    // This screen had a layout of its own — a select and a one-line box on a `fr` row — which
-    // is how the one place people actually enter these ended up being the one place with no
-    // Add button and no way to see what was already there.
-    return `${supportEditor()}
-    ${SUPPORT.filter(([key]) => key !== at).map(([key, name]) => {
-      const other = supportRows().find(r => r.dept_key === key);
-      const lines = String(other?.note || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-      // What the other two have already said, readable without switching to them. Somebody
-      // typing into prepress needs to know the die shop has covered it.
-      return lines.length ? `<div class="fr fr--note fr--wide fr--quiet">
-        <span class="fr__l">${esc(name)}</span>
-        <span class="fr__x fr__x--said">${esc(lines.join(' · '))}</span></div>` : '';
-    }).join('')}`;
-  }, 'One at a time — pick who is speaking. Nothing here is required.');
+  // The same four boxes the card carries.
+  //
+  // Enter used to draw the picker and then a quiet row apiece underneath showing what the
+  // *other* three had said, because with a picker you could only ever see one at a time and
+  // somebody typing into prepress still needs to know the die shop has covered it. With all
+  // four boxes on screen that row repeats the box above it.
+  return fillCsr() + fgroup('Customer service', () => supportEditor(),
+    'Whoever has something to say — none of it is required.');
 }
 
 function fillNotes() {
@@ -1575,7 +1577,7 @@ function fillNotes() {
 const noteRow = (field, placeholder, said) => `<div class="fr fr--note fr--wide fr--bare">
   ${jotLines(field, `nr-${field.replace(/[^a-z_]/g, '')}`, said)}</div>`;
 
-const fillAttention = () => fgroup('Needs watching today', () => attentionEditor(),
+const fillAttention = () => fgroup('Watch list', () => attentionEditor(),
   'Anyone in the building can add a line — pick who it is from and type it. Each line '
   + 'becomes a bullet on the card the meeting reads.');
 
@@ -2595,7 +2597,7 @@ const FILL_TABS = [
   { key: 'financials',  sub: "Yesterday's sales" },
   { key: 'labour',      sub: 'Staffing and overtime' },
   { key: 'maintenance', name: 'Maintenance', sub: 'What is booked in, and notes' },
-  { key: 'attention',   name: 'Needs watching today',
+  { key: 'attention',   name: 'Watch list',
     sub: 'What the day ahead turns on \u2014 anyone can add a line' },
   { key: '_all', name: 'All of it', sub: 'The whole morning on one page' },
 ];
@@ -3960,12 +3962,6 @@ document.addEventListener('click', async event => {
 // department on the staffing note. It only changes which note is in the box; nothing is
 // written, because nothing has been typed yet.
 document.addEventListener('change', event => {
-  if (event.target.id === 'sup-who') {
-    state.supportAt = event.target.value;
-    render();
-    document.querySelector('#sup-note, [data-field^="review:"][id]')?.focus?.();
-    return;
-  }
   if (event.target.id === 'att-who') {
     state.attentionAt = event.target.value;
     render();
