@@ -2173,8 +2173,17 @@ const SECTIONS = {
     //
     // The week card is written last and placed first by the grid, so the departments fill
     // the row from the left and it takes the column at the end.
+    //
+    // `lastWeekCard()` rather than the `pw-week` card that used to stand here. There were
+    // two cards about last week and the plant had both on screen at once: this one, headed
+    // "Last week's productivity", reading the same-weekday-a-week-ago figures and saying
+    // "Not logged" against all three departments because nobody types those in; and the real
+    // one underneath its own heading, headed with the dates and carrying volume, rate,
+    // uptime and make-ready off the DOR. One of the two had the answer and the other had the
+    // better position. Now the one with the answer has the position, and the heading below
+    // it is gone.
     return `<div class="grid grid--cards grid--prod" data-grid="production"
-      style="--prod-cols:${list.length}">${cards}${review}${weekCard()}</div>`;
+      style="--prod-cols:${list.length}">${cards}${review}${lastWeekCard()}</div>`;
   },
 
   shipping: () => {

@@ -95,9 +95,37 @@ Deno.serve(async request => {
   const action = String(body.action ?? 'create');
   const admin = createClient(URL_, SERVICE, { auth: { persistSession: false } });
 
+  // The owner account, and why the check has to live here as well as in the database.
+  //
+  // `profiles` carries a trigger that refuses to let one administrator delete, demote or
+  // strip another when that other is the owner. It cannot help here. Everything below this
+  // line runs on the service-role key, which is the key the database trusts absolutely —
+  // triggers keyed on `auth.uid()` see nobody at all, and let it through by design, because
+  // that is how the flag got set in the first place.
+  //
+  // So the same three refusals are made again, against the *caller's* token rather than
+  // against the connection. `reset` is the one that matters most and the one that was
+  // easiest to miss: deleting an account is loud and somebody notices, but issuing it a new
+  // password is quiet, takes one click, prints the password on the administrator's own
+  // screen, and hands them the account. An owner who cannot be deleted but can be reset is
+  // not protected; they are protected from the noisy attack only.
+  //
+  // Self is always allowed. The owner resetting their own password, or changing their own
+  // username, is the ordinary thing this screen is for.
+  const ownerGuard = async (targetId: string, what: string) => {
+    if (!targetId || targetId === who.user.id) return null;
+    const { data: target } = await admin
+      .from('profiles').select('is_owner').eq('id', targetId).maybeSingle();
+    if (!target?.is_owner) return null;
+    return reply({ error: `That account belongs to the owner of MaxMetrics. `
+      + `It cannot be ${what} by another administrator.` }, 403);
+  };
+
   // ── Change a name or an email ──
   if (action === 'update') {
     if (!body.id) return reply({ error: 'Which account?' }, 400);
+    const refused = await ownerGuard(body.id, 'renamed');
+    if (refused) return refused;
     const email = asLogin(body.email);
     const name = String(body.name ?? '').trim();
     if (body.email && !email) {
@@ -123,6 +151,8 @@ Deno.serve(async request => {
   // ── A new temporary password for somebody who has lost theirs ──
   if (action === 'reset') {
     if (!body.id) return reply({ error: 'Which account?' }, 400);
+    const refused = await ownerGuard(body.id, 'given a new password');
+    if (refused) return refused;
     const { data: found } = await admin.auth.admin.getUserById(body.id);
     const password = temporaryPassword();
     const { error } = await admin.auth.admin.updateUserById(body.id, {
@@ -144,6 +174,8 @@ Deno.serve(async request => {
     if (body.id === who.user.id) {
       return reply({ error: 'You cannot remove your own account.' }, 400);
     }
+    const refused = await ownerGuard(body.id, 'removed');
+    if (refused) return refused;
     const { error } = await admin.auth.admin.deleteUser(body.id);
     if (error) return reply({ error: error.message }, 400);
     return reply({ ok: true });
@@ -190,6 +222,12 @@ Deno.serve(async request => {
           + 'usernames are stored under needs changing.'
         : error.message }, 400);
     }
+    // Add, for somebody who already exists, is Reset wearing a different hat — so the owner
+    // has to be refused here as well. Without this the whole guard is a formality: an
+    // administrator types the owner's username into "Add new user", the account is found to
+    // exist, and a fresh password is printed on their screen.
+    const alreadyRefused = await ownerGuard(found.id, 'given a new password');
+    if (alreadyRefused) return alreadyRefused;
     id = found.id;
     reused = true;
     const { error: reset } = await admin.auth.admin.updateUserById(found.id, {
