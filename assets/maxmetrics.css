@@ -1759,6 +1759,10 @@ body.tv .card__mid{flex:1 1 auto}
   font-size:min(calc(17*var(--u,3px)),calc(88cqi/var(--dchars,3)))}
 .duo__u{font-family:var(--font);font-size:.34em;font-weight:400;color:var(--ink-muted);
   letter-spacing:0}
+/* The quieter half of a pair: the month's pace under the week's headline. Small, muted
+   and on its own line, so the eye takes the big number first and finds this only if it
+   asks the follow-up question. */
+.duo__s{display:block;margin-top:calc(.35*var(--u));font-size:min(calc(2.2*var(--u)),calc(20cqi/var(--dchars,4)));font-weight:500;color:var(--ink-muted);white-space:nowrap}
 @media(max-width:520px){.duo{grid-template-columns:1fr;row-gap:var(--s3)}
   .duo__c+.duo__c{border-left:0;border-top:1px solid var(--rule);padding-top:var(--s3)}}
 

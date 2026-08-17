@@ -18,7 +18,7 @@
 // to record. Neither is a warning, and neither holds up an import. An alarm that fires
 // every Monday about a Sunday nobody worked is one people learn to close without reading.
 
-import { openWorkbook, serialToISO } from './xlsx.js?v=f48c5f33bbe2';
+import { openWorkbook, serialToISO } from './xlsx.js?v=1d89a0afe39e';
 
 // ── Matching a column ───────────────────────────────────────────────────────────
 
@@ -395,6 +395,18 @@ const COLUMN_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 export async function readCsr(workbook, { date }) {
   const notes = [];
   const metrics = {};
+  // Excel keeps dates as serial numbers and `serialToISO` answers only for those. A sheet
+  // pasted out of an email, or typed, carries text instead — and text handed to
+  // `serialToISO` comes back null, which on the tracker is indistinguishable from a docket
+  // with no confirmation yet. So a plain ISO date is accepted as well. Declared here rather
+  // than inside the tracker branch because both halves of this reader need it: the tracker
+  // to pair two dates on a row, and the orders table to decide which week a row falls in.
+  const asISO = cell => {
+    const serial = serialToISO(cell);
+    if (serial) return serial;
+    const said = /^(\d{4}-\d{2}-\d{2})/.exec(String(cell ?? '').trim());
+    return said ? said[1] : null;
+  };
   const sheet = workbook.sheetNames.find(n => /tracker/i.test(n));
   if (sheet) {
     const rows = await workbook.rows(sheet);
@@ -437,12 +449,6 @@ export async function readCsr(workbook, { date }) {
     // that has no confirmation date yet. So a plain ISO date is accepted as well, and rows
     // where both cells are filled but neither could be read are counted rather than passed
     // over, so the notes can say the column is not dates instead of reporting no dockets.
-    const asISO = cell => {
-      const serial = serialToISO(cell);
-      if (serial) return serial;
-      const said = /^(\d{4}-\d{2}-\d{2})/.exec(String(cell ?? '').trim());
-      return said ? said[1] : null;
-    };
     const filled = cell => cell != null && String(cell).trim() !== '';
     let unread = 0;
     const month = date.slice(0, 7), year = date.slice(0, 4);
@@ -489,56 +495,85 @@ export async function readCsr(workbook, { date }) {
   // Orders logged and orders booked. Two totals on a tab that names them, wherever on it they
   // sit: the sheet is a summary rather than a table, so this looks for the words and takes the
   // first number on the same row or under the same heading.
-  // Every tab except the tracker, not a tab whose name says "booked" and "logged".
+  // Orders logged and orders booked, summed over three windows.
   //
-  // Requiring the name to carry both words was a guess about a workbook nobody here had
-  // opened, and it was wrong: the tracker read fine and these two came back blank, because
-  // the second tab is called whatever its author called it. What the totals are named
-  // matters — the rows are found by their labels — but what the *sheet* is named does not,
-  // so it is no longer asked. Tabs are tried in order and the first that yields a total
-  // wins; a workbook that grows a third tab costs one more pass over a summary sheet.
+  // The tab is a dated table, not a summary: a row a day, the date in one column, the orders
+  // logged in the next and the orders booked into Globetek in the one after. It was read as
+  // a summary at first — hunt for a row whose words say "booked", take the first number on
+  // it — which found a grand total forty-six thousand rows down and printed it as the year's
+  // bookings. A table read as a summary will always find *something*, which is what makes
+  // that the worse of the two ways to be wrong.
+  //
+  // Three windows, because pre-production reports weekly on a Monday: the week that
+  // finished, the month so far, and the year so far. All three are sums over a date range,
+  // so nobody types a figure and no window can go stale while the others move.
+  const asked = new Date(`${date}T00:00:00Z`);
+  // Monday of the week the morning falls in, then the seven days before it. Sunday is day 0
+  // in JavaScript and the plant's week starts on Monday, so Sunday counts back six.
+  const weekday = asked.getUTCDay();
+  const thisMonday = new Date(asked.getTime() - ((weekday === 0 ? 6 : weekday - 1) * 86400000));
+  const lastMonday = new Date(thisMonday.getTime() - 7 * 86400000);
+  const iso = d => d.toISOString().slice(0, 10);
+  const WEEK_FROM = iso(lastMonday), WEEK_TO = iso(new Date(thisMonday.getTime() - 86400000));
+  const MONTH_FROM = `${date.slice(0, 7)}-01`, YEAR_FROM = `${date.slice(0, 4)}-01-01`;
+
+  const sums = { wk: [null, null], mtd: [null, null], ytd: [null, null] };
+  const add = (window, side, value) => {
+    sums[window][side] = (sums[window][side] ?? 0) + value;
+  };
   const others = workbook.sheetNames.filter(n => n !== sheet);
   const looked = [];
+  let read = 0;
   for (const other of others) {
-    if (metrics.csr_orders_logged != null && metrics.csr_orders_booked != null) break;
+    if (read) break;
     looked.push(other);
-    const rows = await workbook.rows(other);
-    // A count, or nothing — deliberately not `number()`, which answers 0 for anything it
-    // cannot read. That is the right answer for a blank quantity cell in a production sheet
-    // and the wrong one here: this sheet is labels beside figures, so `number('Orders
-    // logged')` returning 0 made the label itself look like the count, and both readings
-    // went to the card as nought. A count has to be a number or it has to be absent.
+    const rows = (await workbook.rows(other)) || [];
+    // The header row is the first in the top twelve naming both counts. Everything below it
+    // is data; anything above it is a title block.
+    let at = -1;
+    for (let i = 0; i < Math.min(12, rows.length); i++) {
+      const cells = (rows[i] || []).map(bare);
+      if (cells.some(c => c && /log/.test(c)) && cells.some(c => c && /book/.test(c))) { at = i; break; }
+    }
+    if (at < 0) continue;
+    const head = (rows[at] || []).map(bare);
+    const dateAt = Math.max(0, head.findIndex(c => c && /date/.test(c)));
+    const loggedAt = head.findIndex(c => c && /log/.test(c) && !/book/.test(c));
+    const bookedAt = head.findIndex(c => c && /book/.test(c) && !/log/.test(c));
+    if (loggedAt < 0 || bookedAt < 0) continue;
     const count = cell => {
       if (cell == null || cell === '') return null;
       if (typeof cell === 'number') return Number.isFinite(cell) ? cell : null;
       const text = String(cell).replace(/[\s,]/g, '');
       return /^-?\d+(\.\d+)?$/.test(text) ? Number(text) : null;
     };
-    const firstNumber = cells => {
-      for (const cell of cells) {
-        const value = count(cell);
-        if (value != null) return value;
+    for (const row of rows.slice(at + 1)) {
+      const on = asISO(row?.[dateAt]);
+      if (!on) continue;
+      for (const [side, column] of [[0, loggedAt], [1, bookedAt]]) {
+        const value = count(row?.[column]);
+        if (value == null) continue;
+        if (on >= YEAR_FROM && on <= date) add('ytd', side, value);
+        if (on >= MONTH_FROM && on <= date) add('mtd', side, value);
+        if (on >= WEEK_FROM && on <= WEEK_TO) add('wk', side, value);
       }
-      return null;
-    };
-    for (const row of rows || []) {
-      const said = (row || []).map(bare).join(' ');
-      if (!said) continue;
-      const rest = (row || []).filter(c => count(c) != null);
-      if (metrics.csr_orders_logged == null && /log/.test(said) && !/book/.test(said)) {
-        const value = firstNumber(rest);
-        if (value != null) metrics.csr_orders_logged = Math.round(value);
-      }
-      if (metrics.csr_orders_booked == null && /book/.test(said) && !/log/.test(said)) {
-        const value = firstNumber(rest);
-        if (value != null) metrics.csr_orders_booked = Math.round(value);
-      }
+      read++;
+    }
+    if (read) {
+      notes.push(`${other}: ${read} dated rows read — logged from column `
+        + `${COLUMN_LETTERS[loggedAt] ?? loggedAt + 1} ("${head[loggedAt]}"), booked from `
+        + `${COLUMN_LETTERS[bookedAt] ?? bookedAt + 1} ("${head[bookedAt]}"), dates from `
+        + `${COLUMN_LETTERS[dateAt] ?? dateAt + 1}. Last week is ${WEEK_FROM} to ${WEEK_TO}.`);
     }
   }
-  if (metrics.csr_orders_logged == null || metrics.csr_orders_booked == null) {
-    notes.push(`Could not find both a logged and a booked total. Looked at `
-      + `${looked.length ? looked.join(', ') : 'no other tab'}. Type them on the entry screen, `
-      + `and say what the two totals are labelled so this can be read properly.`);
+  const put = (field, value) => { if (value != null) metrics[field] = Math.round(value); };
+  put('csr_orders_logged_wk',  sums.wk[0]);   put('csr_orders_booked_wk',  sums.wk[1]);
+  put('csr_orders_logged_mtd', sums.mtd[0]);  put('csr_orders_booked_mtd', sums.mtd[1]);
+  put('csr_orders_logged',     sums.ytd[0]);  put('csr_orders_booked',     sums.ytd[1]);
+  if (!read) {
+    notes.push(`Could not find a dated table of orders logged and booked. Looked at `
+      + `${looked.length ? looked.join(', ') : 'no other tab'}. It wants a date column and a `
+      + `column each for logged and booked, with a heading row naming them.`);
   }
   return { metrics, notes };
 }
@@ -936,6 +971,10 @@ export const JSON_FIELDS = {
   ytd_otif:         ['ytdotif', 'otifytd', 'yeartodateotif'],
   csr_confirm_mtd:  ['csrconfirmmtd', 'confirmationmtd', 'confirmdaysmtd', 'confirmationdaysmtd'],
   csr_confirm_ytd:  ['csrconfirmytd', 'confirmationytd', 'confirmdaysytd', 'confirmationdaysytd'],
+  csr_orders_logged_wk:  ['csrordersloggedwk', 'ordersloggedlastweek', 'loggedlastweek'],
+  csr_orders_booked_wk:  ['csrordersbookedwk', 'ordersbookedlastweek', 'bookedlastweek'],
+  csr_orders_logged_mtd: ['csrordersloggedmtd', 'ordersloggedmtd', 'loggedmonthtodate'],
+  csr_orders_booked_mtd: ['csrordersbookedmtd', 'ordersbookedmtd', 'bookedmonthtodate'],
   csr_orders_logged: ['csrorderslogged', 'orderslogged', 'ordersreceived', 'logged'],
   csr_orders_booked: ['csrordersbooked', 'ordersbooked', 'bookedingt', 'booked'],
   ncr_ytd:          ['ncr', 'ncrytd', 'ncrs', 'ncrsreceived', 'ncrreceived', 'ncrcount'],
