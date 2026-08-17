@@ -401,11 +401,26 @@ export async function readCsr(workbook, { date }) {
   // with no confirmation yet. So a plain ISO date is accepted as well. Declared here rather
   // than inside the tracker branch because both halves of this reader need it: the tracker
   // to pair two dates on a row, and the orders table to decide which week a row falls in.
+  const MONTH3 = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
   const asISO = cell => {
     const serial = serialToISO(cell);
     if (serial) return serial;
-    const said = /^(\d{4}-\d{2}-\d{2})/.exec(String(cell ?? '').trim());
-    return said ? said[1] : null;
+    const text = String(cell ?? '').trim();
+    const plain = /^(\d{4}-\d{2}-\d{2})/.exec(text);
+    if (plain) return plain[1];
+    // "9-Aug", "9-Aug-26", "9 Aug 2026". A column formatted like this is a date to everybody
+    // reading the sheet and was a blank row to this reader, which is how a table of eighty-six
+    // orders came out as numbers nobody recognised.
+    const short = /^(\d{1,2})[-\s]([A-Za-z]{3})[A-Za-z]*(?:[-\s](\d{2,4}))?$/.exec(text);
+    if (short) {
+      const month = MONTH3.indexOf(short[2].toLowerCase());
+      if (month >= 0) {
+        let year = short[3] ? Number(short[3]) : Number(date.slice(0, 4));
+        if (year < 100) year += 2000;
+        return `${year}-${String(month + 1).padStart(2, '0')}-${short[1].padStart(2, '0')}`;
+      }
+    }
+    return null;
   };
   const sheet = workbook.sheetNames.find(n => /tracker/i.test(n));
   if (sheet) {
@@ -510,11 +525,12 @@ export async function readCsr(workbook, { date }) {
   const asked = new Date(`${date}T00:00:00Z`);
   // Monday of the week the morning falls in, then the seven days before it. Sunday is day 0
   // in JavaScript and the plant's week starts on Monday, so Sunday counts back six.
-  const weekday = asked.getUTCDay();
-  const thisMonday = new Date(asked.getTime() - ((weekday === 0 ? 6 : weekday - 1) * 86400000));
-  const lastMonday = new Date(thisMonday.getTime() - 7 * 86400000);
+  // The plant's week runs Sunday to Saturday. Sunday is day 0, so the Sunday of the week the
+  // morning falls in is simply that many days back, and last week is the seven before it.
+  const thisSunday = new Date(asked.getTime() - asked.getUTCDay() * 86400000);
+  const lastSunday = new Date(thisSunday.getTime() - 7 * 86400000);
   const iso = d => d.toISOString().slice(0, 10);
-  const WEEK_FROM = iso(lastMonday), WEEK_TO = iso(new Date(thisMonday.getTime() - 86400000));
+  const WEEK_FROM = iso(lastSunday), WEEK_TO = iso(new Date(thisSunday.getTime() - 86400000));
   const MONTH_FROM = `${date.slice(0, 7)}-01`, YEAR_FROM = `${date.slice(0, 4)}-01-01`;
 
   const sums = { wk: [null, null], mtd: [null, null], ytd: [null, null] };
@@ -525,7 +541,7 @@ export async function readCsr(workbook, { date }) {
   const looked = [];
   let read = 0;
   for (const other of others) {
-    if (read) break;
+    if (read) break;   // the first tab that yields a dated table wins
     looked.push(other);
     const rows = (await workbook.rows(other)) || [];
     // The header row is the first in the top twelve naming both counts. Everything below it
@@ -537,7 +553,19 @@ export async function readCsr(workbook, { date }) {
     }
     if (at < 0) continue;
     const head = (rows[at] || []).map(bare);
-    const dateAt = Math.max(0, head.findIndex(c => c && /date/.test(c)));
+    // The date column, found by what its cells actually are. This sheet's heading row names
+    // the two counts and leaves the date column blank, so looking for the word "date" found
+    // nothing and fell back to column A by luck rather than by reading.
+    let dateAt = head.findIndex(c => c && /date/.test(c));
+    if (dateAt < 0) {
+      const probe = rows.slice(at + 1, at + 40);
+      let best = -1, bestHits = 0;
+      for (let col = 0; col < 8; col++) {
+        const hits = probe.filter(r => asISO(r?.[col])).length;
+        if (hits > bestHits) { bestHits = hits; best = col; }
+      }
+      dateAt = bestHits ? best : 0;
+    }
     const loggedAt = head.findIndex(c => c && /log/.test(c) && !/book/.test(c));
     const bookedAt = head.findIndex(c => c && /book/.test(c) && !/log/.test(c));
     if (loggedAt < 0 || bookedAt < 0) continue;

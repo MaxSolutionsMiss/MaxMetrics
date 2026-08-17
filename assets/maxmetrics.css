@@ -384,7 +384,15 @@ body:not(.tv) .grid--cards{grid-auto-rows:minmax(var(--row-h,10rem),auto)}
    the middle — the height of the tallest card in the row is the wrong height for every
    other card in it whenever one of them is an editor. Each keeps its own height here; the
    sections whose cards really are alike are untouched. */
-body:not(.tv) .grid--cards[data-grid="support"]{align-items:start}
+body.editing .grid--cards[data-grid="support"]{align-items:start}
+/* Stacked pair: one number above the other, divided, both the same size. The row rule the
+   side-by-side layout uses becomes a column rule, and the divider moves from between two
+   columns to between two rows. `--dchars` still sizes both off the longer of the two, so
+   39 and 44 are drawn identically and 8 next to 1,284 would not be. */
+.duo--stack{flex-direction:column;gap:calc(1.1*var(--u))}
+.duo--stack .duo__c{width:100%}
+.duo--stack .duo__c+.duo__c{border-left:0;border-top:1px solid var(--rule);
+  padding-top:calc(1.1*var(--u))}
 /* Two columns wide, one card tall. For the one card on the product whose body is sentences
    people have written rather than a number: ten words need the width and a row of cards
    needs the top and the bottom to line up. It gives up the width on a narrow screen rather

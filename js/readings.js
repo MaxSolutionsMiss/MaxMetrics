@@ -986,7 +986,7 @@ export function noteCard({ pkey, icon, label, text, html, tone = '', blank,
 // The figures are sized off the longer of the two rather than each off itself. Two readings
 // at two sizes on one card reads as a big number and a footnote, which is the opposite of
 // what a pair is for — they are equals or they are not a pair.
-export function pairCard({ pkey, icon, label, tone, each, foot, edit, wide = false }) {
+export function pairCard({ pkey, icon, label, tone, each, foot, edit, wide = false, stack = false }) {
   if (hidden.has(pkey)) return '';
   const shown = (each || []).filter(Boolean);
   const chars = Math.max(1, ...shown.map(([, value]) => String(value ?? '').length));
@@ -999,7 +999,7 @@ export function pairCard({ pkey, icon, label, tone, each, foot, edit, wide = fal
     </div>
     <div class="card__body">
       <div class="card__mid">
-        <div class="duo" style="--dchars:${chars}">${shown.map(([caption, value, unit, sub]) =>
+        <div class="duo${stack ? ' duo--stack' : ''}" style="--dchars:${chars}">${shown.map(([caption, value, unit, sub]) =>
           `<div class="duo__c">
              <span class="duo__l">${esc(caption)}</span>
              <b class="duo__v">${esc(String(value ?? '\u2014'))}${
