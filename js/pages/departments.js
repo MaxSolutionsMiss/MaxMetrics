@@ -26,11 +26,11 @@ import {
   peopleAt, grantAccess, revokeAccess, setAdmin, accessMatrix, allLocations,
   createPerson, updatePerson, resetPersonPassword, removePerson,
   loadSources, saveSource, addSource, dropSource, pullSources,
-} from '../db.js?v=abc756ba749e';
+} from '../db.js?v=f48c5f33bbe2';
 import {
   esc, money, MONTHS, iconFor,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE, WALK, walkKeyFor, morningToday,
-} from '../readings.js?v=abc756ba749e';
+} from '../readings.js?v=f48c5f33bbe2';
 
 const $ = selector => document.querySelector(selector);
 
@@ -42,7 +42,8 @@ const today = () => morningToday();
 const state = { me: null, locations: [], location: null, config: [], draft: null, plant: null,
                 pane: 'departments', budgets: [], year: new Date().getFullYear(), people: null,
                 madePerson: null, editing: null, adding: false, editingPerson: null,
-                sources: null, dataTab: 'linked', cardTab: '_screens', peopleTab: 'all' };
+                sources: null, dataTab: 'linked', cardTab: '_screens', peopleTab: 'all',
+                peopleFind: '' };
 
 // ── The panes ───────────────────────────────────────────────────────────────────
 //
@@ -887,8 +888,19 @@ const initialsOf = person => {
 
 function peoplePane() {
   const plant = state.locations.find(l => l.id === state.location);
-  const people = state.people || [];
-  const withAccess = people.filter(p => p.has_access);
+  const everyone = state.people || [];
+  // Searched on every column the table prints, because an administrator looking for somebody
+  // has whichever of those they happen to know: a surname, half a username, or the plant they
+  // were told the person works at. Matching only the name would send them scrolling for a
+  // person they can describe perfectly well.
+  const needle = String(state.peopleFind || '').trim().toLowerCase();
+  const people = !needle ? everyone : everyone.filter(person =>
+    [person.full_name, person.email, person.job_title, (person.plants || []).join(' ')]
+      .some(field => String(field ?? '').toLowerCase().includes(needle)));
+  // The counts are the plant's, not the search's. "3 with access" under a search for "ma"
+  // would be read as the plant having three people with access, which is the one thing a
+  // count on this panel must never be wrong about.
+  const withAccess = everyone.filter(p => p.has_access);
 
   // One line per person. It was a table row two lines deep with an avatar, a name, a badge
   // and an email stacked under each other, which is a card pretending to be a row: twenty
@@ -964,16 +976,21 @@ function peoplePane() {
 
   const everybody = () => `<div class="panel"><div class="panel__head">
       <h3 class="panel__title">Users</h3>
+      <input class="inp ppl__find" id="ppl-find" type="search" autocapitalize="none"
+        autocorrect="off" spellcheck="false" placeholder="Search users"
+        aria-label="Search users" value="${esc(state.peopleFind || '')}">
       <div class="panel__actions">
         <span class="pill pill--ok">${withAccess.length} with access</span>
-        <span class="pill pill--info">${people.length} account${people.length === 1 ? '' : 's'}</span>
+        <span class="pill pill--info">${everyone.length} account${everyone.length === 1 ? '' : 's'}</span>
       </div></div>
       <div class="panel__body">
         ${people.length ? `<table class="tbl tbl--tight tbl--ppl"><thead><tr>
           <th>Name</th><th>Username or email</th><th>Plants</th>
           <th class="num">MaxMetrics</th><th></th>
         </tr></thead><tbody>${people.map(inRow).join('')}</tbody></table>`
-        : '<p class="cfg__none">Nobody yet.</p>'}
+        : `<p class="cfg__none">${needle
+             ? `Nobody matching “${esc(state.peopleFind)}”.`
+             : 'Nobody yet.'}</p>`}
       </div></div>`;
 
   const add = () => `<div class="panel"><div class="panel__head">
@@ -1140,6 +1157,24 @@ function redrawSoon() {
 
 let sourceTimer;
 document.addEventListener('input', event => {
+  // Searching the user list. Redrawn on the spot rather than through `redrawSoon`, because a
+  // list that catches up 700ms after you stop typing reads as a list that is not listening —
+  // and there is nothing to save here, so there is nothing to debounce.
+  //
+  // The caret is put back by hand. `render()` replaces the box with a new one, and a search
+  // field that loses the cursor after every letter is the bug this screen has already been
+  // reported for once.
+  if (event.target.id === 'ppl-find') {
+    const caret = event.target.selectionStart;
+    state.peopleFind = event.target.value;
+    render();
+    const back = document.getElementById('ppl-find');
+    if (back) {
+      back.focus();
+      try { back.setSelectionRange(caret, caret); } catch { /* not a text input */ }
+    }
+    return;
+  }
   const sourceName = event.target.dataset?.sourceName;
   if (sourceName) {
     const name = event.target.value;

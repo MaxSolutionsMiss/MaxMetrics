@@ -806,7 +806,7 @@ export const WALK = [
   // tabs because `order()` did not know it, missing from the rail because the rail is built
   // from `order()`. Three exceptions for one card is the product telling you what it is. It
   // is a section with one card in it, and every one of those exceptions goes away.
-  ['attention',   'Needs watching today', 'Needs watching'],
+  ['attention',   'Watch list'],
 ];
 export const walkKeyFor = section =>
   (WALK.find(([, name, catalogue]) => (catalogue || name) === section) || [])[0] || '';
@@ -865,7 +865,7 @@ export const CARD_CATALOGUE = [
   // The one card on the product that faces forwards, and the only one the whole building
   // writes on. It belongs in this list for the same reason the others do: a plant that runs
   // its morning without it should be able to say so once.
-  { section: 'Needs watching', key: 'attention',  name: 'Needs watching today' },
+  { section: 'Watch list', key: 'attention',  name: 'Watch list' },
 ];
 
 // A card is turned off in one place rather than at each of its call sites, because a card

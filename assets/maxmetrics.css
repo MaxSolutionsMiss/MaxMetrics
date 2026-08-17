@@ -1416,6 +1416,13 @@ body.tv .sec > .panel{max-width:none}
 .panel__title{font-size:var(--t-base);font-weight:600;letter-spacing:0;
   text-transform:none;color:var(--ink);margin:0;white-space:nowrap}
 .panel__actions{margin-left:auto;display:flex;gap:var(--s2);align-items:center}
+/* Between the panel's name and its counts, which is where somebody looks for it: the
+   title says what the list is, the box narrows it, the pills say how big it really is.
+   `min-width:0` so it gives way before the pills wrap on a narrow Configure pane. */
+.ppl__find{margin-left:var(--s4);max-width:260px;min-width:0;flex:1 1 160px;
+  height:var(--ctl-h);font-size:var(--t-small)}
+@media(max-width:900px){.ppl__find{max-width:none;flex-basis:100%;margin-left:0;order:3}
+  .panel__head{flex-wrap:wrap}}
 .panel__body{padding:var(--s2) var(--s4) var(--s3);flex:1;min-width:0;overflow-x:auto}
 /* Three cards, three buttons, one line.
    Import, Export and Print have descriptions of three different lengths, so each button
