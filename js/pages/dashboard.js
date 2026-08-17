@@ -14,8 +14,8 @@ import {
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=4cf63c94a02e';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=4cf63c94a02e';
+} from '../db.js?v=46719f288798';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=46719f288798';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, pairCard, footLine, drawReading, showsHeroNumber, iconFor,
@@ -25,7 +25,7 @@ import {
   varianceChip, varianceTone, variancePct, VERDICT, verdictMark,
   FROM_FILE, SOURCE_NAMES, sourceOf,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE, WALK, morningToday,
-} from '../readings.js?v=4cf63c94a02e';
+} from '../readings.js?v=46719f288798';
 
 const $ = selector => document.querySelector(selector);
 
@@ -672,7 +672,12 @@ function ordersCard() {
   // Nothing has been thrown away — when the year's numbers are known, the foot and the
   // month lines go back in a line each.
   return pairCard({
-    pkey: 'csr-orders', label: 'Orders booked vs logged in GT', tone: '',
+    // Stacked, not side by side. Two counts of the same thing a week apart in the process —
+    // what came in, and what got into Globetek — read as one above the other with a line
+    // between them, which is how the meeting says them: "thirty-nine in, forty-four booked".
+    // Side by side they were two columns squeezed into half a card each and the captions
+    // clipped to "LOGGED LAST W…".
+    pkey: 'csr-orders', label: 'Orders booked vs logged in GT', tone: '', stack: true,
     each: [['Logged last week', shown('csr_orders_logged_wk'), ''],
            ['Booked in GT last week', shown('csr_orders_booked_wk'), '']],
   });
