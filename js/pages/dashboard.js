@@ -14,8 +14,8 @@ import {
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=cd73aa92d0e8';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=cd73aa92d0e8';
+} from '../db.js?v=6f7918ba438f';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=6f7918ba438f';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, pairCard, footLine, drawReading, showsHeroNumber, iconFor,
@@ -25,7 +25,7 @@ import {
   varianceChip, varianceTone, variancePct, VERDICT, verdictMark,
   FROM_FILE, SOURCE_NAMES, sourceOf,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE, WALK, morningToday,
-} from '../readings.js?v=cd73aa92d0e8';
+} from '../readings.js?v=6f7918ba438f';
 
 const $ = selector => document.querySelector(selector);
 
@@ -2018,6 +2018,20 @@ const SECTIONS = {
     // against the uptime target. A reading the week did not produce is a dash rather than a
     // nought, because a machine that did not run last Tuesday did not run at 0% uptime.
     const weekCard = () => {
+      // The same seven days the wide card rolled up, not the same weekday a week ago.
+      //
+      // This card was built on `pw_*` — what this department made on the matching weekday of
+      // the previous week — and those fields are only ever filled by hand. Nobody filled
+      // them, so it printed "Not logged" against all three departments while a second card
+      // underneath, on the same screen, showed the week in full off the DOR. The plant had
+      // two cards about last week and only one of them knew anything.
+      //
+      // The layout here is the one the room asked for and keeps: a block per department,
+      // standing full height beside two rows of department cards. Only where the figures
+      // come from has changed.
+      const span = weekSpan();
+      const week = (state.weeks || []).filter(row =>
+        String(row.metric_date) >= span.from && String(row.metric_date) <= span.to);
       // A reading, and under it how far off target it was. The arrow is the direction the
       // number moved against what it should have been, and the colour is whether that was
       // good — which for make-ready is the opposite way round, because an hour saved setting
@@ -2060,12 +2074,14 @@ const SECTIONS = {
 
       const blocks = list.map(config => {
         const row = dept(config.key);
-        const hours = Number(row.pw_hours) || 0;
-        const rate = hours ? Number(row.pw_qty) / hours : 0;
+        const now = weekTotals(week, config.key);
+        const qty = Number(now.qty) || 0;
+        const hours = Number(now.hours) || 0;
+        const rate = Number(now.rate) || (hours ? qty / hours : 0);
         const target = Number(row.target ?? config.target);
-        const mr = row.pw_make_ready == null ? null : Number(row.pw_make_ready);
+        const mr = now.makeReady == null ? null : Number(now.makeReady);
         const mrTarget = Number(row.mr_target ?? config.mr_target ?? 0);
-        const up = row.pw_uptime == null ? null : Number(row.pw_uptime);
+        const up = now.uptime == null ? null : Number(now.uptime);
         const upTarget = Number(row.uptime_target ?? config.uptime_target ?? 0);
         if (!rate && mr == null && up == null) {
           return `<div class="wkb"><div class="wkb__n">${esc(config.name)}</div>
@@ -2078,7 +2094,7 @@ const SECTIONS = {
         // the moment a rate surprises them: 5,920 an hour is a different week at 26 hours
         // than at 40.
         const made = [
-          Number(row.pw_qty) ? `${num(Math.round(row.pw_qty))} ${esc(config.unit || 'units')}` : '',
+          qty ? `${num(Math.round(qty))} ${esc(config.unit || 'units')}` : '',
           hours ? `${num(hours)} h` : '',
         ].filter(Boolean).join(' \u00b7 ');
         return `<div class="wkb">
@@ -2097,7 +2113,8 @@ const SECTIONS = {
       }).join('');
 
       return noteCard({
-        pkey: 'pw-week', icon: iconFor('week'), label: "Last week's productivity", tall: true,
+        pkey: 'pw-week', icon: iconFor('week'),
+        label: `Last week's productivity \u00b7 ${weekLabel(span.from, span.to)}`, tall: true,
         // `band.worst([])` is 'ok', which would put a green border on a card that has
         // nothing in it — a verdict on a week nobody has logged.
         tone: (tones => tones.length ? band.worst(tones) : '')(list.map(config => {
@@ -2174,16 +2191,8 @@ const SECTIONS = {
     // The week card is written last and placed first by the grid, so the departments fill
     // the row from the left and it takes the column at the end.
     //
-    // `lastWeekCard()` rather than the `pw-week` card that used to stand here. There were
-    // two cards about last week and the plant had both on screen at once: this one, headed
-    // "Last week's productivity", reading the same-weekday-a-week-ago figures and saying
-    // "Not logged" against all three departments because nobody types those in; and the real
-    // one underneath its own heading, headed with the dates and carrying volume, rate,
-    // uptime and make-ready off the DOR. One of the two had the answer and the other had the
-    // better position. Now the one with the answer has the position, and the heading below
-    // it is gone.
     return `<div class="grid grid--cards grid--prod" data-grid="production"
-      style="--prod-cols:${list.length}">${cards}${review}${lastWeekCard()}</div>`;
+      style="--prod-cols:${list.length}">${cards}${review}${weekCard()}</div>`;
   },
 
   shipping: () => {
