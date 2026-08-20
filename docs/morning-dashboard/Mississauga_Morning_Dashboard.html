@@ -447,8 +447,8 @@ textarea.ei{height:60px;resize:vertical;font-size:11px;padding:5px 8px;line-heig
 .finance-panel-title{font-family:var(--font-condensed);font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:4px;text-align:center}
 .finance-main{font-family:var(--font-condensed);font-size:38px;font-weight:600;line-height:1;color:var(--text);margin:0;letter-spacing:-.01em;white-space:nowrap;text-align:center}
 /* the verdict belongs under the figure it judges, not four rows below it */
-.finance-delta{font-family:var(--font-condensed);font-size:16px;font-weight:600;line-height:1;
-  text-align:center;margin:6px 0 12px;white-space:nowrap;color:var(--muted)}
+.finance-delta{font-family:var(--font-condensed);font-size:16px;font-weight:600;line-height:1.25;
+  text-align:center;margin:6px 0 12px;color:var(--muted);text-wrap:balance}
 
 .finance-report-date{margin-left:auto;white-space:nowrap;font-size:11px;line-height:1;font-weight:500;color:var(--red)}
 .finance-card.green .finance-report-date{margin-left:auto;white-space:nowrap;font-size:11px;line-height:1;font-weight:500;color:var(--red)}.finance-card.amber .finance-report-date{margin-left:auto;white-space:nowrap;font-size:11px;line-height:1;font-weight:500;color:var(--red)}.finance-card.red .finance-report-date{margin-left:auto;white-space:nowrap;font-size:11px;line-height:1;font-weight:500;color:var(--red)}
@@ -964,7 +964,7 @@ body.pres-mode #c-priorities.awaiting{animation:none}
   </div>
 
   <div class="card bottom-card finance-card hidden" id="financeCard">
-    <div class="c-head"><span class="c-icon">&#128176;</span><span class="c-lbl">Financials MTD / YTD</span><span class="finance-report-date" id="d-fin-report-date"></span></div>
+    <div class="c-head"><span class="c-icon">&#128176;</span><span class="c-lbl">Sales &mdash; MTD / YTD</span><span class="finance-report-date" id="d-fin-report-date"></span></div>
     
     <div class="finance-dual">
       <div class="finance-panel">
@@ -972,10 +972,10 @@ body.pres-mode #c-priorities.awaiting{animation:none}
         <div class="finance-main" id="d-fin-actual">&mdash;</div>
         <div class="finance-delta" id="d-fin-var">&mdash;</div>
         <div class="finance-summary">
-          <div><span>Monthly Budget</span><strong id="d-fin-budget">&mdash;</strong></div>
-          <div><span>Expected MTD</span><strong id="d-fin-plan">&mdash;</strong></div>
-          <div><span>Pace to month end</span><strong id="d-fin-pace">&mdash;</strong></div>
-          <div><span>Budget used</span><strong id="d-fin-pct">&mdash;</strong></div>
+          <div><span>Sales Budget</span><strong id="d-fin-budget">&mdash;</strong></div>
+          <div><span>Expected by today</span><strong id="d-fin-plan">&mdash;</strong></div>
+          <div><span>Still to sell</span><strong id="d-fin-togo">&mdash;</strong></div>
+          <div><span>Selling days left</span><strong id="d-fin-left">&mdash;</strong></div>
         </div>
       </div>
       <div class="finance-panel">
@@ -983,10 +983,10 @@ body.pres-mode #c-priorities.awaiting{animation:none}
         <div class="finance-main" id="d-fin-ytd-actual">&mdash;</div>
         <div class="finance-delta" id="d-fin-ytd-var">&mdash;</div>
         <div class="finance-summary">
-          <div><span>Full-Year Budget</span><strong id="d-fin-year-budget">&mdash;</strong></div>
-          <div><span>Expected YTD</span><strong id="d-fin-ytd-plan">&mdash;</strong></div>
-          <div><span>Pace to year end</span><strong id="d-fin-ytd-pace">&mdash;</strong></div>
-          <div><span>Budget used</span><strong id="d-fin-ytd-pct">&mdash;</strong></div>
+          <div><span>Sales Budget</span><strong id="d-fin-year-budget">&mdash;</strong></div>
+          <div><span>Expected by today</span><strong id="d-fin-ytd-plan">&mdash;</strong></div>
+          <div><span>Still to sell</span><strong id="d-fin-ytd-togo">&mdash;</strong></div>
+          <div><span>Months left</span><strong id="d-fin-ytd-left">&mdash;</strong></div>
         </div>
       </div>
     </div>
@@ -1181,25 +1181,34 @@ function applyFinancials(){
   setText('d-fin-actual',enabled?fmtMoney(actual):'Optional',enabled?financeClass(mtdStatus):'');
   setText('d-fin-budget',enabled?fmtMoney(monthlyBudget):'—');
   setText('d-fin-plan',enabled?fmtMoney(plan):'—');
-  setText('d-fin-var',enabled?(mtdArrow+' '+fmtMoney(Math.abs(variance))+' ('+Math.abs(variancePct).toFixed(1)+'%)'):'—',enabled?financeClass(mtdStatus):'');
+  const standing=v=>v>=0?' ahead of plan':' behind plan';
+  setText('d-fin-var',enabled?(mtdArrow+' '+fmtMoney(Math.abs(variance))+' ('+Math.abs(variancePct).toFixed(1)+'%)'+standing(variance)):'—',enabled?financeClass(mtdStatus):'');
   setText('d-fin-ytd-actual',enabled?fmtMoney(actualYtd):'Optional',enabled?financeClass(ytdStatus):'');
   setText('d-fin-year-budget',enabled?fmtMoney(fullYearBudget):'—');
   setText('d-fin-ytd-plan',enabled?fmtMoney(expectedYtd):'—');
-  setText('d-fin-ytd-var',enabled?(ytdArrow+' '+fmtMoney(Math.abs(ytdVariance))+' ('+Math.abs(ytdVariancePct).toFixed(1)+'%)'):'—',enabled?financeClass(ytdStatus):'');
+  setText('d-fin-ytd-var',enabled?(ytdArrow+' '+fmtMoney(Math.abs(ytdVariance))+' ('+Math.abs(ytdVariancePct).toFixed(1)+'%)'+standing(ytdVariance)):'—',enabled?financeClass(ytdStatus):'');
 
-  /* Where this lands if the rest of the month goes like the part already sold.
-     The month is paced on days, which is what Expected MTD already assumes. The
-     year is paced on budget rather than days, because the monthly budgets are
-     not equal and a calendar-day projection would flatter a strong January. */
-  const paceMonth = elapsed>0 ? actual*(daysInMonth/elapsed) : 0;
-  const paceYear  = expectedYtd>0 ? actualYtd*(fullYearBudget/expectedYtd) : 0;
-  const pctMonth  = monthlyBudget>0   ? actual/monthlyBudget*100      : 0;
-  const pctYear   = fullYearBudget>0  ? actualYtd/fullYearBudget*100  : 0;
-  const paceCls = (p,b) => b>0 ? financeClass(finStatus((p-b)/b*100)) : '';
-  setText('d-fin-pace',     enabled?fmtMoney(paceMonth):'—', enabled?paceCls(paceMonth,monthlyBudget):'');
-  setText('d-fin-ytd-pace', enabled?fmtMoney(paceYear):'—',  enabled?paceCls(paceYear,fullYearBudget):'');
-  setText('d-fin-pct',      enabled?Math.round(pctMonth)+'%':'—');
-  setText('d-fin-ytd-pct',  enabled?Math.round(pctYear)+'%':'—');
+  /* The two questions a sales number raises once you know it is behind: how much
+     is left to sell, and how long is left to sell it in. Both are subtraction,
+     and between them they turn "6.4% behind" into something a meeting can act on.
+
+     Selling days are weekdays. Counting all 31 would tell the room it has twelve
+     days to find a million dollars when it has eight, which is the kind of
+     comfort that costs a month. */
+  const togoMonth = monthlyBudget  - actual;
+  const togoYear  = fullYearBudget - actualYtd;
+  let sellingDays = 0;
+  for (let d = reportDate.getDate()+1; d <= daysInMonth; d++){
+    const wd = new Date(reportDate.getFullYear(), monthIdx, d).getDay();
+    if (wd !== 0 && wd !== 6) sellingDays++;
+  }
+  const monthsLeft = 11 - monthIdx;
+  const togo = (v) => v <= 0 ? 'Budget met' : fmtMoney(v);
+  const togoCls = (v) => v <= 0 ? 'finance-pos' : '';
+  setText('d-fin-togo',     enabled?togo(togoMonth):'—', enabled?togoCls(togoMonth):'');
+  setText('d-fin-ytd-togo', enabled?togo(togoYear):'—',  enabled?togoCls(togoYear):'');
+  setText('d-fin-left',     enabled?String(sellingDays):'—');
+  setText('d-fin-ytd-left', enabled?String(monthsLeft):'—');
 }
 function lateStatus(v){return v===0?'green':v===1?'amber':'red';}
 function dotCls(v){return v==='a'?'sdot da':v==='r'?'sdot dr':'sdot dg';}
@@ -1875,9 +1884,9 @@ function loadDay(){
       ['d-otd','d-otif','d-mtdotif','d-ytdotif'].forEach(k=>document.getElementById(k).textContent='—%');
       const finEnabled=document.getElementById('i-fin-enabled');if(finEnabled)finEnabled.checked=false;
       setFinanceVisible(false);
-      ['d-fin-actual','d-fin-budget','d-fin-plan','d-fin-var','d-fin-pace','d-fin-pct',
+      ['d-fin-actual','d-fin-budget','d-fin-plan','d-fin-var','d-fin-togo','d-fin-left',
        'd-fin-ytd-actual','d-fin-year-budget','d-fin-ytd-plan','d-fin-ytd-var',
-       'd-fin-ytd-pace','d-fin-ytd-pct']
+       'd-fin-ytd-togo','d-fin-ytd-left']
         .forEach(k=>{const e=document.getElementById(k);if(e)e.textContent='—';});
       // Notes / maintenance
       buildMaintTable(false);

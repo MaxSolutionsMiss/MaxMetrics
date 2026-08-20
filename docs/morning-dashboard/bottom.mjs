@@ -74,30 +74,35 @@ const q=await p.evaluate(()=>{
 });
 say(q.spread<=1,'and on a quiet morning too — '+q.heights.join(' / '));
 say(q.heights[0]<g.heights[0],'with the row shorter than it was when it was busy');
-console.log('\n── the money, read as two small cards ──');
+console.log('\n── the money, in the words the plant uses ──');
 const fin=await p.evaluate(()=>{
   const t=id=>document.getElementById(id).textContent.trim();
-  const mid=el=>{const r=el.getBoundingClientRect();
-    const pr=el.closest('.finance-panel').getBoundingClientRect();
-    return Math.round((r.left+r.right)/2 - (pr.left+pr.right)/2);};
   const big=document.getElementById('d-fin-actual');
+  const r=big.getBoundingClientRect(), pr=big.closest('.finance-panel').getBoundingClientRect();
   const panels=[...document.querySelectorAll('.finance-panel')];
-  return {big:t('d-fin-actual'), delta:t('d-fin-var'),
-          pace:t('d-fin-pace'), pct:t('d-fin-pct'),
-          ypace:t('d-fin-ytd-pace'), ypct:t('d-fin-ytd-pct'),
-          centred:Math.abs(mid(big))<=2,
-          rule:getComputedStyle(panels[1]).borderLeftWidth,
-          deltaAbove:Math.round(document.getElementById('d-fin-var').getBoundingClientRect().top
-                     - document.querySelector('.finance-summary').getBoundingClientRect().top)};
+  return {title:document.querySelector('#financeCard .c-lbl').textContent.trim(),
+          labels:[...document.querySelectorAll('#financeCard .finance-summary span')]
+                   .map(x=>x.textContent.trim()),
+          delta:t('d-fin-var'), ydelta:t('d-fin-ytd-var'),
+          togo:t('d-fin-togo'), left:t('d-fin-left'),
+          ytogo:t('d-fin-ytd-togo'), yleft:t('d-fin-ytd-left'),
+          centred:Math.abs((r.left+r.right)/2-(pr.left+pr.right)/2)<=2,
+          rule:getComputedStyle(panels[1]).borderLeftWidth};
 });
+say(/Sales/.test(fin.title),'the card says what it holds — "'+fin.title+'"');
+say(!fin.labels.some(l=>/used|pace/i.test(l)),
+    'nothing talks about spending a budget — '+JSON.stringify([...new Set(fin.labels)]));
 say(fin.centred,'the big figure is centred in its half, not left-hung');
 say(fin.rule!=='0px','a rule separates the month from the year — '+fin.rule);
-say(fin.deltaAbove<0,'and the verdict sits under the figure it judges, above the detail');
-/* 1.74M over 19 of 31 days paces to 2.84M; 57% of a 3.03M month */
-say(fin.pace==='$2.84M','pace to month end is worked out, not typed — '+fin.pace);
-say(fin.pct==='57%','and the share of budget spent — '+fin.pct);
-say(fin.ypace==='$35M','the year paces on budget, not on days — '+fin.ypace);
-say(fin.ypct==='68%','with its own share — '+fin.ypct);
+say(/behind plan$/.test(fin.delta),'the month says where it stands in words — "'+fin.delta+'"');
+say(/ahead of plan$/.test(fin.ydelta),'and so does the year — "'+fin.ydelta+'"');
+/* 3.03M budget less 1.74M sold; 33.6M less 22.7M */
+say(fin.togo==='$1.29M','what is left to sell this month — '+fin.togo);
+say(fin.ytogo==='$10.9M','and this year — '+fin.ytogo);
+/* through 19 Aug 2026: the 20th, 21st, 24th-28th and 31st are weekdays */
+say(fin.left==='8','selling days left counts weekdays, not the calendar — '+fin.left
+    +' where 12 days remain');
+say(fin.yleft==='4','months left — '+fin.yleft);
 
 say(errs.length===0,'no errors'+(errs.length?': '+errs.join(' | '):''));
 await b.close();
