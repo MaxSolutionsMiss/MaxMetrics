@@ -64,7 +64,7 @@ say(!(await p.$eval('#roFlag',n=>getComputedStyle(n).display==='none')),'and the
 say(!(await p.$eval('#csvBtn',n=>getComputedStyle(n).display==='none')),'he can still export what he can see');
 say(!(await mods()).includes('people'),'no People for him either');
 
-console.log('\n── the Morning Dashboard names the right plant ──');
+console.log('\n── The Morning names the right plant ──');
 await asUser('deepb');
 await p.$eval('.navitem[data-go=morning]',n=>n.click()); await p.waitForTimeout(300);
 say((await p.$eval('#crumb',n=>n.textContent)).startsWith('Brampton'),

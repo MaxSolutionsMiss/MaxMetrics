@@ -1,4 +1,4 @@
-<title>MaxMetrics</title>
+<title>Score</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -275,11 +275,11 @@ tr.tot td{border-bottom:0;border-top:2px solid var(--line);font-weight:600}
 
 <nav class="appnav" id="appnav" aria-label="Modules">
   <div class="navtop">
-    <button class="mark" id="navToggle" title="Show the module names" aria-label="Expand menu">M</button>
-    <span class="wordmark"><em>Max</em>Metrics</span>
+    <button class="mark" id="navToggle" title="Show the module names" aria-label="Expand menu">S</button>
+    <span class="wordmark"><em>S</em>core</span>
   </div>
-  <button class="navitem" data-go="morning"><span class="ic">&#9788;</span><span class="lb">Morning Dashboard</span></button>
-  <button class="navitem" data-go="metrics"><span class="ic">&#9707;</span><span class="lb">Metrics</span></button>
+  <button class="navitem" data-go="morning"><span class="ic">&#9788;</span><span class="lb">The Morning</span></button>
+  <button class="navitem" data-go="databank"><span class="ic">&#9707;</span><span class="lb">Data Bank</span></button>
   <button class="navitem" data-go="sources"><span class="ic">&#9635;</span><span class="lb">Data sources</span></button>
   <button class="navitem" data-go="catalogue"><span class="ic">&#9776;</span><span class="lb">Catalogue</span></button>
   <div class="navsep"></div>
@@ -297,19 +297,19 @@ tr.tot td{border-bottom:0;border-top:2px solid var(--line);font-weight:600}
 <div class="main">
 
 <div class="hdr">
-  <span class="brand" id="modTitle">Metrics</span>
+  <span class="brand" id="modTitle">Data Bank</span>
   <span class="crumb" id="crumb">build · untitled view</span>
   <span class="sp">
     <span class="readonly" id="roFlag" hidden>&#128274; Read only</span>
     <select class="locsel" id="locSel" aria-label="Location"></select>
     <span class="pill">2026</span>
-    <button class="hbtn ghost own-metrics" id="resetBtn">Reset</button>
-    <button class="hbtn own-metrics" id="csvBtn">Export CSV</button>
-    <button class="hbtn gold own-metrics" id="saveBtn">Save view</button>
+    <button class="hbtn ghost own-databank" id="resetBtn">Reset</button>
+    <button class="hbtn own-databank" id="csvBtn">Export CSV</button>
+    <button class="hbtn gold own-databank" id="saveBtn">Save view</button>
   </span>
 </div>
 
-<div class="mod on" data-mod="metrics"><div class="shell">
+<div class="mod on" data-mod="databank"><div class="shell">
 
   <!-- ── fields ─────────────────────────────────────────────────────── -->
   <div class="col left">
@@ -346,9 +346,9 @@ tr.tot td{border-bottom:0;border-top:2px solid var(--line);font-weight:600}
   </div>
 </div>
 
-</div><!-- /mod metrics -->
+</div><!-- /mod databank -->
 
-<!-- ── Morning Dashboard ──────────────────────────────────────────────── -->
+<!-- ── The Morning ──────────────────────────────────────────────── -->
 <div class="mod" data-mod="morning"><div class="pad">
   <h2>Wednesday 19 August 2026</h2>
   <p class="sub" id="morningSub">Published at 07:48 by Angela Wu · read-only here, filled in on
@@ -388,7 +388,7 @@ tr.tot td{border-bottom:0;border-top:2px solid var(--line);font-weight:600}
       <div class="mt">Dave M · 07:44</div></div></div>
   </div>
   <p class="sub" style="margin-top:20px">This is the morning the plant filled in, shown here so
-    everything lives behind one login. The numbers it carries feed Metrics.</p>
+    everything lives behind one login. The numbers it carries feed Data Bank.</p>
 </div></div>
 
 <!-- ── Data sources ───────────────────────────────────────────────────── -->
@@ -408,7 +408,7 @@ tr.tot td{border-bottom:0;border-top:2px solid var(--line);font-weight:600}
       <td>yesterday 05:31</td><td>1,208</td><td>7</td></tr>
     <tr><td><span class="dot ok"></span>Docket Flow</td><td class="mono">SharePoint · CSR</td>
       <td>05:34 today</td><td>3,902</td><td>3</td></tr>
-    <tr><td><span class="dot ok"></span>Morning Dashboard</td><td class="mono">this app</td>
+    <tr><td><span class="dot ok"></span>The Morning</td><td class="mono">this app</td>
       <td>07:48 today</td><td>1</td><td>9</td></tr>
   </table>
   <p class="sub" style="margin-top:18px">A supply-chain database would appear here as one more row.</p>
@@ -418,7 +418,7 @@ tr.tot td{border-bottom:0;border-top:2px solid var(--line);font-weight:600}
 <div class="mod" data-mod="catalogue"><div class="pad">
   <h2>Catalogue</h2>
   <p class="sub">One written definition per metric. This is what stops two people asking the same
-    question and getting different numbers &mdash; and it is what fills the Fields list in Metrics.</p>
+    question and getting different numbers &mdash; and it is what fills the Fields list in Data Bank.</p>
   <table class="plain" id="catTbl"></table>
   <p class="sub" style="margin-top:18px">Adding a metric is a row here, not a database change.</p>
 </div></div>
@@ -906,14 +906,14 @@ document.getElementById('csvBtn').onclick = () => {
    each module is a panel that shows or hides. Nothing here knows what the
    others do, which is the point — a new module is a nav button and a panel.  */
 const MODULES = {
-  morning:   {title:'Morning Dashboard', crumb:() => state.loc + ' · today'},
-  metrics:   {title:'Metrics',           crumb:'build · untitled view'},
+  morning:   {title:'The Morning', crumb:() => state.loc + ' · today'},
+  databank:  {title:'Data Bank',   crumb:'build · untitled view'},
   sources:   {title:'Data sources',      crumb:'read at 05:30 daily'},
   catalogue: {title:'Catalogue',         crumb:MEASURES.length + ' metrics defined'},
   people:    {title:'People',            crumb:() => USERS.length + ' with access'},
 };
 /* Which modules an account may open at all. */
-const MOD_NEEDS = {morning:'read', metrics:'read', sources:'read',
+const MOD_NEEDS = {morning:'read', databank:'read', sources:'read',
                    catalogue:'read', people:'admin'};
 
 function signIn(user){
@@ -922,8 +922,8 @@ function signIn(user){
   try{ localStorage.setItem('mmUser', me.id); }catch(e){}
   paintWho(); paintPeople();
   /* an account that cannot see the module it was looking at goes somewhere it can */
-  const open = document.querySelector('.mod.on')?.dataset.mod || 'metrics';
-  go(can(MOD_NEEDS[open]) ? open : 'metrics');
+  const open = document.querySelector('.mod.on')?.dataset.mod || 'databank';
+  go(can(MOD_NEEDS[open]) ? open : 'databank');
   render();
   say('Signed in as ' + me.name + ' · ' + me.role);
 }
@@ -967,7 +967,7 @@ function paintCrumb(mod){
   const c = MODULES[mod||openMod()].crumb;
   document.getElementById('crumb').textContent = typeof c==='function' ? c() : c;
 }
-const openMod = () => document.querySelector('.mod.on')?.dataset.mod || 'metrics';
+const openMod = () => document.querySelector('.mod.on')?.dataset.mod || 'databank';
 document.getElementById('locSel').onchange = e => {
   state.loc = e.target.value; render(); paintCrumb();
   say('Showing ' + state.loc);
@@ -981,8 +981,8 @@ function go(mod){
   document.getElementById('modTitle').textContent = MODULES[mod].title;
   paintCrumb(mod);
   /* the builder's own controls only belong to the builder */
-  document.querySelectorAll('.hdr .sp .own-metrics').forEach(el =>
-    el.style.display = mod==='metrics' ? '' : 'none');
+  document.querySelectorAll('.hdr .sp .own-databank').forEach(el =>
+    el.style.display = mod==='databank' ? '' : 'none');
   try{ localStorage.setItem('mmModule', mod); }catch(e){}
   if (location.hash.slice(1) !== mod) history.replaceState(null,'','#'+mod);
 }
@@ -1029,6 +1029,6 @@ if (!me.locs.includes(state.loc)) state.loc = me.locs[0];
 paintWho(); paintPeople();
 render();
 const wanted = (location.hash.slice(1) in MODULES) ? location.hash.slice(1)
-  : (localStorage.getItem('mmModule') || 'metrics');
-go(can(MOD_NEEDS[wanted]) ? wanted : 'metrics');
+  : (localStorage.getItem('mmModule') || 'databank');
+go(can(MOD_NEEDS[wanted]) ? wanted : 'databank');
 </script>
