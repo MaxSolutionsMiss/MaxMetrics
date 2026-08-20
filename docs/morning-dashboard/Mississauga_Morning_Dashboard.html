@@ -427,7 +427,15 @@ textarea.ei{height:60px;resize:vertical;font-size:11px;padding:5px 8px;line-heig
 .maintenance-card .maint-tbl td{padding:4px 5px}
 .maintenance-card .maint-tbl th{padding:3px 5px}
 .maint-action-cell{min-width:82px}
+/* A row is as tall as its tallest card, and Staffing Notes on a busy morning is
+   much taller than six figures and four rows of budget. The money used to sit at
+   the top with a third of a card of dead colour underneath it, which reads as
+   something failing to load. Centred, the same leftover space becomes margin
+   above and below — the one arrangement that stays right at any height, since a
+   card stretched to fit a five-comment neighbour and one stretched to fit a
+   one-comment neighbour are very different cards. */
 .finance-card{transition:background .2s,border-color .2s}
+.finance-card .finance-dual{flex:1;align-content:center;align-items:center}
 .finance-dual{gap:18px;max-width:780px;display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .finance-panel{min-width:0}
 .finance-panel-title{font-family:var(--font-condensed);font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:4px}
@@ -557,6 +565,13 @@ body.pres-mode .review-card{min-height:0;justify-content:flex-start}
 .bottom-card{display:flex;flex-direction:column;height:100%;min-height:0}
 .bottom-card .talk{flex:1;display:flex;flex-direction:column;min-height:0}
 .bottom-card .talk .msgs{flex:1;overflow:auto;min-height:0}
+/* Five notes on a Thursday should not set the height of everything beside them.
+   These are short lines — a name and a date — so they are given the room a short
+   line needs and no more. It buys about a fifth of the card back across five of
+   them, which is the difference between the row fitting and the row sprawling. */
+.bottom-card .msg{padding:6px 0}
+.bottom-card .msg-t{font-size:14px;line-height:1.35}
+.bottom-card .msg-m{font-size:10.5px;margin-top:2px}
 .bottom-card .talk .say{margin-top:auto}
 .maint-tbl{flex:0 0 auto}
 
@@ -659,6 +674,15 @@ body.pres-mode .review-card{min-height:0;justify-content:flex-start}
 #c-priorities::before{content:'';position:absolute;left:0;top:0;bottom:0;width:5px;
   background:var(--red)}
 #c-priorities .c-lbl,#c-priorities .c-icon{color:var(--red)}
+/* The one card the meeting is actually for. Everything in it is a fifth larger
+   than the same thing anywhere else on the page, and carries more weight —
+   20px against 14.5 in the sentence, 24 against 20 on the heading. */
+#c-priorities .c-lbl{font-size:24px}
+#c-priorities .c-icon{font-size:31px}
+#c-priorities .msg-t{font-size:17.4px;font-weight:600;line-height:1.4;color:#0f172a}
+#c-priorities .msg-m{font-size:12.5px}
+#c-priorities .msg-i{width:28px;height:28px;font-size:13px;border-radius:7px}
+#c-priorities .msg{padding:11px 0}
 #c-priorities .say input{border-color:var(--red-border);background:#fff}
 #c-priorities .say button{background:var(--red)}
 @keyframes prio-breathe{
