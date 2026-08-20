@@ -1,0 +1,1034 @@
+<title>MaxMetrics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+:root{
+  --navy:#101a2c; --navy-2:#1b2740; --navy-3:#2b3a58;
+  --ground:#eef2f7; --card:#ffffff; --sunk:#f6f8fb;
+  --line:#dde4ee; --line-soft:#eaeff6;
+  --ink:#0f172a; --ink-2:#475569; --mut:#6b7a90;
+  --gold:#f0a01e;
+  --green:#2f7d4a; --green-soft:#eef8f1;
+  --amber:#b7791f; --amber-soft:#fdf8ea;
+  --red:#c0504d;   --red-soft:#fdf1f1;
+  --blue:#2563eb;  --blue-soft:#eff5ff; --blue-line:#d3e2fb;
+  --s1:#2563eb; --s2:#f0a01e; --s3:#2f7d4a; --s4:#8b5cf6; --s5:#c0504d; --s6:#0891b2;
+  --shadow:0 4px 18px rgba(15,23,42,.08);
+  --fc:'Barlow Condensed',Optima,'Arial Narrow',sans-serif;
+  --fb:'Barlow',Optima,system-ui,sans-serif;
+  --fm:'IBM Plex Mono',ui-monospace,Consolas,monospace;
+}
+:root:not([data-theme="light"]){ @media (prefers-color-scheme: dark){
+  --navy:#0a1120; --navy-2:#16203a; --navy-3:#31415f;
+  --ground:#0b111d; --card:#131c2c; --sunk:#0f1725;
+  --line:#26324a; --line-soft:#1d2739;
+  --ink:#e8eef8; --ink-2:#aab8cd; --mut:#8595ad;
+  --gold:#f7b13d;
+  --green:#5cc287; --green-soft:#122b1e;
+  --amber:#e0a53c; --amber-soft:#2c2413;
+  --red:#e2807c;   --red-soft:#2e1717;
+  --blue:#7aa5f7;  --blue-soft:#141f36; --blue-line:#2c4270;
+  --s1:#7aa5f7; --s2:#f7b13d; --s3:#5cc287; --s4:#b191f7; --s5:#e2807c; --s6:#3fb8d4;
+  --shadow:0 4px 18px rgba(0,0,0,.4);
+}}
+:root[data-theme="dark"]{
+  --navy:#0a1120; --navy-2:#16203a; --navy-3:#31415f;
+  --ground:#0b111d; --card:#131c2c; --sunk:#0f1725;
+  --line:#26324a; --line-soft:#1d2739;
+  --ink:#e8eef8; --ink-2:#aab8cd; --mut:#8595ad;
+  --gold:#f7b13d;
+  --green:#5cc287; --green-soft:#122b1e;
+  --amber:#e0a53c; --amber-soft:#2c2413;
+  --red:#e2807c;   --red-soft:#2e1717;
+  --blue:#7aa5f7;  --blue-soft:#141f36; --blue-line:#2c4270;
+  --s1:#7aa5f7; --s2:#f7b13d; --s3:#5cc287; --s4:#b191f7; --s5:#e2807c; --s6:#3fb8d4;
+  --shadow:0 4px 18px rgba(0,0,0,.4);
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--fb);font-size:15px}
+button{font:inherit;cursor:pointer}
+[hidden]{display:none!important}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+
+/* ── header ───────────────────────────────────────────────────────────── */
+.hdr{background:var(--navy);color:#fff;display:flex;align-items:center;gap:14px;
+  padding:11px 18px;flex-wrap:wrap}
+.hdr .brand{font-family:var(--fc);font-size:23px;letter-spacing:.01em}
+.hdr .brand em{font-style:normal;color:var(--gold)}
+.hdr .crumb{font-family:var(--fm);font-size:11.5px;color:#8fa2bd}
+.hdr .sp{margin-left:auto;display:flex;align-items:center;gap:8px}
+.hbtn{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.18);color:#fff;
+  font-size:12px;font-weight:600;padding:6px 12px;border-radius:8px}
+.hbtn:hover{background:rgba(255,255,255,.18)}
+.hbtn.gold{background:var(--gold);border-color:var(--gold);color:#241a04}
+.hbtn.ghost{background:none}
+.pill{font-size:11.5px;color:#c9d5e6;background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:5px 11px}
+
+/* ── the app: a rail of modules, and whichever one is open ─────────────── */
+.app{display:grid;grid-template-columns:auto minmax(0,1fr);height:100vh}
+.appnav{background:var(--navy);color:#fff;width:62px;display:flex;flex-direction:column;
+  padding:10px 9px;gap:3px;transition:width .18s ease;overflow:hidden}
+.appnav.wide{width:228px}
+.navtop{display:flex;align-items:center;gap:10px;height:34px;margin-bottom:12px;flex:none}
+.navtop .mark{width:32px;height:32px;border-radius:9px;background:var(--gold);color:#241a04;
+  font-family:var(--fc);font-size:20px;font-weight:700;display:flex;align-items:center;
+  justify-content:center;flex:none}
+.navtop .wordmark{font-family:var(--fc);font-size:20px;white-space:nowrap;opacity:0;
+  transition:opacity .18s}
+.appnav.wide .navtop .wordmark{opacity:1}
+.navtop .wordmark em{font-style:normal;color:var(--gold)}
+.navitem{display:flex;align-items:center;gap:12px;height:42px;padding:0 10px;border-radius:10px;
+  border:0;background:none;color:#9fb0c9;width:100%;text-align:left;white-space:nowrap;
+  overflow:hidden;flex:none}
+.navitem .ic{width:24px;text-align:center;font-size:17px;flex:none}
+.navitem .lb{font-size:13.5px;font-weight:600;opacity:0;transition:opacity .18s}
+.appnav.wide .navitem .lb{opacity:1}
+.navitem:hover{background:rgba(255,255,255,.08);color:#fff}
+.navitem.on{background:rgba(240,160,30,.16);color:var(--gold)}
+.navitem.soon{opacity:.42}
+.navitem.soon:hover{background:none;color:#9fb0c9;cursor:default}
+.navsep{height:1px;background:rgba(255,255,255,.12);margin:9px 6px;flex:none}
+.navfoot{margin-top:auto;flex:none}
+.navwho{display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:10px;
+  background:rgba(255,255,255,.06);white-space:nowrap;overflow:hidden}
+.navwho .av{width:26px;height:26px;border-radius:8px;background:var(--navy-3);flex:none;
+  font-family:var(--fc);font-size:12px;display:flex;align-items:center;justify-content:center;
+  color:#dbe4f0}
+.navwho .nm{font-size:12.5px;opacity:0;transition:opacity .18s;color:#c9d5e6}
+.appnav.wide .navwho .nm{opacity:1}
+.navwho{border:0;width:100%;text-align:left;cursor:pointer}
+.navwho:hover{background:rgba(255,255,255,.12)}
+.navwho .nm{line-height:1.35}
+.navwho .nm b{font-weight:600;color:#fff;font-size:12.5px}
+.navwho .nm i{font-style:normal;font-size:11px;color:#8fa2bd}
+.whomenu{background:var(--navy-2);border:1px solid rgba(255,255,255,.14);border-radius:11px;
+  padding:6px;margin-top:7px}
+.whorow{display:flex;align-items:center;gap:10px;width:100%;padding:7px 8px;border:0;
+  border-radius:8px;background:none;color:#c9d5e6;text-align:left;white-space:nowrap}
+.whorow:hover{background:rgba(255,255,255,.10);color:#fff}
+.whorow.on{background:rgba(240,160,30,.16);color:var(--gold)}
+.whorow .av{width:24px;height:24px;border-radius:7px;background:var(--navy-3);flex:none;
+  font-family:var(--fc);font-size:11px;display:flex;align-items:center;justify-content:center;
+  color:#dbe4f0}
+.whorow small{display:block;font-size:10.5px;color:#8fa2bd}
+.whorow.on small{color:#c99a4a}
+.locsel{font:inherit;font-size:11.5px;color:#fff;background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:5px 11px}
+.locsel option{background:var(--navy);color:#fff}
+.readonly{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;
+  color:#241a04;background:var(--gold);border-radius:999px;padding:5px 11px}
+.main{display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.mod{display:none;flex:1;min-height:0;overflow:auto}
+.mod.on{display:flex;flex-direction:column}
+
+/* ── shell ────────────────────────────────────────────────────────────── */
+.shell{display:grid;grid-template-columns:220px minmax(0,1fr) 196px;
+  flex:1;min-height:0}
+.col{overflow-y:auto;padding:14px}
+.col.left{border-right:1px solid var(--line)}
+.col.right{border-left:1px solid var(--line)}
+.col.mid{background:var(--sunk)}
+h4{margin:0 0 9px;font-size:10px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--mut)}
+h4.sp{margin-top:20px}
+
+/* fields */
+.search{width:100%;font:inherit;font-size:13px;padding:8px 11px;border-radius:9px;
+  border:1px solid var(--line);background:var(--card);color:var(--ink);margin-bottom:13px}
+.gname{font-family:var(--fm);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--mut);margin:0 0 6px}
+.field{display:flex;align-items:center;gap:8px;width:100%;text-align:left;font-size:13px;
+  padding:6px 9px;border-radius:8px;background:var(--card);border:1px solid var(--line);
+  margin-bottom:5px;color:var(--ink)}
+.field:hover{border-color:var(--navy-3)}
+.field.used{opacity:.45}
+.field .k{font-family:var(--fm);font-size:9px;padding:1px 5px;border-radius:4px;flex:none}
+.field .k.m{background:var(--blue-soft);color:var(--blue);border:1px solid var(--blue-line)}
+.field .k.d{background:var(--amber-soft);color:var(--amber);border:1px solid var(--amber)}
+.field[draggable=true]{cursor:grab}
+
+/* zones */
+.zones{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:13px}
+.zone{background:var(--card);border:1px dashed var(--line);border-radius:11px;padding:9px 10px;
+  min-height:70px}
+.zone.over{border-color:var(--gold);background:var(--amber-soft)}
+.zn{font-size:9.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--mut);margin-bottom:7px}
+.tokn{display:inline-flex;align-items:center;gap:6px;font-size:12px;background:var(--sunk);
+  border:1px solid var(--line);border-radius:8px;padding:4px 6px 4px 9px;margin:0 5px 5px 0}
+.tokn.m{border-color:var(--blue-line);background:var(--blue-soft);color:var(--blue)}
+.tokn.d{border-color:var(--amber);background:var(--amber-soft);color:var(--amber)}
+.tokn button{background:none;border:0;color:inherit;opacity:.6;font-size:12px;padding:0 2px;
+  line-height:1}
+.tokn button:hover{opacity:1}
+.zempty{font-size:11.5px;color:var(--mut);font-style:italic}
+
+/* result */
+.viz{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:15px 17px;
+  box-shadow:var(--shadow)}
+.viz-h{display:flex;align-items:baseline;gap:12px;margin-bottom:4px;flex-wrap:wrap}
+.viz-h b{font-family:var(--fc);font-size:22px;font-weight:600}
+.viz-h .rng{font-family:var(--fm);font-size:11px;color:var(--mut);margin-left:auto}
+.stamp{font-family:var(--fm);font-size:10.5px;color:var(--mut);margin-bottom:12px}
+.chartbox{width:100%;overflow-x:auto}
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:11px;font-size:12px;color:var(--ink-2)}
+.legend i{width:10px;height:10px;border-radius:3px;display:inline-block;margin-right:6px}
+.tblwrap{overflow-x:auto;margin-top:16px;border-top:1px solid var(--line);padding-top:14px}
+table{border-collapse:collapse;font-size:12.5px;width:100%}
+th{text-align:right;font-family:var(--fm);font-size:9.5px;letter-spacing:.07em;
+  text-transform:uppercase;color:var(--mut);padding:0 10px 7px 0;border-bottom:1px solid var(--line);
+  white-space:nowrap}
+th:first-child{text-align:left}
+th.grp{text-align:center;border-bottom:1px solid var(--line);color:var(--ink-2);
+  font-size:10.5px;letter-spacing:.06em;padding-bottom:5px}
+th.grp + th.grp{border-left:1px solid var(--line-soft)}
+th.sub{font-size:9px;color:var(--mut);padding-top:4px}
+th.stub{vertical-align:bottom}
+td{padding:7px 10px 7px 0;border-bottom:1px solid var(--line-soft);text-align:right;
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+td:first-child{text-align:left;font-weight:600}
+tr.tot td{border-bottom:0;border-top:2px solid var(--line);font-weight:600}
+.empty{padding:60px 20px;text-align:center;color:var(--mut)}
+.empty b{display:block;font-family:var(--fc);font-size:26px;color:var(--ink-2);margin-bottom:6px}
+
+/* chart picker */
+.charts{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.ctype{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 5px;
+  text-align:center;font-size:10.5px;color:var(--mut);display:block;width:100%}
+.ctype:hover{border-color:var(--navy-3)}
+.ctype.on{border-color:var(--blue);background:var(--blue-soft);color:var(--blue);font-weight:600}
+.ctype svg{display:block;margin:0 auto 5px}
+.toggle{display:flex;align-items:center;gap:9px;width:100%;text-align:left;font-size:12.5px;
+  padding:7px 9px;border-radius:8px;background:var(--card);border:1px solid var(--line);
+  margin-bottom:5px;color:var(--ink)}
+.box{width:15px;height:15px;border-radius:4px;border:1.5px solid var(--line);flex:none;
+  position:relative;background:var(--card)}
+.toggle.on .box{background:var(--green);border-color:var(--green)}
+.toggle.on .box::after{content:"";position:absolute;left:4px;top:1px;width:4px;height:8px;
+  border:solid #fff;border-width:0 2px 2px 0;transform:rotate(42deg)}
+.act{width:100%;font-size:12.5px;font-weight:600;padding:9px;border-radius:9px;
+  border:1px solid var(--line);background:var(--card);color:var(--ink-2);margin-bottom:6px}
+.act.pri{background:var(--navy);border-color:var(--navy);color:#fff}
+.act:hover{border-color:var(--navy-3)}
+
+/* ── modules other than the builder ───────────────────────────────────── */
+.pad{padding:22px 26px;overflow-y:auto}
+.pad h2{font-family:var(--fc);font-size:30px;font-weight:600;margin:0 0 4px}
+.pad .sub{color:var(--mut);font-size:14px;margin:0 0 22px}
+.band{display:flex;align-items:center;gap:12px;margin:26px 0 12px;
+  font-family:var(--fc);font-size:14px;font-weight:600;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--mut)}
+.band::after{content:"";flex:1;height:1px;background:var(--line)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:15px 17px;
+  box-shadow:var(--shadow)}
+.stat .lb{display:flex;align-items:center;gap:8px;font-family:var(--fc);font-size:16px;
+  font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--mut)}
+.stat .nu{font-family:var(--fc);font-size:44px;font-weight:600;line-height:1;margin:10px 0 2px;
+  font-variant-numeric:tabular-nums}
+.stat .fn{font-size:11.5px;color:var(--mut);border-top:1px solid var(--line-soft);
+  margin-top:11px;padding-top:9px}
+.stat.good{background:var(--green-soft);border-color:var(--green)}
+.stat.good .nu,.stat.good .lb{color:var(--green)}
+.stat.bad{background:var(--red-soft);border-color:var(--red)}
+.stat.bad .nu,.stat.bad .lb{color:var(--red)}
+.note2{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:15px 17px;
+  box-shadow:var(--shadow)}
+.msg{display:flex;gap:11px;padding:9px 0;border-bottom:1px solid var(--line-soft)}
+.msg:last-child{border-bottom:0}
+.msg .ini{width:30px;height:30px;border-radius:8px;background:var(--navy-3);color:#fff;flex:none;
+  font-family:var(--fc);font-size:13px;display:flex;align-items:center;justify-content:center}
+.msg .tx{font-size:14px} .msg .mt{font-size:11px;color:var(--mut);margin-top:2px}
+.plain{width:100%;border-collapse:collapse;font-size:13.5px;background:var(--card);
+  border:1px solid var(--line);border-radius:13px;overflow:hidden}
+.plain th{background:var(--sunk);text-align:left;font-family:var(--fm);font-size:10px;
+  letter-spacing:.09em;text-transform:uppercase;color:var(--mut);padding:10px 14px;
+  border-bottom:1px solid var(--line)}
+.plain td{padding:11px 14px;border-bottom:1px solid var(--line-soft);text-align:left}
+.plain tr:last-child td{border-bottom:0}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:8px}
+.dot.ok{background:var(--green)} .dot.late{background:var(--amber)}
+.mono{font-family:var(--fm);font-size:11.5px;color:var(--mut)}
+.holding{max-width:56ch;background:var(--card);border:1px dashed var(--line);border-radius:13px;
+  padding:26px 28px;color:var(--ink-2)}
+.holding b{font-family:var(--fc);font-size:24px;font-weight:600;color:var(--ink);display:block;
+  margin-bottom:6px}
+
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(14px);
+  background:var(--navy);color:#fff;font-size:13px;padding:10px 18px;border-radius:10px;
+  opacity:0;pointer-events:none;transition:opacity .18s,transform .18s;z-index:50}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+@media(prefers-reduced-motion:reduce){.toast{transition:none}}
+
+@media(max-width:1080px){
+  .shell{grid-template-columns:1fr;height:auto}
+  .col{border:0!important;border-bottom:1px solid var(--line)!important}
+}
+</style>
+
+<div class="app">
+
+<nav class="appnav" id="appnav" aria-label="Modules">
+  <div class="navtop">
+    <button class="mark" id="navToggle" title="Show the module names" aria-label="Expand menu">M</button>
+    <span class="wordmark"><em>Max</em>Metrics</span>
+  </div>
+  <button class="navitem" data-go="morning"><span class="ic">&#9788;</span><span class="lb">Morning Dashboard</span></button>
+  <button class="navitem" data-go="metrics"><span class="ic">&#9707;</span><span class="lb">Metrics</span></button>
+  <button class="navitem" data-go="sources"><span class="ic">&#9635;</span><span class="lb">Data sources</span></button>
+  <button class="navitem" data-go="catalogue"><span class="ic">&#9776;</span><span class="lb">Catalogue</span></button>
+  <div class="navsep"></div>
+  <button class="navitem" data-go="people"><span class="ic">&#9723;</span><span class="lb">People</span></button>
+  <button class="navitem soon" disabled><span class="ic">&#43;</span><span class="lb">More to come</span></button>
+  <div class="navfoot">
+    <button class="navwho" id="whoBtn" title="Switch demo account">
+      <span class="av" id="whoIni">JR</span>
+      <span class="nm"><b id="whoName">Javad R</b><br><i id="whoRole">Owner</i></span>
+    </button>
+    <div class="whomenu" id="whoMenu" hidden></div>
+  </div>
+</nav>
+
+<div class="main">
+
+<div class="hdr">
+  <span class="brand" id="modTitle">Metrics</span>
+  <span class="crumb" id="crumb">build · untitled view</span>
+  <span class="sp">
+    <span class="readonly" id="roFlag" hidden>&#128274; Read only</span>
+    <select class="locsel" id="locSel" aria-label="Location"></select>
+    <span class="pill">2026</span>
+    <button class="hbtn ghost own-metrics" id="resetBtn">Reset</button>
+    <button class="hbtn own-metrics" id="csvBtn">Export CSV</button>
+    <button class="hbtn gold own-metrics" id="saveBtn">Save view</button>
+  </span>
+</div>
+
+<div class="mod on" data-mod="metrics"><div class="shell">
+
+  <!-- ── fields ─────────────────────────────────────────────────────── -->
+  <div class="col left">
+    <h4>Fields</h4>
+    <input class="search" id="fsearch" placeholder="Search fields" aria-label="Search fields">
+    <p class="gname">Measures</p>
+    <div id="measList"></div>
+    <p class="gname" style="margin-top:16px">Dimensions</p>
+    <div id="dimList"></div>
+    <p style="font-size:11.5px;color:var(--mut);margin-top:16px;line-height:1.5">
+      Click to add, or drag into a box. Everything here comes from the catalogue.</p>
+  </div>
+
+  <!-- ── canvas ─────────────────────────────────────────────────────── -->
+  <div class="col mid">
+    <div class="zones">
+      <div class="zone" data-zone="rows"><div class="zn">Rows</div><div class="slot"></div></div>
+      <div class="zone" data-zone="cols"><div class="zn">Columns</div><div class="slot"></div></div>
+      <div class="zone" data-zone="values"><div class="zn">Values</div><div class="slot"></div></div>
+      <div class="zone" data-zone="filters"><div class="zn">Filters</div><div class="slot"></div></div>
+    </div>
+    <div class="viz" id="viz"></div>
+  </div>
+
+  <!-- ── chart ──────────────────────────────────────────────────────── -->
+  <div class="col right">
+    <h4>Chart</h4>
+    <div class="charts" id="charts"></div>
+    <h4 class="sp">Show</h4>
+    <div id="opts"></div>
+    <h4 class="sp">Then</h4>
+    <button class="act pri" id="pinBtn">Pin this</button>
+    <button class="act" id="shareBtn">Copy link</button>
+  </div>
+</div>
+
+</div><!-- /mod metrics -->
+
+<!-- ── Morning Dashboard ──────────────────────────────────────────────── -->
+<div class="mod" data-mod="morning"><div class="pad">
+  <h2>Wednesday 19 August 2026</h2>
+  <p class="sub" id="morningSub">Published at 07:48 by Angela Wu · read-only here, filled in on
+    the plant floor</p>
+
+  <div class="band">Safety &amp; Quality</div>
+  <div class="cards">
+    <div class="stat good"><div class="lb">&#9877; Days since last injury</div>
+      <div class="nu">42</div><div class="fn">Last: 8 Jul · Record: 136</div></div>
+    <div class="stat good"><div class="lb">&#9888; Days since near-miss</div>
+      <div class="nu">17</div><div class="fn">Last: 2 Aug · Record: 89</div></div>
+    <div class="stat"><div class="lb">&#9940; Shortages</div>
+      <div class="nu">2</div><div class="fn">jobs short today · target 0</div></div>
+    <div class="stat"><div class="lb">&#127919; COQ &mdash; YTD</div>
+      <div class="nu">0.29%</div><div class="fn">of sales · target &le; 0.85%</div></div>
+  </div>
+
+  <div class="band">Shipping</div>
+  <div class="cards">
+    <div class="stat"><div class="lb">&#128666; Jobs shipped</div>
+      <div class="nu">41</div><div class="fn">On time: 39</div></div>
+    <div class="stat"><div class="lb">&#128230; Cartons</div>
+      <div class="nu">18,400</div><div class="fn">today</div></div>
+    <div class="stat bad"><div class="lb">&#9201; Late</div>
+      <div class="nu">2</div><div class="fn">shipments</div></div>
+    <div class="stat good"><div class="lb">&#128202; OTIF</div>
+      <div class="nu">98.4%</div><div class="fn">Target &ge; 98%</div></div>
+  </div>
+
+  <div class="band">Priorities for today</div>
+  <div class="note2">
+    <div class="msg"><span class="ini">AW</span><div>
+      <div class="tx">Get the 40 back up and clear the short board before second shift.</div>
+      <div class="mt">Angela Wu · 07:52</div></div></div>
+    <div class="msg"><span class="ini">DM</span><div>
+      <div class="tx">Gluer down until noon — Vega picking up the Kellogg run.</div>
+      <div class="mt">Dave M · 07:44</div></div></div>
+  </div>
+  <p class="sub" style="margin-top:20px">This is the morning the plant filled in, shown here so
+    everything lives behind one login. The numbers it carries feed Metrics.</p>
+</div></div>
+
+<!-- ── Data sources ───────────────────────────────────────────────────── -->
+<div class="mod" data-mod="sources"><div class="pad">
+  <h2>Data sources</h2>
+  <p class="sub">Read at 05:30 every morning. Anything that fails to arrive says so rather than
+    showing yesterday as though it were today.</p>
+  <table class="plain">
+    <tr><th>Source</th><th>Where it comes from</th><th>Last read</th><th>Rows</th><th>Metrics</th></tr>
+    <tr><td><span class="dot ok"></span>OTIF Tracker</td><td class="mono">SharePoint · Plant KPIs</td>
+      <td>05:32 today</td><td>994</td><td>4</td></tr>
+    <tr><td><span class="dot ok"></span>Mississauga KPI</td><td class="mono">SharePoint · Plant KPIs</td>
+      <td>05:32 today</td><td>2,140</td><td>11</td></tr>
+    <tr><td><span class="dot ok"></span>Quality KPI</td><td class="mono">SharePoint · Quality</td>
+      <td>05:33 today</td><td>386</td><td>5</td></tr>
+    <tr><td><span class="dot late"></span>Daily Operations Report</td><td class="mono">SharePoint · Ops</td>
+      <td>yesterday 05:31</td><td>1,208</td><td>7</td></tr>
+    <tr><td><span class="dot ok"></span>Docket Flow</td><td class="mono">SharePoint · CSR</td>
+      <td>05:34 today</td><td>3,902</td><td>3</td></tr>
+    <tr><td><span class="dot ok"></span>Morning Dashboard</td><td class="mono">this app</td>
+      <td>07:48 today</td><td>1</td><td>9</td></tr>
+  </table>
+  <p class="sub" style="margin-top:18px">A supply-chain database would appear here as one more row.</p>
+</div></div>
+
+<!-- ── Catalogue ──────────────────────────────────────────────────────── -->
+<div class="mod" data-mod="catalogue"><div class="pad">
+  <h2>Catalogue</h2>
+  <p class="sub">One written definition per metric. This is what stops two people asking the same
+    question and getting different numbers &mdash; and it is what fills the Fields list in Metrics.</p>
+  <table class="plain" id="catTbl"></table>
+  <p class="sub" style="margin-top:18px">Adding a metric is a row here, not a database change.</p>
+</div></div>
+
+<!-- ── People ─────────────────────────────────────────────────────────── -->
+<div class="mod" data-mod="people"><div class="pad">
+  <h2>People</h2>
+  <p class="sub">Who can get in, and what they can see. Access is per location.</p>
+  <table class="plain" id="pplTbl"></table>
+  <p class="sub" style="margin-top:18px">Switch account from the bottom of the menu on the left
+    to see the difference — the data, the modules and the buttons all change.</p>
+</div></div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+</div><!-- /main -->
+</div><!-- /app -->
+
+<script>
+/* ══ the catalogue ════════════════════════════════════════════════════════════
+   Everything the builder offers comes from here. A measure is either a plain
+   sum or a ratio of two sums — which is the whole reason OTIF averages
+   correctly instead of being an average of averages.                          */
+const MEASURES = [
+  {key:'jobs',      name:'Jobs shipped',      agg:'sum',   of:'jobs',   fmt:'int'},
+  {key:'late',      name:'Late shipments',    agg:'sum',   of:'late',   fmt:'int', bad:true},
+  {key:'otif',      name:'OTIF',              agg:'ratio', num:'onTime', den:'jobs', fmt:'pct1', target:98},
+  {key:'coq',       name:'Cost of quality',   agg:'ratio', num:'coqCost',den:'sales', fmt:'pct2', target:0.85, bad:true},
+  {key:'cartons',   name:'Cartons',           agg:'sum',   of:'cartons',fmt:'int'},
+  {key:'hours',     name:'Crew hours',        agg:'sum',   of:'hours',  fmt:'int1'},
+  {key:'perhour',   name:'Cartons per hour',  agg:'ratio', num:'cartons',den:'hours', fmt:'int'},
+  {key:'shortages', name:'Shortages',         agg:'sum',   of:'shortages',fmt:'int', bad:true},
+];
+const DIMS = [
+  {key:'dept',    name:'Department'},
+  {key:'machine', name:'Machine'},
+  {key:'shift',   name:'Shift'},
+  {key:'month',   name:'Month'},
+];
+const FMT = {
+  int:  v => v==null?'—':Math.round(v).toLocaleString(),
+  int1: v => v==null?'—':v.toLocaleString(undefined,{maximumFractionDigits:1}),
+  pct1: v => v==null?'—':(v*100).toFixed(1)+'%',
+  pct2: v => v==null?'—':(v*100).toFixed(2)+'%',
+};
+const M = k => MEASURES.find(m=>m.key===k);
+const D = k => DIMS.find(d=>d.key===k);
+
+/* ══ stand-in data ════════════════════════════════════════════════════════════
+   Shaped exactly like the warehouse rows will be, so the builder above it never
+   learns it was reading a sample. Seeded, so the numbers hold still.          */
+const LOCS = [
+  {id:'Mississauga', scale:1.00, machines:{'Printing':['KBA 40','Heidelberg 28'],
+    'Die Cutting':['Bobst 106','Bobst 76'],'Gluing':['Jagenberg','Vega']}},
+  {id:'Brampton',    scale:0.58, machines:{'Printing':['KBA 28'],
+    'Die Cutting':['Bobst 76 II'],'Gluing':['Vega II']}},
+];
+const DEPTS = ['Printing','Die Cutting','Gluing'];
+const SHIFTS = ['A','B'];
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug'];
+let seed = 20260819;
+const rnd = () => (seed = (seed*1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+
+const ROWS = [];
+LOCS.forEach(L => DEPTS.forEach((dept,di) => L.machines[dept].forEach(machine =>
+  SHIFTS.forEach(shift => MONTHS.forEach((month,mi) => {
+    const scale   = [1, .68, 3.4][di] * L.scale;
+    const drift   = 1 + mi*0.018;
+    const jobs    = Math.round((44 + rnd()*22) * (di===2?1.25:1) * L.scale);
+    const late    = Math.max(0, Math.round(jobs * (0.012 + rnd()*0.05) * (mi===6?2.4:1)));
+    const cartons = Math.round((26000 + rnd()*9000) * scale * drift);
+    const hours   = Math.round((150 + rnd()*40) * (di===2?1.05:1) * L.scale * 10)/10;
+    const sales   = (900000 + rnd()*260000) * L.scale;
+    ROWS.push({loc:L.id, dept, machine, shift, month,
+      jobs, late, onTime: jobs-late, cartons, hours,
+      coqCost: sales * (0.0016 + rnd()*0.004),
+      sales,
+      shortages: Math.round(rnd()*3.4)});
+  })))));
+
+/* ══ who is signed in ═════════════════════════════════════════════════════════
+   Four demo accounts with genuinely different reach, so access can be seen
+   working rather than described. Switching account changes the data, the
+   modules and the buttons — nothing here is decoration.                       */
+const USERS = [
+  {id:'javadresa', name:'Javad R',   ini:'JR', role:'Owner',
+   locs:['Mississauga','Brampton'], can:['read','fill','publish','admin']},
+  {id:'angelaw',   name:'Angela Wu', ini:'AW', role:'Plant manager · Mississauga',
+   locs:['Mississauga'],            can:['read','fill','publish']},
+  {id:'deepb',     name:'Deep Brar', ini:'DB', role:'Plant manager · Brampton',
+   locs:['Brampton'],               can:['read','fill','publish']},
+  {id:'joet',      name:'Joe Tran',  ini:'JT', role:'Read only · Mississauga',
+   locs:['Mississauga'],            can:['read']},
+];
+let me = USERS[0];
+const can = c => me.can.includes(c) || me.can.includes('admin');
+
+/* ══ state ════════════════════════════════════════════════════════════════ */
+const state = {
+  loc:'Mississauga',
+  rows:['dept'], cols:['month'], values:['cartons','perhour'], filters:[],
+  chart:'column', labels:false, target:true, totals:true,
+};
+
+/* ══ the query ════════════════════════════════════════════════════════════ */
+function aggregate(rows, mkey){
+  const m = M(mkey);
+  if (!rows.length) return null;
+  if (m.agg === 'sum')   return rows.reduce((a,r)=>a + (r[m.of]||0), 0);
+  const num = rows.reduce((a,r)=>a + (r[m.num]||0), 0);
+  const den = rows.reduce((a,r)=>a + (r[m.den]||0), 0);
+  return den ? num/den : null;
+}
+const keyOf = (r, dims) => dims.map(d=>r[d]).join(' · ');
+/* the only place the access rule lives: a row you may not see never arrives */
+const visible = () => ROWS.filter(r => me.locs.includes(r.loc) && r.loc===state.loc);
+const orderFor = d => d==='month' ? MONTHS : d==='dept' ? DEPTS
+  : d==='shift' ? SHIFTS : [...new Set(visible().map(r=>r[d]))];
+
+function compute(){
+  const src = visible();                  /* filters would narrow this further */
+  const rd = state.rows, cd = state.cols, vs = state.values;
+  const rowKeys = rd.length
+    ? orderFor(rd[0]).filter(k => src.some(r=>keyOf(r,rd)===k))
+    : ['All'];
+  const colKeys = cd.length
+    ? orderFor(cd[0]).filter(k => src.some(r=>keyOf(r,cd)===k))
+    : ['All'];
+  const cell = {};
+  rowKeys.forEach(rk => colKeys.forEach(ck => {
+    const sub = src.filter(r =>
+      (!rd.length || keyOf(r,rd)===rk) && (!cd.length || keyOf(r,cd)===ck));
+    vs.forEach(v => cell[rk+'||'+ck+'||'+v] = aggregate(sub, v));
+  }));
+  const rowTot = {}, colTot = {}, grand = {};
+  vs.forEach(v => {
+    rowKeys.forEach(rk => rowTot[rk+'||'+v] =
+      aggregate(src.filter(r=>!rd.length||keyOf(r,rd)===rk), v));
+    colKeys.forEach(ck => colTot[ck+'||'+v] =
+      aggregate(src.filter(r=>!cd.length||keyOf(r,cd)===ck), v));
+    grand[v] = aggregate(src, v);
+  });
+  return {rowKeys, colKeys, cell, rowTot, colTot, grand};
+}
+
+/* ══ drawing ══════════════════════════════════════════════════════════════ */
+const SER = ['var(--s1)','var(--s2)','var(--s3)','var(--s4)','var(--s5)','var(--s6)'];
+const esc = t => String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function svgChart(q, mkey){
+  const m = M(mkey), fmt = FMT[m.fmt];
+  const W = 780, H = 268, padL = 58, padR = 14, padT = 14, padB = 34;
+  const iw = W-padL-padR, ih = H-padT-padB;
+  const cats = q.colKeys, series = q.rowKeys;
+  const val = (rk,ck) => q.cell[rk+'||'+ck+'||'+mkey];
+  const all = [];
+  series.forEach(s=>cats.forEach(c=>{const v=val(s,c); if(v!=null)all.push(v);}));
+  if (!all.length) return '<p class="empty">Nothing to draw for this combination.</p>';
+
+  const stacked = state.chart==='column' && series.length>1 && m.agg==='sum';
+  let max = stacked
+    ? Math.max(...cats.map(c=>series.reduce((a,s)=>a+(val(s,c)||0),0)))
+    : Math.max(...all);
+  const tgt = (m.target!=null && state.target)
+    ? (m.fmt.startsWith('pct') ? m.target/100 : m.target) : null;
+  const zeroBased = state.chart==='column' || state.chart==='bar' || m.agg==='sum';
+  let min;
+  if (zeroBased){
+    min = Math.min(0, ...all);
+    if (tgt!=null) max = Math.max(max, tgt);
+    max = max*1.08 || 1;
+  } else {
+    const lo = Math.min(...all, tgt==null?Infinity:tgt);
+    const hi = Math.max(...all, tgt==null?-Infinity:tgt);
+    const pad = (hi-lo)*0.28 || Math.abs(hi)*0.04 || 1;
+    min = lo-pad; max = hi+pad;
+  }
+  const x = i => padL + (iw/cats.length)*(i+0.5);
+  const y = v => padT + ih - ((v-min)/(max-min))*ih;
+
+  let g = '';
+  /* grid + axis */
+  for (let t=0;t<=4;t++){
+    const v = min + (max-min)*t/4, yy = y(v);
+    g += `<line x1="${padL}" y1="${yy}" x2="${W-padR}" y2="${yy}" stroke="var(--line)"
+      stroke-width="1"/><text x="${padL-8}" y="${yy+4}" text-anchor="end"
+      font-size="10" fill="var(--mut)" font-family="var(--fm)">${fmt(v)}</text>`;
+  }
+  cats.forEach((c,i)=> g += `<text x="${x(i)}" y="${H-12}" text-anchor="middle" font-size="11"
+    fill="var(--mut)">${esc(c)}</text>`);
+
+  const chart = state.chart;
+  if (chart==='column' || chart==='bar'){
+    const bw = Math.min(46, (iw/cats.length) * (stacked?0.52:0.74/series.length));
+    cats.forEach((c,i)=>{
+      if (stacked){
+        let acc = 0;
+        series.forEach((s,si)=>{
+          const v = val(s,c)||0, y0 = y(acc), y1 = y(acc+v);
+          g += `<rect x="${x(i)-bw/2}" y="${y1}" width="${bw}" height="${Math.max(0,y0-y1)}"
+            fill="${SER[si%6]}" rx="2"><title>${esc(s)} · ${esc(c)} · ${fmt(v)}</title></rect>`;
+          acc += v;
+        });
+        if (state.labels) g += `<text x="${x(i)}" y="${y(acc)-6}" text-anchor="middle"
+          font-size="10" fill="var(--ink-2)" font-family="var(--fm)">${fmt(acc)}</text>`;
+      } else {
+        series.forEach((s,si)=>{
+          const v = val(s,c); if (v==null) return;
+          const off = (si - (series.length-1)/2) * (bw+3);
+          g += `<rect x="${x(i)+off-bw/2}" y="${y(v)}" width="${bw}"
+            height="${Math.max(0,y(min)-y(v))}" fill="${SER[si%6]}" rx="2">
+            <title>${esc(s)} · ${esc(c)} · ${fmt(v)}</title></rect>`;
+          if (state.labels) g += `<text x="${x(i)+off}" y="${y(v)-5}" text-anchor="middle"
+            font-size="9.5" fill="var(--ink-2)" font-family="var(--fm)">${fmt(v)}</text>`;
+        });
+      }
+    });
+  }
+  if (chart==='line' || chart==='area'){
+    series.forEach((s,si)=>{
+      const pts = cats.map((c,i)=>{const v=val(s,c); return v==null?null:[x(i),y(v)];})
+        .filter(Boolean);
+      if (!pts.length) return;
+      const d = pts.map(p=>p.join(',')).join(' ');
+      if (chart==='area')
+        g += `<polygon points="${pts[0][0]},${y(min)} ${d} ${pts[pts.length-1][0]},${y(min)}"
+          fill="${SER[si%6]}" opacity=".16"/>`;
+      g += `<polyline points="${d}" fill="none" stroke="${SER[si%6]}" stroke-width="2.4"
+        stroke-linejoin="round" stroke-linecap="round"/>`;
+      pts.forEach((p,i)=> g += `<circle cx="${p[0]}" cy="${p[1]}" r="3.4" fill="${SER[si%6]}">
+        <title>${esc(s)} · ${esc(cats[i])} · ${fmt(val(s,cats[i]))}</title></circle>`);
+    });
+  }
+  if (chart==='scatter'){
+    series.forEach((s,si)=> cats.forEach((c,i)=>{
+      const v = val(s,c); if (v==null) return;
+      g += `<circle cx="${x(i)}" cy="${y(v)}" r="5" fill="${SER[si%6]}" opacity=".8">
+        <title>${esc(s)} · ${esc(c)} · ${fmt(v)}</title></circle>`;
+    }));
+  }
+  if (m.target!=null && state.target){
+    const tv = m.fmt.startsWith('pct') ? m.target/100 : m.target;
+    g += `<line x1="${padL}" y1="${y(tv)}" x2="${W-padR}" y2="${y(tv)}" stroke="var(--red)"
+      stroke-width="1.5" stroke-dasharray="5 4"/>
+      <text x="${W-padR}" y="${y(tv)-6}" text-anchor="end" font-size="10" fill="var(--red)"
+      font-family="var(--fm)">target ${fmt(tv)}</text>`;
+  }
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}"
+    role="img" aria-label="${esc(m.name)} chart">${g}</svg>`;
+}
+
+function donut(q, mkey){
+  const m = M(mkey), fmt = FMT[m.fmt];
+  const parts = q.rowKeys.map(rk => ({k:rk, v:q.rowTot[rk+'||'+mkey]||0}))
+    .filter(p=>p.v>0);
+  const tot = parts.reduce((a,p)=>a+p.v,0);
+  if (!tot) return '<p class="empty">Nothing to draw.</p>';
+  const R=98, r=58, cx=140, cy=124;
+  let a0 = -Math.PI/2, g='';
+  parts.forEach((p,i)=>{
+    const a1 = a0 + (p.v/tot)*Math.PI*2, big = (a1-a0)>Math.PI?1:0;
+    const P=(rad,a)=>[cx+rad*Math.cos(a), cy+rad*Math.sin(a)];
+    const [x0,y0]=P(R,a0),[x1,y1]=P(R,a1),[x2,y2]=P(r,a1),[x3,y3]=P(r,a0);
+    g += `<path d="M${x0},${y0} A${R},${R} 0 ${big} 1 ${x1},${y1} L${x2},${y2}
+      A${r},${r} 0 ${big} 0 ${x3},${y3} Z" fill="${SER[i%6]}">
+      <title>${esc(p.k)} · ${fmt(p.v)} · ${(p.v/tot*100).toFixed(1)}%</title></path>`;
+    a0 = a1;
+  });
+  g += `<text x="${cx}" y="${cy-2}" text-anchor="middle" font-family="var(--fc)"
+    font-size="30" fill="var(--ink)">${fmt(tot)}</text>
+    <text x="${cx}" y="${cy+18}" text-anchor="middle" font-size="11" fill="var(--mut)">total</text>`;
+  return `<svg viewBox="0 0 280 250" width="100%" height="250" role="img"
+    aria-label="${esc(m.name)} share">${g}</svg>`;
+}
+
+function table(q){
+  const vs = state.values, multi = vs.length>1;
+  const rowLbl = state.rows.map(d=>D(d).name).join(' · ') || 'All';
+  let h;
+  if (multi){
+    h = `<tr><th rowspan="2" class="stub">${esc(rowLbl)}</th>`
+      + q.colKeys.map(ck => `<th colspan="${vs.length}" class="grp">${esc(ck)}</th>`).join('')
+      + (state.totals ? `<th colspan="${vs.length}" class="grp">Total</th>` : '')
+      + '</tr><tr>'
+      + q.colKeys.map(() => vs.map(v=>`<th class="sub">${esc(M(v).name)}</th>`).join('')).join('')
+      + (state.totals ? vs.map(v=>`<th class="sub">${esc(M(v).name)}</th>`).join('') : '')
+      + '</tr>';
+  } else {
+    h = `<tr><th class="stub">${esc(rowLbl)}</th>`
+      + q.colKeys.map(ck=>`<th>${esc(ck)}</th>`).join('')
+      + (state.totals ? '<th>Total</th>' : '') + '</tr>';
+  }
+  let b = '';
+  q.rowKeys.forEach(rk => {
+    b += `<tr><td>${esc(rk)}</td>`;
+    q.colKeys.forEach(ck => vs.forEach(v =>
+      b += `<td>${FMT[M(v).fmt](q.cell[rk+'||'+ck+'||'+v])}</td>`));
+    if (state.totals) vs.forEach(v =>
+      b += `<td>${FMT[M(v).fmt](q.rowTot[rk+'||'+v])}</td>`);
+    b += '</tr>';
+  });
+  if (state.totals){
+    b += '<tr class="tot"><td>Total</td>';
+    q.colKeys.forEach(ck => vs.forEach(v =>
+      b += `<td>${FMT[M(v).fmt](q.colTot[ck+'||'+v])}</td>`));
+    vs.forEach(v => b += `<td>${FMT[M(v).fmt](q.grand[v])}</td>`);
+    b += '</tr>';
+  }
+  return `<div class="tblwrap"><table>${h}${b}</table></div>`;
+}
+
+/* ══ render ═══════════════════════════════════════════════════════════════ */
+function titleOf(){
+  const vs = state.values.map(v=>M(v).name).join(' and ');
+  if (!vs) return 'Pick a measure';
+  const by = state.rows.map(d=>D(d).name).join(' · ');
+  return vs + (by?' by '+by:'');
+}
+
+function render(){
+  const ms = document.getElementById('morningSub');
+  if (ms) ms.textContent = state.loc + ' · published 07:48 by '
+    + (state.loc==='Brampton' ? 'Deep Brar' : 'Angela Wu')
+    + ' · read-only here, filled in on the plant floor';
+  /* fields */
+  const q = document.getElementById('fsearch').value.trim().toLowerCase();
+  const hit = n => !q || n.toLowerCase().includes(q);
+  document.getElementById('measList').innerHTML = MEASURES.filter(m=>hit(m.name))
+    .map(m=>`<button class="field${state.values.includes(m.key)?' used':''}"
+      draggable="true" data-kind="m" data-key="${m.key}">
+      <span class="k m">${m.agg==='sum'?'Σ':'%'}</span>${esc(m.name)}</button>`).join('');
+  document.getElementById('dimList').innerHTML = DIMS.filter(d=>hit(d.name))
+    .map(d=>`<button class="field${state.rows.concat(state.cols).includes(d.key)?' used':''}"
+      draggable="true" data-kind="d" data-key="${d.key}">
+      <span class="k d">⊞</span>${esc(d.name)}</button>`).join('');
+
+  /* zones */
+  document.querySelectorAll('.zone').forEach(z=>{
+    const which = z.dataset.zone, slot = z.querySelector('.slot');
+    const list = which==='values' ? state.values
+      : which==='filters' ? state.filters : state[which];
+    slot.innerHTML = list.length
+      ? list.map(k=>{
+          const isM = which==='values';
+          const nm = isM ? M(k).name : (D(k)?D(k).name:k);
+          return `<span class="tokn ${isM?'m':'d'}">${esc(nm)}
+            <button data-drop="${which}|${k}" aria-label="Remove ${esc(nm)}">✕</button></span>`;
+        }).join('')
+      : `<span class="zempty">${which==='filters'?'whole year':'drop a field'}</span>`;
+  });
+
+  /* result */
+  const viz = document.getElementById('viz');
+  if (!state.values.length){
+    viz.innerHTML = '<div class="empty"><b>Pick a measure</b>Choose something from the list on '
+      + 'the left — Cartons, OTIF, Late shipments.</div>';
+  } else {
+    const qr = compute();
+    const primary = state.values[0];
+    let body;
+    if (state.chart==='table') body = '';
+    else if (state.chart==='donut') body = donut(qr, primary);
+    else body = svgChart(qr, primary);
+    const legend = (state.chart!=='table' && qr.rowKeys.length>1)
+      ? `<div class="legend">${qr.rowKeys.map((s,i)=>
+          `<span><i style="background:${SER[i%6]}"></i>${esc(s)}</span>`).join('')}</div>` : '';
+    const extra = state.values.length>1 && state.chart!=='table'
+      ? `<div class="stamp">Chart shows ${esc(M(primary).name)} · the table below carries
+         all ${state.values.length} measures</div>` : '';
+    viz.innerHTML = `<div class="viz-h"><b>${esc(titleOf())}</b>
+        <span class="rng">${esc(state.loc)} · Jan–Aug 2026</span></div>
+      <div class="stamp">as of 05:32 today · ${visible().length.toLocaleString()} rows
+        · sample data</div>
+      ${extra}<div class="chartbox">${body}</div>${legend}${table(qr)}`;
+  }
+
+  /* chart picker + options */
+  document.querySelectorAll('.ctype').forEach(b =>
+    b.classList.toggle('on', b.dataset.chart===state.chart));
+  document.querySelectorAll('.toggle').forEach(b =>
+    b.classList.toggle('on', !!state[b.dataset.opt]));
+}
+
+/* ══ interaction ══════════════════════════════════════════════════════════ */
+function addField(kind, key, zone){
+  if (kind==='m'){
+    const z = 'values';
+    if (state.values.includes(key)) return;
+    state.values.push(key);
+  } else {
+    let z = zone;
+    if (!z) { z = state.rows[0]===key ? 'cols' : 'rows'; }
+    ['rows','cols'].forEach(w => state[w] = state[w].filter(k=>k!==key));
+    state[z] = [key];                     /* one level each, for now */
+  }
+  render();
+}
+document.addEventListener('click', e => {
+  const f = e.target.closest('.field');
+  if (f){ addField(f.dataset.kind, f.dataset.key); return; }
+  const rm = e.target.closest('[data-drop]');
+  if (rm){
+    const [w,k] = rm.dataset.drop.split('|');
+    state[w] = state[w].filter(x=>x!==k); render(); return;
+  }
+  const c = e.target.closest('.ctype');
+  if (c){ state.chart = c.dataset.chart; render(); return; }
+  const t = e.target.closest('.toggle');
+  if (t){ state[t.dataset.opt] = !state[t.dataset.opt]; render(); return; }
+});
+document.getElementById('fsearch').addEventListener('input', render);
+
+/* drag and drop, because that is how a pivot is supposed to feel */
+let dragging = null;
+document.addEventListener('dragstart', e => {
+  const f = e.target.closest('.field'); if (!f) return;
+  dragging = {kind:f.dataset.kind, key:f.dataset.key};
+  e.dataTransfer.effectAllowed = 'copy';
+});
+document.querySelectorAll('.zone').forEach(z => {
+  z.addEventListener('dragover', e => {e.preventDefault(); z.classList.add('over');});
+  z.addEventListener('dragleave', () => z.classList.remove('over'));
+  z.addEventListener('drop', e => {
+    e.preventDefault(); z.classList.remove('over');
+    if (!dragging) return;
+    const zone = z.dataset.zone;
+    if (dragging.kind==='m' && zone!=='values') { say('Measures go in Values'); dragging=null; return; }
+    if (dragging.kind==='d' && zone==='values') { say('Values take a measure, not a dimension');
+      dragging=null; return; }
+    addField(dragging.kind, dragging.key, zone);
+    dragging = null;
+  });
+});
+
+/* chart types */
+const ICONS = {
+  column:'<rect x="3" y="10" width="6" height="12"/><rect x="12" y="5" width="6" height="17"/><rect x="21" y="13" width="6" height="9"/>',
+  line:'<polyline points="3,19 11,12 19,15 31,4" fill="none" stroke="currentColor" stroke-width="2"/>',
+  area:'<path d="M3 19 L11 11 L19 14 L31 5 L31 21 L3 21 Z" opacity=".35"/><polyline points="3,19 11,11 19,14 31,5" fill="none" stroke="currentColor" stroke-width="2"/>',
+  bar:'<rect x="3" y="4" width="20" height="5"/><rect x="3" y="12" width="27" height="5"/>',
+  donut:'<circle cx="17" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="5" stroke-dasharray="38 60"/>',
+  scatter:'<circle cx="8" cy="17" r="2.5"/><circle cx="16" cy="9" r="2.5"/><circle cx="23" cy="14" r="2.5"/><circle cx="29" cy="6" r="2.5"/>',
+  table:'<rect x="4" y="5" width="26" height="4" opacity=".35"/><rect x="4" y="11" width="26" height="4" opacity=".35"/><rect x="4" y="17" width="26" height="4" opacity=".35"/>',
+};
+document.getElementById('charts').innerHTML = Object.keys(ICONS).map(k =>
+  `<button class="ctype" data-chart="${k}"><svg width="34" height="24" viewBox="0 0 34 24"
+    fill="currentColor" aria-hidden="true">${ICONS[k]}</svg>${k[0].toUpperCase()+k.slice(1)}</button>`
+).join('');
+document.getElementById('opts').innerHTML = [
+  ['target','Target line'],['labels','Data labels'],['totals','Totals row'],
+].map(([k,n]) => `<button class="toggle" data-opt="${k}"><span class="box"></span>${n}</button>`).join('');
+
+/* actions */
+let tid;
+function say(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('on');
+  clearTimeout(tid); tid = setTimeout(()=>t.classList.remove('on'), 2200);
+}
+document.getElementById('saveBtn').onclick  = () => say('View saved — it would appear under Saved views');
+document.getElementById('pinBtn').onclick   = () => say('Pinned — this becomes a tile on the home screen');
+document.getElementById('shareBtn').onclick = () => say('Link copied — it carries this exact view');
+document.getElementById('resetBtn').onclick = () => {
+  Object.assign(state,{rows:['dept'],cols:['month'],values:['cartons','perhour'],
+    chart:'column',labels:false,target:true,totals:true});
+  render(); say('Back to the starting view');
+};
+document.getElementById('csvBtn').onclick = () => {
+  if (!state.values.length) return say('Nothing to export yet');
+  const q = compute(), vs = state.values;
+  const head = [state.rows.map(d=>D(d).name).join(' · ')||'All']
+    .concat(q.colKeys.flatMap(ck => vs.map(v => ck+(vs.length>1?' · '+M(v).name:''))));
+  const body = q.rowKeys.map(rk => [rk].concat(
+    q.colKeys.flatMap(ck => vs.map(v => {
+      const x = q.cell[rk+'||'+ck+'||'+v];
+      return x==null ? '' : (M(v).fmt.startsWith('pct') ? (x*100).toFixed(2) : Math.round(x*10)/10);
+    }))));
+  const csv = [head, ...body].map(r =>
+    r.map(c => /[",]/.test(String(c)) ? '"'+String(c).replace(/"/g,'""')+'"' : c).join(',')).join('\n');
+  say('CSV ready — ' + (body.length+1) + ' rows');
+  console.log(csv);
+};
+
+/* ══ modules ══════════════════════════════════════════════════════════════════
+   One login, several modules, room for more. The rail is the only navigation;
+   each module is a panel that shows or hides. Nothing here knows what the
+   others do, which is the point — a new module is a nav button and a panel.  */
+const MODULES = {
+  morning:   {title:'Morning Dashboard', crumb:() => state.loc + ' · today'},
+  metrics:   {title:'Metrics',           crumb:'build · untitled view'},
+  sources:   {title:'Data sources',      crumb:'read at 05:30 daily'},
+  catalogue: {title:'Catalogue',         crumb:MEASURES.length + ' metrics defined'},
+  people:    {title:'People',            crumb:() => USERS.length + ' with access'},
+};
+/* Which modules an account may open at all. */
+const MOD_NEEDS = {morning:'read', metrics:'read', sources:'read',
+                   catalogue:'read', people:'admin'};
+
+function signIn(user){
+  me = user;
+  if (!me.locs.includes(state.loc)) state.loc = me.locs[0];
+  try{ localStorage.setItem('mmUser', me.id); }catch(e){}
+  paintWho(); paintPeople();
+  /* an account that cannot see the module it was looking at goes somewhere it can */
+  const open = document.querySelector('.mod.on')?.dataset.mod || 'metrics';
+  go(can(MOD_NEEDS[open]) ? open : 'metrics');
+  render();
+  say('Signed in as ' + me.name + ' · ' + me.role);
+}
+function paintWho(){
+  document.getElementById('whoIni').textContent  = me.ini;
+  document.getElementById('whoName').textContent = me.name;
+  document.getElementById('whoRole').textContent = me.role;
+  /* modules this account cannot open are not shown at all */
+  document.querySelectorAll('.navitem[data-go]').forEach(b =>
+    b.hidden = !can(MOD_NEEDS[b.dataset.go]));
+  /* the locations this account is allowed */
+  const sel = document.getElementById('locSel');
+  sel.innerHTML = me.locs.map(l =>
+    `<option${l===state.loc?' selected':''}>${esc(l)}</option>`).join('');
+  sel.disabled = me.locs.length===1;
+  document.getElementById('roFlag').hidden = can('fill');
+  /* read-only accounts get no Save, no Pin */
+  ['saveBtn','pinBtn'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.hidden = !can('fill');
+  });
+  document.getElementById('whoMenu').innerHTML = USERS.map(u =>
+    `<button class="whorow${u.id===me.id?' on':''}" data-user="${u.id}">
+      <span class="av">${u.ini}</span>
+      <span>${esc(u.name)}<small>${esc(u.role)}</small></span></button>`).join('');
+}
+document.addEventListener('click', e => {
+  if (e.target.closest('#whoBtn')){
+    const m = document.getElementById('whoMenu'); m.hidden = !m.hidden;
+    if (!m.hidden) document.getElementById('appnav').classList.add('wide');
+    return;
+  }
+  const row = e.target.closest('[data-user]');
+  if (row){
+    document.getElementById('whoMenu').hidden = true;
+    signIn(USERS.find(u=>u.id===row.dataset.user));
+    return;
+  }
+  if (!e.target.closest('#whoMenu')) document.getElementById('whoMenu').hidden = true;
+});
+function paintCrumb(mod){
+  const c = MODULES[mod||openMod()].crumb;
+  document.getElementById('crumb').textContent = typeof c==='function' ? c() : c;
+}
+const openMod = () => document.querySelector('.mod.on')?.dataset.mod || 'metrics';
+document.getElementById('locSel').onchange = e => {
+  state.loc = e.target.value; render(); paintCrumb();
+  say('Showing ' + state.loc);
+};
+
+function go(mod){
+  if (!MODULES[mod] || !can(MOD_NEEDS[mod])) return;
+  document.querySelectorAll('.mod').forEach(p => p.classList.toggle('on', p.dataset.mod===mod));
+  document.querySelectorAll('.navitem[data-go]').forEach(b =>
+    b.classList.toggle('on', b.dataset.go===mod));
+  document.getElementById('modTitle').textContent = MODULES[mod].title;
+  paintCrumb(mod);
+  /* the builder's own controls only belong to the builder */
+  document.querySelectorAll('.hdr .sp .own-metrics').forEach(el =>
+    el.style.display = mod==='metrics' ? '' : 'none');
+  try{ localStorage.setItem('mmModule', mod); }catch(e){}
+  if (location.hash.slice(1) !== mod) history.replaceState(null,'','#'+mod);
+}
+document.addEventListener('click', e => {
+  const n = e.target.closest('.navitem[data-go]');
+  if (n) go(n.dataset.go);
+});
+const nav = document.getElementById('appnav');
+document.getElementById('navToggle').onclick = () => {
+  const wide = nav.classList.toggle('wide');
+  try{ localStorage.setItem('mmNavWide', wide?'1':'0'); }catch(e){}
+};
+try{ if (localStorage.getItem('mmNavWide')==='1') nav.classList.add('wide'); }catch(e){}
+
+/* People reads the same list the switcher does */
+function paintPeople(){
+  const t = document.getElementById('pplTbl'); if (!t) return;
+  t.innerHTML = '<tr><th>Name</th><th>Username</th><th>Locations</th><th>Can</th></tr>' +
+    USERS.map(u => `<tr><td><b>${esc(u.name)}</b>${u.id===me.id?' <span class="mono">· signed in</span>':''}</td>
+      <td class="mono">${esc(u.id)}</td><td>${u.locs.join(', ')}</td>
+      <td>${u.can.includes('admin') ? 'Everything'
+          : u.can.includes('publish') ? 'Fill in and publish'
+          : 'Read and comment'}</td></tr>`).join('');
+}
+
+/* the catalogue module reads the same list the builder does */
+document.getElementById('catTbl').innerHTML =
+  '<tr><th>Metric</th><th>Key</th><th>How it is worked out</th><th>Unit</th><th>Target</th></tr>' +
+  MEASURES.map(m => {
+    const how = m.agg==='sum'
+      ? 'Sum of ' + m.of
+      : 'Sum of ' + m.num + ' ÷ sum of ' + m.den;
+    const unit = m.fmt.startsWith('pct') ? 'percent' : 'count';
+    const tgt = m.target==null ? '—'
+      : (m.fmt.startsWith('pct') ? m.target+'%' : m.target) + (m.bad?' or less':' or more');
+    return `<tr><td><b>${esc(m.name)}</b></td><td class="mono">${esc(m.key)}</td>
+      <td class="mono">${esc(how)}</td><td>${unit}</td><td>${tgt}</td></tr>`;
+  }).join('');
+
+let start = USERS[0];
+try{ start = USERS.find(u=>u.id===localStorage.getItem('mmUser')) || USERS[0]; }catch(e){}
+me = start;
+if (!me.locs.includes(state.loc)) state.loc = me.locs[0];
+paintWho(); paintPeople();
+render();
+const wanted = (location.hash.slice(1) in MODULES) ? location.hash.slice(1)
+  : (localStorage.getItem('mmModule') || 'metrics');
+go(can(MOD_NEEDS[wanted]) ? wanted : 'metrics');
+</script>
