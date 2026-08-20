@@ -48,8 +48,8 @@ say(await p.$eval('body',n=>n.classList.contains('pres-mode')),'it is in present
 say((await p.$$eval('.say',n=>n.filter(x=>x.offsetParent).length))===0,
     'every Add box and button is gone');
 say((await p.$$eval('.who-pick',n=>n.filter(x=>x.offsetParent).length))===0,'and the name picker with it');
-say((await p.$$eval('.talk.thread-empty',n=>n.filter(x=>x.offsetParent).length))===0,
-    'no headings left standing over empty threads');
+say((await p.$$eval('.talk.thread-empty:not(.keep-empty)',n=>n.filter(x=>x.offsetParent).length))===0,
+    'no section comments box left standing over an empty thread');
 say((await p.$$eval('.msg-acts',n=>n.filter(x=>x.offsetParent).length))===0,'no Edit or Delete');
 
 const notes=await p.$$eval('.review-note',n=>n.map(x=>x.textContent.trim()));
@@ -99,6 +99,18 @@ say(row.shown,'every production card is still there, quiet or not');
 say(row.spread<=1,'and all four stand at one height — '+row.heights.join(' / '));
 say(row.glHasText,'with the fault written in the one that had it');
 say(row.dots===0,'no status bullets left on the wall');
+
+/* pre-production is three cards, and stays three cards */
+const pp=await p.evaluate(()=>{
+  const box=document.getElementById('preprodCard');
+  const sec=[...document.querySelectorAll('.sec')].find(s=>/pre-produc/i.test(s.textContent));
+  return {shown:box && getComputedStyle(box).display!=='none',
+          empty:box.classList.contains('thread-empty'),
+          heading:box.querySelector('.talk-h').textContent.replace(/\s+/g,' ').trim()};
+});
+say(pp.shown,'the pre-production support card is on the wall');
+say(pp.empty,'even with nobody having written in it yet');
+say(/Ink room/.test(pp.heading),'and the ink room is named on it — "'+pp.heading+'"');
 
 say((await p.$$('[data-thread="priorities"] .msg')).length===1,'what matters most still reads');
 say(errs.length===0,'no errors'+(errs.length?': '+errs.join(' | '):''));

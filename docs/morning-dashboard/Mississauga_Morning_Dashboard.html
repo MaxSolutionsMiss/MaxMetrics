@@ -489,8 +489,16 @@ body.pres-mode .msg-acts{display:none}
    same rule for print, because a printed morning is a wall that does not scroll. */
 body.pres-mode .say,
 body.pres-mode .who-pick{display:none}
-/* a thread nobody wrote in is a heading over nothing */
-body.pres-mode .talk.thread-empty{display:none}
+/* A thread nobody wrote in is a heading over nothing, so the comments box under
+   a section comes off the wall when it is empty.
+
+   `keep-empty` is the exception, and pre-production is why it exists: that box is
+   not a comment thread hanging off a section, it is one of the three cards the
+   section is made of — the one where customer service, estimating, prepress, the
+   die shop, the ink room and supply chain report in. Taking it away leaves two
+   cards and a gap where a card used to be, which reads as something broken
+   rather than something quiet. */
+body.pres-mode .talk.thread-empty:not(.keep-empty){display:none}
 /* A card is never taken off the wall for being quiet — a row with a hole in it
    reads as a fault, and the eye spends longer working out what is missing than
    it would have spent skipping an empty card.
@@ -520,7 +528,7 @@ body.pres-mode .review-note:empty{display:none}
 body.pres-mode .review-card{min-height:0;justify-content:flex-start}
 @media print{
   .say,.who-pick{display:none}
-  .talk.thread-empty{display:none}
+  .talk.thread-empty:not(.keep-empty){display:none}
   .card .talk{margin-top:12px}
   .review-note{min-height:0}
 }
@@ -831,13 +839,14 @@ body.pres-mode #c-priorities.awaiting{animation:none}
     </div>
   </div>
 
-  <div class="talk" style="margin-top:0" data-thread="preprod">
-    <div class="talk-h">Customer service &middot; Estimating &middot; Prepress &middot; Die shop &middot; Supply chain</div>
+  <div class="talk keep-empty" style="margin-top:0" data-thread="preprod" id="preprodCard">
+    <div class="talk-h">Customer service &middot; Estimating &middot; Prepress &middot; Die shop
+      &middot; Ink room &middot; Supply chain</div>
     <div class="msgs"></div>
     <div class="say">
         <select class="who-pick" aria-label="Who is speaking">
           <option>Customer service</option><option>Estimating</option><option>Prepress</option>
-          <option>Die shop</option><option>Supply chain</option>
+          <option>Die shop</option><option>Ink room</option><option>Supply chain</option>
         </select>
         <input placeholder="Add a comment&hellip;"><button>Add</button></div>
   </div>
