@@ -156,9 +156,17 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);font-si
 }
 .sec::before{content:'';display:block;height:1.5px;background:var(--border);flex:1}
 .sec::after {content:'';display:block;height:1.5px;background:var(--border);flex:1}
+/* 1fr is minmax(auto,1fr), and auto means "no narrower than what is in it".
+   With a heading set to never wrap, a five-card row could not shrink below the
+   width of its longest heading and simply pushed itself off the page. Every
+   track is now allowed to be narrower than its contents; what to do about that
+   is decided below, by reflowing rather than by squashing. */
 .row{display:grid;gap:10px}
-.r2{grid-template-columns:repeat(2,1fr)}.r3{grid-template-columns:repeat(3,1fr)}
-.r4{grid-template-columns:repeat(4,1fr)}.r5{grid-template-columns:repeat(5,1fr)}
+.row>*{min-width:0}
+.r2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.r3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.r4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.r5{grid-template-columns:repeat(5,minmax(0,1fr))}
 .span2{grid-column:span 2}.span3{grid-column:span 3}
 
 /* CARD */
@@ -279,12 +287,13 @@ body.pres-mode .review-note{font-size:16px;font-weight:400;min-height:56px}
 .finance-cell .ship-val{font-size:26px;white-space:nowrap}
 .finance-lines{font-family:var(--font-body);font-size:10.5px;line-height:1.35;color:var(--muted);width:100%;display:flex;flex-direction:column;gap:1px;margin-top:2px}
 .finance-lines div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.finance-toggle-field{min-width:145px;justify-content:center}
+.finance-toggle-field{min-width:0;justify-content:center}
 .finance-check{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;min-height:26px}
 .finance-check input{width:16px;height:16px;accent-color:var(--green)}
 .finance-help{font-size:10.5px;color:var(--light);line-height:1.25}
 .ship-edit-row{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
-  box-shadow:var(--shadow);padding:12px 16px;display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+  box-shadow:var(--shadow);padding:12px 16px;display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
 
 /* MAINTENANCE */
 .maint-tbl{width:100%;border-collapse:collapse;font-size:11px;margin-top:6px}
@@ -554,7 +563,9 @@ body.pres-mode .review-card{min-height:0;justify-content:flex-start}
   .review-note{min-height:0}
 }
 .say{display:flex;gap:8px;margin-top:10px}
-.say input{flex:1;font-family:var(--font-body);font-size:14px;padding:9px 11px;
+/* flex:1 alone still refuses to go narrower than the text inside it, which on a
+   narrow window pushed the Add button off the side of the page. */
+.say input{flex:1;min-width:0;font-family:var(--font-body);font-size:14px;padding:9px 11px;
   border:1px solid var(--border);border-radius:8px;background:#f8fafc}
 .say button{font-family:var(--font-body);font-size:13px;font-weight:600;padding:9px 18px;
   border-radius:8px;border:0;background:#2f7d4a;color:#fff;cursor:pointer}
@@ -653,6 +664,50 @@ body.pres-mode .review-card{min-height:0;justify-content:flex-start}
 .rail.tucked:hover a{width:42px}
 @media(min-width:1151px){.wrap{padding-left:74px}}
 @media(max-width:1150px){.rail{display:none}}
+
+/* ── When the window is not a boardroom screen ────────────────────────────────
+   This page is built to be read from across a room, so the first duty at any
+   width is that everything stays on the page and nothing lands on top of
+   anything else. Below 1250 the wide rows fold onto fewer columns rather than
+   being crushed, and headings are allowed to take a second line — a card that
+   is a little taller is fine, a card sticking off the edge is not.            */
+@media(max-width:1250px){
+  .c-lbl{white-space:normal}
+  .r5{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .r4{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .ship-strip,.ship-strip.fin-on{grid-template-columns:repeat(4,minmax(0,1fr))}
+  #review-grid>div{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+/* The production row asks for three department columns of 120px and 430px for
+   last week's table, which needs 848px before the page has drawn a margin. On
+   anything narrower the table goes underneath the departments instead of off the
+   side — the numbers are worth more than the arrangement. The minimums stay as
+   they are on a screen that can afford them, which is the screen this is for. */
+/* The header is a title, a date and a row of buttons across three tracks. All
+   three refuse to wrap, so their smallest possible widths added up to more than
+   a narrow window and dragged the whole page out with them — which is why the
+   page still scrolled sideways after every card had been dealt with. Stacked,
+   each takes the full width and wraps within it. */
+@media(max-width:1000px){
+  .say{flex-wrap:wrap}
+  .who-pick{max-width:none;flex:1 1 100%}
+  .hdr{grid-template-columns:minmax(0,1fr);justify-items:center;text-align:center;gap:10px}
+  .hdr-left{align-items:center}
+  .hdr-right,.hdr-row1{justify-content:center}
+}
+@media(max-width:900px){
+  #prod-grid>div{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+  #prod-grid>div>.card:last-child{grid-column:1/-1}
+  .r5,.r4,.r3{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .ship-strip,.ship-strip.fin-on{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .span2,.span3{grid-column:span 2}
+}
+@media(max-width:620px){
+  .r5,.r4,.r3,.r2{grid-template-columns:minmax(0,1fr)}
+  .ship-strip,.ship-strip.fin-on{grid-template-columns:repeat(2,minmax(0,1fr))}
+  #review-grid>div{grid-template-columns:minmax(0,1fr)!important}
+  .span2,.span3{grid-column:span 1}
+}
 @media print{.rail{display:none}}
 
 .rail-sep{height:1px;background:var(--border);margin:6px 7px;flex:none}
@@ -1164,6 +1219,15 @@ function applyFinancials(){
   if(rpt)rpt.textContent=enabled?'Reporting through '+reportDateLabel:'Reporting through prior day';
   const monthlyBudget=getFinBudget(monthIdx);
   const fullYearBudget=FIN_MONTHS.reduce((sum,_,i)=>sum+getFinBudget(i),0);
+  /* Blank and nought are different things, and the difference matters most on
+     the one card that turns red. Before anybody has typed this morning's sales
+     the boxes are empty; reading that as zero put "$0" on the wall under
+     "100.0% behind plan" in red, which is a plant in crisis rather than a plant
+     that has not opened its email yet. Untyped now shows a dash and no verdict,
+     and the card keeps its colour to itself until there is something to judge. */
+  const typed = id => { const el=document.getElementById(id);
+    return !!(el && String(el.value).trim()!==''); };
+  const hasMtd = typed('i-fin-actual'), hasYtd = typed('i-fin-ytd-actual');
   const actual=n('i-fin-actual',0);
   const actualYtd=n('i-fin-ytd-actual',0);
   const plan=monthlyBudget*(elapsed/daysInMonth);
@@ -1175,18 +1239,24 @@ function applyFinancials(){
   const ytdVariancePct=expectedYtd>0?(ytdVariance/expectedYtd*100):0;
   const mtdStatus=finStatus(variancePct), ytdStatus=finStatus(ytdVariancePct);
   const card=document.getElementById('financeCard');
-  if(card){card.classList.remove('green','amber','red');if(enabled)card.classList.add(worstFinStatus(mtdStatus,ytdStatus));}
+  if(card){card.classList.remove('green','amber','red');
+    if(enabled&&(hasMtd||hasYtd)){
+      const judged=[hasMtd?mtdStatus:null,hasYtd?ytdStatus:null].filter(Boolean);
+      card.classList.add(judged.reduce((a,b)=>worstFinStatus(a,b)));
+    }}
   const setText=(id,text,cls)=>{const el=document.getElementById(id);if(!el)return;el.textContent=text;el.classList.remove('finance-pos','finance-watch','finance-bad');if(cls)el.classList.add(cls);};
   const mtdArrow=variance>=0?'▲':'▼', ytdArrow=ytdVariance>=0?'▲':'▼';
-  setText('d-fin-actual',enabled?fmtMoney(actual):'Optional',enabled?financeClass(mtdStatus):'');
+  setText('d-fin-actual',!enabled?'Optional':hasMtd?fmtMoney(actual):'—',
+    enabled&&hasMtd?financeClass(mtdStatus):'');
   setText('d-fin-budget',enabled?fmtMoney(monthlyBudget):'—');
   setText('d-fin-plan',enabled?fmtMoney(plan):'—');
   const standing=v=>v>=0?' ahead of plan':' behind plan';
-  setText('d-fin-var',enabled?(mtdArrow+' '+fmtMoney(Math.abs(variance))+' ('+Math.abs(variancePct).toFixed(1)+'%)'+standing(variance)):'—',enabled?financeClass(mtdStatus):'');
-  setText('d-fin-ytd-actual',enabled?fmtMoney(actualYtd):'Optional',enabled?financeClass(ytdStatus):'');
+  setText('d-fin-var',enabled&&hasMtd?(mtdArrow+' '+fmtMoney(Math.abs(variance))+' ('+Math.abs(variancePct).toFixed(1)+'%)'+standing(variance)):'\u00A0',enabled&&hasMtd?financeClass(mtdStatus):'');
+  setText('d-fin-ytd-actual',!enabled?'Optional':hasYtd?fmtMoney(actualYtd):'—',
+    enabled&&hasYtd?financeClass(ytdStatus):'');
   setText('d-fin-year-budget',enabled?fmtMoney(fullYearBudget):'—');
   setText('d-fin-ytd-plan',enabled?fmtMoney(expectedYtd):'—');
-  setText('d-fin-ytd-var',enabled?(ytdArrow+' '+fmtMoney(Math.abs(ytdVariance))+' ('+Math.abs(ytdVariancePct).toFixed(1)+'%)'+standing(ytdVariance)):'—',enabled?financeClass(ytdStatus):'');
+  setText('d-fin-ytd-var',enabled&&hasYtd?(ytdArrow+' '+fmtMoney(Math.abs(ytdVariance))+' ('+Math.abs(ytdVariancePct).toFixed(1)+'%)'+standing(ytdVariance)):'\u00A0',enabled&&hasYtd?financeClass(ytdStatus):'');
 
   /* The two questions a sales number raises once you know it is behind: how much
      is left to sell, and how long is left to sell it in. Both are subtraction,
@@ -1205,8 +1275,8 @@ function applyFinancials(){
   const monthsLeft = 11 - monthIdx;
   const togo = (v) => v <= 0 ? 'Budget met' : fmtMoney(v);
   const togoCls = (v) => v <= 0 ? 'finance-pos' : '';
-  setText('d-fin-togo',     enabled?togo(togoMonth):'—', enabled?togoCls(togoMonth):'');
-  setText('d-fin-ytd-togo', enabled?togo(togoYear):'—',  enabled?togoCls(togoYear):'');
+  setText('d-fin-togo',     enabled&&hasMtd?togo(togoMonth):'—', enabled&&hasMtd?togoCls(togoMonth):'');
+  setText('d-fin-ytd-togo', enabled&&hasYtd?togo(togoYear):'—',  enabled&&hasYtd?togoCls(togoYear):'');
   setText('d-fin-left',     enabled?String(sellingDays):'—');
   setText('d-fin-ytd-left', enabled?String(monthsLeft):'—');
 }
@@ -2193,6 +2263,17 @@ function whoAmI(force, then){
   return null;
 }
 const esc=t=>String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+/* "2026-08-20 7:52 AM" reads as "20 Aug 7:52 AM". The year is the year everybody
+   is standing in and the leading zeros are noise; what matters is the day and the
+   time. Anything that does not parse is left exactly as it was found, so a
+   comment saved by an older copy of this page still reads. */
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function shortWhen(w){
+  const m=String(w==null?'':w).match(/^(\d{4})-(\d{2})-(\d{2})[ T]+(.*)$/);
+  if(!m)return String(w==null?'':w);
+  const mon=MON[+m[2]-1]; if(!mon)return String(w);
+  return (+m[3])+' '+mon+' '+m[4].trim();
+}
 function renderComments(){
   document.querySelectorAll('[data-thread]').forEach(box=>{
     const key=box.dataset.thread, list=COMMENTS[key]||[], me=(()=>{try{return JSON.parse(localStorage.getItem(meKey)||'null')}catch(e){return null}})();
@@ -2201,7 +2282,7 @@ function renderComments(){
     box.querySelector('.msgs').innerHTML=list.map((c,i)=>
       `<div class="msg"><div class="msg-i">${esc(c.ini)}</div><div class="msg-b">
          <div class="msg-t">${esc(c.text)}</div>
-         <div class="msg-m">${esc(c.name)} &middot; ${esc(c.when)}${c.edited?' &middot; edited':''}</div>
+         <div class="msg-m" title="${esc(c.name)}">${esc(c.ini)} &middot; ${esc(shortWhen(c.when))}${c.edited?' &middot; edited':''}</div>
          <div class="msg-acts">
            <button class="msg-btn" data-edit="${key}|${i}">&#9998; Edit</button>
            <button class="msg-btn del" data-del="${key}|${i}">&#10005; Delete</button>
