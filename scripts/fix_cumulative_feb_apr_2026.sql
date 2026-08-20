@@ -18,6 +18,14 @@
 -- day in the months either side. If the corruption were something other than accumulation,
 -- both of those checks would fail.
 
+-- Run against maxmetrics-development on 20 August 2026. 186 rows rewritten. The rows as
+-- they stood beforehand are kept in `dd_backup_2026_02_04`, so this is reversible.
+--
+-- After: February die cutting reads 2,041,432 sheets over 1,013 crewed hours, against
+-- January's 1,837,589 over 975.5 and December's 2,106,975 over 1,031 — the three months now
+-- sit alongside their neighbours instead of twenty times above them. Output per crewed hour
+-- did not move, which is the proof that only the totals were ever wrong.
+
 begin;
 
 create temp table dd_fix on commit drop as
