@@ -462,10 +462,10 @@ textarea.ei{height:60px;resize:vertical;font-size:11px;padding:5px 8px;line-heig
 .talk{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin-top:14px}
 .talk-h{font-family:var(--font-body);font-size:11px;font-weight:700;letter-spacing:.14em;
   text-transform:uppercase;color:#8a94a6;margin-bottom:10px}
-.msg{display:flex;gap:11px;padding:9px 0;border-bottom:1px solid #eef1f6}
+.msg{display:flex;gap:9px;padding:8px 0;border-bottom:1px solid #eef1f6}
 .msg:last-of-type{border-bottom:0}
-.msg-i{flex:none;width:32px;height:32px;border-radius:8px;background:#334155;color:#fff;
-  font-family:var(--font-condensed);font-size:15px;font-weight:600;
+.msg-i{flex:none;width:23px;height:23px;border-radius:6px;background:#334155;color:#fff;
+  font-family:var(--font-condensed);font-size:11px;font-weight:600;letter-spacing:.02em;
   display:flex;align-items:center;justify-content:center}
 .msg-b{flex:1;min-width:0;text-align:left}
 .msg-t{font-size:14.5px;line-height:1.45;color:var(--text)}
@@ -481,6 +481,39 @@ textarea.ei{height:60px;resize:vertical;font-size:11px;padding:5px 8px;line-heig
 /* a published morning is for reading; nothing to fiddle with on it */
 body.pres-mode .msg-acts{display:none}
 @media print{.msg-acts{display:none}}
+
+/* ── The wall ─────────────────────────────────────────────────────────────────
+   Once it is published nobody types into it — they are looking at it from across
+   a room. So every box, every Add, and every heading over an empty thread comes
+   off, and what is left moves up into the space they were holding. This is the
+   same rule for print, because a printed morning is a wall that does not scroll. */
+body.pres-mode .say,
+body.pres-mode .who-pick{display:none}
+/* a thread nobody wrote in is a heading over nothing */
+body.pres-mode .talk.thread-empty{display:none}
+/* and a Watch List with nothing on it is a titled white box saying nothing —
+   so the card goes too, not just the thread inside it. Production keeps its
+   cards either way: there the dot is the answer, and no news is good news. */
+body.pres-mode .notes-card:has(.talk.thread-empty){display:none}
+/* quiet departments shrink to their heading instead of being stretched to the
+   height of whichever one had a bad night */
+body.pres-mode #review-grid>div{align-items:start}
+/* the Add row was holding the bottom of each card so the buttons lined up across
+   the row; with the row gone, the writing moves to the top where it belongs */
+body.pres-mode .card .talk{margin-top:12px}
+body.pres-mode .card .say{border-top:0;padding-top:0}
+body.pres-mode .bottom-card .talk .msgs{overflow:visible}
+/* and the status line stops reserving room for words that are not there */
+body.pres-mode .review-note{min-height:0}
+body.pres-mode .review-status{flex:0 0 auto}
+body.pres-mode .review-note:empty{display:none}
+body.pres-mode .review-card{min-height:0;justify-content:flex-start}
+@media print{
+  .say,.who-pick{display:none}
+  .talk.thread-empty{display:none}
+  .card .talk{margin-top:12px}
+  .review-note{min-height:0}
+}
 .say{display:flex;gap:8px;margin-top:10px}
 .say input{flex:1;font-family:var(--font-body);font-size:14px;padding:9px 11px;
   border:1px solid var(--border);border-radius:8px;background:#f8fafc}
@@ -665,7 +698,7 @@ body.pres-mode #c-priorities.awaiting{animation:none}
       <span class="badge hidden" id="statusBadge"></span>
       <button class="btn btn-edit" id="editBtn" onclick="enterEdit()"><span class="btn-icon">&#9998;</span>Edit Mode</button>
       <button class="btn btn-draft" id="draftBtn" onclick="saveDraft()"><span class="btn-icon">&#128190;</span>Save</button>
-      <button class="btn btn-pub" id="pubBtn" onclick="publish()"><span class="btn-icon">&#128506;</span>Publish</button>
+      <button class="btn btn-pub" id="pubBtn" onclick="publish()"><span class="btn-icon">&#128506;</span>Publish / Present</button>
     </div>
     <div class="hdr-row2">
       <button class="btn btn-export no-print" onclick="showExportMenu()"><span class="btn-icon">&#128228;</span>Export</button>
@@ -1549,12 +1582,14 @@ function applyAll(){
   // 24hr review — independently configurable
   reviewConfig.forEach((cfg,i)=>{
     const sval=sv('s-rev-'+i);
-    const tval=tx('i-rev-'+i,sval==='g'?'No issues reported':sval==='a'?'Monitor closely — see notes':'Issue reported — see notes');
+    /* Green and silent means there is nothing to report, and the dot already
+       says so. Amber and red keep their words because they are asking to be read. */
+    const tval=tx('i-rev-'+i,sval==='a'?'Monitor closely — see notes':sval==='r'?'Issue reported — see notes':'');
     const dotEl=document.getElementById('dot-rev-'+i);
     const noteEl=document.getElementById('d-rev-'+i);
     if(dotEl)dotEl.className=dotCls(sval);
     if(noteEl)noteEl.textContent=tval;
-    setCard('c-rev-'+i,sval==='r'?'red':sval==='a'?'amber':'');
+    setCardX('c-rev-'+i,sval==='r'?'red':sval==='a'?'amber':'','review-card');
   });
 
   // Shipping
@@ -1757,7 +1792,7 @@ function loadDay(){
       reviewConfig.forEach((_,i)=>{
         const dot=document.getElementById('dot-rev-'+i);if(dot)dot.className='sdot';
         const note=document.getElementById('d-rev-'+i);if(note)note.textContent='—';
-        setCard('c-rev-'+i,'');
+        setCardX('c-rev-'+i,'','review-card');
       });
       // Shipping
       document.getElementById('d-jobs').textContent='—';document.getElementById('d-jobsOT').textContent='On time: —';document.getElementById('d-cartons').textContent='—';
@@ -2075,6 +2110,8 @@ const esc=t=>String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;',
 function renderComments(){
   document.querySelectorAll('[data-thread]').forEach(box=>{
     const key=box.dataset.thread, list=COMMENTS[key]||[], me=(()=>{try{return JSON.parse(localStorage.getItem(meKey)||'null')}catch(e){return null}})();
+    /* on the wall an empty thread is just a heading over a blank box */
+    box.classList.toggle('thread-empty',!list.length);
     box.querySelector('.msgs').innerHTML=list.map((c,i)=>
       `<div class="msg"><div class="msg-i">${esc(c.ini)}</div><div class="msg-b">
          <div class="msg-t">${esc(c.text)}</div>
