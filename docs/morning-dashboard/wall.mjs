@@ -77,26 +77,46 @@ say(gl.slackBelow>=0,'with the empty space underneath it instead of above ('
 const ini=await p.$eval('.msg-i',n=>{const r=n.getBoundingClientRect();return Math.round(r.width);});
 say(ini<=24,'the initials are small enough to sit beside the words — '+ini+'px');
 
-/* a Watch List with nothing on it is a titled white box saying nothing */
+/* nothing leaves the wall for being quiet — a row with a hole in it reads as a fault */
 const watch=await p.$eval('#watchCard',n=>getComputedStyle(n).display);
-say(watch==='none','an empty Watch List card leaves the wall altogether');
-/* but a quiet department keeps its card — there the dot is the answer */
-const quiet=await p.evaluate(()=>{
+say(watch!=='none','an empty Watch List card stays on the wall');
+const noteH=await p.$$eval('#bottomGrid .notes-card',n=>n.map(x=>Math.round(x.getBoundingClientRect().height)));
+say(noteH.length===2 && Math.abs(noteH[0]-noteH[1])<=1,
+    'and stands the same height as the one beside it — '+noteH.join(' / '));
+
+/* one department had a bad night; the row keeps its shape around it */
+const row=await p.evaluate(()=>{
   const cards=[...document.querySelectorAll('#review-grid .card')];
   const gl=cards.find(c=>c.querySelector('[data-thread="rev-gluing"]'));
-  const others=cards.filter(c=>c!==gl);
-  return {allShown:cards.every(c=>getComputedStyle(c).display!=='none'),
-          dots:others.filter(c=>c.querySelector('.sdot')).length,
-          shorter:others.every(c=>c.getBoundingClientRect().height
-                                  < gl.getBoundingClientRect().height-20)};
+  const h=cards.map(c=>Math.round(c.getBoundingClientRect().height));
+  return {shown:cards.every(c=>getComputedStyle(c).display!=='none'),
+          heights:h, spread:Math.max(...h)-Math.min(...h),
+          dots:cards.filter(c=>{const d=c.querySelector('.sdot');
+                 return d && getComputedStyle(d).display!=='none';}).length,
+          glHasText:!!gl.querySelector('.msg')};
 });
-say(quiet.allShown,'every production card is still on the wall');
-say(quiet.dots===3,'the quiet ones keep their status dot — no news is good news');
-say(quiet.shorter,'and shrink to their heading instead of matching the bad one');
+say(row.shown,'every production card is still there, quiet or not');
+say(row.spread<=1,'and all four stand at one height — '+row.heights.join(' / '));
+say(row.glHasText,'with the fault written in the one that had it');
+say(row.dots===0,'no status bullets left on the wall');
 
 say((await p.$$('[data-thread="priorities"] .msg')).length===1,'what matters most still reads');
 say(errs.length===0,'no errors'+(errs.length?': '+errs.join(' | '):''));
 await p.screenshot({path:'wall_present.png',fullPage:false});
+
+/* a morning where nothing went wrong: all four collapse together */
+await p.evaluate(()=>{ COMMENTS={}; renderComments();
+  reviewConfig.forEach((_,i)=>{const sel=document.getElementById('s-rev-'+i);
+    if(sel)sel.value='g'; const ta=document.getElementById('i-rev-'+i); if(ta)ta.value='';});
+  applyAll(); });
+await p.waitForTimeout(400);
+const calm=await p.evaluate(()=>{
+  const h=[...document.querySelectorAll('#review-grid .card')]
+            .map(c=>Math.round(c.getBoundingClientRect().height));
+  return {heights:h, spread:Math.max(...h)-Math.min(...h)};
+});
+say(calm.spread<=1,'a quiet morning has all four at one height too — '+calm.heights.join(' / '));
+say(calm.heights[0]<140,'and they collapse rather than holding empty space — '+calm.heights[0]+'px');
 
 /* and back again — nothing is lost by presenting */
 await p.evaluate(()=>document.body.classList.remove('pres-mode'));
