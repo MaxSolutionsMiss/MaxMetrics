@@ -496,11 +496,9 @@ textarea.ei{height:60px;resize:vertical;font-size:11px;padding:5px 8px;line-heig
 .talk{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin-top:14px}
 .talk-h{font-family:var(--font-body);font-size:11px;font-weight:700;letter-spacing:.14em;
   text-transform:uppercase;color:var(--muted);margin-bottom:10px}
-.msg{display:flex;gap:9px;padding:8px 0;border-bottom:1px solid #eef1f6}
+.msg{padding:8px 0;border-bottom:1px solid #eef1f6}
 .msg:last-of-type{border-bottom:0}
-.msg-i{flex:none;width:23px;height:23px;border-radius:6px;background:#334155;color:#fff;
-  font-family:var(--font-condensed);font-size:11px;font-weight:600;letter-spacing:.02em;
-  display:flex;align-items:center;justify-content:center}
+/* .msg-i is gone from the markup; the rule stays out with it. */
 .msg-b{flex:1;min-width:0;text-align:left}
 .msg-t{font-size:14.5px;line-height:1.45;color:var(--text)}
 .msg-m{font-size:11px;color:var(--light);margin-top:3px}
@@ -754,7 +752,6 @@ body.pres-mode .review-card{min-height:0;justify-content:flex-start}
 #c-priorities .msg-t{font-size:17.4px;font-weight:600;line-height:1.4;color:#0f172a}
 /* the same grey has less to work against on the card's red tint */
 #c-priorities .msg-m{font-size:12.5px;color:var(--muted)}
-#c-priorities .msg-i{width:28px;height:28px;font-size:13px;border-radius:7px}
 #c-priorities .msg{padding:11px 0}
 #c-priorities .say input{border-color:var(--red-border);background:#fff}
 #c-priorities .say button{background:var(--red)}
@@ -2274,6 +2271,14 @@ const esc=t=>String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;',
    is standing in and the leading zeros are noise; what matters is the day and the
    time. Anything that does not parse is left exactly as it was found, so a
    comment saved by an older copy of this page still reads. */
+/* Whoever it is, said the way the plant says it. "Angela Wu" is Angela; the
+   surname is for a directory, not for a line under a sentence in a meeting.
+   A name with nothing in it falls back to the initials so the line still has
+   somebody's mark on it. */
+function firstName(name, ini){
+  const first=String(name==null?'':name).trim().split(/\s+/)[0];
+  return first || String(ini==null?'':ini);
+}
 const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 function shortWhen(w){
   const m=String(w==null?'':w).match(/^(\d{4})-(\d{2})-(\d{2})[ T]+(.*)$/);
@@ -2287,9 +2292,13 @@ function renderComments(){
     /* on the wall an empty thread is just a heading over a blank box */
     box.classList.toggle('thread-empty',!list.length);
     box.querySelector('.msgs').innerHTML=list.map((c,i)=>
-      `<div class="msg"><div class="msg-i">${esc(c.ini)}</div><div class="msg-b">
+      /* The initials used to sit in a dark tile in front of every comment. On a
+         card with four notes that is four dark squares down the left, and the eye
+         goes to them before it goes to a word anybody wrote. The name is already
+         under the comment; it did not need saying twice, once loudly. */
+      `<div class="msg"><div class="msg-b">
          <div class="msg-t">${esc(c.text)}</div>
-         <div class="msg-m" title="${esc(c.name)}">${esc(c.ini)} &middot; ${esc(shortWhen(c.when))}${c.edited?' &middot; edited':''}</div>
+         <div class="msg-m" title="${esc(c.name)}">${esc(firstName(c.name,c.ini))} &middot; ${esc(shortWhen(c.when))}${c.edited?' &middot; edited':''}</div>
          <div class="msg-acts">
            <button class="msg-btn" data-edit="${key}|${i}">&#9998; Edit</button>
            <button class="msg-btn del" data-del="${key}|${i}">&#10005; Delete</button>

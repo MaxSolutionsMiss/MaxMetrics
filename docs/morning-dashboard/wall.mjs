@@ -74,8 +74,11 @@ say(gl.gapFromHead<70,'and it sits just under the heading, not at the bottom —
 say(gl.slackBelow>=0,'with the empty space underneath it instead of above ('
     +gl.slackBelow+'px)');
 
-const ini=await p.$eval('.msg-i',n=>{const r=n.getBoundingClientRect();return Math.round(r.width);});
-say(ini<=24,'the initials are small enough to sit beside the words — '+ini+'px');
+/* nothing sits in front of a comment competing with it */
+say((await p.$$('.msg-i')).length===0,'no initials tile in front of any comment');
+const byline=await p.$eval('[data-thread="rev-gluing"] .msg-m',n=>n.textContent.trim());
+say(/^Dave · \d+ \w{3} /.test(byline),'the byline is a first name and a short date — "'+byline+'"');
+say(!/\d{4}/.test(byline),'with no year in it');
 
 /* nothing leaves the wall for being quiet — a row with a hole in it reads as a fault */
 const watch=await p.$eval('#watchCard',n=>getComputedStyle(n).display);
