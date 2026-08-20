@@ -74,6 +74,31 @@ const q=await p.evaluate(()=>{
 });
 say(q.spread<=1,'and on a quiet morning too — '+q.heights.join(' / '));
 say(q.heights[0]<g.heights[0],'with the row shorter than it was when it was busy');
+console.log('\n── the money, read as two small cards ──');
+const fin=await p.evaluate(()=>{
+  const t=id=>document.getElementById(id).textContent.trim();
+  const mid=el=>{const r=el.getBoundingClientRect();
+    const pr=el.closest('.finance-panel').getBoundingClientRect();
+    return Math.round((r.left+r.right)/2 - (pr.left+pr.right)/2);};
+  const big=document.getElementById('d-fin-actual');
+  const panels=[...document.querySelectorAll('.finance-panel')];
+  return {big:t('d-fin-actual'), delta:t('d-fin-var'),
+          pace:t('d-fin-pace'), pct:t('d-fin-pct'),
+          ypace:t('d-fin-ytd-pace'), ypct:t('d-fin-ytd-pct'),
+          centred:Math.abs(mid(big))<=2,
+          rule:getComputedStyle(panels[1]).borderLeftWidth,
+          deltaAbove:Math.round(document.getElementById('d-fin-var').getBoundingClientRect().top
+                     - document.querySelector('.finance-summary').getBoundingClientRect().top)};
+});
+say(fin.centred,'the big figure is centred in its half, not left-hung');
+say(fin.rule!=='0px','a rule separates the month from the year — '+fin.rule);
+say(fin.deltaAbove<0,'and the verdict sits under the figure it judges, above the detail');
+/* 1.74M over 19 of 31 days paces to 2.84M; 57% of a 3.03M month */
+say(fin.pace==='$2.84M','pace to month end is worked out, not typed — '+fin.pace);
+say(fin.pct==='57%','and the share of budget spent — '+fin.pct);
+say(fin.ypace==='$35M','the year paces on budget, not on days — '+fin.ypace);
+say(fin.ypct==='68%','with its own share — '+fin.ypct);
+
 say(errs.length===0,'no errors'+(errs.length?': '+errs.join(' | '):''));
 await b.close();
 console.log(bad?`\n${bad} failed\n`:'\nall good\n');
