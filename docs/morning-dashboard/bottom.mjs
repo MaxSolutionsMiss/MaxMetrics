@@ -22,6 +22,10 @@ await p.evaluate(()=>{
      text:'Get the gluer back up and clear the short board before second shift.',when:'2026-08-20 7:52 AM'}]};
   renderComments();
   document.getElementById('i-fin-enabled').checked=true;
+  /* Pin the day. A suite whose verdict changes overnight is a suite nobody can
+     trust in the morning: this one passed on the 20th and failed on the 21st
+     because "selling days left" is counted from today. */
+  document.getElementById('dashDate').value='2026-08-20';
   document.getElementById('i-fin-actual').value=1740000;
   document.getElementById('i-fin-ytd-actual').value=22700000;
   applyAll(); document.body.classList.add('pres-mode');
@@ -101,7 +105,7 @@ say(fin.togo==='$1.29M','what is left to sell this month — '+fin.togo);
 say(fin.ytogo==='$10.9M','and this year — '+fin.ytogo);
 /* through 19 Aug 2026: the 20th, 21st, 24th-28th and 31st are weekdays */
 say(fin.left==='8','selling days left counts weekdays, not the calendar — '+fin.left
-    +' where 12 days remain');
+    +' where 12 calendar days remain after 19 Aug');
 say(fin.yleft==='4','months left — '+fin.yleft);
 
 say(errs.length===0,'no errors'+(errs.length?': '+errs.join(' | '):''));

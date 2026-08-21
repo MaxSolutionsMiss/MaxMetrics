@@ -352,6 +352,29 @@ body.pres-mode .prose{font-size:13px}
 select.ei{cursor:pointer}
 textarea.ei{height:60px;resize:vertical;font-size:11px;padding:5px 8px;line-height:1.5}
 .divider{height:1px;background:var(--border);margin:10px 0}
+/* ── The folder bar ───────────────────────────────────────────────────────────
+   Until this morning the only sign that no shared folder had been picked was one
+   small button among six others, and people were filling in a whole morning that
+   went nowhere. Nothing warned them until they pressed Save. This is the warning,
+   and it is the width of the page: you cannot start typing without meeting it,
+   and it leaves the moment the folder is set.                                  */
+.folderbar{display:none;align-items:center;gap:14px;flex-wrap:wrap;
+  background:#fdf1f1;border:1px solid var(--red-border);border-left:6px solid var(--red);
+  border-radius:12px;padding:13px 18px;margin:0 0 14px;color:#7f2d2b}
+body.no-folder .folderbar,body.wrong-folder .folderbar{display:flex}
+body.wrong-folder .folderbar{background:#fdf8ea;border-color:var(--amber-border);
+  border-left-color:var(--amber);color:#7a5a12}
+.folderbar b{font-family:var(--font-condensed);font-size:19px;letter-spacing:.02em}
+.folderbar .fb-t{flex:1;min-width:260px;font-size:13.5px;line-height:1.5}
+.folderbar code{font-family:var(--font-mono,monospace);font-size:12.5px;
+  background:rgba(255,255,255,.75);padding:2px 6px;border-radius:5px}
+.folderbar button{font-family:var(--font-body);font-size:13.5px;font-weight:600;
+  padding:10px 20px;border-radius:9px;border:0;background:var(--red);color:#fff;cursor:pointer;
+  white-space:nowrap}
+body.wrong-folder .folderbar button{background:var(--amber)}
+.folderbar button:hover{filter:brightness(1.08)}
+@media print{.folderbar{display:none!important}}
+
 .toast{position:fixed;bottom:22px;right:22px;padding:10px 18px;border-radius:10px;
   font-size:12px;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,.2);z-index:9999;
   opacity:0;transition:opacity .3s;pointer-events:none;color:#fff;font-family:var(--font-body)}
@@ -839,6 +862,9 @@ body.pres-mode #c-priorities.awaiting{animation:none}
 </div>
 
 <div class="body" id="mainBody">
+
+<!-- The first thing on the page when this PC is not set up to share. -->
+<div class="folderbar no-print" id="folderBar" role="alert"></div>
 
 <!-- SAFETY & QUALITY — combined 5-card row -->
 <div class="sec">Safety &amp; Quality</div>
@@ -2380,7 +2406,31 @@ async function idbGet(){const db=await idb();return new Promise(ok=>{const t=db.
   const q=t.objectStore('h').get('dir');q.onsuccess=()=>ok(q.result||null);q.onerror=()=>ok(null);});}
 
 function folderBadge(){const b=document.getElementById('folderBtn');
-  if(b)b.textContent=DIR?'\uD83D\uDCC1 '+DIR.name:'\uD83D\uDCC1 Choose folder';}
+  if(b)b.textContent=DIR?'\uD83D\uDCC1 '+DIR.name:'\uD83D\uDCC1 Choose folder';
+  paintFolderBar();}
+
+/* Three states, and only one of them is silent: the folder is right, and there
+   is nothing to say. */
+function paintFolderBar(){
+  const bar=document.getElementById('folderBar'); if(!bar)return;
+  const state=(typeof folderState==='function')?folderState():(DIR?'ok':'none');
+  document.body.classList.toggle('no-folder',state==='none');
+  document.body.classList.toggle('wrong-folder',state==='other');
+  if(state==='ok')return;
+  bar.innerHTML = state==='none'
+    ? '<div class="fb-t"><b>No shared folder picked on this PC.</b><br>'
+      +'Nothing typed this morning will reach anybody else until one is. '
+      +'Choose <code>Z:\\Morning Dashboard\\Data</code> — once per computer, '
+      +'and this bar goes away for good.</div>'
+      +'<button type="button" data-choose>Choose the folder</button>'
+    : '<div class="fb-t"><b>This PC is pointed at &ldquo;'+esc(DIR.name)+'&rdquo;.</b><br>'
+      +'The morning meeting reads <code>Z:\\Morning Dashboard\\Data</code>. '
+      +'Anything saved anywhere else will not turn up there.</div>'
+      +'<button type="button" data-choose>Pick the right folder</button>';
+}
+document.addEventListener('click',e=>{
+  if(e.target.closest('[data-choose]')) chooseFolder();
+});
 
 async function chooseFolder(quiet){
   if(!window.showDirectoryPicker){
@@ -2468,7 +2518,12 @@ function writeExcuse(e){
       'Chrome asked and Windows said no, which is a permission on the drive rather than '
      +'anything in the browser. The Windows account signed in on this PC can read '
      +'<code>Z:\\Morning Dashboard\\Data</code> but not write to it. Whoever looks after the '
-     +'share needs to give this account Modify rights on that folder.'],
+     +'share needs to give this account Modify rights on that folder.'
+     +'<br><br><b>Twenty seconds to prove it:</b> open '
+     +'<code>Z:\\Morning Dashboard\\Data</code> in File Explorer on this PC, right-click and '
+     +'try New &rsaquo; Text Document. If Windows refuses that too, it is the share and '
+     +'nothing to do with the dashboard \u2014 send whoever runs the share that sentence '
+     +'and the folder name.'],
     NotFoundError:['The folder is not there any more',
       'The <code>Z:</code> drive is probably not mapped on this PC at the moment, or the '
      +'folder was moved or renamed. Open it in File Explorer first, then press Choose folder.'],

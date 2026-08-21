@@ -105,6 +105,27 @@ say((await p.$$('[data-thread="watch"] .msg')).length===1,
 say(errs.length===0,'no errors'+(errs.length?': '+errs.join(' | '):''));
 await c.close();
 
+
+console.log('\n── the folder bar ──');
+{const {p,errs,c}=await fresh();
+ const state=async()=>p.evaluate(()=>({cls:document.body.className.trim(),
+   shown:getComputedStyle(document.getElementById('folderBar')).display,
+   txt:document.getElementById('folderBar').textContent.replace(/\s+/g,' ').trim()}));
+ let st=await state();
+ say(st.shown!=='none','with no folder picked, a bar spans the page');
+ say(/reach anybody/.test(st.txt),'and says the morning will reach nobody');
+ say(/Morning Dashboard/.test(st.txt),'naming the folder to pick');
+ await p.evaluate(()=>{DIR={name:'Downloads'};folderBadge();}); st=await state();
+ say(st.cls==='wrong-folder','the wrong folder gets its own warning');
+ say(/Downloads/.test(st.txt),'naming what was picked by mistake — "'+st.txt.slice(0,46)+'…"');
+ await p.evaluate(()=>{DIR={name:'Data'};folderBadge();}); st=await state();
+ say(st.shown==='none','and the bar goes the moment the right one is chosen');
+ await p.emulateMedia({media:'print'}); await p.waitForTimeout(200);
+ say((await state()).shown==='none','it is never printed');
+ await p.emulateMedia({media:'screen'});
+ say(errs.length===0,'no errors'+(errs.length?': '+errs.join(' | '):''));
+ await c.close();}
+
 await b.close();
 console.log(bad?`\n${bad} failed\n`:'\nall good\n');
 process.exit(bad?1:0);
