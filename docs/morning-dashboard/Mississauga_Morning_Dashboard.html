@@ -534,6 +534,10 @@ body.wrong-folder .folderbar button{background:var(--amber)}
 .msg-btn.del{border-color:#f2d4d3;background:#fdf1f1;color:#b94444}
 .msg-btn.del:hover{background:#b94444;border-color:#b94444;color:#fff}
 /* a published morning is for reading; nothing to fiddle with on it */
+/* Reconnecting is a five-second nuisance, not a fault: blue, not red. */
+body.locked-folder .folderbar{display:flex;background:#eff5ff;border-color:#d3e2fb;
+  border-left-color:#2563eb;color:#1e3a63}
+body.locked-folder .folderbar button{background:#2563eb}
 body.pres-mode .msg-acts{display:none}
 @media print{.msg-acts{display:none}}
 
@@ -2411,7 +2415,8 @@ async function idbGet(){const db=await idb();return new Promise(ok=>{const t=db.
   const q=t.objectStore('h').get('dir');q.onsuccess=()=>ok(q.result||null);q.onerror=()=>ok(null);});}
 
 function folderBadge(){const b=document.getElementById('folderBtn');
-  if(b)b.textContent=DIR?'\uD83D\uDCC1 '+DIR.name:'\uD83D\uDCC1 Choose folder';
+  if(b)b.textContent=DIR?'\uD83D\uDCC1 '+DIR.name
+    :PENDING?'\uD83D\uDCC1 Reconnect folder':'\uD83D\uDCC1 Choose folder';
   paintFolderBar();}
 
 /* Three states, and only one of them is silent: the folder is right, and there
@@ -2419,9 +2424,21 @@ function folderBadge(){const b=document.getElementById('folderBtn');
 function paintFolderBar(){
   const bar=document.getElementById('folderBar'); if(!bar)return;
   const state=(typeof folderState==='function')?folderState():(DIR?'ok':'none');
-  document.body.classList.toggle('no-folder',state==='none');
+  const locked=!DIR && !!PENDING;
+  document.body.classList.toggle('no-folder',state==='none'&&!locked);
+  document.body.classList.toggle('locked-folder',locked);
   document.body.classList.toggle('wrong-folder',state==='other');
   if(state==='ok')return;
+  if(locked){
+    /* Not forgotten — Chrome simply drops the write permission when it closes,
+       and only a click can raise it again. One button, no picker. */
+    bar.innerHTML='<div class="fb-t"><b>Reconnect the shared folder.</b><br>'
+      +'This PC still knows which folder to use. Chrome asks again each time it '
+      +'restarts, so give it the nod and everything saves as usual — nothing to '
+      +'find, nothing to type.</div>'
+      +'<button type="button" data-choose>Reconnect the folder</button>';
+    return;
+  }
   bar.innerHTML = state==='none'
     ? '<div class="fb-t"><b>No shared folder picked on this PC.</b><br>'
       +'Nothing typed this morning will reach anybody else until one is. '
@@ -2440,6 +2457,21 @@ document.addEventListener('click',e=>{
 async function chooseFolder(quiet){
   if(!window.showDirectoryPicker){
     showToast('Saving to a folder needs Chrome or Edge','#b94444');return false;}
+  /* If this PC already knows the folder, all that is missing is permission, and
+     asking for it inside this click is one dialog instead of a walk through the
+     file picker. Every route in — the bar, the button, the Save warning — lands
+     here, so all of them get the short version. */
+  if(PENDING){
+    try{
+      if((await PENDING.requestPermission({mode:'readwrite'}))==='granted'){
+        const h=PENDING; PENDING=null;
+        await adoptFolder(h);
+        showToast('Reconnected to '+DIR.name,'#2f7d4a');
+        return true;
+      }
+    }catch(e){ /* fall through to picking it by hand */ }
+    PENDING=null; folderBadge();
+  }
   let picked;
   try{ picked=await window.showDirectoryPicker({mode:'readwrite'}); }
   catch(e){ return false; }            /* they closed the picker */
@@ -2479,11 +2511,34 @@ async function canWriteHere(){
     return {ok:true};
   }catch(e){ return {ok:false, err:e}; }
 }
+/* A folder somebody has already chosen, waiting on one click to be usable again. */
+let PENDING=null;
+
+/* Chrome remembers WHICH folder was picked — the handle survives in IndexedDB —
+   but it does not remember that the site was allowed to write to it. After the
+   browser is closed the permission drops back to "ask", and the only way to
+   raise it is requestPermission(), which Chrome will only honour during a real
+   click.
+
+   This ran on page load, with no click anywhere near it, so it failed every
+   morning without a word. The folder looked forgotten, people walked the whole
+   picker again, and anyone who did not notice typed a morning that went nowhere.
+   That is the every-morning problem.
+
+   So: ask what the permission is, never demand it here, and if it needs a click
+   then say so and make that click do the whole job. */
 async function restoreFolder(){
   const h=await idbGet(); if(!h)return;
-  if((await h.queryPermission({mode:'readwrite'}))!=='granted'){
-    if((await h.requestPermission({mode:'readwrite'}))!=='granted')return;}
-  DIR=h;folderBadge();await pullLayout();await pullFromFolder();
+  let perm='prompt';
+  try{ perm=await h.queryPermission({mode:'readwrite'}); }catch(e){ perm='prompt'; }
+  if(perm==='granted') return adoptFolder(h);
+  if(perm==='denied'){ folderBadge(); return; }
+  PENDING=h; folderBadge();          /* remembered; one click away */
+}
+
+async function adoptFolder(h){
+  DIR=h; PENDING=null; folderBadge();
+  await pullLayout(); await pullFromFolder();
   warnAboutStrays();
   const probe=await canWriteHere();
   if(!probe.ok){

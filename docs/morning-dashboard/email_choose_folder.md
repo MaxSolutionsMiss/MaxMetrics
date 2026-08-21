@@ -1,27 +1,33 @@
-**Subject:** Morning Dashboard — please pick the folder before you type
+**Subject:** Morning Dashboard — one glance at the top of the page, every morning
 
 Hi all,
 
-Quick one about the Morning Dashboard, because a couple of mornings have gone missing this week and it is the same cause each time.
+A couple of mornings have gone missing this week, and it turns out the fault was mine, not yours. Here is what changed and what I need you to do.
 
-**Before you type anything, press "Choose folder" and pick:**
+**Every morning, before you type anything, glance at the top of the page.**
+
+**A blue bar — "Reconnect the shared folder."**
+Chrome forgets the permission every time it restarts, so it asks again. Click the button in the bar. That is the whole job: no folder to find, nothing to type, about two seconds. This is why some of you have been picking the folder every single morning — the dashboard was failing to ask properly, and now it does.
+
+**A red bar — "No shared folder picked on this PC."**
+This computer has never been set up. Click the button and pick:
 
 ```
 Z:\Morning Dashboard\Data
 ```
 
-You do this **once on each computer**. After that the dashboard remembers, and you will never see it again on that machine.
+**No bar at all** — you are ready, carry on.
 
-If you skip it, everything you type stays on that one PC. It looks completely normal on your screen — the numbers are there, the comments are there — but nobody else sees any of it, and it is not in the folder the meeting reads from. That is what has been happening.
+Either way, **nothing you have already typed is ever lost.**
 
-**How to tell in one glance.** The new version puts a red bar across the top of the page if the folder has not been picked:
+**Why it matters.** If the folder is not connected, everything you type stays on that one PC. The screen looks completely normal — your numbers are there, your comments are there — but nobody else sees any of it and it never reaches the folder the meeting reads from. That is what has been happening.
 
-> **No shared folder picked on this PC.** Nothing typed this morning will reach anybody else until one is.
+**Two other things worth knowing:**
 
-No bar means you are fine. If you see it, click **Choose the folder** in the bar, pick `Data`, and carry on — nothing you have already typed is lost.
+**Export is not Save.** The Export button makes a personal backup called `dashboard-<date>.json`. Putting that file into the Data folder does *not* save the morning — nothing reads those. Use **Save** and **Publish / Present** for the real thing.
 
-**One more thing worth knowing.** If the dashboard tells you it cannot write to the folder, that is not you doing anything wrong and nothing you have typed is gone — it is saved on that PC. Take a photo of the message and send it to me. It usually means that computer's Windows account can read the folder but not save into it, which is a permission on the drive that IT can fix in a minute.
+**If it says it cannot write to the folder,** that is not you doing anything wrong and nothing is gone — the morning is saved on that PC. Take a photo of the message and send it to me. It usually means that computer's Windows account can read the folder but not save into it, which is a permission on the drive that IT can fix in a minute.
 
-Thanks — and sorry for the extra step. It is the price of the dashboard not needing a login or an internet connection.
+Thanks for putting up with the teething. The one-page sheet is attached if you want it by the machine.
 
 [Your name]
