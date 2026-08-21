@@ -2030,7 +2030,12 @@ async function exportJSON(){applyAll();const date=document.getElementById('dashD
   try{
     const res=await saveBlobWithPicker(blob,'dashboard-'+date+'.json','JSON backup',{'application/json':['.json']});
     if(res==='cancelled'){showToast('Export cancelled','#64748b');return;}
-    closeExportMenu();showToast((res==='picked'?'Saved: ':'Downloaded: ')+'dashboard-'+date+'.json','#2f7d4a');
+    closeExportMenu();
+    /* People have been dropping this file into the shared folder believing it is
+       the morning. It is a personal backup under a different name, and nothing
+       reads it. Saying "backup" in the toast is the cheapest place to stop that. */
+    showToast((res==='picked'?'Backup saved: ':'Backup downloaded: ')+'dashboard-'+date
+      +'.json \u2014 this is NOT the shared morning','#b7791f');
   }catch(err){showToast('Could not save JSON export','#b94444');}
 }
 function importDay(event){const file=event.target.files[0];if(!file)return;
@@ -2456,7 +2461,7 @@ async function chooseFolder(quiet){
      +'more to do here.</p>', null, 'I understand');
   }
   try{ await idbPut(DIR); }catch(e){ console.warn('could not remember the folder',e); }
-  try{ if(!quiet){ await pullLayout(); await pullFromFolder(); } }
+  try{ if(!quiet){ await pullLayout(); await pullFromFolder(); await warnAboutStrays(); } }
   catch(e){ console.warn('could not read the folder yet',e); }
   showToast('Saving to '+DIR.name,'#2f7d4a');
   return true;
@@ -2479,6 +2484,7 @@ async function restoreFolder(){
   if((await h.queryPermission({mode:'readwrite'}))!=='granted'){
     if((await h.requestPermission({mode:'readwrite'}))!=='granted')return;}
   DIR=h;folderBadge();await pullLayout();await pullFromFolder();
+  warnAboutStrays();
   const probe=await canWriteHere();
   if(!probe.ok){
     const why=writeExcuse(probe.err);
@@ -2546,6 +2552,40 @@ function offerDownload(date,data){
   document.body.appendChild(a); a.click();
   setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},2000);
 }
+/* Anything in the shared folder that is not <date>.json is not read by anybody.
+   Exports are named dashboard-<date>.json, so when one turns up here somebody has
+   almost certainly saved it in place of the morning and walked away believing the
+   day was shared. The folder is the one place that can notice. */
+async function strayBackups(){
+  const d=await dataDir(); if(!d||!d.values)return [];
+  const out=[];
+  try{
+    for await (const entry of d.values()){
+      if(entry.kind==='file' && /^dashboard-\d{4}-\d{2}-\d{2}\.json$/i.test(entry.name))
+        out.push(entry.name);
+    }
+  }catch(e){ /* an older browser without values(); nothing to report */ }
+  return out.sort();
+}
+let strayTold=false;
+async function warnAboutStrays(){
+  if(strayTold||!DIR)return;
+  const found=await strayBackups(); if(!found.length)return;
+  strayTold=true;
+  const list=found.slice(0,6).map(n=>'<code>'+esc(n)+'</code>').join('<br>')
+    +(found.length>6?'<br>&hellip; and '+(found.length-6)+' more':'');
+  modal('\u26A0 Backups are sitting in the shared folder',
+    '<p class="mdl-p">These are in <code>'+esc(DIR.name)+'</code>, and <b>nobody reads them</b>:</p>'
+   +'<p class="mdl-p">'+list+'</p>'
+   +'<p class="mdl-p">A file named <code>dashboard-&lt;date&gt;.json</code> is what the '
+   +'<b>Export</b> button produces \u2014 a personal backup. The morning everybody actually '
+   +'reads is the one named just <code>&lt;date&gt;.json</code>. If somebody saved a backup '
+   +'here thinking it was the morning, that day was never shared.</p>'
+   +'<p class="mdl-p" style="color:#6b7a90">Nothing is lost either way. To bring one in, open '
+   +'the day and use <b>Import</b>. Once you have checked the day reads correctly, these can '
+   +'be deleted.</p>', null, 'I understand');
+}
+
 async function pullFromFolder(){
   if(!DIR)return;
   const date=document.getElementById('dashDate').value;
@@ -2893,7 +2933,12 @@ function modal(title, bodyHTML, onOK, okLabel){
   function esc(e){if(e.key==='Escape')close();}
   bg.querySelector('[data-x]').onclick=close;
   bg.onclick=e=>{if(e.target===bg)close();};
-  bg.querySelector('[data-ok]').onclick=()=>{ if(onOK(bg)!==false) close(); };
+  /* A dialog that only has something to say passes no handler at all. This used
+     to call null(bg) and throw, so the button did nothing and the box would not
+     close - which is exactly what the read-only warning on the boardroom PC did
+     when somebody pressed "I understand". */
+  bg.querySelector('[data-ok]').onclick=()=>{
+    if(typeof onOK!=='function' || onOK(bg)!==false) close(); };
   document.addEventListener('keydown',esc);
   const f=bg.querySelector('input,select,textarea'); if(f)f.focus();
   return bg;

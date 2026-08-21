@@ -126,6 +126,18 @@ console.log('\n── the folder bar ──');
  say(errs.length===0,'no errors'+(errs.length?': '+errs.join(' | '):''));
  await c.close();}
 
+console.log('\n── a dialog that only has something to say ──');
+{const {p,errs,c}=await fresh();
+ await p.evaluate(()=>modal('Just telling you','<p class="mdl-p">Something happened.</p>',
+   null,'I understand'));
+ await p.waitForTimeout(200);
+ say((await p.$$('.mdl-bg')).length===1,'it opens');
+ await p.$$eval('.mdl-bg',g=>g[g.length-1].querySelector('[data-ok]').click());
+ await p.waitForTimeout(250);
+ say((await p.$$('.mdl-bg')).length===0,'and the button closes it with no handler to call');
+ say(errs.length===0,'without throwing'+(errs.length?': '+errs.join(' | '):''));
+ await c.close();}
+
 await b.close();
 console.log(bad?`\n${bad} failed\n`:'\nall good\n');
 process.exit(bad?1:0);
