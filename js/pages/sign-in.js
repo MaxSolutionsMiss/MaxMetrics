@@ -1,7 +1,7 @@
 // Signing in. Two panels, one at a time, and no state worth keeping between them.
 
 import { signIn, resetPassword, currentSession,
-         mustChangePassword, chooseOwnPassword } from '../db.js?v=0e9e35ec2bef';
+         mustChangePassword, chooseOwnPassword } from '../db.js?v=9113db7bfac5';
 
 const $ = selector => document.querySelector(selector);
 
@@ -12,13 +12,31 @@ const session = await currentSession();
 if (session) {
   if (await mustChangePassword()) showChoose();
   else location.replace('app/dashboard.html');
+} else {
+  // Nothing calls show() on a cold load, and the remembered username lives inside it.
+  queueMicrotask(() => show('sign-in'));
 }
+
+// The username is the same every morning for the same person on the same machine, so
+// typing it every morning is a tax with nothing behind it. It is remembered here and the
+// cursor starts on the password instead. Only the username: a password in localStorage
+// would be a password sitting in the browser for anyone with the laptop to read.
+const REMEMBERED = 'metriq.who';
+const remembered = () => { try { return localStorage.getItem(REMEMBERED) || ''; } catch { return ''; } };
+const remember = who => { try { localStorage.setItem(REMEMBERED, who); } catch {} };
 
 function show(panel) {
   $('#sign-in-panel').hidden = panel !== 'sign-in';
   $('#forgot-panel').hidden = panel !== 'forgot';
   $('#choose-panel').hidden = panel !== 'choose';
-  $(panel === 'sign-in' ? '#email' : panel === 'forgot' ? '#reset-email' : '#new-password').focus();
+  if (panel === 'sign-in') {
+    // Start on whichever box is still empty.
+    const who = $('#email');
+    if (!who.value) who.value = remembered();
+    (who.value ? $('#password') : who).focus();
+    return;
+  }
+  $(panel === 'forgot' ? '#reset-email' : '#new-password').focus();
 }
 
 function showChoose() { show('choose'); }
@@ -47,6 +65,7 @@ $('#sign-in-form').addEventListener('submit', async event => {
   busy(button, true, 'Sign in');
   try {
     await signIn(identifier, password);
+    remember(identifier);   // only after it is known to work
     // A temporary password gets you exactly this far.
     if (await mustChangePassword()) { busy(button, false, 'Sign in'); return showChoose(); }
     location.replace('app/dashboard.html');
