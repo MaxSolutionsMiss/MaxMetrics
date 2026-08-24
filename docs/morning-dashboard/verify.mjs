@@ -103,9 +103,9 @@ await p.click('[data-thread="watch"] .say button'); await p.waitForTimeout(300);
 say((await openN(p))===0,'it does not ask a second time');
 say((await p.$$('[data-thread="watch"] .msg')).length===1,'the second comment landed too');
 await p.click('#editBtn'); await p.waitForTimeout(400);
-await saveNow(p,'#pubBtn');
+await saveNow(p,'#draftBtn');
 await p.reload(); await p.waitForTimeout(1400);
-say((await p.$$('[data-thread="watch"] .msg')).length===1,'Publish keeps the comments');
+say((await p.$$('[data-thread="watch"] .msg')).length===1,'Save keeps the comments');
 await p.context().close();
 
 console.log('\n── the rail ──');

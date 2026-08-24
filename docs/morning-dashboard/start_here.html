@@ -4,39 +4,41 @@
 :root{--navy:#101a2c;--bd:#e2e7ef;--mut:#5a6a80;--gold:#f0a01e;--gr:#2f7d4a;--rd:#c0504d;--am:#b7791f;
  --fb:'Barlow',Optima,system-ui,sans-serif;--fc:'Barlow Condensed',Optima,'Arial Narrow',sans-serif}
 *{box-sizing:border-box}
-body{margin:0;background:#fff;font-family:var(--fb);color:#0f172a;font-size:14.5px;line-height:1.45}
+body{margin:0;background:#fff;font-family:var(--fb);color:#0f172a;font-size:13.8px;line-height:1.38}
 .pg{max-width:880px;margin:0 auto;background:#fff}
-.hd{background:var(--navy);color:#fff;padding:15px 34px;display:flex;align-items:baseline;gap:14px}
+.hd{background:var(--navy);color:#fff;padding:12px 32px;display:flex;align-items:baseline;gap:14px}
 .hd h1{font-family:var(--fc);font-size:28px;margin:0;font-weight:600}
 .hd span{color:var(--gold);font-family:var(--fc);font-size:19px;margin-left:auto}
-.in{padding:2px 34px 0}
+.in{padding:2px 32px 0}
 h2{font-family:var(--fc);font-size:13px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;
  color:var(--mut);display:flex;align-items:center;gap:13px;margin:10px 0 6px}
 h2::after{content:"";flex:1;height:1px;background:var(--bd)}
 code{background:#eef2f7;padding:2px 7px;border-radius:5px;font-size:13.5px;
  font-family:ui-monospace,Consolas,monospace}
 .first{background:#fdf1f1;border:1px solid #f0d2d2;border-left:7px solid var(--rd);
- border-radius:12px;padding:11px 20px;margin:7px 0 3px}
+ border-radius:12px;padding:9px 18px;margin:6px 0 3px}
 .first .k{font-family:var(--fc);font-size:15px;font-weight:700;letter-spacing:.14em;
  text-transform:uppercase;color:var(--rd);margin-bottom:5px}
-.first h3{font-family:var(--fc);font-size:24px;margin:0 0 6px;font-weight:600}
+.first h3{font-family:var(--fc);font-size:22px;margin:0 0 5px;font-weight:600}
 .first p{margin:0 0 6px}
 .first p:last-child{margin-bottom:0}
-.path{font-family:ui-monospace,Consolas,monospace;font-size:16px;background:#fff;
- border:1px dashed #e0bcbb;border-radius:9px;padding:8px 14px;margin:7px 0;text-align:center}
+.path{font-family:ui-monospace,Consolas,monospace;font-size:15px;background:#fff;
+ border:1px dashed #e0bcbb;border-radius:9px;padding:6px 14px;margin:6px 0;text-align:center}
 .steps{display:grid;gap:4px}
-.s{display:flex;gap:13px;align-items:flex-start;border:1px solid var(--bd);border-radius:11px;padding:7px 14px}
-.n{flex:none;width:28px;height:28px;border-radius:10px;background:var(--navy);color:#fff;
- font-family:var(--fc);font-size:18px;display:flex;align-items:center;justify-content:center}
+.s{display:flex;gap:12px;align-items:flex-start;border:1px solid var(--bd);border-radius:11px;padding:6px 13px}
+.n{flex:none;width:26px;height:26px;border-radius:9px;background:var(--navy);color:#fff;
+ font-family:var(--fc);font-size:17px;display:flex;align-items:center;justify-content:center}
 .s b{display:block;font-size:15px;margin-bottom:1px}
-.s p{margin:0;color:var(--mut);font-size:13.5px;line-height:1.4}
-.tip{border-radius:11px;padding:9px 14px;margin:7px 0;font-size:13.5px;line-height:1.45}
+.s p{margin:0;color:var(--mut);font-size:12.9px;line-height:1.35}
+.tip{border-radius:11px;padding:8px 13px;margin:6px 0;font-size:12.9px;line-height:1.38}
 .tip.y{background:#fdf8ea;border:1px solid #eddfb4}
 .tip.b{background:#eff5ff;border:1px solid #d3e2fb}
-.tip b{display:block;margin-bottom:3px}
+.tip > b:first-child{display:block;margin-bottom:3px}
+.tips{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.tips .tip{margin:6px 0 0}
 .bar{background:#fdf1f1;border:1px solid #f0d2d2;border-left:6px solid var(--rd);border-radius:10px;
- padding:9px 14px;color:#7f2d2b;font-size:13.5px;margin:7px 0}
-.bar b{font-family:var(--fc);font-size:18px;display:block}
+ padding:7px 13px;color:#7f2d2b;font-size:12.9px;margin:6px 0}
+.bar b{font-family:var(--fc);font-size:17px;display:block}
 .bar.blue{background:#eff5ff;border-color:#d3e2fb;border-left-color:#2563eb;color:#1e3a63}
 .foot{color:var(--mut);font-size:12.5px;border-top:1px solid var(--bd);margin-top:8px;padding-top:6px}
 @media print{body{background:#fff}
@@ -78,15 +80,22 @@ code{background:#eef2f7;padding:2px 7px;border-radius:5px;font-size:13.5px;
   <div class="s"><div class="n">2</div><div><b>Type the numbers and the comments</b>
     <p>The first comment asks your name and initials, then never again.</p></div></div>
   <div class="s"><div class="n">3</div><div><b>Press Save as you go</b>
-    <p>Anyone else with the dashboard open sees it within about fifteen seconds.</p></div></div>
-  <div class="s"><div class="n">4</div><div><b>Press Publish / Present for the meeting</b>
-    <p>The boxes and buttons come off and it becomes something to read on the wall.</p></div></div>
+    <p>Saving <i>is</i> sharing — it writes into the folder and anyone else with the dashboard
+       open sees it within fifteen seconds. There is no separate Publish any more.</p></div></div>
+  <div class="s"><div class="n">4</div><div><b>Press Present for the meeting</b>
+    <p>It pulls the latest for that date and takes the boxes and buttons off. Present only
+       reads — it never saves.</p></div></div>
 </div>
 
-<div class="tip y"><b>If it says it cannot write to the folder</b>
-  Nothing is lost — the morning is saved on that PC. Take a photo of the message and send it on.
-  Also: <b>Export</b> makes a personal backup called <code>dashboard-&lt;date&gt;.json</code>.
-  Putting that in the folder does <b>not</b> save the morning — nobody reads those.</div>
+<div class="tips">
+  <div class="tip y"><b>If it says it cannot write</b>
+    Nothing is lost — the morning is saved on that PC. Send a photo of the message on.
+    And <b>Export</b> is not Save: it makes a personal copy called
+    <code>dashboard-&lt;date&gt;.json</code>, and nothing reads those.</div>
+  <div class="tip b"><b>The boardroom PC is a screen, not a desk</b>
+    It can read the folder; Windows will not let it save. The dashboard works that out on its
+    own — Edit and Save disappear, only <b>Present</b> is left, and Present never writes.</div>
+</div>
 
 <div class="foot">Everything lives in <code>Z:\Morning Dashboard</code> — no login, no internet,
   nothing to install. Needs <b>Chrome or Edge</b>.</div>

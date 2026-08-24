@@ -581,7 +581,6 @@ body.display-only #draftBtn,
 body.display-only #pubBtn,
 body.display-only #editBtn,
 body.display-only .rail-act.act-save,
-body.display-only .rail-act.act-pub,
 body.display-only .rail-act.act-edit{display:none!important}
 body.pres-mode .msg-acts{display:none}
 @media print{.msg-acts{display:none}}
@@ -797,8 +796,10 @@ body.pres-mode .review-card{min-height:0;justify-content:flex-start}
 .rail-act.act-edit{color:var(--navy,#101a2c)}
 .rail-act.act-save{color:#2563eb}
 /* .btn-show is defined with the rest of the button system, further up. */
+.rail-act.act-show{color:var(--gold)}
 .rail-act.act-pub{color:var(--green)}
 .rail-act.act-save:hover{background:#eff5ff}
+.rail-act.act-show:hover{background:var(--amber-soft)}
 .rail-act.act-pub:hover{background:var(--green-soft)}
 /* tucking away hides the section list; the buttons stay, icon only */
 .rail.tucked .rail-sep{display:none}
@@ -898,8 +899,7 @@ body.pres-mode #c-priorities.awaiting{animation:none}
 
       <!-- and the four that are the morning itself -->
       <button class="btn btn-ghost" id="editBtn" onclick="enterEdit()"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M11.4 2.6l2 2L6 12l-2.6.6.6-2.6 7.4-7.4z"/></svg>Edit</button>
-      <button class="btn btn-ghost" id="draftBtn" onclick="saveDraft()"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2.8h7.6l2.6 2.6v7.8H3z"/><path d="M5.4 2.8v3.4h4.6V2.8"/><path d="M5 9.4h6v3.8H5z"/></svg>Save</button>
-      <button class="btn btn-pub" id="pubBtn" onclick="publish()"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.8 2.4L2.2 7.1l4.3 1.9 1.9 4.3 5.4-10.9z"/><path d="M6.5 9L13.8 2.4"/></svg>Publish</button>
+      <button class="btn btn-pub" id="draftBtn" onclick="saveDraft()"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2.8h7.6l2.6 2.6v7.8H3z"/><path d="M5.4 2.8v3.4h4.6V2.8"/><path d="M5 9.4h6v3.8H5z"/></svg>Save</button>
       <button class="btn btn-show" id="showBtn" onclick="present()"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.4 3.2h11.2v7.4H2.4z"/><path d="M6.4 13.4h3.2"/><path d="M8 10.6v2.8"/></svg>Present</button>
     </div>
   </div>
@@ -1957,18 +1957,26 @@ function setFormData(data){
     reviewConfig=data.reviewConfig.map(d=>normalizeReviewConfig(d));
   }
 }
-function saveDraft(){applyAll();const store=getStore(),date=document.getElementById('dashDate').value;
-  const data={...getFormData(),comments:COMMENTS,layout:LAYOUT,status:'draft',savedAt:new Date().toISOString()};
-  store[date]=data;store.__deptConfig=deptConfig.map(d=>({...d}));store.__reviewConfig=reviewConfig.map(d=>({...d}));setStore(store);
-  const b=document.getElementById('statusBadge');b.className='badge badge-draft';b.textContent='Draft saved';b.classList.remove('hidden');
-  showToast('Draft saved for '+date,'#2563eb');}
-function publish(){applyAll();
+/* There used to be two of these. Save wrote the day into the shared folder,
+   which is what everybody else reads — so the morning was already published the
+   moment it was saved. Publish wrote the same file again, stamped it, and jumped
+   to the wall. Two words for one act, and the second one is why the boardroom PC
+   was being asked to write when all it wanted to do was show.
+
+   Now: Save shares it, Present shows it. Nothing is a draft, because nothing was
+   ever private — anybody with the dashboard open sees a save within fifteen
+   seconds. The badge says when, since that is the only part worth knowing. */
+function saveDraft(){applyAll();
   const store=getStore(),date=document.getElementById('dashDate').value;
-  const data={...getFormData(),comments:COMMENTS,layout:LAYOUT,status:'published',publishedAt:new Date().toISOString()};
-  store[date]=data;store.__deptConfig=deptConfig.map(d=>({...d}));store.__reviewConfig=reviewConfig.map(d=>({...d}));setStore(store);
-  exitEdit();document.body.classList.add('pres-mode');
-  const b=document.getElementById('statusBadge');b.className='badge badge-pub';b.textContent='Published ✓';b.classList.remove('hidden');
-  showToast('Dashboard published!','#2f7d4a');}
+  const now=new Date();
+  const data={...getFormData(),comments:COMMENTS,layout:LAYOUT,
+              status:'saved',savedAt:now.toISOString()};
+  store[date]=data;store.__deptConfig=deptConfig.map(d=>({...d}));
+  store.__reviewConfig=reviewConfig.map(d=>({...d}));setStore(store);
+  const at=now.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
+  const b=document.getElementById('statusBadge');
+  if(b){b.className='badge badge-pub';b.textContent='Saved '+at;b.classList.remove('hidden');}
+  showToast('Saved \u2014 everyone can see it','#2f7d4a');}
 function loadDay(){
   const date=document.getElementById('dashDate').value;
   updateHeaderDate(date);
@@ -2000,8 +2008,12 @@ function loadDay(){
     setFormData(data);renderProductionSection(false);renderReviewSection(false);applyAll();applyDeptData(data);
     const b=document.getElementById('statusBadge');
     if(!PRESENTING){
-      b.className=data.status==='published'?'badge badge-pub':'badge badge-draft';
-      b.textContent=data.status==='published'?'Published ✓':'Draft';
+      /* 'published' only appears in days written before Publish was removed. */
+      const when=data.savedAt?new Date(data.savedAt)
+        .toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}):'';
+      b.className='badge badge-pub';
+      b.textContent=data.status==='published'?'Published \u2713'
+        :when?'Saved '+when:'Saved';
     }
     b.classList.remove('hidden');
     if(data.status==='published'){exitEdit();document.body.classList.add('pres-mode');}
@@ -2949,8 +2961,8 @@ async function mergeAndWrite(date){
   const merged = mergeDay(base, mine, BASELINE[date]);
   const res = await pushToFolder(date, merged);
   if (!res.ok) {
-    /* the morning is already in this browser — publish() stored it before we got
-       here — so nothing is lost, and saying so is half the message */
+    /* the morning is already in this browser — saveDraft() stored it before we
+       got here — so nothing is lost, and saying so is half the message */
     const why = writeExcuse(res.err);
     document.body.classList.remove('pres-mode');
     const badge = document.getElementById('statusBadge');
@@ -3042,7 +3054,7 @@ function checkFolderThen(go){
   };
 }
 (function(){
-  ['saveDraft','publish'].forEach(fn=>{
+  ['saveDraft'].forEach(fn=>{
     const orig=window[fn]; if(typeof orig!=='function')return;
     window[fn]=function(){
       const self=this, args=arguments;
@@ -3410,7 +3422,7 @@ window.addEventListener('resize',markRail);
 const RAIL_ACTS=[
   ['edit','act-edit','\u270E','Edit Mode', ()=>enterEdit()],
   ['save','act-save','\uD83D\uDCBE','Save',      ()=>saveDraft()],
-  ['publish','act-pub','\uD83D\uDDFA','Publish', ()=>publish()],
+  ['present','act-show','\uD83D\uDDA5','Present', ()=>present()],
 ];
 function buildDock(){
   const rail=document.querySelector('.rail'); if(!rail)return;
@@ -3437,7 +3449,7 @@ function dockFollowsHeader(){
   const show=(act,on)=>{const b=rail.querySelector('.rail-act[data-act='+act+']');
     if(b)b.style.display=on?'flex':'none';};
   show('edit',!editing);      /* only offer it when it is off */
-  show('save',true); show('publish',true);   /* these two never go away */
+  show('save',true); show('present',true);   /* these two never go away */
   document.body.classList.toggle('editing', editing);
 }
 

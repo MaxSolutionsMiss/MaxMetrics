@@ -44,8 +44,7 @@ console.log('\n── it arrives and works out what it is ──');
 let {p,errs,c}=await open(false);
 say(await p.$eval('body',n=>n.classList.contains('display-only')),
     'a PC that cannot write knows it is a screen');
-say(await shown('#draftBtn')(p)===0 && await shown('#pubBtn')(p)===0,
-    'Save and Publish are gone');
+say(await shown('#draftBtn')(p)===0,'Save is gone');
 say(await shown('#editBtn')(p)===0,'and so is Edit Mode');
 say(await shown('#showBtn')(p)===1,'Present is still there — the one thing it can do');
 
@@ -96,14 +95,15 @@ await c.close();
 console.log('\n── a plant-floor PC that can write is untouched ──');
 ({p,errs,c}=await open(true));
 say(!(await p.$eval('body',n=>n.classList.contains('display-only'))),'it is not a screen');
-say(await shown('#draftBtn')(p)===1 && await shown('#pubBtn')(p)===1,'Save and Publish are there');
+say(await shown('#draftBtn')(p)===1,'Save is there');
 say(await shown('#showBtn')(p)===1,'and Present beside them');
 await p.evaluate(()=>{document.getElementById('dashDate').value='2026-08-21';});
-await p.click('#pubBtn'); await p.waitForTimeout(900);
+await p.click('#draftBtn'); await p.waitForTimeout(900);
 await p.evaluate(()=>document.querySelectorAll('.mdl-bg').forEach(m=>m.remove()));
 say(await p.evaluate(()=>window.__writes>0),
-    'publishing writes — '+await p.evaluate(()=>window.__writes)+' writes');
-say(await p.$eval('body',n=>n.classList.contains('pres-mode')),'and puts it on the wall');
+    'saving writes — '+await p.evaluate(()=>window.__writes)+' writes');
+await p.click('#showBtn'); await p.waitForTimeout(700);
+say(await p.$eval('body',n=>n.classList.contains('pres-mode')),'and Present puts it on the wall');
 say(errs.length===0,'no errors'+(errs.length?': '+errs.join(' | '):''));
 await c.close();
 

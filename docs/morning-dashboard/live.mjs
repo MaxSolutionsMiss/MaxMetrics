@@ -29,7 +29,7 @@ const jack=await person('Jack','JR'), mary=await person('Mary','MO');
 
 console.log('\n── Save works without Edit Mode ──');
 say(await jack.$eval('#draftBtn',n=>!n.classList.contains('hidden')),'Save is there before Edit Mode');
-say(await jack.$eval('#pubBtn',n=>!n.classList.contains('hidden')),'and so is Publish');
+say(await jack.$eval('#showBtn',n=>!n.classList.contains('hidden')),'and so is Present');
 await comment(jack,'watch','Jack: board short on the 40');
 await jack.click('#draftBtn'); await jack.waitForTimeout(700);
 say(!!DISK[Object.keys(DISK).find(k=>/\d{4}-/.test(k))],'a comment can be saved without Edit Mode at all');

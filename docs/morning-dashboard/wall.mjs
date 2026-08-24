@@ -37,7 +37,7 @@ say(emptyDraft>0,'and so are the threads nobody has written in yet — '+emptyDr
 await p.screenshot({path:'wall_draft.png',fullPage:false});
 
 console.log('\n── on the wall ──');
-await p.click('#pubBtn'); await p.waitForTimeout(800);
+await p.click('#draftBtn'); await p.waitForTimeout(800);
 /* the folder is not set up here, so dismiss whatever it asks */
 const dlg=await p.$$('.mdl-bg');
 if(dlg.length) await p.evaluate(()=>{document.querySelectorAll('.mdl-bg').forEach(m=>m.remove());

@@ -24,7 +24,9 @@ Either way, **nothing you have already typed is ever lost.**
 
 **Two other things worth knowing:**
 
-**Export is not Save.** The Export button makes a personal backup called `dashboard-<date>.json`. Putting that file into the Data folder does *not* save the morning — nothing reads those. Use **Save** and **Publish / Present** for the real thing.
+**Save is all there is now.** Publish has gone — saving already wrote the morning into the shared folder, so it was two words for the same act. Press **Save** as you go, and **Present** when it is time for the meeting. Present pulls the latest and puts it on the wall; it never saves anything, which is why the boardroom PC can run the meeting even though Windows will not let it write.
+
+**Export is not Save.** The Export button makes a personal backup called `dashboard-<date>.json`. Putting that file into the Data folder does *not* save the morning — nothing reads those.
 
 **If it says it cannot write to the folder,** that is not you doing anything wrong and nothing is gone — the morning is saved on that PC. Take a photo of the message and send it to me. It usually means that computer's Windows account can read the folder but not save into it, which is a permission on the drive that IT can fix in a minute.
 

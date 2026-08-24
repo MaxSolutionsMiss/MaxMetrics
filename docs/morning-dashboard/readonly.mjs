@@ -36,14 +36,14 @@ await p.$$eval('.mdl-bg',g=>{const m=g[g.length-1];
   m.querySelector('[data-f="name"]').value='Angela Wu';
   m.querySelector('[data-f="ini"]').value='AW'; m.querySelector('[data-ok]').click();});
 await p.waitForTimeout(300);
-await p.click('#pubBtn'); await p.waitForTimeout(900);
+await p.click('#draftBtn'); await p.waitForTimeout(900);
 let t=await dlgText(p);
 say(/Windows refused the write/.test(t),'it names Windows, not the browser');
 say(/Modify rights/.test(t),'and says what to ask for — "'+(t.match(/Modify rights[^.]*/)||[''])[0]+'"');
 say(/saved on this PC/i.test(t),'it says nothing was lost');
 say(/NoModificationAllowedError/.test(t),'and prints what Chrome actually called it');
 say(!(await p.$eval('body',n=>n.classList.contains('pres-mode'))),
-    'the screen did NOT go into published mode');
+    'the screen did NOT go into presentation mode');
 say((await p.$eval('#statusBadge',n=>n.textContent))==='On this PC only',
     'and the badge says so rather than "Published"');
 say((await p.$$('[data-thread="priorities"] .msg')).length===1,'the comment is still on screen');
@@ -52,7 +52,7 @@ await p.context().close();
 
 console.log('\n── Chrome policy blocks writing ──');
 ({p,errs}=await open('NotAllowedError'));
-await p.click('#pubBtn'); await p.waitForTimeout(900);
+await p.click('#draftBtn'); await p.waitForTimeout(900);
 t=await dlgText(p);
 say(/Chrome would not allow/.test(t),'it points at Chrome');
 say(/chrome:\/\/policy/.test(t),'and tells them where to look');
@@ -61,7 +61,7 @@ await p.context().close();
 
 console.log('\n── the Z: drive is not mapped ──');
 ({p,errs}=await open('NotFoundError'));
-await p.click('#pubBtn'); await p.waitForTimeout(900);
+await p.click('#draftBtn'); await p.waitForTimeout(900);
 t=await dlgText(p);
 say(/not there any more/.test(t),'it says the folder has gone');
 say(/not mapped/.test(t),'and suggests the mapped drive');
@@ -69,7 +69,7 @@ await p.context().close();
 
 console.log('\n── something nobody has seen before ──');
 ({p,errs}=await open('WeirdUnheardOfError'));
-await p.click('#pubBtn'); await p.waitForTimeout(900);
+await p.click('#draftBtn'); await p.waitForTimeout(900);
 t=await dlgText(p);
 say(/WeirdUnheardOfError/.test(t),'an unknown fault still gets named rather than swallowed');
 say(/saved on this PC/i.test(t),'and still says the work is safe');
@@ -87,9 +87,12 @@ await q.evaluate(()=>{ window.__FS={};
         createWritable:async()=>({write:async t=>{window.__FS[n]=t;},close:async()=>{}}),
         getFile:async()=>({text:async()=>window.__FS[n]})}); }};
 });
-await q.click('#pubBtn'); await q.waitForTimeout(900);
+await q.click('#draftBtn'); await q.waitForTimeout(900);
 say((await q.$$('.mdl-bg')).length===0,'no warning when the write succeeds');
-say(await q.$eval('body',n=>n.classList.contains('pres-mode')),'and it does go to published mode');
+say(!(await q.$eval('body',n=>n.classList.contains('pres-mode'))),
+    'saving shares the day without jumping to the wall — that is what Present is for');
+say(/^Saved /.test(await q.$eval('#statusBadge',n=>n.textContent)),
+    'and the badge says when — "'+await q.$eval('#statusBadge',n=>n.textContent)+'"');
 const wrote=await q.evaluate(()=>Object.keys(window.__FS));
 say(wrote.some(k=>/^\d{4}-\d\d-\d\d\.json$/.test(k)),'the morning reached the folder — '+wrote.join(', '));
 say(!wrote.some(k=>k.startsWith('.write-test')),'and the test file was cleared away');

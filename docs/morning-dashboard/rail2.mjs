@@ -10,19 +10,19 @@ const vis=a=>p.$eval(`.rail-act[data-act=${a}]`,n=>getComputedStyle(n).display!=
 say((await p.$$('.dock')).length===0,'the raft in the corner is gone');
 say((await p.$$('.rail .rail-act')).length===3,'three buttons live in the rail');
 say((await p.$$('.rail .rail-sep')).length===1,'with a divider under the sections');
-say(await vis('edit')&&await vis('save')&&await vis('publish'),
-    'reading: Edit Mode, Save and Publish all there');
+say(await vis('edit')&&await vis('save')&&await vis('present'),
+    'reading: Edit Mode, Save and Present all there');
 
 /* order inside the strip: sections, divider, buttons, tuck */
 const order=await p.$$eval('.rail > *',n=>n.map(x=>
   x.classList.contains('rail-act')?'act:'+x.dataset.act
   :x.classList.contains('rail-sep')?'—'
   :x.classList.contains('rail-tuck')?'tuck':'sec'));
-say(order.join(' ')==='sec sec sec sec sec sec sec — act:edit act:save act:publish tuck',
+say(order.join(' ')==='sec sec sec sec sec sec sec — act:edit act:save act:present tuck',
     'in the right order — '+order.join(' '));
 
 await p.$eval('.rail-act[data-act=edit]',n=>n.click()); await p.waitForTimeout(500);
-say(!(await vis('edit'))&&await vis('save')&&await vis('publish'),
+say(!(await vis('edit'))&&await vis('save')&&await vis('present'),
     'in Edit Mode only Edit steps aside');
 say(await p.$eval('#draftBtn',n=>!n.classList.contains('hidden')),'the header agrees');
 
@@ -54,7 +54,15 @@ await p.click('.rail-tuck'); await p.waitForTimeout(350);
 say(await vis('save'),'tucked away, the buttons stay');
 say(!(await p.$eval('.rail a[href^="#"]',n=>getComputedStyle(n).display!=='none')),
     'and the section list goes');
-await p.$eval('.rail-act[data-act=publish]',n=>n.click()); await p.waitForTimeout(800);
-say(await vis('edit')&&await vis('save'),'after Publish, Edit Mode is offered again and Save stays');
+/* Publish used to end the editing for you. Save has no business doing that —
+   you save half way through filling the morning in and carry on. Present is
+   what ends it. */
+await p.$eval('.rail-act[data-act=save]',n=>n.click()); await p.waitForTimeout(800);
+say(!(await vis('edit'))&&await vis('save')&&await vis('present'),
+    'saving leaves you in Edit Mode, still able to save again');
+await p.$eval('.rail-act[data-act=present]',n=>n.click()); await p.waitForTimeout(900);
+say(await p.$eval('body',n=>n.classList.contains('pres-mode')),
+    'and Present is what puts it on the wall');
+say(await vis('edit'),'which hands Edit Mode back');
 await b.close();
 console.log(bad?`\n${bad} failed\n`:'\nall good\n'); process.exit(bad?1:0);

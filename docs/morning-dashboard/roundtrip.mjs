@@ -39,13 +39,18 @@ say(onDisk.short==='3'&&onDisk.jobs==='41'&&onDisk.late==='2',
     `the numbers are in the file (shortages ${onDisk.short}, shipped ${onDisk.jobs}, late ${onDisk.late})`);
 say(onDisk.comments?.watch?.[0]?.text==='Board for the 40 is short','the comment is in the file');
 say(onDisk.comments.watch[0].ini==='AW','signed with the initials');
-say(onDisk.status==='draft','marked a draft');
+say(onDisk.status==='saved','marked saved, not a draft — nothing here was ever private');
+say(!!onDisk.savedAt,'and stamped with when — '+onDisk.savedAt);
 
-/* publish, and check it goes to the same file */
-await p.click('#pubBtn'); await p.waitForTimeout(600);
-const pub=JSON.parse(await p.evaluate(d=>window.FAKE[d+'.json'],date));
-say(pub.status==='published','Publish overwrites the same file, now published');
-say(pub.comments?.watch?.length===1,'and Publish kept the comment');
+/* saving again lands on the same file rather than making a second one */
+await p.fill('#i-jobs','44');
+await p.click('#draftBtn'); await p.waitForTimeout(600);
+say((await p.evaluate(()=>Object.keys(window.FAKE))).filter(k=>/^\d{4}-\d\d-\d\d\.json$/.test(k)).length===1,
+    'a second save overwrites the same file rather than making another');
+const again=JSON.parse(await p.evaluate(d=>window.FAKE[d+'.json'],date));
+say(again.jobs==='44','with the newer number');
+say(again.comments?.watch?.length===1,'and the comment still on it');
+await p.fill('#i-jobs','41'); await p.click('#draftBtn'); await p.waitForTimeout(600);
 
 /* wipe this browser entirely, reload, and pull the morning back from the folder */
 await p.evaluate(()=>{const keep=window.FAKE;localStorage.clear();window.__keep=keep;});
