@@ -738,6 +738,10 @@ select.aid__tone:hover{color:var(--brand);border-color:var(--brand);background:v
   .modrail__mark{margin-bottom:0}
   .mod{width:auto;flex-direction:row;gap:7px;padding:8px 11px}
   .modrail__gap{display:none}
+  /* On a narrow screen the measure rail is nineteen links stacked above the question, so
+     reaching the answer means scrolling past the whole registry. The "Show me" menu holds
+     the same list, so the rail steps aside and the question comes first. */
+  .rail--ask .rail__group{display:none}
   .grid{grid-template-columns:1fr!important}}
 
 /* ── CARD ── */
@@ -3298,4 +3302,105 @@ body.tv.tv-brief .wall__dots{display:none}
   .er--pair{grid-template-columns:1fr}
   .er.er--jot{grid-template-columns:1fr;grid-template-areas:"lbl" "box" "do"}
   .jot__do{flex-direction:row;justify-content:flex-end}
+}
+
+/* ── ASK ──
+   The question is a sentence, and the parts you can change look like parts you can
+   change. Native selects on purpose: they are the one control that already works with a
+   keyboard, a screen reader and a thumb, and this page is read on all three. */
+.ask{display:flex;align-items:center;gap:var(--s2);flex-wrap:wrap;width:100%}
+.ask__w{font-size:var(--t-base);color:var(--ink-muted)}
+.ask__title{font-size:var(--t-title);font-weight:700;letter-spacing:-.02em}
+.ask__gap{flex:1}
+.ask__sel{font-family:inherit;font-size:var(--t-base);font-weight:600;color:var(--ink);
+  height:var(--ctl-h);padding:0 30px 0 11px;border:1px solid var(--rule-strong);
+  border-radius:var(--radius);background:var(--surface);cursor:pointer;appearance:none;
+  -webkit-appearance:none;max-width:260px;
+  background-image:url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238A959E' stroke-width='1.9' stroke-linecap='round'%3E%3Cpath d='M6 9.5l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 9px center;background-size:13px}
+.ask__sel:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
+
+.rail__sub{font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.09em;
+  color:var(--rail-label);font-weight:600;padding:var(--s3) var(--s3) var(--s1)}
+
+/* ── AN ANSWER ── */
+.ct{font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.06em;
+  color:var(--ink-muted);font-weight:600}
+/* .card is a column, so the direction has to be stated or the answer stacks itself into
+   the right-hand edge and leaves half the card empty. */
+.kpihero{display:flex;flex-direction:row;justify-content:space-between;
+  align-items:flex-end;gap:var(--s6);flex-wrap:wrap}
+.kpihero__l{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1 1 auto}
+.kpihero__v{font-family:var(--font-num);font-weight:600;font-size:calc(var(--t-metric)*2);
+  line-height:1.05;color:var(--ink)}
+/* Where there is no total to give, the slot says so in words. Set at the metric size a
+   two-word sentence reads as a headline figure; a bare dash reads as a redaction. */
+.kpihero__v--none{font-family:inherit;font-size:var(--t-lead);font-weight:600;
+  color:var(--ink-muted);padding-top:6px}
+.kpihero__r{display:flex;flex-direction:column;gap:3px;padding-bottom:6px;min-width:0;
+  text-align:right;align-items:flex-end}
+.kpihero__verdict{font-size:var(--t-base);font-weight:600;color:var(--ink-muted)}
+.kpihero__verdict.is-ok{color:var(--ok)}
+.kpihero__verdict.is-warn{color:var(--signal)}
+.kpihero__verdict.is-off{color:var(--stop)}
+.kpihero__note{font-size:var(--t-small);color:var(--ink-muted);line-height:1.5}
+
+/* One measure, one hue: the bar is length and the tick is the target. A group that met
+   its target keeps the brand hue; one inside a tenth of it goes amber, one past that goes
+   red — the same two steps the headline uses, decided once in toneOf(). */
+.kpilist{display:flex;flex-direction:column;gap:7px;margin-top:var(--s2)}
+/* The value column holds "5,738,137 cartons", not just a number — too narrow and every
+   row wraps onto two lines. */
+.kpirow{display:grid;grid-template-columns:150px minmax(0,1fr) 150px;gap:var(--s3);align-items:center}
+.kpirow__n{font-size:var(--t-small);color:var(--ink);white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis}
+.kpirow__v{font-family:var(--font-num);font-weight:600;font-size:var(--t-lead);text-align:right}
+.kpirow__v.is-warn{color:var(--signal)}
+.kpirow__v.is-off{color:var(--stop)}
+.kpitrack{position:relative;display:block;height:18px;background:var(--sunk);border-radius:4px}
+.kpifill{position:absolute;left:0;top:0;bottom:0;background:var(--brand);border-radius:4px}
+.kpifill.is-warn{background:var(--signal)}
+.kpifill.is-off{background:var(--stop)}
+.kpitick{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink)}
+.kpinote{font-size:var(--t-small);color:var(--ink-muted);line-height:1.55;margin:var(--s2) 0 0}
+.kpigap{background:var(--warn-wash);border-color:var(--warn-rule)}
+.kpitable{width:100%;border-collapse:collapse;margin-top:var(--s2);font-size:var(--t-small)}
+.kpitable th{text-align:left;font-size:var(--t-micro);text-transform:uppercase;
+  letter-spacing:.07em;color:var(--ink-faint);font-weight:700;padding:0 var(--s3) 7px 0;
+  border-bottom:1px solid var(--rule)}
+.kpitable td{padding:7px var(--s3) 7px 0;border-bottom:1px solid var(--sunk);
+  font-variant-numeric:tabular-nums}
+
+/* ── DATA BANK ── */
+.banklist{display:flex;flex-direction:column;gap:2px;margin-top:var(--s2)}
+.bankrow{display:grid;grid-template-columns:10px minmax(0,1fr) auto;gap:var(--s3);
+  align-items:center;padding:9px 0;border-bottom:1px solid var(--sunk)}
+.bankrow__dot{width:8px;height:8px;border-radius:50%;background:var(--ink-faint)}
+.bankrow__dot.is-ok{background:var(--ok)}
+.bankrow__dot.is-off{background:var(--stop)}
+.bankrow__dot.is-idle{background:var(--ink-faint)}
+.bankrow__n{font-size:var(--t-base);font-weight:600;min-width:0}
+.bankrow__k{font-weight:400;color:var(--ink-faint);font-size:var(--t-small)}
+.bankrow__s{font-size:var(--t-small);color:var(--ink-muted);white-space:nowrap}
+.bankrow__note{grid-column:2/-1;font-size:var(--t-small);color:var(--ink-muted)}
+.bankgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--s3);
+  margin-top:var(--s2)}
+.bankcell{display:flex;flex-direction:column;gap:2px;padding:var(--s3);background:var(--sunk);
+  border-radius:var(--radius)}
+.bankcell__v{font-family:var(--font-num);font-weight:600;font-size:var(--t-metric);
+  line-height:1.1;color:var(--ink)}
+.bankcell__n{font-size:var(--t-small);font-weight:600}
+.bankcell__h{font-size:var(--t-micro);color:var(--ink-muted);line-height:1.45}
+.bankcell__f{font-size:var(--t-micro);color:var(--ink-faint);margin-top:2px}
+.bankflow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--s3);
+  margin-top:var(--s2)}
+.bankstep{display:flex;flex-direction:column;gap:4px;padding:var(--s3);
+  border:1px solid var(--rule);border-radius:var(--radius)}
+.bankstep.is-key{border-color:var(--brand);background:var(--brand-wash)}
+.bankstep__n{font-size:var(--t-small);font-weight:700}
+.bankstep__d{font-size:var(--t-small);color:var(--ink-muted);line-height:1.5}
+
+@media(max-width:1000px){
+  .bankgrid,.bankflow{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .kpirow{grid-template-columns:110px minmax(0,1fr) 76px}
 }
