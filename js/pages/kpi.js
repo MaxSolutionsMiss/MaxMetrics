@@ -17,13 +17,13 @@
 import {
   currentSession, signOut, myProfile, myLocations, savePreference,
   kpiRows, kpiDepartments,
-} from '../db.js?v=9113db7bfac5';
+} from '../db.js?v=cedb242a4be2';
 import {
   AREAS, MEASURES, BREAKDOWNS, PERIODS, NOT_COLLECTED, QUICK,
   measure, areaOf, breakdownsFor, hasDepartments, findMeasures,
   reduceRows, reduceTarget, formatValue, verdictOf, toneOf, windowFor,
-} from '../kpi.js?v=9113db7bfac5';
-import { esc, shortDate } from '../readings.js?v=9113db7bfac5';
+} from '../kpi.js?v=cedb242a4be2';
+import { esc, shortDate } from '../readings.js?v=cedb242a4be2';
 
 const $ = s => document.querySelector(s);
 const el = (tag, cls, html) => {
@@ -48,6 +48,7 @@ const state = {
   breakdown: 'none',
 
   open: null,            // which category is expanded
+  openWhere: false,      // is the locations dropdown showing
   search: '',
   asked: false,          // has this request been run
   today: new Date().toISOString().slice(0, 10),
@@ -82,8 +83,12 @@ function drawQuick() {
 }
 
 // A quick answer is just a filled-in request, so running one fills the ticket and asks.
+// A pin carries the locations it was built for; the starters carry none, which means
+// everywhere. A grant that has since been taken away is dropped rather than queried.
 function runQuick(q) {
-  state.scope = state.plants.map(p => p.id);
+  const mine = new Set(state.plants.map(p => p.id));
+  const kept = (q.scope || []).filter(id => mine.has(id));
+  state.scope = kept.length ? kept : state.plants.map(p => p.id);
   state.measure = q.measure;
   state.period = q.period || 'mtd';
   state.dept = q.dept || 'all';
@@ -95,7 +100,7 @@ function runQuick(q) {
 
 function reset() {
   Object.assign(state, { scope: [], measure: null, period: null, from: '', to: '',
-    dept: 'all', breakdown: 'none', open: null, search: '', asked: false });
+    dept: 'all', breakdown: 'none', open: null, openWhere: false, search: '', asked: false });
   $('#content').innerHTML = '';
 }
 
@@ -143,24 +148,59 @@ function draw() {
 }
 
 // 1 — Where.
+// A chip each was fine at two locations and is three wrapped rows at nine. This is a
+// dropdown: one line shut, a checklist open, so the step stays one line however many
+// plants the company ends up with.
 function stepWhere() {
-  const body = el('div', 'step__b');
+  const body = el('div', 'step__b step__b--col');
   const all = state.plants.map(p => p.id);
-  if (state.plants.length > 1) {
-    body.append(chip('All ' + state.plants.length + ' locations',
-      state.scope.length === state.plants.length,
-      () => { state.scope = state.scope.length === all.length ? [] : all; draw(); }));
+  const picked = state.plants.filter(p => state.scope.includes(p.id));
+
+  const label = !picked.length ? 'Choose locations'
+    : picked.length === state.plants.length && picked.length > 1
+      ? `All ${picked.length} locations`
+      : picked.length <= 2 ? picked.map(p => p.name).join(' and ')
+      : `${picked.length} locations`;
+
+  const shut = el('div', 'pick' + (state.openWhere ? ' is-open' : ''));
+  const face = el('button', 'pick__face' + (picked.length ? ' is-set' : ''),
+    `<span>${esc(label)}</span><span class="pick__x" aria-hidden="true"></span>`);
+  face.type = 'button';
+  face.setAttribute('aria-expanded', state.openWhere ? 'true' : 'false');
+  face.onclick = () => { state.openWhere = !state.openWhere; draw(); };
+  shut.append(face);
+
+  if (state.openWhere) {
+    const panel = el('div', 'pick__panel');
+    if (state.plants.length > 1) {
+      const every = state.scope.length === all.length;
+      panel.append(tick(`All ${state.plants.length} locations`, every, () => {
+        state.scope = every ? [] : all; draw();
+      }, 'pick__row--all'));
+    }
+    for (const p of state.plants) {
+      panel.append(tick(p.name, state.scope.includes(p.id), () => {
+        state.scope = state.scope.includes(p.id)
+          ? state.scope.filter(x => x !== p.id) : [...state.scope, p.id];
+        draw();
+      }));
+    }
+    shut.append(panel);
   }
-  for (const p of state.plants) {
-    body.append(chip(p.name, state.scope.includes(p.id), () => {
-      state.scope = state.scope.includes(p.id)
-        ? state.scope.filter(x => x !== p.id) : [...state.scope, p.id];
-      draw();
-    }));
-  }
-  const picked = state.scope.length;
-  return step(1, 'Which locations?', picked > 0, body,
-    picked ? `${picked} chosen` : 'Pick one or more');
+  body.append(shut);
+
+  return step(1, 'Which locations?', picked.length > 0, body,
+    picked.length ? `${picked.length} chosen` : 'Pick one or more');
+}
+
+// A row in a dropdown: a box you can see the state of, and a label you can hit.
+function tick(label, on, onclick, extra = '') {
+  const row = el('button', 'pick__row' + (on ? ' is-on' : '') + (extra ? ' ' + extra : ''),
+    `<span class="pick__box" aria-hidden="true"></span><span>${esc(label)}</span>`);
+  row.type = 'button';
+  row.setAttribute('aria-pressed', on ? 'true' : 'false');
+  row.onclick = onclick;
+  return row;
 }
 
 // 2 — What. The categories are folded until opened; search cuts across all of them.
@@ -375,6 +415,12 @@ function describe() {
   const b = BREAKDOWNS.find(x => x.key === state.breakdown);
   if (b && b.key !== 'none') bits.push('by ' + b.name.toLowerCase());
   bits.push((PERIODS.find(p => p.key === state.period)?.name || '').toLowerCase());
+  // Which locations, when it is not all of them — otherwise two pins that differ only by
+  // plant read as the same line in the rail.
+  if (state.scope.length && state.scope.length < state.plants.length) {
+    const named = state.plants.filter(p => state.scope.includes(p.id)).map(p => p.name);
+    bits.unshift(named.length <= 2 ? named.join(' and ') : `${named.length} locations`);
+  }
   return { label: m.name, sub: bits.filter(Boolean).join(', ') };
 }
 
@@ -385,10 +431,15 @@ async function pinCurrent() {
     label, sub,
     measure: state.measure, period: state.period,
     dept: state.dept, breakdown: state.breakdown,
+    scope: [...state.scope],
   };
-  // Same request twice is one pin.
+  // Same request twice is one pin — and the locations are part of what makes it the same.
+  const sameScope = p => {
+    const a = [...(p.scope || [])].sort().join(), b2 = [...pin.scope].sort().join();
+    return a === b2;
+  };
   const same = p => p.measure === pin.measure && p.period === pin.period
-    && p.dept === pin.dept && p.breakdown === pin.breakdown;
+    && p.dept === pin.dept && p.breakdown === pin.breakdown && sameScope(p);
   if (state.pins.some(same)) { drawQuick(); return; }
 
   state.pins = [...state.pins, pin];
