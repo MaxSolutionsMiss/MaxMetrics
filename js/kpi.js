@@ -14,7 +14,19 @@
 // are shown with a % sign. Encoding that here once is the difference between a registry and
 // a pile of special cases in the page.
 
-export const AREAS = ['Production', 'Shipping', 'Quality', 'Money', 'Safety', 'People'];
+// Nobody reads a list of two hundred measures. They know roughly what they are after —
+// something about quality, something about getting it out the door — so the categories are
+// the way in, and the measures live folded up inside them. A category that holds nothing
+// connected yet still appears, because "we do not collect that" is an answer worth giving.
+export const AREAS = [
+  { key: 'Production',   name: 'Production',   hint: 'what came off the machines' },
+  { key: 'Quality',      name: 'Quality',      hint: 'what it cost to get it wrong' },
+  { key: 'Supply chain', name: 'Supply chain', hint: 'promises kept, orders out' },
+  { key: 'Inventory',    name: 'Inventory',    hint: 'what is sitting in the building' },
+  { key: 'Money',        name: 'Money',        hint: 'value shipped' },
+  { key: 'Safety',       name: 'Safety',       hint: 'days without' },
+  { key: 'People',       name: 'People',       hint: 'hours and overtime' },
+];
 
 // agg: how several rows become one figure.
 //   sum      — add them (output, jobs, incidents)
@@ -41,17 +53,17 @@ export const MEASURES = [
   { key: 'hours', area: 'Production', name: 'Hours run', hint: 'time on the machines',
     table: 'daily_departments', col: 'hours', agg: 'sum', unit: ' hrs', dp: 1, up: true },
 
-  { key: 'otif', area: 'Shipping', name: 'On time, in full', hint: 'the shipping promise kept',
+  { key: 'otif', area: 'Supply chain', name: 'On time, in full', hint: 'the shipping promise kept',
     table: 'daily_metrics', col: 'otif', agg: 'weighted', by: 'jobs_shipped', unit: '%', dp: 1, up: true,
     target: 'otif_target' },
-  { key: 'otd', area: 'Shipping', name: 'On time', hint: 'delivered by the date promised',
+  { key: 'otd', area: 'Supply chain', name: 'On time', hint: 'delivered by the date promised',
     table: 'daily_metrics', col: 'otd', agg: 'weighted', by: 'jobs_shipped', unit: '%', dp: 1, up: true,
     target: 'otd_target' },
-  { key: 'jobs', area: 'Shipping', name: 'Jobs shipped', hint: 'orders out the door',
+  { key: 'jobs', area: 'Supply chain', name: 'Jobs shipped', hint: 'orders out the door',
     table: 'daily_metrics', col: 'jobs_shipped', agg: 'sum', unit: '', dp: 0, up: true },
-  { key: 'late', area: 'Shipping', name: 'Late', hint: 'jobs that missed the date',
+  { key: 'late', area: 'Supply chain', name: 'Late', hint: 'jobs that missed the date',
     table: 'daily_metrics', col: 'late', agg: 'sum', unit: '', dp: 0, up: false },
-  { key: 'shorts', area: 'Shipping', name: 'Short', hint: 'jobs that went incomplete',
+  { key: 'shorts', area: 'Supply chain', name: 'Short', hint: 'jobs that went incomplete',
     table: 'daily_metrics', col: 'shorts', agg: 'sum', unit: '', dp: 0, up: false },
 
   { key: 'coq', area: 'Quality', name: 'Cost of quality', hint: 'share of sales lost to getting it wrong',
@@ -76,7 +88,23 @@ export const MEASURES = [
 
   { key: 'ot', area: 'People', name: 'Overtime shifts', hint: 'shifts worked over',
     table: 'daily_labour', col: 'ot_shifts', agg: 'sum', unit: '', dp: 0, up: false },
+
+  // Asked for constantly and held by nothing. These are listed rather than left out: a
+  // measure that is missing from the menu looks like an oversight, one that is present and
+  // greyed with a reason is a request somebody can act on. `pending` is what makes it grey.
+  { key: 'fg', area: 'Inventory', name: 'Finished goods', hint: 'made and waiting to ship',
+    pending: 'No table in Metriq holds stock. This is not an empty column — there is no ' +
+      'inventory table at all. It needs the MIS read before it can be asked about.' },
+  { key: 'rm', area: 'Inventory', name: 'Raw material', hint: 'board and ink on hand',
+    pending: 'Same source as finished goods: the MIS holds it, Metriq has no table for it yet.' },
+  { key: 'wip', area: 'Inventory', name: 'Work in progress', hint: 'started, not finished',
+    pending: 'Same source as finished goods: the MIS holds it, Metriq has no table for it yet.' },
+  { key: 'doh', area: 'Inventory', name: 'Days on hand', hint: 'how long the stock would last',
+    pending: 'Needs finished goods and a rate of despatch, so it arrives with the MIS read.' },
 ];
+
+// Everything that can actually be answered today.
+export const LIVE = MEASURES.filter(m => !m.pending);
 
 // A measure can be split by a dimension only if its own table carries that dimension.
 export const BREAKDOWNS = [
@@ -88,10 +116,11 @@ export const BREAKDOWNS = [
 ];
 
 export const PERIODS = [
-  { key: 'mtd',   name: 'This month' },
-  { key: 'last',  name: 'Last month' },
-  { key: 'd90',   name: 'Last 90 days' },
-  { key: 'ytd',   name: 'This year' },
+  { key: 'mtd',    name: 'This month' },
+  { key: 'last',   name: 'Last month' },
+  { key: 'd90',    name: 'Last 90 days' },
+  { key: 'ytd',    name: 'This year' },
+  { key: 'custom', name: 'Pick the dates' },
 ];
 
 // The two dimensions nothing records. Shown in the picker, deliberately, because a greyed
@@ -101,13 +130,79 @@ export const NOT_COLLECTED = [
   { name: 'Shift',   why: 'No table records which shift a number belongs to.' },
 ];
 
+// What somebody would type looking for a measure, where that is not its name. "OTIF" and
+// "on time in full" should both find the same row, and so should "scrap" and "rework"
+// finding cost of quality. This is the difference between a category tree that works at
+// twenty measures and one that still works at two hundred.
+const ALSO = {
+  output:   'cartons sheets produced volume made quantity units',
+  uptime:   'availability running downtime utilisation utilization oee',
+  makeready: 'changeover setup mr set-up',
+  mrcount:  'changeovers setups',
+  hours:    'runtime machine time',
+  otif:     'otif on time in full fill rate service level',
+  otd:      'otd on time delivery delivered punctual',
+  jobs:     'orders shipped despatch dispatch shipments',
+  late:     'overdue missed date backorder',
+  shorts:   'short shipped incomplete partial',
+  coq:      'coq scrap rework waste spoilage quality cost',
+  ncr:      'ncr non conformance defect reject',
+  compint:  'internal complaint concession',
+  compext:  'customer complaint external return claim',
+  shipped:  'sales revenue value invoiced billings',
+  shippedy: 'sales revenue year annual ytd',
+  nearmiss: 'near miss incident close call',
+  injury:   'lti lost time accident recordable',
+  ot:       'overtime labour labor shifts',
+  fg:       'finished goods stock inventory fg warehouse',
+  rm:       'raw material board ink stock inventory substrate',
+  wip:      'work in progress wip',
+  doh:      'days on hand cover turns inventory days',
+};
+
 export const measure = key => MEASURES.find(m => m.key === key);
 
 export const areaOf = area => MEASURES.filter(m => m.area === area);
 
+// A plain-language search across names, hints and the synonyms above.
+export function findMeasures(q) {
+  const t = String(q || '').trim().toLowerCase();
+  if (!t) return [];
+  const words = t.split(/\s+/);
+  return MEASURES.filter(m => {
+    const hay = `${m.name} ${m.hint} ${m.area} ${ALSO[m.key] || ''}`.toLowerCase();
+    return words.every(w => hay.includes(w));
+  });
+}
+
 // Which breakdowns this measure can honestly offer.
 export const breakdownsFor = m => BREAKDOWNS.filter(b =>
   !b.needs || m.table === 'daily_departments' || m.table === 'daily_labour');
+
+// Whether a department can be named as a filter at all.
+export const hasDepartments = m =>
+  m.table === 'daily_departments' || m.table === 'daily_labour';
+
+// ── Quick answers ───────────────────────────────────────────────────────────────
+//
+// The handful of questions that get asked most, ready-made, so the common case is one
+// click and the ticket is only for everything else. These are the starters everybody
+// gets; a person pins their own on top of them, which is why a supply chain manager and
+// a quality manager end up with different front pages.
+export const QUICK = [
+  { key: 'q-otd',   label: 'On-time delivery',    sub: 'by location, this month',
+    measure: 'otd',    breakdown: 'plant', period: 'mtd' },
+  { key: 'q-otif',  label: 'On time, in full',    sub: 'by location, this month',
+    measure: 'otif',   breakdown: 'plant', period: 'mtd' },
+  { key: 'q-cartons', label: 'Cartons produced',  sub: 'gluing, by location, this month',
+    measure: 'output', breakdown: 'plant', period: 'mtd', dept: 'gluing' },
+  { key: 'q-uptime', label: 'Uptime',             sub: 'by department, this month',
+    measure: 'uptime', breakdown: 'dept',  period: 'mtd' },
+  { key: 'q-coq',   label: 'Cost of quality',     sub: 'by location, this year',
+    measure: 'coq',    breakdown: 'plant', period: 'ytd' },
+  { key: 'q-jobs',  label: 'Jobs shipped',        sub: 'by location, this month',
+    measure: 'jobs',   breakdown: 'plant', period: 'mtd' },
+];
 
 // ── Turning rows into an answer ────────────────────────────────────────────────
 
@@ -196,7 +291,11 @@ export function toneOf(m, value, target) {
 
 // The window a period means, as two dates. Today is passed in rather than read, so the
 // same question asked twice in a session cannot drift across midnight.
-export function windowFor(period, today) {
+export function windowFor(period, today, custom) {
+  if (period === 'custom') {
+    const from = custom?.from || today, to = custom?.to || today;
+    return from <= to ? [from, to] : [to, from];   // typed backwards is still a window
+  }
   const d = new Date(today + 'T00:00:00');
   const iso = x => x.toISOString().slice(0, 10);
   const y = d.getFullYear(), m = d.getMonth();

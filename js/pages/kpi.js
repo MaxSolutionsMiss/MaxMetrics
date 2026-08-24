@@ -1,20 +1,29 @@
 // KPIs on demand.
 //
-// The question is a sentence with four holes in it, and every hole is a menu built from
-// what the data actually carries. Nobody types SQL, nobody picks a chart type, and the
-// page never invents a number: where a reading is absent it says so rather than drawing
-// a zero, because a zero is a claim and an absence is not.
+// This is a request, not a menu. The page opens blank and asks four things in order —
+// where, what, when, and how you want it cut — and nothing below a step appears until the
+// step above it is answered. That is deliberate: a screen that lists every measure it
+// knows is readable at twenty and useless at two hundred, so the categories are the way
+// in and the measures stay folded up inside them until somebody opens one.
+//
+// Two ways past the ticket, because most days nobody needs it. The starters answer the
+// handful of questions that get asked constantly in one click, and anything you build can
+// be pinned beside them — which is how a supply chain manager and a quality manager end up
+// with different front pages without either of them configuring anything.
+//
+// The page never invents a number: where a reading is absent it says so rather than
+// drawing a zero, because a zero is a claim and an absence is not.
 
 import {
-  currentSession, signOut, myProfile, myLocations,
+  currentSession, signOut, myProfile, myLocations, savePreference,
   kpiRows, kpiDepartments,
-} from '../db.js?v=f1be04ff73f1';
+} from '../db.js?v=0e9e35ec2bef';
 import {
-  AREAS, MEASURES, BREAKDOWNS, PERIODS, NOT_COLLECTED,
-  measure, areaOf, breakdownsFor,
+  AREAS, MEASURES, BREAKDOWNS, PERIODS, NOT_COLLECTED, QUICK,
+  measure, areaOf, breakdownsFor, hasDepartments, findMeasures,
   reduceRows, reduceTarget, formatValue, verdictOf, toneOf, windowFor,
-} from '../kpi.js?v=f1be04ff73f1';
-import { esc, shortDate } from '../readings.js?v=f1be04ff73f1';
+} from '../kpi.js?v=0e9e35ec2bef';
+import { esc, shortDate } from '../readings.js?v=0e9e35ec2bef';
 
 const $ = s => document.querySelector(s);
 const el = (tag, cls, html) => {
@@ -26,62 +35,371 @@ const el = (tag, cls, html) => {
 
 const state = {
   plants: [],            // [{id, name}] — only the ones this person may see
-  depts: new Map(),      // location_id -> [{key, name}]
-  area: 'Production',
-  measure: 'uptime',
-  scope: 'all',          // 'all' or a location id
-  breakdown: 'dept',
-  period: 'mtd',
+  depts: new Map(),      // location_id -> [{key, name, unit}]
+  me: null,              // profile id, so a pin can be saved
+  pins: [],              // this person's own quick answers
+
+  // The request. Everything starts empty on purpose.
+  scope: [],             // location ids; [] means nothing picked yet
+  measure: null,
+  period: null,
+  from: '', to: '',      // only when period === 'custom'
+  dept: 'all',
+  breakdown: 'none',
+
+  open: null,            // which category is expanded
+  search: '',
+  asked: false,          // has this request been run
   today: new Date().toISOString().slice(0, 10),
 };
 
-// ── The sentence ────────────────────────────────────────────────────────────────
+// ── Quick answers, in the rail ──────────────────────────────────────────────────
 
-function drawAsk() {
-  const m = measure(state.measure);
-  const bs = breakdownsFor(m);
-  if (!bs.some(b => b.key === state.breakdown)) state.breakdown = 'none';
+const allQuick = () => [...QUICK, ...state.pins];
 
-  const sel = (id, options, value) =>
-    `<select class="ask__sel" id="${id}">` + options.map(o =>
-      `<option value="${esc(o.v)}"${o.v === value ? ' selected' : ''}>${esc(o.n)}</option>`
-    ).join('') + `</select>`;
-
-  $('#ask').innerHTML =
-    `<span class="ask__w">Show me</span>` +
-    sel('m-measure', MEASURES.map(x => ({ v: x.key, n: x.name })), state.measure) +
-    `<span class="ask__w">at</span>` +
-    sel('m-scope', [{ v: 'all', n: state.plants.length > 1 ? `All ${state.plants.length} plants` : 'My plant' }]
-      .concat(state.plants.map(p => ({ v: p.id, n: p.name }))), state.scope) +
-    `<span class="ask__w">broken down by</span>` +
-    sel('m-break', bs.map(b => ({ v: b.key, n: b.name })), state.breakdown) +
-    `<span class="ask__w">for</span>` +
-    sel('m-period', PERIODS.map(p => ({ v: p.key, n: p.name })), state.period) +
-    `<span class="ask__gap"></span>` +
-    `<button class="btn btn--primary" id="m-go">Answer</button>`;
-
-  $('#m-measure').onchange = e => { state.measure = e.target.value;
-    state.area = measure(state.measure).area; drawAreas(); drawAsk(); answer(); };
-  $('#m-scope').onchange = e => { state.scope = e.target.value; answer(); };
-  $('#m-break').onchange = e => { state.breakdown = e.target.value; answer(); };
-  $('#m-period').onchange = e => { state.period = e.target.value; answer(); };
-  $('#m-go').onclick = answer;
-}
-
-function drawAreas() {
+function drawQuick() {
   const wrap = $('#areas');
   wrap.innerHTML = '';
-  for (const area of AREAS) {
-    const list = areaOf(area);
-    if (!list.length) continue;
-    wrap.append(el('div', 'rail__sub', esc(area)));
-    for (const m of list) {
-      const b = el('button', 'rail__link', esc(m.name));
+
+  const fresh = el('button', 'rail__new', 'Start a request');
+  fresh.type = 'button';
+  fresh.onclick = () => { reset(); draw(); };
+  wrap.append(fresh);
+
+  const add = (label, list, empty) => {
+    wrap.append(el('div', 'rail__sub', esc(label)));
+    if (!list.length) { wrap.append(el('p', 'rail__none', esc(empty))); return; }
+    for (const q of list) {
+      const b = el('button', 'rail__link rail__link--q',
+        `${esc(q.label)}<span class="rail__q">${esc(q.sub || '')}</span>`);
       b.type = 'button';
-      if (m.key === state.measure) b.setAttribute('aria-current', 'true');
-      b.onclick = () => { state.measure = m.key; state.area = m.area; drawAreas(); drawAsk(); answer(); };
+      b.onclick = () => runQuick(q);
       wrap.append(b);
     }
+  };
+  add('Quick answers', QUICK, '');
+  add('Yours', state.pins, 'Build a request and pin it here.');
+}
+
+// A quick answer is just a filled-in request, so running one fills the ticket and asks.
+function runQuick(q) {
+  state.scope = state.plants.map(p => p.id);
+  state.measure = q.measure;
+  state.period = q.period || 'mtd';
+  state.dept = q.dept || 'all';
+  state.breakdown = q.breakdown || 'none';
+  state.asked = true;
+  draw();
+  answer();
+}
+
+function reset() {
+  Object.assign(state, { scope: [], measure: null, period: null, from: '', to: '',
+    dept: 'all', breakdown: 'none', open: null, search: '', asked: false });
+  $('#content').innerHTML = '';
+}
+
+// ── The request ─────────────────────────────────────────────────────────────────
+
+const chip = (label, on, onclick, extra = '') => {
+  const b = el('button', 'chip' + (on ? ' is-on' : '') + (extra ? ' ' + extra : ''), esc(label));
+  b.type = 'button';
+  b.onclick = onclick;
+  return b;
+};
+
+function step(n, title, done, body, note) {
+  const s = el('section', 'step' + (body ? '' : ' is-locked') + (done ? ' is-done' : ''));
+  s.append(el('div', 'step__h',
+    `<span class="step__n">${n}</span><span class="step__t">${esc(title)}</span>` +
+    (note ? `<span class="step__note">${esc(note)}</span>` : '')));
+  if (body) s.append(body); else s.append(el('p', 'step__wait', 'Answer the step above first.'));
+  return s;
+}
+
+function draw() {
+  drawQuick();
+  const form = $('#ask');
+  form.innerHTML = '';
+  form.append(el('b', 'ask__title', state.asked ? 'Your request' : 'What do you want to know?'));
+  form.append(el('span', 'ask__gap'));
+  if (state.scope.length || state.measure) {
+    const over = el('button', 'btn', 'Start over');
+    over.type = 'button';
+    over.onclick = () => { reset(); draw(); };
+    form.append(over);
+  }
+
+  const box = $('#ticket');
+  box.innerHTML = '';
+  const card = el('div', 'card ticket');
+  box.append(card);
+
+  // stepNarrow returns null where the measure has no departments to narrow by, and
+  // append(null) writes the word "null" into the page.
+  for (const s of [stepWhere(), stepWhat(), stepWhen(), stepNarrow(), stepCut(), stepGo()]) {
+    if (s) card.append(s);
+  }
+}
+
+// 1 — Where.
+function stepWhere() {
+  const body = el('div', 'step__b');
+  const all = state.plants.map(p => p.id);
+  if (state.plants.length > 1) {
+    body.append(chip('All ' + state.plants.length + ' locations',
+      state.scope.length === state.plants.length,
+      () => { state.scope = state.scope.length === all.length ? [] : all; draw(); }));
+  }
+  for (const p of state.plants) {
+    body.append(chip(p.name, state.scope.includes(p.id), () => {
+      state.scope = state.scope.includes(p.id)
+        ? state.scope.filter(x => x !== p.id) : [...state.scope, p.id];
+      draw();
+    }));
+  }
+  const picked = state.scope.length;
+  return step(1, 'Which locations?', picked > 0, body,
+    picked ? `${picked} chosen` : 'Pick one or more');
+}
+
+// 2 — What. The categories are folded until opened; search cuts across all of them.
+function stepWhat() {
+  if (!state.scope.length) return step(2, 'What are you after?', false, null);
+
+  // Once something is chosen the whole tree folds back to the one line that matters.
+  // Leaving it open pushed the dates and the button two screens down, which turns a
+  // four-step form into a scroll.
+  const already = state.measure ? measure(state.measure) : null;
+  if (already && state.open === null && !state.search.trim()) {
+    const shut = el('div', 'step__b');
+    shut.append(el('div', 'picked',
+      `<span class="picked__n">${esc(already.name)}</span>
+       <span class="picked__h">${esc(already.area)} &middot; ${esc(already.hint)}</span>`));
+    const change = el('button', 'btn', 'Change');
+    change.type = 'button';
+    change.onclick = () => { state.open = already.area; draw(); };
+    shut.append(change);
+    return step(2, 'What are you after?', true, shut);
+  }
+
+  const body = el('div', 'step__b step__b--col');
+  const find = el('input', 'step__find');
+  find.type = 'search';
+  find.placeholder = 'Search — try "otif", "scrap", "inventory"';
+  find.value = state.search;
+  find.oninput = e => {
+    state.search = e.target.value;
+    const at = e.target.selectionStart;
+    draw();
+    const f = $('.step__find'); if (f) { f.focus(); f.setSelectionRange(at, at); }
+  };
+  body.append(find);
+
+  if (state.search.trim()) {
+    const hits = findMeasures(state.search);
+    if (!hits.length) {
+      body.append(el('p', 'step__wait', `Nothing matches “${esc(state.search)}”.`));
+    } else {
+      const list = el('div', 'mlist');
+      for (const m of hits) list.append(measureRow(m, true));
+      body.append(list);
+    }
+  } else {
+    for (const a of AREAS) {
+      const inside = areaOf(a.key);
+      if (!inside.length) continue;
+      const open = state.open === a.key;
+      const head = el('button', 'cat' + (open ? ' is-open' : ''), `
+        <span class="cat__x" aria-hidden="true"></span>
+        <span class="cat__n">${esc(a.name)}</span>
+        <span class="cat__h">${esc(a.hint)}</span>
+        <span class="cat__c">${inside.length}</span>`);
+      head.type = 'button';
+      head.setAttribute('aria-expanded', open ? 'true' : 'false');
+      head.onclick = () => { state.open = open ? null : a.key; draw(); };
+      body.append(head);
+      if (open) {
+        const list = el('div', 'mlist');
+        for (const m of inside) list.append(measureRow(m));
+        body.append(list);
+      }
+    }
+  }
+
+  const chosen = state.measure ? measure(state.measure) : null;
+  return step(2, 'What are you after?', !!chosen, body,
+    chosen ? chosen.name : `${MEASURES.length} to choose from`);
+}
+
+function measureRow(m, withArea = false) {
+  if (m.pending) {
+    const row = el('div', 'mrow is-pending', `
+      <span class="mrow__n">${esc(m.name)}<span class="mrow__tag">not connected</span></span>
+      <span class="mrow__h">${esc(m.pending)}</span>`);
+    return row;
+  }
+  const row = el('button', 'mrow' + (state.measure === m.key ? ' is-on' : ''), `
+    <span class="mrow__n">${esc(m.name)}</span>
+    <span class="mrow__h">${withArea ? esc(m.area) + ' &middot; ' : ''}${esc(m.hint)}</span>`);
+  row.type = 'button';
+  row.onclick = () => {
+    state.measure = m.key;
+    state.open = null;      // fold the tree back up; the choice is the answer to step 2
+    state.search = '';
+    const bs = breakdownsFor(m);
+    if (!bs.some(b => b.key === state.breakdown)) state.breakdown = 'none';
+    if (!hasDepartments(m)) state.dept = 'all';
+    draw();
+  };
+  return row;
+}
+
+// 3 — When.
+function stepWhen() {
+  if (!state.measure) return step(3, 'Over what dates?', false, null);
+  const body = el('div', 'step__b step__b--col');
+  const row = el('div', 'step__b');
+  for (const p of PERIODS) {
+    row.append(chip(p.name, state.period === p.key, () => {
+      state.period = p.key;
+      if (p.key === 'custom' && !state.from) {
+        state.to = state.today;
+        state.from = state.today.slice(0, 8) + '01';
+      }
+      draw();
+    }));
+  }
+  body.append(row);
+
+  if (state.period === 'custom') {
+    const pair = el('div', 'step__dates');
+    for (const [k, label] of [['from', 'From'], ['to', 'To']]) {
+      const wrap = el('label', 'step__date', `<span>${label}</span>`);
+      const i = el('input');
+      i.type = 'date'; i.value = state[k]; i.max = state.today;
+      i.onchange = e => { state[k] = e.target.value; draw(); };
+      wrap.append(i);
+      pair.append(wrap);
+    }
+    body.append(pair);
+  }
+
+  const [f, t] = state.period ? windowFor(state.period, state.today, state) : [];
+  return step(3, 'Over what dates?', !!state.period, body,
+    state.period ? `${shortDate(f)} to ${shortDate(t)}` : 'Pick a period');
+}
+
+// 4 — Narrow it down. Only offered where the data carries a department.
+function stepNarrow() {
+  if (!state.measure || !state.period) return null;
+  const m = measure(state.measure);
+  if (!hasDepartments(m)) return null;
+
+  const seen = new Map();
+  for (const list of state.depts.values()) {
+    for (const d of list) if (state.scope.includes(d.location_id)) seen.set(d.key, d);
+  }
+  if (!seen.size) return null;
+
+  const body = el('div', 'step__b');
+  body.append(chip('Every department', state.dept === 'all',
+    () => { state.dept = 'all'; draw(); }));
+  for (const d of seen.values()) {
+    body.append(chip(d.name + (d.unit ? ` (${d.unit})` : ''), state.dept === d.key,
+      () => { state.dept = state.dept === d.key ? 'all' : d.key; draw(); }));
+  }
+
+  // The nudge that makes the mixed-unit rule teachable rather than just enforced.
+  const note = m.perUnit && state.dept === 'all'
+    ? 'Departments count different things — pick one to get a single total'
+    : (state.dept === 'all' ? 'Optional' : seen.get(state.dept)?.name || '');
+  return step(4, 'Narrow it down', state.dept !== 'all', body, note);
+}
+
+// 5 — How to cut it.
+function stepCut() {
+  const n = stepNumber();
+  if (!state.measure || !state.period) return step(n, 'How do you want it broken out?', false, null);
+  const m = measure(state.measure);
+  const body = el('div', 'step__b');
+  for (const b of breakdownsFor(m)) {
+    body.append(chip(b.name, state.breakdown === b.key,
+      () => { state.breakdown = b.key; draw(); }));
+  }
+  return step(n, 'How do you want it broken out?', true, body,
+    BREAKDOWNS.find(b => b.key === state.breakdown)?.hint || '');
+}
+
+const stepNumber = () => {
+  if (!state.measure) return 4;
+  return hasDepartments(measure(state.measure)) ? 5 : 4;
+};
+
+function stepGo() {
+  const bar = el('div', 'ticket__go');
+  const ready = state.scope.length && state.measure && state.period;
+  const go = el('button', 'btn btn--primary', state.asked ? 'Ask again' : 'Get the numbers');
+  go.type = 'button';
+  go.disabled = !ready;
+  go.onclick = () => { state.asked = true; draw(); answer(); };
+  bar.append(go);
+
+  if (state.asked && ready) {
+    const pin = el('button', 'btn', 'Pin this to Quick answers');
+    pin.type = 'button';
+    pin.onclick = pinCurrent;
+    bar.append(pin);
+  }
+  if (!ready) bar.append(el('span', 'ticket__hint', 'Answer the steps above.'));
+  // Data Bank is no longer a module of its own — it is the footnote to every answer, so
+  // this is where it belongs: one link, from the place where somebody wonders.
+  bar.append(el('span', 'ask__gap'));
+  const src = el('a', 'ticket__src', 'Where these numbers come from');
+  src.href = './bank.html';
+  bar.append(src);
+  return bar;
+}
+
+// ── Pinning ─────────────────────────────────────────────────────────────────────
+
+function describe() {
+  const m = measure(state.measure);
+  const bits = [];
+  if (state.dept !== 'all') {
+    for (const list of state.depts.values()) {
+      const d = list.find(x => x.key === state.dept);
+      if (d) { bits.push(d.name.toLowerCase()); break; }
+    }
+  }
+  const b = BREAKDOWNS.find(x => x.key === state.breakdown);
+  if (b && b.key !== 'none') bits.push('by ' + b.name.toLowerCase());
+  bits.push((PERIODS.find(p => p.key === state.period)?.name || '').toLowerCase());
+  return { label: m.name, sub: bits.filter(Boolean).join(', ') };
+}
+
+async function pinCurrent() {
+  const { label, sub } = describe();
+  const pin = {
+    key: 'p-' + Date.now().toString(36),
+    label, sub,
+    measure: state.measure, period: state.period,
+    dept: state.dept, breakdown: state.breakdown,
+  };
+  // Same request twice is one pin.
+  const same = p => p.measure === pin.measure && p.period === pin.period
+    && p.dept === pin.dept && p.breakdown === pin.breakdown;
+  if (state.pins.some(same)) { drawQuick(); return; }
+
+  state.pins = [...state.pins, pin];
+  drawQuick();
+  try {
+    await savePreference(state.me, { pinned_kpis: state.pins });
+  } catch (err) {
+    state.pins = state.pins.filter(p => p.key !== pin.key);
+    drawQuick();
+    $('#content').prepend(el('div', 'card',
+      `<p class="kpinote">That pin did not save. ${esc(err.message || '')}</p>`));
   }
 }
 
@@ -108,8 +426,8 @@ const groupKey = (row, breakdown, names) => {
 
 async function answer() {
   const m = measure(state.measure);
-  const [from, to] = windowFor(state.period, state.today);
-  const locs = state.scope === 'all' ? state.plants.map(p => p.id) : [state.scope];
+  const [from, to] = windowFor(state.period, state.today, state);
+  const locs = state.scope;
   const box = $('#content');
   box.innerHTML = `<p class="cfg__none">Reading…</p>`;
 
@@ -120,6 +438,10 @@ async function answer() {
     box.innerHTML = `<p class="cfg__none">That read did not come back. ${esc(err.message || '')}</p>`;
     return;
   }
+
+  // Step 4, applied. Filtering here rather than in the query keeps js/db.js to one shape
+  // of read and means the department chips can change without a round trip.
+  if (state.dept !== 'all') rows = rows.filter(r => r.dept_key === state.dept);
 
   const names = {
     plant: new Map(state.plants.map(p => [p.id, p.name])),
@@ -186,9 +508,9 @@ async function answer() {
     box.append(el('div', 'card', `
       <p class="cfg__none" style="font-style:normal">
         Nothing recorded for that question between ${esc(shortDate(from))} and ${esc(shortDate(to))}.
-        ${state.scope === 'all' && state.plants.length > 1
-          ? 'Not every plant reports yet — try a single plant, or a longer period.'
-          : 'Try a longer period.'}
+        ${state.scope.length > 1
+          ? 'Not every location reports yet — try one of them, or a longer period.'
+          : 'Try a longer period, or another location.'}
       </p>`));
     return;
   }
@@ -272,9 +594,9 @@ async function answer() {
         ${esc(m.name.toLowerCase())} figure in them.</p>`));
   }
 
-  if (state.scope === 'all' && state.plants.length > 1) {
+  if (state.scope.length > 1) {
     const reporting = new Set(rows.map(r => r.location_id));
-    const silent = state.plants.filter(p => !reporting.has(p.id));
+    const silent = state.plants.filter(p => state.scope.includes(p.id) && !reporting.has(p.id));
     if (silent.length) {
       box.append(el('div', 'card', `
         <div class="ct">Plants that sent nothing</div>
@@ -305,9 +627,16 @@ async function answer() {
   }
 }
 
-const scopeName = () => state.scope === 'all'
-  ? (state.plants.length > 1 ? `all ${state.plants.length} plants` : (state.plants[0]?.name ?? 'your plant'))
-  : (state.plants.find(p => p.id === state.scope)?.name ?? '');
+// What the answer says it covers. Naming one or two locations beats "2 locations", and
+// past that the count is the only thing that fits.
+const scopeName = () => {
+  const picked = state.plants.filter(p => state.scope.includes(p.id));
+  if (!picked.length) return '';
+  if (picked.length === state.plants.length && picked.length > 1)
+    return `all ${picked.length} locations`;
+  if (picked.length <= 2) return picked.map(p => p.name).join(' and ');
+  return `${picked.length} locations`;
+};
 
 // ── Boot ────────────────────────────────────────────────────────────────────────
 
@@ -316,6 +645,11 @@ async function boot() {
   if (!session) { location.replace('../index.html'); return; }
 
   const [profile, grants] = await Promise.all([myProfile(), myLocations()]);
+  state.me = profile?.id || session.user.id;
+  // A pin written by a newer build, or by hand, should not take the page down with it.
+  state.pins = Array.isArray(profile?.pinned_kpis)
+    ? profile.pinned_kpis.filter(p => p && p.measure && measure(p.measure))
+    : [];
   state.plants = (grants || [])
     .map(g => g.locations)
     .filter(Boolean)
@@ -323,8 +657,9 @@ async function boot() {
     .map(l => ({ id: l.id, name: l.name }));
 
   $('#foot-user').textContent = profile?.full_name || session.user.email || '';
+  // This page says "locations" throughout, so the footer does too.
   $('#foot-loc').textContent = state.plants.length > 1
-    ? `${state.plants.length} plants` : (state.plants[0]?.name ?? 'No plant');
+    ? `${state.plants.length} locations` : (state.plants[0]?.name ?? 'No location');
   $('#signout-btn').onclick = async () => { await signOut(); location.replace('../index.html'); };
 
   if (!state.plants.length) {
@@ -339,9 +674,7 @@ async function boot() {
     state.depts.get(d.location_id).push(d);
   }
 
-  drawAreas();
-  drawAsk();
-  answer();
+  draw();
 }
 
 boot();
