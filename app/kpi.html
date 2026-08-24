@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Metriq — the departments a plant runs, and what it calls their numbers">
-  <title>Configure · Metriq</title>
+  <meta name="description" content="Metriq — ask the plant data a question">
+  <title>KPIs · Metriq</title>
   <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
   <link rel="mask-icon" href="../assets/favicon.svg" color="#6C4BB6">
   <link rel="preload" href="../assets/fonts/ibm-plex-sans.woff2" as="font" type="font/woff2" crossorigin>
@@ -14,19 +14,19 @@
   <div class="shell">
     <nav class="modrail" aria-label="Modules">
       <span class="modrail__mark" aria-hidden="true">
-          <svg viewBox="0 0 100 100" aria-hidden="true" fill="none">
-            <g transform="rotate(-16 46 44)">
-              <path d="M32 71.7 V52" stroke="#fff" stroke-width="5.5"/>
-              <path d="M46 75 V44" stroke="#fff" stroke-width="5.5"/>
-              <path d="M60 88 V32" stroke="#fff" stroke-width="6.5"/>
-            </g>
-            <circle cx="46" cy="44" r="30" stroke="#fff" stroke-width="7"/>
-          </svg>
+        <svg viewBox="0 0 100 100" fill="none">
+          <g transform="rotate(-16 46 44)">
+            <path d="M32 71.7 V52" stroke="#fff" stroke-width="5.5"/>
+            <path d="M46 75 V44" stroke="#fff" stroke-width="5.5"/>
+            <path d="M60 88 V32" stroke="#fff" stroke-width="6.5"/>
+          </g>
+          <circle cx="46" cy="44" r="30" stroke="#fff" stroke-width="7"/>
+        </svg>
       </span>
-      <a class="mod" href="./dashboard.html" aria-current="page">
+      <a class="mod" href="./dashboard.html">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h7v6H4z"/><path d="M14 5h6v4h-6z"/><path d="M14 12h6v7h-6z"/><path d="M4 14h7v5H4z"/></svg><span>Dashboards</span>
       </a>
-      <a class="mod" href="./kpi.html">
+      <a class="mod" href="./kpi.html" aria-current="page">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.3"/><path d="M15.2 15.2 L20 20"/><path d="M8 12.5v-2"/><path d="M10.7 12.5V9"/><path d="M13.3 12.5V7.6"/></svg><span>KPIs</span>
       </a>
       <a class="mod" href="./bank.html">
@@ -37,13 +37,12 @@
       </button>
       <span class="modrail__gap"></span>
     </nav>
-    <nav class="rail" aria-label="Sections">
-      <div class="rail__brand">
-        <span class="rail__name">Dashboards</span>
-      </div>
+
+    <nav class="rail rail--ask" aria-label="Areas">
+      <div class="rail__brand"><span class="rail__name">KPIs</span></div>
       <div class="rail__group">
-        <div class="rail__labelrow"><span class="rail__label">Configure</span></div>
-        <div id="nav"></div>
+        <div class="rail__labelrow"><span class="rail__label">Ask about</span></div>
+        <div id="areas"></div>
       </div>
       <div class="rail__foot">
         <strong id="foot-loc">—</strong>
@@ -53,28 +52,18 @@
     </nav>
 
     <div class="main">
-      <!-- The same chrome as the dashboard: where and when at the top, the one thing
-           that changes the plant beside it, and the tools that are used once a month at
-           the foot of the page. -->
       <header class="top">
-        <select class="top__loc" id="loc" aria-label="Plant"></select>
-        <div class="top__date"><b id="pane-title">Departments</b><span id="pane-sub">The shape of this plant</span></div>
-        <span class="saved" id="saved"></span>
-        <div class="top__spacer"></div>
-        <div class="top__actions">
-          <a class="btn btn--primary" href="dashboard.html">Back to the dashboard</a>
-        </div>
+        <div class="ask" id="ask" aria-label="Your question"></div>
       </header>
       <div class="content" id="content">
-        <div class="loading">Loading this plant…</div>
+        <p class="cfg__none">Loading what you can ask…</p>
       </div>
     </div>
   </div>
-
   <div class="conn" id="conn">Reconnecting…</div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.52.1/dist/umd/supabase.min.js"></script>
-  <script type="module" src="../js/pages/departments.js"></script>
+  <script type="module" src="../js/pages/kpi.js"></script>
 </body>
 </html>

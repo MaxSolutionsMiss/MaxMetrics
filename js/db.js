@@ -659,3 +659,44 @@ export async function pullSources(location, date, only) {
   if (!response.ok) throw new Error(body.error || 'Nothing could be fetched.');
   return body;
 }
+
+// ── KPI, on demand ──────────────────────────────────────────────────────────────
+//
+// One read per question. The picker already knows which table a measure lives in, so
+// this takes the table rather than guessing at it. Row-level security decides which
+// plants come back: somebody granted one plant asks the same question as somebody
+// granted nine and gets one plant, without the page having to know the difference.
+
+export const kpiRows = (table, locations, from, to) =>
+  run(() => client.from(table).select('*')
+    .in('location_id', locations)
+    .gte('metric_date', from).lte('metric_date', to)
+    .order('metric_date'));
+
+// So an answer can say "Die Cutting" rather than "diecutting". `unit` comes along because
+// departments do not all count the same thing — Printing counts sheets and Gluing counts
+// cartons — and an answer that adds those together is arithmetic, not a figure.
+export const kpiDepartments = locations =>
+  run(() => client.from('location_departments')
+    .select('location_id, key, name, unit, sort_order, active')
+    .in('location_id', locations).order('sort_order'));
+
+// ── Data Bank ───────────────────────────────────────────────────────────────────
+
+export const dataSources = locations =>
+  run(() => client.from('location_sources')
+    .select('id, location_id, kind, name, url, enabled, last_pulled_at, last_status, last_note, sort_order')
+    .in('location_id', locations).order('sort_order'));
+
+// What each table actually holds for the plants this person can see, and how fresh it
+// is. Only the date column is read — enough to count rows and find the newest morning
+// without dragging the whole table across the wire.
+export const bankCounts = locations => Promise.all(
+  ['daily_metrics', 'daily_departments', 'daily_review', 'daily_labour'].map(table =>
+    run(() => client.from(table).select('metric_date')
+      .in('location_id', locations).order('metric_date', { ascending: false }))
+      .then(rows => ({
+        table,
+        rows: (rows || []).length,
+        newest: rows?.[0]?.metric_date ?? null,
+      }))));
