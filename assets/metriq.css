@@ -3322,6 +3322,106 @@ body.tv.tv-brief .wall__dots{display:none}
 
 .rail__sub{font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.09em;
   color:var(--rail-label);font-weight:600;padding:var(--s3) var(--s3) var(--s1)}
+.rail__none{font-size:var(--t-small);color:var(--rail-label);padding:0 var(--s3) var(--s2);
+  line-height:1.5;margin:0}
+/* Starting a fresh request is the one thing always worth one click, so it sits above
+   everything and does not look like another saved answer. */
+.rail__new{display:block;width:calc(100% - var(--s2));margin:var(--s2) var(--s1);
+  min-height:38px;border-radius:var(--radius);border:1px dashed rgba(255,255,255,.28);
+  background:none;color:var(--rail-ink);font-family:inherit;font-size:var(--t-base);
+  font-weight:600;cursor:pointer;transition:background .12s,border-color .12s}
+.rail__new:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.5);color:#fff}
+/* A quick answer is two lines: what it is, and the request behind it. The second line is
+   what stops "Uptime" and "Uptime" being indistinguishable once somebody pins a few. */
+.rail__link--q{flex-direction:column;align-items:flex-start;gap:1px;
+  padding-top:7px;padding-bottom:7px;min-height:0;line-height:1.35}
+.rail__q{font-size:var(--t-micro);color:var(--rail-label);font-weight:400}
+.rail__link--q:hover .rail__q{color:rgba(255,255,255,.75)}
+
+/* ── THE REQUEST ── */
+/* Steps stack, each one shut until the one above it is answered. The lock is not
+   decoration: an unanswered step below an unanswered step is a form somebody fills in
+   the wrong order and then has to redo. */
+.ticket{padding:var(--s4) var(--s5) var(--s5)}
+.step{border-top:1px solid var(--rule);padding:var(--s4) 0}
+.step:first-child{border-top:none;padding-top:0}
+.step__h{display:flex;align-items:baseline;gap:var(--s3);margin-bottom:var(--s3)}
+.step__n{width:22px;height:22px;flex:none;border-radius:50%;display:grid;place-items:center;
+  background:var(--sunk);color:var(--ink-muted);font-size:var(--t-micro);font-weight:700;
+  align-self:center}
+.step.is-done .step__n{background:var(--brand);color:#fff}
+.step__t{font-size:var(--t-base);font-weight:600;color:var(--ink)}
+.step.is-locked .step__t{color:var(--ink-faint)}
+.step__note{font-size:var(--t-small);color:var(--ink-muted);margin-left:auto;text-align:right}
+.step__b{display:flex;flex-wrap:wrap;gap:var(--s2);align-items:center}
+.step__b--col{flex-direction:column;align-items:stretch;gap:var(--s2)}
+.step__wait{font-size:var(--t-small);color:var(--ink-faint);margin:0;font-style:italic}
+.step__find{font-family:inherit;font-size:var(--t-base);height:var(--ctl-h);
+  padding:0 var(--s3);border:1px solid var(--rule-strong);border-radius:var(--radius);
+  background:var(--surface);color:var(--ink);width:100%}
+.step__find:focus{outline:2px solid var(--brand);outline-offset:-1px;border-color:var(--brand)}
+.step__dates{display:flex;gap:var(--s3);flex-wrap:wrap}
+.step__date{display:flex;align-items:center;gap:var(--s2);font-size:var(--t-small);
+  color:var(--ink-muted)}
+.step__date input{font-family:inherit;font-size:var(--t-base);height:var(--ctl-h);
+  padding:0 var(--s2);border:1px solid var(--rule-strong);border-radius:var(--radius);
+  background:var(--surface);color:var(--ink)}
+
+/* One control for every either/or on the page: locations, periods, departments, cuts. */
+/* text-transform is stated rather than inherited: the page's other buttons are set in
+   caps, and a location name shouted back at you reads as a warning, not a choice. */
+.chip{font-family:inherit;font-size:var(--t-base);min-height:var(--ctl-h);
+  padding:0 var(--s4);border:1px solid var(--rule-strong);border-radius:999px;
+  background:var(--surface);color:var(--ink);cursor:pointer;transition:.12s;
+  text-transform:none;letter-spacing:normal;font-weight:500}
+.chip:hover{border-color:var(--brand);color:var(--brand)}
+.chip.is-on{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}
+
+/* A category is a lid. Shut, it costs one line; open, it shows what is under it. This is
+   the whole reason the page still works when the registry reaches two hundred rows. */
+.cat{display:flex;align-items:center;gap:var(--s3);width:100%;padding:var(--s3);
+  border:1px solid var(--rule);border-radius:var(--radius);background:var(--surface);
+  font-family:inherit;cursor:pointer;text-align:left;transition:.12s}
+.cat:hover{border-color:var(--brand)}
+.cat.is-open{border-color:var(--brand);background:var(--brand-wash)}
+.cat__x{width:9px;height:9px;flex:none;border-right:2px solid var(--ink-muted);
+  border-bottom:2px solid var(--ink-muted);transform:rotate(-45deg);margin-left:3px;
+  transition:transform .14s}
+.cat.is-open .cat__x{transform:rotate(45deg)}
+.cat__n{font-size:var(--t-base);font-weight:600;color:var(--ink)}
+.cat__h{font-size:var(--t-small);color:var(--ink-muted);flex:1}
+.cat__c{font-size:var(--t-micro);font-weight:700;color:var(--ink-muted);
+  background:var(--sunk);border-radius:999px;padding:2px 8px}
+
+/* The folded-up answer to step 2. */
+.picked{display:flex;flex-direction:column;gap:1px;padding:var(--s2) var(--s4);
+  background:var(--brand-wash);border:1px solid var(--brand);border-radius:var(--radius)}
+.picked__n{font-size:var(--t-base);font-weight:600;color:var(--ink)}
+.picked__h{font-size:var(--t-small);color:var(--ink-muted)}
+
+.mlist{display:flex;flex-direction:column;gap:2px;padding:var(--s1) 0 var(--s2) var(--s5)}
+.mrow{display:flex;flex-direction:column;align-items:flex-start;gap:1px;width:100%;
+  padding:var(--s2) var(--s3);border:1px solid transparent;border-radius:var(--radius);
+  background:none;font-family:inherit;text-align:left;cursor:pointer;transition:.12s}
+.mrow:hover{background:var(--sunk)}
+.mrow.is-on{background:var(--brand);border-color:var(--brand)}
+.mrow.is-on .mrow__n,.mrow.is-on .mrow__h{color:#fff}
+.mrow__n{font-size:var(--t-base);font-weight:600;color:var(--ink)}
+.mrow__h{font-size:var(--t-small);color:var(--ink-muted);line-height:1.45}
+/* Listed, not hidden. Something the company does not collect is a request somebody can
+   act on; leaving it out of the menu makes it look like an oversight instead. */
+.mrow.is-pending{cursor:default;opacity:.72}
+.mrow.is-pending .mrow__n{color:var(--ink-muted);font-weight:500}
+.mrow__tag{margin-left:var(--s2);font-size:var(--t-micro);font-weight:700;
+  text-transform:uppercase;letter-spacing:.06em;color:var(--signal);
+  background:var(--warn-wash);border-radius:999px;padding:2px 7px}
+
+.ticket__go{display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap;
+  border-top:1px solid var(--rule);padding-top:var(--s4);margin-top:var(--s2)}
+.ticket__hint{font-size:var(--t-small);color:var(--ink-faint)}
+.ticket__src{font-size:var(--t-small);color:var(--ink-muted);text-decoration:none;
+  border-bottom:1px solid var(--rule-strong)}
+.ticket__src:hover{color:var(--brand);border-color:var(--brand)}
 
 /* ── AN ANSWER ── */
 .ct{font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.06em;
