@@ -20,7 +20,7 @@ import { extname, join } from 'node:path';
 const OUT = '_site';
 const COPY = ['app', 'assets', 'js'];
 
-const version = process.env.MAXMETRICS_VERSION
+const version = process.env.METRIQ_VERSION
   || execSync('git rev-parse --short=12 HEAD', { encoding: 'utf8' }).trim();
 
 rmSync(OUT, { recursive: true, force: true });
@@ -51,7 +51,7 @@ const edit = (path, change) => {
 
 for (const path of files.filter(f => extname(f) === '.html')) {
   edit(path, source => source
-    .replace(/(href="(?:\.\.\/)?assets\/maxmetrics\.css)"/g, `$1?v=${version}"`)
+    .replace(/(href="(?:\.\.\/)?assets\/metriq\.css)"/g, `$1?v=${version}"`)
     .replace(/(src="(?:\.\.\/)?js\/[^"]*\.js)"/g, `$1?v=${version}"`));
 }
 for (const path of files.filter(f => extname(f) === '.js')) {

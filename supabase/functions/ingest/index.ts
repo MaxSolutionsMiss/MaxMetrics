@@ -138,7 +138,7 @@ Deno.serve(async request => {
     return json({ error: `No files are linked to ${location} yet — Configure, then Data.` }, 400);
   }
 
-  // A file nobody has told MaxMetrics about gets a place rather than a refusal.
+  // A file nobody has told Metriq about gets a place rather than a refusal.
   //
   // The flow walks a folder, so the way somebody adds a fourth workbook is to put it in the
   // folder - and being told "nothing matches" for doing exactly that is the product blaming

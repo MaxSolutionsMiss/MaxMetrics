@@ -18,7 +18,7 @@ formula store, and can be ignored:
 | `Printing Pivot`, `Die Cutting Pivot`, `Gluing Pivot` | the charts |
 
 The last six are **pivots over the first three**. That makes the Data tabs the only thing
-worth importing: everything else in the workbook is a view of them, and MaxMetrics can
+worth importing: everything else in the workbook is a view of them, and Metriq can
 compute the same rollups from the daily rows it already stores.
 
 `Daily Report` is *not* a source. It was last refreshed in November 2024 and is not
@@ -81,7 +81,7 @@ Retired machines still appear in history — printing `29`, die cutting `TR`, `J
 instead of being dropped.
 
 Storing imports at **shift and machine grain** rather than rolling straight to a
-department day would let MaxMetrics answer the same questions the By Month pivots answer —
+department day would let Metriq answer the same questions the By Month pivots answer —
 productivity by team, by machine, by shift, across years — without anyone opening the
 workbook. The department figure the morning dashboard shows becomes a sum over those rows
 rather than a separately stored number.
@@ -177,7 +177,7 @@ the sheet records 100% against 5 jobs with 1 late. The dashboard export for the 
 morning has the same day at 80%, so the spreadsheet row is the wrong one — an error the
 derivation catches for free.
 
-MaxMetrics therefore **computes OTD and OTIF** and no longer asks anyone to type them.
+Metriq therefore **computes OTD and OTIF** and no longer asks anyone to type them.
 MTD and YTD OTIF are still entered; both are running averages the sheet keeps in its
 right-hand columns, and both could be derived from our own stored days later.
 
@@ -196,7 +196,7 @@ So a department target is the mean of its machines' targets, and changing a mach
 it. The same sheet carries **make-ready** and **uptime** targets per machine.
 
 The sheet is titled *Mississauga **2026** Machine KPIs*, and that word is the whole design
-of how MaxMetrics stores this. A target is a property of a machine **in a year**, not of a
+of how Metriq stores this. A target is a property of a machine **in a year**, not of a
 department forever: 2027 will have its own, and last year's rate must go on being judged
 against last year's number rather than being retroactively re-marked. So targets live in
 `machine_targets (machine, year)`, a department's target is a view over the mean of its
@@ -247,7 +247,7 @@ knowing:
 
 Neither is a reason to import this file. They are reasons not to: a weekly number computed
 from stored daily rows cannot lose a Sunday, cannot drift from a correction made later, and
-does not have to be rebuilt by hand every Monday. **MaxMetrics should generate this sheet
+does not have to be rebuilt by hand every Monday. **Metriq should generate this sheet
 rather than read it**, which also gives the weekly view the plant reports on for free.
 
 The `OTD&OTIF` tab is one row per week from January 2025, and is the weekly form of the
@@ -267,7 +267,7 @@ Moving it to a team site costs nothing and removes a single point of failure.
 
 ## What a hot folder can and cannot be
 
-MaxMetrics is a static site. A page in a browser **cannot watch a folder** — there is no
+Metriq is a static site. A page in a browser **cannot watch a folder** — there is no
 process running when nobody has it open, and a browser cannot read a network share on its
 own. Any promise of "point it at a folder and forget it" has to say where the watching
 happens.

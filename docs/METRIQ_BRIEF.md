@@ -1,4 +1,4 @@
-# MaxMetrics — a briefing package
+# Metriq — a briefing package
 
 *A plain-language description of a working system, written so a second opinion can be formed
 from it without seeing the code. Prepared 11 August 2026.*
@@ -16,7 +16,7 @@ several spreadsheets into it.
 The plant has nine sites (Mississauga, Guelph, Pickering, Owen Sound, Markham, Concord,
 Milton, Bristol, Sturgis). Only Mississauga is live so far.
 
-**MaxMetrics** replaces that file. It is a web app that assembles the same morning from a
+**Metriq** replaces that file. It is a web app that assembles the same morning from a
 database, lets several people fill in the parts they own, and shows it three ways: as a page
 you scroll, as a walk of full-screen slides for the meeting, and as a single fixed screen for
 a TV.
@@ -78,7 +78,7 @@ Deliberately small. No build step, no framework, no bundler.
 index.html            sign-in
 app/dashboard.html    the morning — all four surfaces
 app/departments.html  Configure: departments, machines, targets, budgets, which cards
-assets/maxmetrics.css ONE stylesheet
+assets/metriq.css ONE stylesheet
 js/db.js              ONE network module (Supabase client, retries, error wording)
 js/readings.js        judgement (band) + every drawing + the card components
 js/assess.js          turns a morning into a list of findings
@@ -87,14 +87,14 @@ js/xlsx.js            a small XLSX reader (streaming, reads only the sheets it n
 js/pages/*.js         page controllers
 supabase/functions/ingest    an endpoint the hot-folder watcher posts files to
 tools/hotfolder/*.ps1        a Windows scheduled task that posts the files at 5:30am
-scripts/verify-maxmetrics.mjs  the architecture rules, checked rather than remembered
+scripts/verify-metriq.mjs  the architecture rules, checked rather than remembered
 ```
 
 - **Postgres on Supabase**, row-level security per plant. The publishable key ships in the
   page and grants nothing on its own.
 - **Hosting is GitHub Pages** from a `gh-pages` branch. There is no CI — the organisation has
   no runners — so `scripts/publish.sh` runs the checks locally and pushes the built site.
-- **`scripts/verify-maxmetrics.mjs`** enforces the architecture: one stylesheet, one network
+- **`scripts/verify-metriq.mjs`** enforces the architecture: one stylesheet, one network
   module, no build tooling, no `!important` outside a listed set of exceptions, no threshold
   defined outside `band()`, no call to a function that is never declared or imported, and the
   edge function's copy of the parser must be byte-identical to the browser's.

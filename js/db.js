@@ -1,4 +1,4 @@
-// The one network module. Every request MaxMetrics makes goes through here, so there is
+// The one network module. Every request Metriq makes goes through here, so there is
 // a single place that knows about retries, connection state and what a failure should
 // say to the person reading it.
 //
@@ -21,7 +21,7 @@ let connectionState = 'online';
 function emitConnection(state) {
   if (connectionState === state && state === 'online') return;
   connectionState = state;
-  globalThis.dispatchEvent(new CustomEvent('maxmetrics:connection', { detail: { state } }));
+  globalThis.dispatchEvent(new CustomEvent('metriq:connection', { detail: { state } }));
 }
 export const connection = () => connectionState;
 
@@ -33,11 +33,11 @@ function describe(error, fallback) {
   const raw = String(error?.message || fallback || 'The request could not be completed.');
   const lower = raw.toLowerCase();
   const retryable = !status || status >= 500 || error?.code === 'PGRST000';
-  let message = fallback || 'MaxMetrics could not complete that request.';
+  let message = fallback || 'Metriq could not complete that request.';
   if (status === 401 || status === 403 || lower.includes('permission') || lower.includes('no edit access')) {
     message = 'Your account does not have permission to change this plant.';
   } else if (lower.includes('network') || lower.includes('fetch') || status >= 500) {
-    message = 'The connection was interrupted. MaxMetrics will keep trying.';
+    message = 'The connection was interrupted. Metriq will keep trying.';
   } else if (raw.length < 180) {
     message = raw;
   }

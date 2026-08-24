@@ -217,7 +217,7 @@ Deno.serve(async request => {
     // anonymous links — which is most of them, and is this one.
     if (!bytes && isSharePoint(source.url)) {
       if (!HAS_GRAPH) {
-        note = `${note}. This is a SharePoint address and MaxMetrics is not signed in to `
+        note = `${note}. This is a SharePoint address and Metriq is not signed in to `
              + `your tenant. Either share the file as "Anyone with the link", or add the `
              + `Microsoft app registration — see Configure, then Data.`;
       } else {

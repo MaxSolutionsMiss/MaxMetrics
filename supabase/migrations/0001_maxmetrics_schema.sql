@@ -1,4 +1,4 @@
--- MaxMetrics schema, consolidated.
+-- Metriq schema, consolidated.
 --
 -- This is the whole database as it stands, in the order a fresh project needs it. It was
 -- applied to maxmetrics-development on 2026-08-06 in four steps; those steps are folded

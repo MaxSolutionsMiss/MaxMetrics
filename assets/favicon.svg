@@ -1,9 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="MaxMetrics">
-  <!-- The rail mark, squared off for a tab. Two strokes, the second lighter, the same
-       double chevron the sign-in card and the sidebar already carry. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Metriq">
+  <!-- The rail mark on its violet tile. At tab size only two bars survive, so this is the
+       small version: the middle bar dropped, the remaining two thickened. The ring is drawn
+       after the bars so it covers their feet — no violet crosses the bottom curve.
+
+       The mark is authored on the same 100-unit grid as everywhere else and placed here by
+       one transform, so it cannot drift out of step with the rest: the drawing spans about
+       x 8..82 and y 8..94, centred on (45, 51), and 0.55 puts that inside a 64 tile with
+       room to breathe. -->
   <rect width="64" height="64" rx="14" fill="#6C4BB6"/>
-  <g fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="miter">
-    <path d="M11 48 L24 15 L37 48"/>
-    <path d="M27 48 L40 15 L53 48" opacity=".62"/>
+  <g transform="translate(7.25 3.95) scale(0.55)" fill="none" stroke="#fff">
+    <g transform="rotate(-11 46 44)">
+      <path d="M38 73.9 V46" stroke-width="10"/>
+      <path d="M58 88 V28" stroke-width="11"/>
+    </g>
+    <circle cx="46" cy="44" r="30" stroke-width="11"/>
   </g>
 </svg>

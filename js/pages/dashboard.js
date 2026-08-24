@@ -4496,7 +4496,7 @@ document.addEventListener('keydown', event => {
   if (event.key === 'Escape') { document.body.classList.remove('tv'); render(); }
 });
 
-addEventListener('maxmetrics:connection', event => {
+addEventListener('metriq:connection', event => {
   document.body.dataset.connection = event.detail.state;
 });
 
@@ -4547,7 +4547,7 @@ if (!state.locations.length) {
     <div class="state__inner">
       <h1 class="state__title">Waiting on access</h1>
       <p class="state__body">Your account is signed in, but it has not been assigned to a
-      plant yet, so there is nothing to show. A MaxMetrics administrator can add you.</p>
+      plant yet, so there is nothing to show. A Metriq administrator can add you.</p>
       <p class="state__who">Signed in as ${esc(state.me.full_name || session.user.email)}</p>
       <button class="btn" id="state-signout">Sign out</button>
     </div></div>`;
@@ -4610,7 +4610,7 @@ function importPanel() {
   // years of production in it.
   //
   // Three questions, answered in order: what are these files, what does this morning get
-  // from them, and what else is in them that MaxMetrics has never been told.
+  // from them, and what else is in them that Metriq has never been told.
   const SECTION_FIELDS = {
     Safety: ['injury_last', 'injury_record', 'near_miss_last', 'near_miss_record'],
     Quality: ['shorts', 'coq', 'coq_target', 'coq_ytd', 'coq_ytd_target', 'ncr_ytd',
@@ -4781,7 +4781,7 @@ function importPanel() {
     <p class="drop__note">These files also cover <b>${catchup.length}</b>
       morning${catchup.length === 1 ? '' : 's'} between
       <b>${esc(shortDate(catchup[0].date))}</b> and
-      <b>${esc(shortDate(catchup[catchup.length - 1].date))}</b> that MaxMetrics has no
+      <b>${esc(shortDate(catchup[catchup.length - 1].date))}</b> that Metriq has no
       reading for. Writing them fills the seven-day lines, last week\u2019s productivity and
       the year behind every card. Nothing already entered is replaced, on any of them.</p>
     <label class="tog"><input type="checkbox" id="import-catchup" checked>
@@ -5100,7 +5100,7 @@ async function applyImport({ quiet = false } = {}) {
 // Pull data.
 //
 // The production coordinator keys the MIS timesheets into the DOR between half past seven
-// and eight, and then wants MaxMetrics to have them. That was three clicks into a
+// and eight, and then wants Metriq to have them. That was three clicks into a
 // configuration screen she has no other reason to open, so it is one button on the bar she
 // is already looking at — and it opens the file chooser rather than a panel about opening
 // the file chooser.
@@ -5116,7 +5116,7 @@ $('#pull-btn')?.addEventListener('click', pullNow);
 // morning without asking anything.
 //
 // No preview. A preview is right for a file somebody chose and wrong for a file the plant
-// has already told MaxMetrics to trust: what it needs to say is what changed, afterwards,
+// has already told Metriq to trust: what it needs to say is what changed, afterwards,
 // and it does that in the toast and on the source strip.
 async function pullNow() {
   if (!state.canEdit) return toast('Your account cannot change this plant.');
@@ -5221,7 +5221,7 @@ function downloadFile(name, text, type = 'text/csv;charset=utf-8') {
 
 function exportMorning() {
   const plant = state.locations.find(l => l.id === state.location)?.name || state.location;
-  const rows = [['MaxMetrics', plant, state.date], []];
+  const rows = [['Metriq', plant, state.date], []];
 
   rows.push(['Safety & Quality', 'Value', 'Target / record']);
   const injury = metric('injury_last'), miss = metric('near_miss_last');
@@ -5261,7 +5261,7 @@ function exportMorning() {
   rows.push(['Year to date', metric('fin_actual_ytd') ?? '',
              state.budgets.reduce((sum, b) => sum + Number(b.amount || 0), 0)]);
 
-  downloadFile(`maxmetrics-${state.location}-${state.date}.csv`, toCsv(rows));
+  downloadFile(`metriq-${state.location}-${state.date}.csv`, toCsv(rows));
   toast('Exported.');
 }
 

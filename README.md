@@ -1,4 +1,4 @@
-# MaxMetrics
+# Metriq
 
 The daily morning dashboard for Max Solutions plants — Mississauga, Guelph, Pickering,
 Owen Sound and Markham.
@@ -44,7 +44,7 @@ problem being solved, not a step toward solving it.
 ## Architecture
 
 - static HTML, CSS and JavaScript; no framework, no bundler, no build step
-- one stylesheet: `assets/maxmetrics.css`
+- one stylesheet: `assets/metriq.css`
 - one network module: `js/db.js`
 - judgement lives only in `band()` in `js/readings.js`, so a card and the status dot
   beside its section can never disagree about the same number
@@ -53,7 +53,7 @@ problem being solved, not a step toward solving it.
 
 Structure and spacing come from MaxDock so the two products feel like one system. The
 identity colour does not: MaxDock owns the corporate blue and status owns green, amber and
-red, so MaxMetrics takes violet. A brand element wearing a status colour would read as a
+red, so Metriq takes violet. A brand element wearing a status colour would read as a
 verdict on the number beside it.
 
 ## Layout
@@ -62,7 +62,7 @@ verdict on the number beside it.
 index.html              sign in
 app/dashboard.html      the dashboard
 app/departments.html    configure — departments, financials, shipping, data
-assets/maxmetrics.css   the one stylesheet
+assets/metriq.css   the one stylesheet
 js/db.js                the one network module
 js/readings.js          judgement, the four drawings, the target bar and the trend line
 js/assess.js            one verdict per reading, and one line per section
@@ -74,7 +74,7 @@ scripts/                the architecture rules, the build, and publishing
 ## Database
 
 Supabase project `maxmetrics-development` (ca-central-1).
-`supabase/migrations/0001_maxmetrics_schema.sql` is the whole database; applying it to an
+`supabase/migrations/0001_metriq_schema.sql` is the whole database; applying it to an
 empty project reproduces it exactly.
 
 The publishable key in `js/db.js` is meant to ship in the page. It grants nothing on its
@@ -104,7 +104,7 @@ scripts/publish.sh --dry-run    build and check, push nothing
 scripts/publish.sh              publish
 ```
 
-It refuses to publish anything that fails `scripts/verify-maxmetrics.mjs` or that does not
+It refuses to publish anything that fails `scripts/verify-metriq.mjs` or that does not
 parse. This used to be a GitHub Actions workflow; the organisation has no runners, so the
 workflow never ran and neither did the checks inside it. A script that runs on the machine
 of whoever is publishing is honest about when it happened.

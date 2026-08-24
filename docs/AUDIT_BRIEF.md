@@ -1,4 +1,4 @@
-# MaxMetrics — brief for an outside review
+# Metriq — brief for an outside review
 
 Paste this whole file into ChatGPT, Claude, Gemini or Perplexity and ask for the review at
 the end. It is written to be self-contained: an assistant that has never seen the codebase
@@ -29,7 +29,7 @@ laptop, one browser profile. If that laptop did not open, there was no meeting. 
 retyped by hand every morning out of three spreadsheets. There was no history: yesterday was
 gone when today was entered.
 
-MaxMetrics replaces that. It is a **daily morning dashboard**: read the morning, fill in what
+Metriq replaces that. It is a **daily morning dashboard**: read the morning, fill in what
 no file can supply, and put it on a wall.
 
 ## 2. Who uses it
@@ -55,7 +55,7 @@ Deliberately, almost aggressively, plain:
 
 - **No framework, no bundler, no build step.** The file in the repository is the file the
   browser runs. HTML, one CSS file, ES modules.
-- **One stylesheet** (`assets/maxmetrics.css`, ~2,500 lines).
+- **One stylesheet** (`assets/metriq.css`, ~2,500 lines).
 - **One network module** (`js/db.js`). Nothing else in the app is allowed to talk to the
   network.
 - **One parser** (`js/import.js`) reading the plant's `.xlsx` files, with a copy synced to
@@ -65,7 +65,7 @@ Deliberately, almost aggressively, plain:
 - **GitHub Pages** for hosting. Publishing is `scripts/publish.sh`, run by hand, which
   verifies then pushes a built copy to the `gh-pages` branch. **GitHub Actions is not
   available** — the organisation has no runners — so every check runs locally.
-- **`scripts/verify-maxmetrics.mjs`** enforces the architecture rules above as a test.
+- **`scripts/verify-metriq.mjs`** enforces the architecture rules above as a test.
 
 Why so plain: the person maintaining this in two years will be an IT generalist at a carton
 plant, not a front-end specialist. A toolchain is a thing that rots.
@@ -221,8 +221,8 @@ Where a judgement depends on seeing the code, name the file and say what you wou
 | `js/pages/dashboard.js` | 4,300 lines | The whole dashboard — sections, cards, entry, present mode |
 | `js/import.js` | 1,150 lines | Spreadsheet parsing |
 | `js/db.js` | 620 lines | Every network call, RLS-facing queries |
-| `assets/maxmetrics.css` | 2,500 lines | All layout and type |
-| `docs/MAXMETRICS_ARCHITECTURE.md` | — | Why it is shaped the way it is |
+| `assets/metriq.css` | 2,500 lines | All layout and type |
+| `docs/METRIQ_ARCHITECTURE.md` | — | Why it is shaped the way it is |
 | `docs/SOURCE_DATA.md` | — | The three spreadsheets, column by column |
 | `supabase/migrations/*.sql` | — | Schema, RLS policies, stored procedures |
 

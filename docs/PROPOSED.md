@@ -227,7 +227,7 @@ These cannot be done from here and all three reviewers called the first one a re
 blocker.
 
 - A co-owner on the Power Automate flow, so it does not stop when the account does.
-- A second MaxMetrics administrator.
+- A second Metriq administrator.
 - Transfer of the Supabase project and the GitHub repository to accounts that outlive you.
 - `ANTHROPIC_API_KEY` in Supabase settings if the Clean up button is to work — a company key,
   not a personal one.

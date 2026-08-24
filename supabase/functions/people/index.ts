@@ -117,7 +117,7 @@ Deno.serve(async request => {
     const { data: target } = await admin
       .from('profiles').select('is_owner').eq('id', targetId).maybeSingle();
     if (!target?.is_owner) return null;
-    return reply({ error: `That account belongs to the owner of MaxMetrics. `
+    return reply({ error: `That account belongs to the owner of Metriq. `
       + `It cannot be ${what} by another administrator.` }, 403);
   };
 

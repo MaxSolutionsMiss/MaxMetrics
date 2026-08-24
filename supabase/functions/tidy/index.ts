@@ -38,7 +38,7 @@ const KEY = Deno.env.get('ANTHROPIC_API_KEY') ?? '';
 //
 // It was `*`, which is the wrong answer for a function that costs money on every call. A
 // wildcard means any page on any host can put a signed-in user's token to work against this
-// plant's model budget. The published site and localhost are the two places MaxMetrics is
+// plant's model budget. The published site and localhost are the two places Metriq is
 // ever served from; `ALLOWED_ORIGIN` lets a plant on its own domain add a third from
 // settings rather than from a redeploy.
 const ORIGINS = new Set([

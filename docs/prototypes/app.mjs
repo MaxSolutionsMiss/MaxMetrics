@@ -22,11 +22,11 @@ for (const [mod,heading] of [['morning','Wednesday 19 August'],['sources','Data 
 }
 say((await p.$eval('#modTitle',n=>n.textContent))==='Data Bank','the header names the module');
 
-/* the product is Score, and nothing on screen still says MaxMetrics */
+/* the product is Score, and nothing on screen still says Metriq */
 say((await p.title())==='Score','the browser tab says Score');
 say((await p.$eval('.wordmark',n=>n.textContent.trim()))==='Score','so does the wordmark');
 say((await p.$eval('#navToggle',n=>n.textContent.trim()))==='S','and the mark is an S');
-say(!(await p.$eval('body',n=>n.innerText)).includes('MaxMetrics'),
+say(!(await p.$eval('body',n=>n.innerText)).includes('Metriq'),
     'the old name appears nowhere on the page');
 say((await p.$$eval('.navitem .lb',n=>n.map(x=>x.textContent))).join(' | ')
       ==='The Morning | Data Bank | Data sources | Catalogue | People | More to come',

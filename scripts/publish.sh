@@ -19,7 +19,7 @@ DRY=false
 [ "${1:-}" = "--dry-run" ] && DRY=true
 
 echo "── Architecture rules"
-node scripts/verify-maxmetrics.mjs
+node scripts/verify-metriq.mjs
 
 echo "── The shapes an export comes in"
 node scripts/check-import.mjs

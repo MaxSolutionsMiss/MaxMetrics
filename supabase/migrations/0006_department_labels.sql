@@ -3,7 +3,7 @@
 --
 -- Mississauga runs printing, die cutting and gluing. Guelph windows and foil stamps, and
 -- the other three plants each run something the first one does not. Until now the shape of
--- a plant was three seeded rows and a migration — so the second plant to open MaxMetrics
+-- a plant was three seeded rows and a migration — so the second plant to open Metriq
 -- would have had to wait on this repository to see its own floor.
 --
 -- Two things were missing. The rows had to be creatable through the interface, which they

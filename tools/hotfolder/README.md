@@ -8,7 +8,7 @@ writes through `import_morning` — so a reading somebody typed is never overwri
 file sent twice changes nothing the second time.
 
 Why a PC and not a cloud flow is in
-[MAXMETRICS_ARCHITECTURE.md](../../docs/MAXMETRICS_ARCHITECTURE.md#how-the-files-get-here).
+[METRIQ_ARCHITECTURE.md](../../docs/METRIQ_ARCHITECTURE.md#how-the-files-get-here).
 The short version: the Z: drive is not visible to Microsoft 365 at all, and everything that
 is visible needs a permission someone has to grant.
 
@@ -47,7 +47,7 @@ The `location` has to be one of `mississauga`, `guelph`, `pickering`, `owen-soun
 **3. Prove it before scheduling it.**
 
 ```
-powershell -ExecutionPolicy Bypass -File maxmetrics-watch.ps1 -WhatIf
+powershell -ExecutionPolicy Bypass -File metriq-watch.ps1 -WhatIf
 ```
 
 `-WhatIf` lists what it found and what date it would file each one under, and sends
@@ -56,8 +56,8 @@ nothing. When the list looks right, run it again without `-WhatIf` and open the 
 **4. Schedule it.** 5:30am, so the numbers are in before anyone looks:
 
 ```
-schtasks /Create /TN "MaxMetrics morning pull" /SC DAILY /ST 05:30 ^
-  /TR "powershell -ExecutionPolicy Bypass -File \"C:\MaxMetrics\maxmetrics-watch.ps1\"" ^
+schtasks /Create /TN "Metriq morning pull" /SC DAILY /ST 05:30 ^
+  /TR "powershell -ExecutionPolicy Bypass -File \"C:\Metriq\metriq-watch.ps1\"" ^
   /RU "%USERDOMAIN%\%USERNAME%" /RP *
 ```
 
@@ -66,7 +66,7 @@ source will report as unreachable.
 
 ## When a number is missing
 
-`%LOCALAPPDATA%\MaxMetrics\watch.log` has a line per file per run. The four things it says:
+`%LOCALAPPDATA%\Metriq\watch.log` has a line per file per run. The four things it says:
 
 | Line | What happened |
 |---|---|

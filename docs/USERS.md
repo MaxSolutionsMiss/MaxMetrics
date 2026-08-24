@@ -1,6 +1,6 @@
 # Accounts
 
-MaxMetrics and MaxDock are **separate Supabase projects** — `maxmetrics-development`
+Metriq and MaxDock are **separate Supabase projects** — `maxmetrics-development`
 (`mlmurglqeqilqutxzawq`) and `maxdock-development` (`rywzqepzramurbrpmept`). Separate
 projects mean separate `auth.users` tables, so an account on one is not an account on the
 other and nothing is shared automatically.
@@ -12,7 +12,7 @@ one-way: nobody — not an administrator, not this repository, not Supabase supp
 read back what somebody types.
 
 What *can* be done is copy the hash. Bcrypt verifies the same way in either project, so a
-person carried across with their hash intact signs in to MaxMetrics with the password they
+person carried across with their hash intact signs in to Metriq with the password they
 already use for MaxDock, and never has to be told anything. That is the migration below.
 
 The alternative is to create the account without a password and let Supabase send a
@@ -43,9 +43,9 @@ from auth.users u
 where u.email in ('...', '...');
 ```
 
-Then against **MaxMetrics**, for each person. The user id is carried over deliberately: it
+Then against **Metriq**, for each person. The user id is carried over deliberately: it
 keeps a person the same row in both systems, which is what makes a later join between
-MaxDock and MaxMetrics answer questions about one person rather than two.
+MaxDock and Metriq answer questions about one person rather than two.
 
 ```sql
 -- 1. The account. `confirmed` is set so the first sign-in is not blocked waiting on an
@@ -66,7 +66,7 @@ insert into auth.identities (provider_id, user_id, identity_data, provider, crea
 values (:id, :id, jsonb_build_object('sub', :id::text, 'email', :email), 'email', now(), now())
 on conflict (provider, provider_id) do nothing;
 
--- 3. Who they are in MaxMetrics.
+-- 3. Who they are in Metriq.
 insert into public.profiles (id, full_name, initials, job_title, is_admin)
 values (:id, :full_name, :initials, :job_title, :is_admin)
 on conflict (id) do update set full_name = excluded.full_name, is_admin = excluded.is_admin;

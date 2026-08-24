@@ -1,4 +1,4 @@
-# MaxMetrics — response to the review, and a plan
+# Metriq — response to the review, and a plan
 
 *11 August 2026. Written against the code as it stands at commit `9217343`, with every claim
 below checked in the source or the database rather than taken on trust.*
@@ -15,7 +15,7 @@ below checked in the source or the database rather than taken on trust.*
 
 It is a good review. About half of it names something real, and two of those are bugs I would
 want fixed this week whatever else happens. About a quarter of it is aimed at the dashboard
-MaxMetrics replaced rather than at MaxMetrics — the reviewer was clearly given the old
+Metriq replaced rather than at Metriq — the reviewer was clearly given the old
 `Daily_Morning_Dashboard_Vr 22.html` alongside the briefing, and several findings are true of
 that file and not of this one. The last quarter is a matter of taste, and in two places it
 directly contradicts decisions you made in the last fortnight. Those are your call, not its
@@ -271,9 +271,9 @@ using the switch that already exists.
 | `js/readings.js` | `stateOf()` — one function every surface asks for a reading's state. `derivedShipping` distinguishes zero from missing. `footLine`/`metricCard`/`listCard` gain `aria-label` on every field. A `missing` card draws "not entered", never a dash that could be read as nought. |
 | `js/pages/dashboard.js` | The Today view becomes the Morning summary (§5). Enter gains the Required-now banner, the source strip and the not-confirmed review rows. Publish gains its guard. Present gains the Overview shape and the rotation timer. `SECTIONS.line` is where most of it lands. |
 | `js/pages/departments.js` | Configure gains: which presentation shape the TV runs, rotation interval, and who may publish an incomplete morning. |
-| `assets/maxmetrics.css` | `.state--missing` / `.state--stale` treatments; the summary header; the overview tiles; focus rings on every control. No change to the palette, the faces or the card. |
+| `assets/metriq.css` | `.state--missing` / `.state--stale` treatments; the summary header; the overview tiles; focus rings on every control. No change to the palette, the faces or the card. |
 | `js/db.js` | Reads and writes the new review status; reads the frozen targets; writes publication revisions. |
-| `scripts/verify-maxmetrics.mjs` | Two new rules: no surface may compute a state itself, and every `<input>` the product emits must carry a label or an `aria-label`. Checked on every publish, so neither can come back. |
+| `scripts/verify-metriq.mjs` | Two new rules: no surface may compute a state itself, and every `<input>` the product emits must carry a label or an `aria-label`. Checked on every publish, so neither can come back. |
 
 Not touched: the palette, the type ramp, the card component's geometry, the walk, the collage,
 Supabase auth, the importers, or any stored value.

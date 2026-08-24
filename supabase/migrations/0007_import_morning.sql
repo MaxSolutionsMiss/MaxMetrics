@@ -3,7 +3,7 @@
 --
 -- The plant has been running `Daily_Morning_Dashboard_Vr 22.html` since January and it can
 -- write a day out as JSON. Those files are the only record of the mornings before
--- MaxMetrics existed, and there is no reason they should stop being readable — so the
+-- Metriq existed, and there is no reason they should stop being readable — so the
 -- importer takes them, and this is where they land.
 --
 -- Two rules, both of which exist so a year of files can be dropped in without anyone

@@ -48,7 +48,7 @@ const byExtension = ext => files.filter(f => extname(f) === ext);
 
 // One stylesheet. Two would drift apart, and the second would win by accident.
 const stylesheets = byExtension('.css');
-if (stylesheets.length !== 1 || !stylesheets[0].endsWith('maxmetrics.css')) {
+if (stylesheets.length !== 1 || !stylesheets[0].endsWith('metriq.css')) {
   fail('One stylesheet only', `found: ${stylesheets.join(', ') || 'none'}`);
 }
 
@@ -88,7 +88,7 @@ for (const path of stylesheets) {
 // Judgement lives in one place. A card and the dot beside its section must never be able
 // to disagree about the same number.
 for (const path of byExtension('.js')) {
-  if (path.endsWith('readings.js') || path.endsWith('verify-maxmetrics.mjs')) continue;
+  if (path.endsWith('readings.js') || path.endsWith('verify-metriq.mjs')) continue;
   const source = read(path);
   for (const [i, line] of source.split('\n').entries()) {
     if (/>=\s*98\b/.test(line) || /<=\s*0\.85\b/.test(line)) {
@@ -173,7 +173,7 @@ const GLOBALS = new Set(['Number','String','Boolean','Array','Object','Math','JS
   'async','import','yield','new','delete','void','in','instanceof','do','else','try']);
 
 for (const path of byExtension('.js')) {
-  if (path.includes('verify-maxmetrics')) continue;
+  if (path.includes('verify-metriq')) continue;
   const source = codeOnly(read(path));
   const known = new Set(GLOBALS);
   for (const re of [/(?:function|class)\s+([A-Za-z_$][\w$]*)/g,
@@ -241,7 +241,7 @@ for (const path of byExtension('.html')) {
 // everybody else. An `<input>` or `<select>` or `<textarea>` in a page module is checked for
 // one of the three ways of saying what it is.
 for (const path of byExtension('.js')) {
-  if (path.includes('verify-maxmetrics')) continue;
+  if (path.includes('verify-metriq')) continue;
   const source = read(path);
   for (const match of source.matchAll(/<(input|select|textarea)\b([^>]*)>/g)) {
     const attrs = match[2];
@@ -276,8 +276,8 @@ for (const shared of ['import.js', 'xlsx.js']) {
 }
 
 if (failures.length) {
-  console.error(`\nMaxMetrics conformance: ${failures.length} problem(s)\n`);
+  console.error(`\nMetriq conformance: ${failures.length} problem(s)\n`);
   for (const failure of failures) console.error(`  ✗ ${failure}\n`);
   process.exit(1);
 }
-console.log('MaxMetrics conformance: all rules hold.');
+console.log('Metriq conformance: all rules hold.');

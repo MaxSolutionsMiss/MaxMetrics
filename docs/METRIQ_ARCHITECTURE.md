@@ -1,4 +1,4 @@
-# MaxMetrics architecture
+# Metriq architecture
 
 The decisions that are expensive to reverse, and why each was made. If a rule here has no
 reason attached, it should be deleted rather than followed.
@@ -51,7 +51,7 @@ one thing a shared editor may never do.
 A card, the dot beside its section in the rail, and the colour of a ring are three
 renderings of one verdict. If any of them could compute its own threshold, they would
 eventually disagree, and a dashboard that contradicts itself is worse than no dashboard.
-The conformance check in `scripts/verify-maxmetrics.mjs` fails the build if a threshold
+The conformance check in `scripts/verify-metriq.mjs` fails the build if a threshold
 appears anywhere else.
 
 This is also what makes the drawing a free choice. A bar, a ring and a number all receive a
@@ -160,7 +160,7 @@ rather than five hunts.
 ## Looking like the dashboard it replaces
 
 The plant has been reading one dashboard since January and the room knows where to look, so
-MaxMetrics keeps its visual grammar rather than inventing a better one: a pictogram and a
+Metriq keeps its visual grammar rather than inventing a better one: a pictogram and a
 title in condensed capitals at the top of every card, the number large and centred
 underneath, the whole card washed green, amber or red, and section headings set small
 between two rules. The icons are the plant's own — ⚕️ for the injury streak, 🖨️ ✂️ 📦 for the
@@ -229,7 +229,7 @@ that is the only place that knows a shortfall is measured in sheets and a streak
 
 The tone it carries is the same tone the dot beside the section in the rail carries, because
 the rail now asks `verdicts()` for it instead of working it out again from its own copy of
-the thresholds. That was the last place two parts of MaxMetrics could form separate opinions
+the thresholds. That was the last place two parts of Metriq could form separate opinions
 about the same morning, and putting the two renderings next to each other found it
 immediately: the financials card is washed by the worse of month and year to date, but the
 assessment only produced a reading for the month, so a month ahead of plan inside a year
@@ -238,7 +238,7 @@ behind it printed a red card over a section reporting everything on target.
 ## A plant's own shape
 
 `location_departments` was three seeded rows and a migration, which meant the second plant
-to open MaxMetrics would have waited on this repository to see its own floor. Configure
+to open Metriq would have waited on this repository to see its own floor. Configure
 Departments makes those rows editable, and adds the labels that make a department its own:
 windowing counts panes and is crewed in machine hours, and a plant reading "sheets/hr" over
 it is being shown a dashboard built for somebody else.
@@ -325,7 +325,7 @@ money and the meeting should say so out loud rather than let it pass in a table.
 ## Reading the old dashboard's own files
 
 `Daily_Morning_Dashboard_Vr 22.html` can write a day out as JSON, and those files are the
-only record of the mornings before MaxMetrics existed. The importer takes them.
+only record of the mornings before Metriq existed. The importer takes them.
 
 It is deliberately loose about shape and strict about reporting. The blob may be one day or
 many, keyed by date or dated inside each record; field names are whatever that file called
@@ -1181,7 +1181,7 @@ file and the wording in `publish.sh`.
 
 Two things make a host swap that cheap, and both are worth keeping:
 
-- **Every path in the site is relative.** Pages serves a project site under `/MaxMetrics/`
+- **Every path in the site is relative.** Pages serves a project site under `/Metriq/`
   and Netlify served it at the root; a single `href="/assets/…"` anywhere would have broken
   on one of them. `../assets/…` works on both, and on a file opened off a USB stick.
 - **`.nojekyll` is written into every build.** Pages runs Jekyll over a branch unless told
@@ -1318,7 +1318,7 @@ reads perfectly and ties nothing to it. That breaks a screen reader, and it also
 control and the browser's own autofill for everybody else.
 
 Every input, select and textarea on the product now carries one of the three ways of saying
-what it is, and `verify-maxmetrics.mjs` fails the build if a new one does not — so it cannot
+what it is, and `verify-metriq.mjs` fails the build if a new one does not — so it cannot
 come back the next time somebody adds a row.
 
 ## People, and who may change a plant
@@ -1336,7 +1336,7 @@ Three levels, because a folding-carton plant does not have a permissions problem
 | **View only** | they read the morning and cannot change a number |
 | **Can edit** | they fill it in and publish it |
 
-Administrator is a separate question — it is about MaxMetrics rather than about a plant — so
+Administrator is a separate question — it is about Metriq rather than about a plant — so
 it is a tick on the person rather than a fourth level, and nobody can remove their own.
 
 Three things needed a function rather than a table. Reading the list needs the email, and
@@ -1375,7 +1375,7 @@ reports 10 August, and the production in these files stops at 9 August.*
 Friday, Saturday or Sunday all belongs to the following Monday — so every day of shifts in
 the file maps to the morning that reports it. Subtract the mornings the plant already has and
 what is left is offered: *these files also cover 300 mornings between 13 June 2025 and 10
-August 2026 that MaxMetrics has no reading for.* Ticked by default, capped at 300, written
+August 2026 that Metriq has no reading for.* Ticked by default, capped at 300, written
 through `import_morning`, which coalesces — so a catch-up can fill gaps and can never take a
 number somebody typed.
 

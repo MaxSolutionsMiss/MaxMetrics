@@ -606,7 +606,7 @@ function linkShape(raw) {
       || /csf=1/i.test(url)) {
     return { ok: false, say: 'This is the file\u2019s address inside the library, not a '
       + 'sharing link \u2014 SharePoint will answer 401 to anyone without a Microsoft '
-      + 'session. Use Share \u2192 Anyone with the link, or register MaxMetrics in your '
+      + 'session. Use Share \u2192 Anyone with the link, or register Metriq in your '
       + 'tenant (below) and this address will start working exactly as it is.' };
   }
   return null;
@@ -677,7 +677,7 @@ function sourcesPanel() {
           <code>\u2026/:x:/<b>s</b>/MaxSolutions-Mississauga/EbT9x\u2026long\u2026?e=Ab12Cd</code>
           <span><b>/s/</b> or <b>/g/</b>, then a long meaningless token, and no
             <code>Shared%20Documents</code> anywhere in it. That is a link SharePoint will
-            answer to a stranger \u2014 which is what MaxMetrics is.</span></div>
+            answer to a stranger \u2014 which is what Metriq is.</span></div>
       </div>
     </div></div>
 
@@ -696,7 +696,7 @@ function sourcesPanel() {
         <li><i>People you choose</i> — named people, by email, inside Max Solutions.</li>
       </ol>
       <p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">
-        All three require a Microsoft account to be signed in, and MaxMetrics has neither an
+        All three require a Microsoft account to be signed in, and Metriq has neither an
         account nor a mailbox to be invited with, so none of them can work — including
         <i>People you choose</i>, which is the one that looks closest. Anonymous links are
         switched off for the whole tenant; that is a Microsoft 365 setting, not a per-file
@@ -706,11 +706,11 @@ function sourcesPanel() {
     </div></div>
 
   <div class="hp"><div class="hp__h">
-    <h3 class="panel__title">Give MaxMetrics its own identity</h3>
+    <h3 class="panel__title">Give Metriq its own identity</h3>
     <div class="panel__actions"><span class="pill pill--ok">The way in</span></div></div>
     <div class="hp__b">
       <p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">
-        This is the \u201cadd them as a user\u201d you have been looking for. MaxMetrics is a
+        This is the \u201cadd them as a user\u201d you have been looking for. Metriq is a
         server, not a person, so there is no mailbox to invite \u2014 it gets an identity in
         your Microsoft tenant instead. Once it has one, <b>every link already pasted above
         starts working, unchanged.</b> It is free \u2014 app registrations are part of any
@@ -725,7 +725,7 @@ function sourcesPanel() {
       <ol class="steps">
         <li>Go to <b>entra.microsoft.com</b> \u2192 <b>App registrations</b> \u2192
           <b>New registration</b>.</li>
-        <li>Name it <b>MaxMetrics</b>. Accounts: <b>this organizational directory only</b>.
+        <li>Name it <b>Metriq</b>. Accounts: <b>this organizational directory only</b>.
           No redirect URI. Press <b>Register</b>.</li>
         <li>On the Overview page copy the <b>Application (client) ID</b> and the
           <b>Directory (tenant) ID</b>.</li>
@@ -739,7 +739,7 @@ function sourcesPanel() {
           column must show a green tick.</li>
         <li>Give the app read on this one site, in PowerShell as an administrator:<br>
           <code>Grant-PnPAzureADAppSitePermission -AppId &lt;client id&gt;
-          -DisplayName "MaxMetrics" -Permissions Read
+          -DisplayName "Metriq" -Permissions Read
           -Site https://maxsolutionsinc.sharepoint.com/sites/MaxSolutions-Mississauga</code></li>
       </ol>
       <p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">
@@ -771,7 +771,7 @@ function sourcesPanel() {
       <p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">
         It needs one PC that stays on overnight and has the folders \u2014 usually the office
         machine of whoever assembles the morning. The script and its instructions live in the
-        MaxMetrics repository under <code>tools/hotfolder</code>. Two things have to be switched
+        Metriq repository under <code>tools/hotfolder</code>. Two things have to be switched
         on first: the <code>ingest</code> endpoint, and a shared key for it.</p>
     </div></div>
     </div></details>`;
@@ -841,7 +841,7 @@ function dataPane() {
 //   View only    they read the morning and cannot change a number
 //   Can edit     they fill it in and publish it
 //
-// Administrator is a separate question — it is about MaxMetrics rather than about a plant,
+// Administrator is a separate question — it is about Metriq rather than about a plant,
 // so it is a tick on the person rather than a fourth level. An administrator can add people
 // and set levels at every plant; it does not, by itself, give them a plant. There can be as
 // many as the plant wants: it is a tick, not a seat.
@@ -986,7 +986,7 @@ function peoplePane() {
       <div class="panel__body">
         ${people.length ? `<table class="tbl tbl--tight tbl--ppl"><thead><tr>
           <th>Name</th><th>Username or email</th><th>Plants</th>
-          <th class="num">MaxMetrics</th><th></th>
+          <th class="num">Metriq</th><th></th>
         </tr></thead><tbody>${people.map(inRow).join('')}</tbody></table>`
         : `<p class="cfg__none">${needle
              ? `Nobody matching “${esc(state.peopleFind)}”.`
@@ -1029,12 +1029,12 @@ function peoplePane() {
             <b>${esc(asIdentity(made.email))}</b></div>
           <div class="madep__p"><span>Temporary password</span><code>${esc(made.password)}</code>
             <button class="btn btn--ghost" id="copy-password">Copy</button></div>
-          <p class="madep__s">Give them this once. MaxMetrics will require them to choose
+          <p class="madep__s">Give them this once. Metriq will require them to choose
             their own password the first time they sign in, and this one stops working the
             moment they do. It is not stored anywhere you can read it back — if it is
             lost, press Add again for the same username and a new one is issued.</p>
         </div>` : `<p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">
-          MaxMetrics makes the account and hands you a temporary password to pass on. They
+          Metriq makes the account and hands you a temporary password to pass on. They
           choose their own the first time they sign in. Nothing is emailed — this project
           has no outbound mail set up, and a sign-in that depends on one silently is a
           sign-in that fails on a Monday. Adding somebody who already has an account resets
@@ -1452,12 +1452,12 @@ document.addEventListener('click', async event => {
     } catch (error) { toast(error.message); }
     return;
   }
-  // Removing an account takes the person out of MaxMetrics everywhere, not just off this
+  // Removing an account takes the person out of Metriq everywhere, not just off this
   // plant, so it asks — and it names them, because "are you sure" is a question nobody reads.
   const dropPerson = event.target.closest('[data-remove-person]');
   if (dropPerson) {
     const person = (state.people || []).find(x => x.profile_id === dropPerson.dataset.removePerson);
-    const said = prompt(`Remove ${person?.full_name || 'this account'} from MaxMetrics `
+    const said = prompt(`Remove ${person?.full_name || 'this account'} from Metriq `
       + `entirely? They lose access to every plant and their sign-in stops working.\n\n`
       + `Type REMOVE to confirm.`);
     if (said !== 'REMOVE') return;
@@ -1701,7 +1701,7 @@ $('#signout-btn').addEventListener('click', async () => {
   location.replace('../index.html');
 });
 
-addEventListener('maxmetrics:connection', event => {
+addEventListener('metriq:connection', event => {
   document.body.dataset.connection = event.detail.state;
 });
 

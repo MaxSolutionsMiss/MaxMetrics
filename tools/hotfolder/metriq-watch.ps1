@@ -10,15 +10,15 @@
 # contents have not changed since the last run is not sent again, and the endpoint writes
 # through `import_morning`, which never replaces a reading somebody typed.
 #
-#   powershell -ExecutionPolicy Bypass -File maxmetrics-watch.ps1
-#   powershell -ExecutionPolicy Bypass -File maxmetrics-watch.ps1 -WhatIf   # list, send nothing
-#   powershell -ExecutionPolicy Bypass -File maxmetrics-watch.ps1 -All      # ignore the state file
+#   powershell -ExecutionPolicy Bypass -File metriq-watch.ps1
+#   powershell -ExecutionPolicy Bypass -File metriq-watch.ps1 -WhatIf   # list, send nothing
+#   powershell -ExecutionPolicy Bypass -File metriq-watch.ps1 -All      # ignore the state file
 
 [CmdletBinding()]
 param(
   [string] $Config = (Join-Path $PSScriptRoot 'sources.json'),
-  [string] $StateFile = (Join-Path $env:LOCALAPPDATA 'MaxMetrics\seen.json'),
-  [string] $LogFile = (Join-Path $env:LOCALAPPDATA 'MaxMetrics\watch.log'),
+  [string] $StateFile = (Join-Path $env:LOCALAPPDATA 'Metriq\seen.json'),
+  [string] $LogFile = (Join-Path $env:LOCALAPPDATA 'Metriq\watch.log'),
   [switch] $All,
   [switch] $WhatIf
 )
@@ -136,7 +136,7 @@ foreach ($source in $settings.sources) {
         'x-maxmetrics-key'      = $key
         'x-maxmetrics-location' = $source.location
         'x-maxmetrics-filename' = $file.Name
-        'x-maxmetrics-date'     = $date
+        'x-metriq-date'     = $date
         'content-type'          = 'application/octet-stream'
       }
       $answer = Invoke-RestMethod -Uri $settings.endpoint -Method Post -Headers $headers `
