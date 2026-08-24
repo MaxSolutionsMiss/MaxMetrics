@@ -3377,6 +3377,40 @@ body.tv.tv-brief .wall__dots{display:none}
 .chip:hover{border-color:var(--brand);color:var(--brand)}
 .chip.is-on{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}
 
+/* A dropdown: one line when shut, a checklist when open. Nine locations as chips was
+   three wrapped rows, and the company is not going to have fewer plants next year. */
+.pick{position:relative;max-width:340px}
+.pick__face{display:flex;align-items:center;gap:var(--s3);width:100%;min-height:var(--ctl-h);
+  padding:0 var(--s3);border:1px solid var(--rule-strong);border-radius:var(--radius);
+  background:var(--surface);color:var(--ink-muted);font-family:inherit;
+  font-size:var(--t-base);text-transform:none;letter-spacing:normal;cursor:pointer;
+  text-align:left;transition:.12s}
+.pick__face:hover{border-color:var(--brand)}
+.pick__face.is-set{color:var(--ink);font-weight:600}
+.pick__face span:first-child{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pick__x{width:8px;height:8px;flex:none;border-right:2px solid var(--ink-muted);
+  border-bottom:2px solid var(--ink-muted);transform:rotate(45deg) translate(-2px,-2px);
+  transition:transform .14s}
+.pick.is-open .pick__face{border-color:var(--brand)}
+.pick.is-open .pick__x{transform:rotate(-135deg) translate(-3px,-3px)}
+/* In flow, not floating: the steps below should move down rather than be covered up. */
+.pick__panel{margin-top:4px;border:1px solid var(--brand);border-radius:var(--radius);
+  background:var(--surface);padding:4px;max-height:min(60vh,420px);overflow-y:auto;
+  box-shadow:var(--shadow)}
+.pick__row{display:flex;align-items:center;gap:var(--s3);width:100%;min-height:36px;
+  padding:0 var(--s2);border:none;border-radius:var(--radius);background:none;
+  color:var(--ink);font-family:inherit;font-size:var(--t-base);text-transform:none;
+  letter-spacing:normal;text-align:left;cursor:pointer}
+.pick__row:hover{background:var(--sunk)}
+.pick__row--all{border-bottom:1px solid var(--rule);border-radius:0;margin-bottom:3px;
+  font-weight:600}
+.pick__box{width:16px;height:16px;flex:none;border:1.5px solid var(--rule-strong);
+  border-radius:4px;position:relative}
+.pick__row.is-on .pick__box{background:var(--brand);border-color:var(--brand)}
+.pick__row.is-on .pick__box::after{content:"";position:absolute;left:4.5px;top:1px;
+  width:4px;height:8px;border-right:2px solid #fff;border-bottom:2px solid #fff;
+  transform:rotate(45deg)}
+
 /* A category is a lid. Shut, it costs one line; open, it shows what is under it. This is
    the whole reason the page still works when the registry reaches two hundred rows. */
 .cat{display:flex;align-items:center;gap:var(--s3);width:100%;padding:var(--s3);

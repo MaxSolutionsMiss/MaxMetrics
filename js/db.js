@@ -136,9 +136,18 @@ export async function myProfile() {
 export const savePreference = (id, patch) =>
   run(() => client.from('profiles').update(patch).eq('id', id), { retry: 0 });
 
-export const myLocations = () =>
-  run(() => client.from('profile_locations')
-    .select('location_id, can_edit, locations(id, name, sort_order)'));
+// Mine, and only mine. This used to lean on row-level security to do the filtering, which
+// was true right up until a second account existed: an administrator's policy lets them
+// read everybody's grants, so the list came back with each plant once per person and the
+// location picker showed "Mississauga, Mississauga, Guelph, Guelph…". Whose rows these are
+// is not a security question, it is part of the question being asked.
+export const myLocations = async () => {
+  const session = await currentSession();
+  if (!session) return [];
+  return run(() => client.from('profile_locations')
+    .select('location_id, can_edit, locations(id, name, sort_order)')
+    .eq('profile_id', session.user.id));
+};
 
 // ── A morning ───────────────────────────────────────────────────────────────────
 
