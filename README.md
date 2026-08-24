@@ -1,6 +1,8 @@
 # Metriq
 
-The daily morning dashboard for Max Solutions plants — Mississauga, Guelph, Pickering,
+A product of Packet.
+
+The daily morning dashboard for folding-carton plants — Mississauga, Guelph, Pickering,
 Owen Sound and Markham.
 
 It replaces `Daily_Morning_Dashboard_Vr 22.html`, a single HTML file on the `Z:` share

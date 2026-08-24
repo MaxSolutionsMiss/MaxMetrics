@@ -124,7 +124,7 @@ const SUPPORT = [
 // to matter, and the people who know that are spread across it.
 //
 // Kept as a list here rather than as rows in Configure because it is the same ten at every
-// plant Max Solutions runs, and a screen for editing a list nobody edits is a screen.
+// plant the company runs, and a screen for editing a list nobody edits is a screen.
 const ATTENTION = [
   ['next_customer_service', 'Customer service'],
   ['next_estimating',       'Estimating'],

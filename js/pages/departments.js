@@ -575,7 +575,7 @@ function qualityPane() {
 // can do.
 //
 // SharePoint and OneDrive: open the file, Share, change the permission to **Anyone with the
-// link**, copy, and paste it here. A link that says "People in Max Solutions" needs a
+// link**, copy, and paste it here. A link that says "People in <the company>" needs a
 // Microsoft sign-in, and a signed-out server gets a sign-in page rather than a workbook —
 // the pull records exactly that against the source rather than failing quietly.
 const SOURCE_HELP = {
@@ -588,7 +588,7 @@ const SOURCE_HELP = {
 //
 // `/:x:/r/sites/…/Shared Documents/…` is the file's own path inside the library. It is what
 // the address bar shows and what Copy link hands you when the permission is still "People in
-// Max Solutions" — the `csf=1&web=1` flags are that button's fingerprint. SharePoint refuses
+// <the company>" — the `csf=1&web=1` flags are that button's fingerprint. SharePoint refuses
 // it to anything without a Microsoft session, which is the 401.
 //
 // A real "Anyone with the link" share is a different URL entirely: `/:x:/s/` or `/:x:/g/`
@@ -600,7 +600,7 @@ function linkShape(raw) {
   if (!/sharepoint\.com|1drv\.ms|onedrive\.live\.com/i.test(url)) return null;
   if (/\/:[a-z]:\/[sg]\//i.test(url)) return { ok: true, say: 'This is a sharing link.' };
   // Three shapes of the same mistake. `/:x:/r/` is Copy link with the audience left as
-  // "People in Max Solutions"; `_layouts/15/Doc.aspx?sourcedoc=` is what the address bar
+  // "People in <the company>"; `_layouts/15/Doc.aspx?sourcedoc=` is what the address bar
   // shows once the file is open; `csf=1` is the Copy link button's own fingerprint.
   if (/\/:[a-z]:\/r\//i.test(url) || /_layouts\/\d+\/doc\.aspx/i.test(url)
       || /csf=1/i.test(url)) {
@@ -666,15 +666,15 @@ function sourcesPanel() {
     <div class="hp__b">
       <div class="lnkq">
         <div class="lnkq__b lnkq__b--no"><b>\u2717 Will always answer 401</b>
-          <code>\u2026/:x:/<b>r</b>/sites/MaxSolutions-Mississauga/Shared%20Documents/\u2026</code>
+          <code>\u2026/:x:/<b>r</b>/sites/Your-Site/Shared%20Documents/\u2026</code>
           <code>\u2026/_layouts/15/<b>Doc.aspx</b>?sourcedoc=\u2026</code>
           <span>Both are the file\u2019s address inside the library \u2014 what the address bar
             shows, and what <i>Copy link</i> gives you while the permission is still
-            <i>People in Max Solutions</i>. <code>csf=1</code> and <code>web=1</code> are that
+            <i>People in your organisation</i>. <code>csf=1</code> and <code>web=1</code> are that
             button\u2019s fingerprint. SharePoint refuses these to anything without a Microsoft
             session, and <code>?download=1</code> changes nothing.</span></div>
         <div class="lnkq__b lnkq__b--yes"><b>\u2713 A real sharing link</b>
-          <code>\u2026/:x:/<b>s</b>/MaxSolutions-Mississauga/EbT9x\u2026long\u2026?e=Ab12Cd</code>
+          <code>\u2026/:x:/<b>s</b>/Your-Site/EbT9x\u2026long\u2026?e=Ab12Cd</code>
           <span><b>/s/</b> or <b>/g/</b>, then a long meaningless token, and no
             <code>Shared%20Documents</code> anywhere in it. That is a link SharePoint will
             answer to a stranger \u2014 which is what Metriq is.</span></div>
@@ -691,9 +691,9 @@ function sourcesPanel() {
         this tenant and the option is not there. <b>Link settings</b> for DOR V9.xlsx offers
         exactly three:</p>
       <ol class="steps">
-        <li><i>People in Max Solutions, Inc</i> — needs a company sign-in.</li>
+        <li><i>People in your organisation</i> — needs a company sign-in.</li>
         <li><i>Only people with existing access</i> — needs a company sign-in.</li>
-        <li><i>People you choose</i> — named people, by email, inside Max Solutions.</li>
+        <li><i>People you choose</i> — named people, by email, inside your organisation.</li>
       </ol>
       <p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">
         All three require a Microsoft account to be signed in, and Metriq has neither an
@@ -735,12 +735,12 @@ function sourcesPanel() {
         <li><b>API permissions</b> \u2192 <b>Add a permission</b> \u2192 <b>Microsoft
           Graph</b> \u2192 <b>Application permissions</b> \u2192 tick <b>Sites.Selected</b>,
           then <b>Add</b>.</li>
-        <li>Press <b>Grant admin consent for Max Solutions Inc</b> and confirm. The Status
+        <li>Press <b>Grant admin consent for ‹your organisation›</b> and confirm. The Status
           column must show a green tick.</li>
         <li>Give the app read on this one site, in PowerShell as an administrator:<br>
           <code>Grant-PnPAzureADAppSitePermission -AppId &lt;client id&gt;
           -DisplayName "Metriq" -Permissions Read
-          -Site https://maxsolutionsinc.sharepoint.com/sites/MaxSolutions-Mississauga</code></li>
+          -Site https://‹yourcompany›.sharepoint.com/sites/‹Your-Site›</code></li>
       </ol>
       <p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">
         <b>Why <code>Sites.Selected</code> rather than <code>Sites.Read.All</code>.</b>

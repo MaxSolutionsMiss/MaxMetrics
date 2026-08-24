@@ -13,7 +13,7 @@
 // anybody, so a plain fetch works. Cheapest possible integration and it needs nothing from
 // IT — when a tenant allows it.
 //
-// **Microsoft Graph, app-only.** Max Solutions does not allow it. Every link pasted into the
+// **Microsoft Graph, app-only.** The tenant does not allow it. Every link pasted into the
 // screen so far has been `…/:x:/r/sites/…/Shared%20Documents/…` or `…/_layouts/15/Doc.aspx`,
 // which are not sharing links at all — they are the file's address inside the library, and
 // SharePoint refuses them to anyone without a session. Signed out they answer 403 directly
