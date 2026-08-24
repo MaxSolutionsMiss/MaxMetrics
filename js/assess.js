@@ -13,7 +13,7 @@
 // cannot happen is for the verdict to be reached once, here, before any view sees it.
 
 import { band, daysBetween, num, money, readingOf, rateLabel, MONTHS,
-         otifTarget, otdTarget, isNa } from './readings.js?v=46719f288798';
+         otifTarget, otdTarget, isNa } from './readings.js?v=ce09c25a3f8b';
 
 // ── What a complete morning contains ────────────────────────────────────────────
 //
@@ -405,7 +405,7 @@ export const isComplete = list => absent(list).length === 0;
 // It states, it does not judge. Every word in it comes from a reading that assess() has
 // already decided about, and the tone it carries is the same tone the dot beside the
 // section in the rail carries — because the rail now asks this function for it rather than
-// working it out again. That was the last place two parts of MaxMetrics could have formed
+// working it out again. That was the last place two parts of Metriq could have formed
 // separate opinions about the same morning.
 const capitalise = text => text ? text[0].toUpperCase() + text.slice(1) : '';
 const plural = (count, one, many) => `${count} ${count === 1 ? one : many}`;

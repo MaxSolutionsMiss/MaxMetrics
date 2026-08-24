@@ -2,7 +2,7 @@
 //
 // An .xlsx is a ZIP of XML. The browser already has both halves of that — the ZIP is a
 // container format anyone can walk, and `DecompressionStream` inflates the entries — so
-// MaxMetrics reads the plant's spreadsheets without a parsing library, a CDN it has to
+// Metriq reads the plant's spreadsheets without a parsing library, a CDN it has to
 // stay reachable, or a build step. That matters more here than it sounds: the whole point
 // of this project is that the file in the repository is the file the browser runs.
 //

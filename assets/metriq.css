@@ -1,4 +1,4 @@
-/* MaxMetrics - the one stylesheet.
+/* Metriq - the one stylesheet.
    Every token below the accent is copied verbatim from MaxDock. That is deliberate and it
    is the whole point: two products of one company should differ by their colour and by
    nothing else. What used to differ was everything - a condensed display face against
@@ -6,7 +6,7 @@
    7, a shadow under every card where MaxDock has none. Each of those was defensible alone
    and together they made a second product.
 
-   The accent is the one thing MaxMetrics owns. MaxDock has the corporate blue; green,
+   The accent is the one thing Metriq owns. MaxDock has the corporate blue; green,
    amber and red are spoken for by status, so a brand element in any of them would read as
    a verdict on the number beside it. Violet sits outside all four. */
 @font-face{
@@ -32,7 +32,7 @@
 @font-face{font-family:'Barlow Condensed';font-style:normal;font-weight:700;font-display:swap;
   src:url(fonts/barlow-condensed-700.woff2) format('woff2')}
 :root{
-  /* THE ACCENT - the five values MaxMetrics changes, and the only ones. */
+  /* THE ACCENT - the five values Metriq changes, and the only ones. */
   --brand:#6C4BB6; --brand-hover:#583D96; --brand-wash:#EFEAF8; --brand-deep:#3F2A6E;
 
   /* NEUTRALS - identical to MaxDock. These are what make the two products siblings. */
@@ -54,7 +54,7 @@
   --rail:#16202A; --rail-ink:#A8B4BE; --rail-rule:rgba(255,255,255,.08); --rail-label:#6B7A86;
 
   /* ONE FACE, INCLUDING NUMBERS.
-     MaxMetrics set every title, label and figure in Barlow Condensed. The family matched
+     Metriq set every title, label and figure in Barlow Condensed. The family matched
      nothing MaxDock does and the width matched nothing either: a condensed face is narrower
      at every size, so the two products read as two products even where the colours agreed.
      Columns of digits still line up, because `body` sets `font-variant-numeric:tabular-nums`
@@ -124,7 +124,7 @@
   --card-bar:#4A5162;
   --card-r-max:1.45;
 }
-/* Dark is MaxMetrics' own - MaxDock ships light only - so it keeps the same relationships
+/* Dark is Metriq' own - MaxDock ships light only - so it keeps the same relationships
    rather than inventing new ones: the neutrals slide, the accent lifts enough to hold
    contrast on a dark ground, and status keeps its meaning. */
 @media (prefers-color-scheme:dark){:root[data-theme="auto"]{
@@ -214,7 +214,7 @@ html[data-rail="mini"]{--rail-w:62px}
 .rail__dot--none{color:currentColor;opacity:.28}
 /* Plant, person, sign out — three lines, in that order.
    These were laid out as one nowrap line under `overflow:hidden`, so the name pushed the
-   button off the edge and it was clipped away: the only way out of MaxMetrics was invisible
+   button off the edge and it was clipped away: the only way out of Metriq was invisible
    at every width that mattered. Each part gets its own line and the long ones ellipsise,
    which is the right thing to lose — a name you can still hover for is worth more than a
    button you cannot reach. */
@@ -1918,7 +1918,7 @@ body.no-access .who,
 body.no-access .saved{display:none}
 body.no-access .shell{grid-template-columns:1fr}
 body.no-access .top{justify-content:flex-start;padding:var(--s3) var(--s5)}
-body.no-access .top::before{content:"MaxMetrics";font-size:var(--t-lead);font-weight:600;
+body.no-access .top::before{content:"Metriq";font-size:var(--t-lead);font-weight:600;
   letter-spacing:-.015em;color:var(--ink)}
 .state{display:grid;place-items:center;min-height:70vh;padding:var(--s5);text-align:center}
 .state__inner{max-width:430px;display:flex;flex-direction:column;gap:var(--s3);align-items:center}

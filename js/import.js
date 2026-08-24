@@ -18,7 +18,7 @@
 // to record. Neither is a warning, and neither holds up an import. An alarm that fires
 // every Monday about a Sunday nobody worked is one people learn to close without reading.
 
-import { openWorkbook, serialToISO } from './xlsx.js?v=46719f288798';
+import { openWorkbook, serialToISO } from './xlsx.js?v=ce09c25a3f8b';
 
 // ── Matching a column ───────────────────────────────────────────────────────────
 
@@ -129,7 +129,7 @@ export function windowFor(date, reported = []) {
 //
 // The inverse of `windowFor`, and the thing that makes a workbook worth more than one day.
 // A DOR carries every shift the plant has ever logged; the open morning wants one window of
-// it, and the other four thousand days are not noise, they are mornings MaxMetrics has
+// it, and the other four thousand days are not noise, they are mornings Metriq has
 // never been told about. Monday's meeting reports Friday, Saturday and Sunday together, so
 // production dated Friday, Saturday or Sunday all belongs to the following Monday.
 export function morningFor(productionDate) {

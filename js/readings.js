@@ -2,7 +2,7 @@
 //
 // Two rules hold this file together.
 //
-// `band` decides. Nothing else in MaxMetrics is allowed to form an opinion about whether
+// `band` decides. Nothing else in Metriq is allowed to form an opinion about whether
 // a number is good, so a card, the dot beside a section in the rail, and the colour of a
 // ring can never disagree about the same reading.
 //
@@ -252,7 +252,7 @@ export function derivedShipping(metrics) {
   return { otd: round((count - late) / count), otif: round((count - late - short) / count) };
 }
 
-// A reading of the day, with derived shipping folded in. Every part of MaxMetrics that
+// A reading of the day, with derived shipping folded in. Every part of Metriq that
 // asks a morning for a field goes through this, so nothing has to remember which two of
 // them are worked out rather than typed.
 export const readingOf = (metrics, field) => {
@@ -771,7 +771,7 @@ export const WALK = [
   // because it is a place somebody comes to rather than a card somebody scrolls past.
   //
   // It was one card at the foot of Production's grid, and the argument for promoting it is
-  // the argument that promoted the board. A CSR opening MaxMetrics has exactly one thing to
+  // the argument that promoted the board. A CSR opening Metriq has exactly one thing to
   // do on it and had to walk through four departments and their last twenty-four hours to
   // reach it, on a screen that is not theirs and mostly not about them. A section is a door
   // with their name on it: it appears in the rail, it has its own screen, and Enter's
