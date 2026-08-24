@@ -538,6 +538,13 @@ body.wrong-folder .folderbar button{background:var(--amber)}
 body.locked-folder .folderbar{display:flex;background:#eff5ff;border-color:#d3e2fb;
   border-left-color:#2563eb;color:#1e3a63}
 body.locked-folder .folderbar button{background:#2563eb}
+/* A screen does not need the buttons for filling a morning in. */
+body.display-only #draftBtn,
+body.display-only #pubBtn,
+body.display-only #editBtn,
+body.display-only .rail-act.act-save,
+body.display-only .rail-act.act-pub,
+body.display-only .rail-act.act-edit{display:none!important}
 body.pres-mode .msg-acts{display:none}
 @media print{.msg-acts{display:none}}
 
@@ -751,6 +758,8 @@ body.pres-mode .review-card{min-height:0;justify-content:flex-start}
 .rail-act:hover{background:var(--gray-soft);color:var(--text)}
 .rail-act.act-edit{color:var(--navy,#101a2c)}
 .rail-act.act-save{color:#2563eb}
+.btn-show{background:#2b3a58;border-color:#2b3a58;color:#fff}
+.btn-show:hover{background:#3a4d73;border-color:#3a4d73}
 .rail-act.act-pub{color:var(--green)}
 .rail-act.act-save:hover{background:#eff5ff}
 .rail-act.act-pub:hover{background:var(--green-soft)}
@@ -837,7 +846,8 @@ body.pres-mode #c-priorities.awaiting{animation:none}
       <span class="badge hidden" id="statusBadge"></span>
       <button class="btn btn-edit" id="editBtn" onclick="enterEdit()"><span class="btn-icon">&#9998;</span>Edit Mode</button>
       <button class="btn btn-draft" id="draftBtn" onclick="saveDraft()"><span class="btn-icon">&#128190;</span>Save</button>
-      <button class="btn btn-pub" id="pubBtn" onclick="publish()"><span class="btn-icon">&#128506;</span>Publish / Present</button>
+      <button class="btn btn-pub" id="pubBtn" onclick="publish()"><span class="btn-icon">&#128190;</span>Publish</button>
+      <button class="btn btn-show" id="showBtn" onclick="present()"><span class="btn-icon">&#128506;</span>Present</button>
     </div>
     <div class="hdr-row2">
       <button class="btn btn-export no-print" onclick="showExportMenu()"><span class="btn-icon">&#128228;</span>Export</button>
@@ -1131,6 +1141,11 @@ body.pres-mode #c-priorities.awaiting{animation:none}
 <script>
 var LAYOUT={};              /* what each section shows, saved with the day */
 var COMMENTS={};            /* every thread on the page, saved with the day */
+/* Declared here, with the others, because loadDay reads it and loadDay lives in
+   an earlier script block than present(). A `let` further down the page is in
+   the temporal dead zone for everything above it — which is how this file has
+   broken twice before, once for LAYOUT and once for COMMENTS. */
+var PRESENTING=false;       /* the page is a wall until somebody says otherwise */
 const TODAY=new Date(),pad=n=>String(n).padStart(2,'0');
 const todayStr=`${TODAY.getFullYear()}-${pad(TODAY.getMonth()+1)}-${pad(TODAY.getDate())}`;
 document.getElementById('dashDate').value=todayStr;
@@ -1807,6 +1822,7 @@ function enterEdit(){
   renderReviewSection(true);
   document.querySelectorAll('.ez').forEach(e=>e.classList.remove('hidden'));
   document.getElementById('editBtn').classList.add('hidden');
+  PRESENTING=false;
   document.body.classList.remove('pres-mode');buildMaintTable(true);
   restoreDynamicValues(snap);
   applyAll();
@@ -1937,10 +1953,13 @@ function loadDay(){
     // Exact match for this date
     setFormData(data);renderProductionSection(false);renderReviewSection(false);applyAll();applyDeptData(data);
     const b=document.getElementById('statusBadge');
-    b.className=data.status==='published'?'badge badge-pub':'badge badge-draft';
-    b.textContent=data.status==='published'?'Published ✓':'Draft';b.classList.remove('hidden');
+    if(!PRESENTING){
+      b.className=data.status==='published'?'badge badge-pub':'badge badge-draft';
+      b.textContent=data.status==='published'?'Published ✓':'Draft';
+    }
+    b.classList.remove('hidden');
     if(data.status==='published'){exitEdit();document.body.classList.add('pres-mode');}
-    else document.body.classList.remove('pres-mode');
+    else if(!PRESENTING) document.body.classList.remove('pres-mode');
   } else {
     // No saved data for this date — carry forward from most recent previous day
     const prevDate=Object.keys(store)
@@ -2542,9 +2561,24 @@ async function adoptFolder(h){
   warnAboutStrays();
   const probe=await canWriteHere();
   if(!probe.ok){
+    /* It can read the folder and not write to it. Rather than let somebody fill
+       in a morning here and lose it at the last moment, the machine becomes what
+       it can actually be: a screen. Save, Publish and Edit go; Present stays. If
+       the share is fixed later this runs again on the next open and they return. */
     const why=writeExcuse(probe.err);
-    showToast('Read-only: this PC cannot write to '+DIR.name,'#b7791f');
+    document.body.classList.add('display-only');
+    showToast('This PC can show the morning but not save it','#b7791f');
     console.warn('folder is readable but not writable —',why.name);
+    if(!sessionStorage.getItem('displayOnlyTold')){
+      sessionStorage.setItem('displayOnlyTold','1');
+      modal('\u2139 This computer is set up to show, not to fill in',
+        '<p class="mdl-p">It can read <code>'+esc(DIR.name)+'</code> and pull up any morning, '
+       +'but Windows will not let it save into that folder \u2014 so <b>Press Present</b> and '
+       +'it will show the latest for whatever day you pick.</p>'
+       +'<p class="mdl-p">Save, Publish and Edit Mode are hidden here so nobody fills in a '
+       +'morning that cannot be shared. Fill the morning in on a plant-floor PC as usual.</p>'
+       +'<p class="mdl-p" style="color:#6b7a90">'+why.body+'</p>', null, 'Understood');
+    }
   }
 }
 async function dataDir(){
@@ -2883,6 +2917,42 @@ async function mergeAndWrite(date){
   showToast(added
     ? 'Saved to ' + DIR.name + '\\' + date + '.json — ' + added + ' from other people merged in'
     : 'Saved to ' + DIR.name + '\\' + date + '.json', '#2f7d4a');
+}
+
+/* Publishing and presenting were one button, so the boardroom PC — which only
+   ever shows the morning — was trying to write to a folder it is not allowed to
+   write to, and failing in front of the room.
+
+   They are different acts. Publishing is somebody finishing the morning and
+   sharing it. Presenting is a screen reading the finished morning out. A screen
+   needs to read the folder and nothing else, so this asks for the latest, shows
+   it, and touches nothing. No folder check, no write, no permission it does not
+   need. It works on a PC that has read access and no more, which is exactly
+   what a boardroom machine should have. */
+/* Once Present has been pressed, the page is a wall until somebody says
+   otherwise. Without this, the fifteen-second refresh reloads the day, sees a
+   morning saved as a draft, and quietly drops out of presentation mode with the
+   room watching — boxes and buttons back on the screen, mid-meeting. */
+async function present(){
+  PRESENTING=true;
+  if(typeof applyAll==='function')applyAll();
+  if(typeof exitEdit==='function')exitEdit();
+  const date=document.getElementById('dashDate').value;
+  let fresh=false;
+  /* This is a click, so a lapsed permission can be raised here — and read is all
+     that is wanted, which is the gentler of Chrome's two questions. */
+  if(!DIR && PENDING){
+    try{ if((await PENDING.requestPermission({mode:'read'}))==='granted'){
+      DIR=PENDING; PENDING=null; folderBadge(); } }catch(e){}
+  }
+  if(DIR){ try{ await pullFromFolder(); fresh=true; }catch(e){} }
+  document.body.classList.add('pres-mode');
+  const b=document.getElementById('statusBadge');
+  if(b){ b.className='badge badge-pub'; b.textContent=fresh?'Showing the shared morning':'Showing this PC';
+    b.classList.remove('hidden'); }
+  showToast(fresh ? 'Showing the latest for '+date
+                  : 'Showing what is on this PC \u2014 no shared folder to read',
+            fresh?'#2f7d4a':'#b7791f');
 }
 
 function checkFolderThen(go){
