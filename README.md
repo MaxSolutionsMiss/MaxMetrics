@@ -1,6 +1,6 @@
 # Metriq
 
-A product of Packet.
+A product of Velari.
 
 The daily morning dashboard for folding-carton plants — Mississauga, Guelph, Pickering,
 Owen Sound and Markham.

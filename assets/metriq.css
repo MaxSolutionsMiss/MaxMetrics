@@ -52,6 +52,9 @@
 
   /* THE RAIL - the dark navigation column. Same ink as body text. */
   --rail:#16202A; --rail-ink:#A8B4BE; --rail-rule:rgba(255,255,255,.08); --rail-label:#6B7A86;
+  --modrail:#0E1620; --modrail-ink:#8494A1; --mod-w:72px;
+  /* the accent, lifted for dark ground: #6C4BB6 only clears 2.1:1 on the rail. */
+  --brand-lift:#9B7FE0;
 
   /* ONE FACE, INCLUDING NUMBERS.
      Metriq set every title, label and figure in Barlow Condensed. The family matched
@@ -170,8 +173,33 @@ body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--font);
 :focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:3px}
 
 /* ── SHELL ── */
-.shell{display:grid;grid-template-columns:var(--rail-w) 1fr;min-height:100vh;transition:grid-template-columns .16s}
+.shell{display:grid;grid-template-columns:var(--mod-w) var(--rail-w) 1fr;min-height:100vh;
+  transition:grid-template-columns .16s}
 html[data-rail="mini"]{--rail-w:62px}
+
+/* ── MODULE RAIL ──
+   Everything the product does, as four icons. What a module CONTAINS is the rail beside
+   it, which is why this one is narrow and never expands: it is a switch between worlds,
+   not a menu. Three of the four are announced and empty on purpose — a module that is
+   coming is worth showing, and a disabled icon says more than a hidden one. */
+.modrail{background:var(--modrail);display:flex;flex-direction:column;align-items:center;
+  gap:2px;padding:10px 8px;position:sticky;top:0;height:100vh;overflow:hidden}
+.modrail__mark{width:34px;height:34px;border-radius:8px;background:var(--brand);flex:none;
+  display:grid;place-items:center;padding:7px;margin-bottom:12px}
+.modrail__mark svg{width:100%;height:100%;display:block}
+.modrail__gap{flex:1}
+.mod{width:100%;display:flex;flex-direction:column;align-items:center;gap:5px;
+  padding:9px 0 8px;border-radius:var(--radius-lg);border:none;background:none;
+  color:var(--modrail-ink);cursor:pointer;font-family:inherit;text-decoration:none}
+.mod svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.7;
+  stroke-linecap:round;stroke-linejoin:round}
+.mod span{font-size:9.5px;font-weight:600;letter-spacing:.02em}
+.mod:hover{background:rgba(255,255,255,.06);color:#fff}
+.mod[aria-current="page"]{background:rgba(255,255,255,.10);color:#fff}
+.mod:focus-visible{outline:2px solid var(--brand-lift);outline-offset:-2px}
+/* not yet built — say so plainly rather than hiding it */
+.mod--soon{opacity:.5;cursor:default}
+.mod--soon:hover{background:none;color:var(--modrail-ink)}
 .rail{background:var(--rail);color:var(--rail-ink);display:flex;flex-direction:column;
   position:sticky;top:0;height:100vh;overflow:hidden;container:rail/inline-size}
 .rail__brand{display:flex;align-items:center;gap:10px;height:var(--topbar-h);
@@ -705,6 +733,11 @@ select.aid__tone:hover{color:var(--brand);border-color:var(--brand);background:v
 @media(max-width:1500px){.g5{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:1150px){.g4,.g3{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:880px){.shell{grid-template-columns:1fr}.rail{position:static;height:auto}
+  .modrail{position:static;height:auto;flex-direction:row;justify-content:flex-start;
+    gap:4px;padding:8px 10px;overflow-x:auto}
+  .modrail__mark{margin-bottom:0}
+  .mod{width:auto;flex-direction:row;gap:7px;padding:8px 11px}
+  .modrail__gap{display:none}
   .grid{grid-template-columns:1fr!important}}
 
 /* ── CARD ── */
@@ -1690,7 +1723,7 @@ body.tv .grid--cards{
 body.tv .grid--cards{justify-content:center;align-content:center}
 @media(min-width:1500px){body.tv{--scale:1.8}}
 @media(min-width:1800px){body.tv{--scale:2.15}}
-body.tv .rail,body.tv .top,body.tv .no-tv{display:none}
+body.tv .rail,body.tv .modrail,body.tv .top,body.tv .no-tv{display:none}
 body.tv .shell{grid-template-columns:1fr;height:100vh}
 body.tv .main{height:100vh;overflow:hidden}
 body.tv .content{flex:1;min-height:0;overflow:hidden;padding:var(--s4) var(--s5) var(--s5);gap:var(--s4)}
