@@ -42,7 +42,7 @@ const KEY = Deno.env.get('ANTHROPIC_API_KEY') ?? '';
 // ever served from; `ALLOWED_ORIGIN` lets a plant on its own domain add a third from
 // settings rather than from a redeploy.
 const ORIGINS = new Set([
-  'https://maxsolutionsmiss.github.io',
+  'https://velari-sys.github.io',
   'http://localhost:8811',
   ...(Deno.env.get('ALLOWED_ORIGIN') ?? '').split(',').map(o => o.trim()).filter(Boolean),
 ]);

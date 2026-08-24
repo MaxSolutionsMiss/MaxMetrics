@@ -1169,7 +1169,7 @@ somebody is actually sending files.
 
 ## Deployment
 
-GitHub Pages, from the `gh-pages` branch, at `maxsolutionsmiss.github.io/MaxMetrics/` —
+GitHub Pages, from the `gh-pages` branch, at `velari-sys.github.io/metriq/` —
 public URL, protected by sign-in. `scripts/publish.sh` runs the conformance rules, the
 import shapes and a parse check, builds `_site/`, and pushes it.
 

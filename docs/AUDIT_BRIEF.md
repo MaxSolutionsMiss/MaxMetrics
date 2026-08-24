@@ -5,8 +5,8 @@ the end. It is written to be self-contained: an assistant that has never seen th
 should be able to give useful, specific answers from it alone. Where a question needs the
 code, the file to paste alongside is named.
 
-The live site is <https://maxsolutionsmiss.github.io/MaxMetrics/>. The source is
-<https://github.com/MaxSolutionsMiss/MaxMetrics>. Both may be private to you; if the
+The live site is <https://velari-sys.github.io/metriq/>. The source is
+<https://github.com/Velari-sys/metriq>. Both may be private to you; if the
 assistant cannot reach them, everything it needs is below.
 
 ---
