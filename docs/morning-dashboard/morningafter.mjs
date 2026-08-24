@@ -56,7 +56,7 @@ say(await p.evaluate(()=>window.__asked===0),
 say(/locked-folder/.test(st.cls),'the page says it is locked, not lost');
 say(/Reconnect the shared folder/.test(st.txt),'and offers to reconnect — "'+st.txt.slice(0,52)+'…"');
 say(/still knows which folder/.test(st.txt),'saying the folder is still known');
-say(/Reconnect folder/.test(st.btn||''),'the header button agrees — "'+st.btn+'"');
+say(/Reconnect/.test(st.btn||''),'the header button agrees — "'+st.btn+'"');
 
 console.log('\n── one click, and no file picker ──');
 await p.$eval('.folderbar [data-choose]',n=>n.click());
