@@ -12,7 +12,7 @@
   <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
   <link rel="mask-icon" href="../assets/favicon.svg" color="#6C4BB6">
   <link rel="preload" href="../assets/fonts/ibm-plex-sans.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="../assets/metriq.css?v=cedb242a4be2">
+  <link rel="stylesheet" href="../assets/metriq.css?v=5615a94a2be1">
 </head>
 <body>
   <div class="shell">
@@ -67,19 +67,29 @@
            they are two, and Publish writes. The chart-style picker used to sit up here;
            there is no longer a chart style to pick — each reading is drawn the way that
            reading is best read, which is a decision the product makes, not the reader. -->
+      <!-- Two tiers, because eleven controls on one line read as a wall rather than as a
+           heading. The top says what you are looking at; the bottom says what you can do
+           about it. The date used to be stated twice — "Monday 24 August 2026 · Today"
+           and a picker showing 08/24/2026, side by side and colliding. It is said once
+           now, and pressing it opens the picker. -->
       <header class="top">
-        <select class="top__loc" id="loc" aria-label="Plant"></select>
-        <div class="top__date"><b id="date-long">—</b><span id="date-rel">—</span></div>
-        <input class="date-inp" type="date" id="date" aria-label="Dashboard date">
-        <span class="who" id="who" aria-label="People on this dashboard"></span>
-        <span class="saved" id="saved"></span>
-        <div class="top__spacer"></div>
-        <div class="top__actions">
+        <div class="top__id">
+          <select class="top__loc" id="loc" aria-label="Plant"></select>
+          <button class="top__when" id="when-btn" type="button" aria-label="Change the date">
+            <b id="date-long">—</b><span id="date-rel">—</span>
+          </button>
+          <input class="date-inp" type="date" id="date" aria-label="Dashboard date">
+          <div class="top__spacer"></div>
+          <span class="who" id="who" aria-label="People on this dashboard"></span>
+          <span class="saved" id="saved"></span>
+        </div>
+        <div class="top__bar">
           <span class="chip" id="status">—</span>
           <!-- The coordinator finishes keying the timesheets into the DOR at about half
                past seven and then comes here. One button, where she already is, rather
                than Configure → Data → drop. -->
           <span class="pullw" id="pull-when"></span>
+          <div class="top__spacer"></div>
           <button class="btn btn--primary" id="pull-btn">Pull data</button>
           <!-- Uploading files is not on this bar. It lives in Configure, then Data, with the
                links it is standing in for - that is where somebody goes to change where the
@@ -125,6 +135,6 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.52.1/dist/umd/supabase.min.js"></script>
-  <script type="module" src="../js/pages/dashboard.js?v=cedb242a4be2"></script>
+  <script type="module" src="../js/pages/dashboard.js?v=5615a94a2be1"></script>
 </body>
 </html>

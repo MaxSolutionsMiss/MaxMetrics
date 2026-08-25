@@ -14,8 +14,8 @@ import {
   saveBudget, saveLabour, publish, recordEdit, joinDay, loadOperators, loadReportedDates,
   pullSources, resetMorning,
   importHistory,
-} from '../db.js?v=cedb242a4be2';
-import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=cedb242a4be2';
+} from '../db.js?v=5615a94a2be1';
+import { assess, attention, settled, absent, counts, isComplete, verdicts } from '../assess.js?v=5615a94a2be1';
 import {
   esc, band, MONTHS, DAYS, dateOf, daysBetween, num, shortDate, money, trend,
   metricCard, listCard, noteCard, pairCard, footLine, drawReading, showsHeroNumber, iconFor,
@@ -25,7 +25,7 @@ import {
   varianceChip, varianceTone, variancePct, VERDICT, verdictMark,
   FROM_FILE, SOURCE_NAMES, sourceOf,
   volumeLabel, rateLabel, hoursLabel, CARD_CATALOGUE, WALK, morningToday,
-} from '../readings.js?v=cedb242a4be2';
+} from '../readings.js?v=5615a94a2be1';
 
 const $ = selector => document.querySelector(selector);
 
@@ -2518,8 +2518,13 @@ function renderNav() {
   $('#nav').innerHTML =
     VIEWS.map(key => link(key, NAV[key], ICONS[key],
       key === 'line' ? (attention(state.findings).length ? worstOfAll : 'ok') : 'none')).join('')
+    // Twelve links in one undifferentiated column, each with an icon and a dot, reads as a
+    // heap of glyphs rather than a structure. The two above are things you do to the
+    // morning; everything below is a part of it. Saying so costs one line and turns a list
+    // into two short ones.
     + `<div class="rail__split"></div>`
     + link('overview', 'Everything', ICONS.overview, 'none')
+    + `<div class="rail__sub">The morning</div>`
     + order().map(key => link(key, NAV[key] || TITLES[key], ICONS[key], sectionTone(key))).join('')
     // Configure is a different page, not a section of this one — the plant's shape is not
     // a reading of a morning, and changing it is not the same act as filling one in.
@@ -4355,6 +4360,19 @@ async function goUp({ finished = false } = {}) {
 
 $('#loc').addEventListener('change', event => open(event.target.value, state.date));
 $('#date').addEventListener('change', event => { if (event.target.value) open(state.location, event.target.value); });
+
+// The long date is the control now, and the input behind it only holds the value. Where a
+// browser cannot open that input on demand, the input comes back out and the long date
+// steps aside — better a second date on the bar than a date nobody can change.
+if (typeof HTMLInputElement.prototype.showPicker === 'function') {
+  $('#when-btn').addEventListener('click', () => {
+    const input = $('#date');
+    try { input.showPicker(); }
+    catch { $('.top').classList.add('no-picker'); input.focus(); }
+  });
+} else {
+  $('.top').classList.add('no-picker');
+}
 
 $('#signout-btn').addEventListener('click', async () => {
   state.live?.leave();

@@ -277,9 +277,33 @@ html[data-rail="mini"]{--rail-w:62px}
 }
 
 .main{display:flex;flex-direction:column;min-width:0}
-.top{min-height:var(--topbar-h);background:var(--surface);border-bottom:1px solid var(--rule);
-  display:flex;align-items:center;gap:var(--s3);padding:var(--s2) var(--s5);flex-wrap:wrap;
+/* Two tiers. Eleven controls on one line was a wall of chrome above the morning, with the
+   date said twice in two formats hard against each other. The first tier is what you are
+   looking at, the second is what you can do about it, and a rule between them means the
+   eye can stop looking for the boundary. Taller on purpose. */
+.top{background:var(--surface);border-bottom:1px solid var(--rule);
+  display:flex;flex-direction:column;gap:0;padding:0;
   position:sticky;top:0;z-index:20}
+.top__id,.top__bar{display:flex;align-items:center;gap:var(--s3);
+  padding:var(--s2) var(--s5);flex-wrap:wrap;min-height:46px}
+.top__id{border-bottom:1px solid var(--rule)}
+.top__bar{background:var(--sunk);min-height:44px}
+
+/* The date, said once. The native picker still holds the value and still fires the change
+   the page listens for — it is just not also printed beside its own long form. */
+.top__when{display:flex;align-items:baseline;gap:var(--s2);font-family:inherit;
+  background:none;border:1px solid transparent;border-radius:var(--radius);
+  padding:3px var(--s2);cursor:pointer;color:inherit;text-transform:none;letter-spacing:normal}
+.top__when:hover{border-color:var(--rule-strong);background:var(--sunk)}
+.top__when b{font-size:var(--t-lead);font-weight:600;color:var(--ink);letter-spacing:-.01em}
+.top__when span{font-size:var(--t-small);color:var(--ink-muted)}
+/* Kept in the page for the value, the change event and keyboard users; shown only where
+   the browser cannot open a picker on demand (see the boot check in dashboard.js). */
+.date-inp{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+  clip-path:inset(50%);white-space:nowrap;border:0}
+.top.no-picker .date-inp{position:static;width:auto;height:auto;margin:0;clip-path:none;
+  border:1px solid var(--rule-strong);border-radius:var(--radius);padding:0 var(--s2)}
+.top.no-picker .top__when{display:none}
 /* The plant name at 28px was the largest thing in the chrome and read as the page title.
    It is neither — it is a switch, and one that gets used once a morning. */
 .top__loc{font-size:var(--t-lead);font-weight:600;letter-spacing:-.01em;color:var(--ink);
@@ -314,7 +338,10 @@ html[data-rail="mini"]{--rail-w:62px}
 .btn--go{background:var(--ok);border-color:var(--ok);color:#fff}
 .btn--go:hover{background:var(--ok);filter:brightness(1.08)}
 .btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.date-inp{font-family:inherit;font-size:var(--t-small);height:var(--ctl-h);padding:0 var(--s2);
+/* Only worn where the long date cannot open a picker — see .top.no-picker above. Left
+   styled here so that fallback still looks like the rest of the bar. */
+.top.no-picker .date-inp{font-family:inherit;font-size:var(--t-small);height:var(--ctl-h);
+  padding:0 var(--s2);
   border-radius:var(--radius);border:1px solid var(--rule-strong);background:var(--surface);color:var(--ink)}
 .chip{font-size:var(--t-micro);font-weight:700;text-transform:uppercase;letter-spacing:.06em;
   padding:4px 9px;border-radius:20px;background:var(--sunk);color:var(--ink-muted);white-space:nowrap}
@@ -406,6 +433,13 @@ body.tv .verdict{font-size:var(--t-lead)}
   grid-auto-rows:minmax(10rem,auto);
   justify-content:start;align-items:stretch}
 body:not(.tv) .grid--cards{grid-auto-rows:minmax(var(--row-h,10rem),auto)}
+/* Fixed-width cards packed to the left meant a section with fewer cards than the row holds
+   sat in a corner of its own band with a third of the page empty beside it — Watch list
+   showed one card and three hundred pixels of nothing, Labour two. auto-fit drops the
+   empty tracks and 1fr hands their width back, so a lone card is a full-width card and two
+   are halves. Nothing is left sitting on its own at the bottom of the page.
+   The wall keeps fixed widths: there the screen is the constraint, not the content. */
+body:not(.tv) .grid--cards{grid-template-columns:repeat(auto-fit,minmax(var(--card-w),1fr))}
 /* Pre-production's two cards are not the same size and should not pretend to be. The notes
    card carries a labelled box for each of five departments; the reading beside it is two
    numbers. Stretched to match, the short one became a tower with its figures marooned in

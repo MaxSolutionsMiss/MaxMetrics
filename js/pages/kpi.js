@@ -17,13 +17,13 @@
 import {
   currentSession, signOut, myProfile, myLocations, savePreference,
   kpiRows, kpiDepartments,
-} from '../db.js?v=cedb242a4be2';
+} from '../db.js?v=5615a94a2be1';
 import {
   AREAS, MEASURES, BREAKDOWNS, PERIODS, NOT_COLLECTED, QUICK,
   measure, areaOf, breakdownsFor, hasDepartments, findMeasures,
   reduceRows, reduceTarget, formatValue, verdictOf, toneOf, windowFor,
-} from '../kpi.js?v=cedb242a4be2';
-import { esc, shortDate } from '../readings.js?v=cedb242a4be2';
+} from '../kpi.js?v=5615a94a2be1';
+import { esc, shortDate } from '../readings.js?v=5615a94a2be1';
 
 const $ = s => document.querySelector(s);
 const el = (tag, cls, html) => {
