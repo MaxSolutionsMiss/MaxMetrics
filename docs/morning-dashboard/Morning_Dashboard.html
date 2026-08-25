@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-build="27" data-built="2026-08-25">
+<html lang="en" data-build="28" data-built="2026-08-25">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -2770,7 +2770,7 @@ async function pcFolderCheck(){
     /* Field by field, screen against file. */
     const mine = currentPicture();
     const skip = ['comments','deleted','layout','custom','maintRows','deptConfig',
-                  'reviewConfig','savedAt','status','publishedAt','location','build'];
+                  'reviewConfig','savedAt','status','publishedAt','location','build','absorbed'];
     const differ = [];
     const keys = new Set([...Object.keys(file), ...Object.keys(mine)].filter(k => !skip.includes(k)));
     keys.forEach(k => {
@@ -2924,7 +2924,7 @@ async function dataDir(){
 
    So every save stamps the number below into the day file, and a copy that finds a
    higher number knows, for certain, that it is the old one. */
-const BUILD = 27;
+const BUILD = 28;
 
 let STALE = false;                 /* a newer copy of this page has written this folder */
 function noteBuild(file){
@@ -3130,7 +3130,7 @@ function stampComments(obj){
 
 const SAME = (a,b) => JSON.stringify(a===undefined?null:a) === JSON.stringify(b===undefined?null:b);
 const NOT_A_FIELD = ['comments','deleted','maintRows','deptConfig','reviewConfig','custom',
-                     'layout','status','savedAt','publishedAt','location','date','build'];
+                     'layout','status','savedAt','publishedAt','location','date','build','absorbed'];
 
 function mergeDay(base, mine, baseline){
   base = base || {}; mine = mine || {}; baseline = baseline || {};
@@ -3182,6 +3182,60 @@ function mergeDay(base, mine, baseline){
   return out;
 }
 
+/* ══ Conflicted copies ═══════════════════════════════════════════════════════════
+   A folder synced by OneDrive — which is what a SharePoint library looks like once it
+   is synced to a PC — is not the same animal as a drive letter. On Z: everybody writes
+   the same bytes, so reading the file back before saving is enough to catch what other
+   people did. Synced, each PC has its OWN copy and the sync client reconciles them a
+   minute later. When two people save inside that minute it does not merge them: it
+   keeps one and puts the other beside it under a new name, something like
+
+       2026-08-25-JEHNAE-PC.json
+       2026-08-25 (Jehnae's conflicted copy 2026-08-25).json
+
+   Nothing reads those. That morning's second person has written a full, correct file
+   that will sit in the folder forever, unopened, and their comments are "missing" —
+   the same complaint as before, from a completely different cause.
+
+   So look for them, and merge them back in. Anything that starts with the day and ends
+   in .json but is not exactly <date>.json is a copy of this morning under another name.
+   They are merged, not deleted: the file stays where it is and its name is recorded, so
+   the work is recovered without this page throwing away something it did not create. */
+function conflictNames(date){
+  const esc=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  return new RegExp('^' + esc(date) + '[ \\-_(].*\\.json$', 'i');
+}
+async function conflictCopies(date, skip){
+  const d = await dataDir(); if (!d || !d.values) return [];
+  const want = conflictNames(date), out = [];
+  try {
+    for await (const entry of d.values()){
+      if (entry.kind !== 'file') continue;
+      if (entry.name.toLowerCase() === (date + '.json').toLowerCase()) continue;
+      if (!want.test(entry.name)) continue;
+      if (skip && skip.includes(entry.name)) continue;
+      try { out.push({name: entry.name,
+        data: JSON.parse(await (await entry.getFile()).text())}); }
+      catch(e){ /* half-written or not ours; leave it alone */ }
+    }
+  } catch(e){ /* an older browser without values() */ }
+  return out;
+}
+/* Fold every stranded copy into the day, oldest first, and note which ones were taken
+   in so the next save does not do it again. Merged against an empty baseline on
+   purpose: nothing in a conflicted copy has ever been agreed with the shared file, so
+   all of it counts as somebody's change. */
+async function absorbConflicts(date, base){
+  const already = (base && base.absorbed) || [];
+  const found = await conflictCopies(date, already);
+  if (!found.length) return {file: base, took: []};
+  let out = base || {};
+  found.sort((a,b)=>String((a.data||{}).savedAt||'').localeCompare(String((b.data||{}).savedAt||'')))
+       .forEach(c => { out = mergeDay(out, c.data, {}); });
+  out.absorbed = [...already, ...found.map(c => c.name)];
+  return {file: out, took: found.map(c => c.name)};
+}
+
 /* Two completely different things used to come back from here as null: "nobody has
    saved this morning yet", which is normal and means there is nothing to merge with,
    and "the read did not work", which on a shared drive is an ordinary Tuesday — the
@@ -3198,19 +3252,36 @@ function mergeDay(base, mine, baseline){
 async function readDayFile(date){
   if (!DIR) return null;
   const d = await dataDir();
-  let handle;
+  let handle, file = null;
   try {
     handle = await d.getFileHandle(date + '.json');
   } catch (e) {
-    if (e && e.name === 'NotFoundError') return null;   /* first save of the day */
-    throw e;                                            /* locked, offline, no rights */
+    if (!(e && e.name === 'NotFoundError')) throw e;    /* locked, offline, no rights */
   }
-  /* A file caught mid-write by somebody else parses as garbage. That is a failed read,
-     not an empty morning, so let it throw too. */
-  const file = JSON.parse(await (await handle.getFile()).text());
-  if (typeof noteBuild === 'function') noteBuild(file);
+  if (handle) {
+    /* A file caught mid-write by somebody else parses as garbage. That is a failed read,
+       not an empty morning, so let it throw too. */
+    file = JSON.parse(await (await handle.getFile()).text());
+    if (typeof noteBuild === 'function') noteBuild(file);
+  }
+  /* Every read is also the moment to rescue anything the sync client stranded beside
+     the morning. Doing it here means Save, the fifteen-second refresh and changing the
+     day all pick them up, without any of them knowing this exists. */
+  let took = [];
+  try {
+    const r = await absorbConflicts(date, file);
+    file = r.file; took = r.took;
+  } catch (e) { console.warn('conflict scan failed', e); }
+  if (took.length) {
+    CONFLICTS_SEEN = [...new Set([...CONFLICTS_SEEN, ...took])];
+    if (typeof showToast === 'function')
+      showToast('Recovered ' + took.length + ' stranded '
+        + (took.length === 1 ? 'copy' : 'copies') + ' of this morning', '#2563eb');
+  }
+  if (!file) return null;                               /* first save of the day */
   return file;
 }
+let CONFLICTS_SEEN = [];
 
 /* what this browser believes the day looks like, for the next diff */
 function takeBaseline(date, data){
@@ -3380,7 +3451,7 @@ async function mergeAndWrite(date){
   adopt(date, merged);
   const after = currentPicture();
   const SKIP = ['comments','deleted','layout','custom','maintRows','deptConfig',
-                'reviewConfig','savedAt','status','publishedAt','location','build'];
+                'reviewConfig','savedAt','status','publishedAt','location','build','absorbed'];
   const moved = [...new Set([...Object.keys(before), ...Object.keys(after)])]
     .filter(k => !SKIP.includes(k))
     .filter(k => String(before[k] ?? '') !== String(after[k] ?? ''));
