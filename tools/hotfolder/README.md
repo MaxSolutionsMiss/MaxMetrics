@@ -17,23 +17,23 @@ is visible needs a permission someone has to grant.
 Pick the machine first. It must be one that stays on overnight, has the shares mapped, and
 has OneDrive signed in — usually the office PC of whoever assembles the morning today.
 
-**1. Set the key.** Ask for the value of `MAXMETRICS_INGEST_KEY`; it is the shared secret
+**1. Set the key.** Ask for the value of `METRIQ_INGEST_KEY`; it is the shared secret
 the endpoint checks. In a Command Prompt on that machine, as the account the task will run
 as:
 
 ```
-setx MAXMETRICS_INGEST_KEY "the-key"
+setx METRIQ_INGEST_KEY "the-key"
 ```
 
 Sign out and back in — `setx` does not affect sessions that are already open.
 
 **2. Name the folders.** Copy `sources.example.json` to `sources.json` in the same folder.
-Mississauga's three are already in it, at the paths the plant uses:
+Toronto's three are already in it, at the paths the plant uses:
 
 | Source | Where |
 |---|---|
 | DOR | `Y:\QC Dept\DOR V9.xlsx` — a mapped drive, so the task must run as a signed-in user |
-| OTIF | `…\OneDrive - Max Solutions, Inc\Working Files\Production KPIs & Stats` |
+| OTIF | `…\OneDrive - Velari\Working Files\Production KPIs & Stats` |
 | Monthly KPI | the same OneDrive folder — quality, complaints, COQ, sales and OTIF in one sheet |
 
 The KPI file is `dateFrom: "today"` rather than `"modified"` on purpose. It is a monthly
@@ -41,8 +41,8 @@ sheet: the row it fills is chosen by the morning being imported for, not by when
 last saved it. The other two are daily files and take the date they were written.
 
 Every other plant is a copy of one of those three lines with its own folder and `location`.
-The `location` has to be one of `mississauga`, `guelph`, `pickering`, `owen-sound`,
-`markham`, `concord`, `milton`, `bristol`, `sturgis`.
+The `location` has to be one of `toronto`, `new-jersey`, `nashville`, `springfield`,
+`chicago`, `concord`, `milton`, `bristol`, `sturgis`.
 
 **3. Prove it before scheduling it.**
 
@@ -73,7 +73,7 @@ source will report as unreachable.
 | `… is not reachable from this account` | the drive is not mapped, or the task is running as the wrong user |
 | `… is locked and could not be copied` | somebody has the workbook open *and* the copy failed — rare; usually the copy gets through |
 | `… — nothing recognisable, sheets are …` | the file was read but held nothing this understands. Almost always a renamed tab |
-| `… — Not authorised.` | `MAXMETRICS_INGEST_KEY` is wrong, or is set for a different account than the task runs as |
+| `… — Not authorised.` | `METRIQ_INGEST_KEY` is wrong, or is set for a different account than the task runs as |
 | `operators not on file: …` | a name in the timesheet is not in the operator list, so those hours were not counted |
 
 A file that yielded no morning is a red line and an error, not a quiet success — that is

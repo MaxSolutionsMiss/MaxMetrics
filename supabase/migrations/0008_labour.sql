@@ -1,5 +1,5 @@
 -- Overtime is not maintenance.
--- Applied to maxmetrics-development on 2026-08-07.
+-- Applied to metriq-development on 2026-08-07.
 --
 -- "Maintenance & Staffing" was one section because both were a note, and a note is cheap to
 -- put anywhere. They are not one subject. Maintenance is a schedule with a status — it is
@@ -7,7 +7,7 @@
 -- plant is choosing to spend this morning, and the question the meeting actually asks about
 -- it is "which departments, and how many shifts".
 --
--- That question has no source. `Overtime` in Mississauga_KPIs is per pay period with no
+-- That question has no source. `Overtime` in Toronto_KPIs is per pay period with no
 -- department and no shift breakdown — it answers how much was spent two weeks ago, not
 -- what is running today. So this is typed, one row per department per morning, next to the
 -- volume and hours that department is already entering.

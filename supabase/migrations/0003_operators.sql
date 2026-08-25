@@ -1,5 +1,5 @@
 -- The crew leaders the plant actually has, one row per person, one spelling each.
--- Applied to maxmetrics-development on 2026-08-06.
+-- Applied to metriq-development on 2026-08-06.
 --
 -- Built from the DOR's own Data tabs: every name entered against a shift since August
 -- 2025, with variants collapsed. The workbook types this column freely, so one person

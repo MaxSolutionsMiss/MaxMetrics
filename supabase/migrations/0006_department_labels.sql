@@ -1,7 +1,7 @@
 -- A department names its own numbers, and a plant can add one.
--- Applied to maxmetrics-development on 2026-08-07.
+-- Applied to metriq-development on 2026-08-07.
 --
--- Mississauga runs printing, die cutting and gluing. Guelph windows and foil stamps, and
+-- Toronto runs printing, die cutting and gluing. New Jersey windows and foil stamps, and
 -- the other three plants each run something the first one does not. Until now the shape of
 -- a plant was three seeded rows and a migration — so the second plant to open Metriq
 -- would have had to wait on this repository to see its own floor.
@@ -11,12 +11,12 @@
 -- can edit the plant — and nobody had built the screen. And the labels were not the
 -- plant's: `unit` gave both the volume noun and, with `/hr` glued on, the rate, and the
 -- hours field was always headed "Hours". Windowing counts panes and is crewed in machine
--- hours, and reading "sheets/hr" over it is the dashboard telling Guelph it was built for
+-- hours, and reading "sheets/hr" over it is the dashboard telling New Jersey it was built for
 -- somebody else.
 --
 -- So: two label columns and an icon. All three default to empty, and every reader falls
 -- back to exactly what it printed before, which is why this migration moves nothing for
--- Mississauga.
+-- Toronto.
 
 alter table public.location_departments
   add column rate_label  text not null default '',

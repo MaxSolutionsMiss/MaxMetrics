@@ -86,7 +86,7 @@ async function run(operation, { retry = 1, fallback } = {}) {
 // that runs in Deno and cannot reach this file. It is one constant and one `includes('@')`,
 // and having the server enforce it rather than trust whatever a page sends is worth the
 // eleven duplicated characters.
-export const USERS_DOMAIN = 'users.maxmetrics.invalid';
+export const USERS_DOMAIN = 'users.metriq.invalid';
 
 // What to hand Supabase. An address is itself; a username becomes one.
 export const asLogin = identifier => {
@@ -94,7 +94,7 @@ export const asLogin = identifier => {
   return !said || said.includes('@') ? said : `${said}@${USERS_DOMAIN}`;
 };
 
-// What to show a person. Nobody should ever be shown `jsmith@users.maxmetrics.invalid` —
+// What to show a person. Nobody should ever be shown `jsmith@users.metriq.invalid` —
 // they did not choose it, they cannot write to it, and printing it on the People screen
 // would have somebody trying to send it a password.
 export const asIdentity = address => {
@@ -139,7 +139,7 @@ export const savePreference = (id, patch) =>
 // Mine, and only mine. This used to lean on row-level security to do the filtering, which
 // was true right up until a second account existed: an administrator's policy lets them
 // read everybody's grants, so the list came back with each plant once per person and the
-// location picker showed "Mississauga, Mississauga, Guelph, Guelph…". Whose rows these are
+// location picker showed "Toronto, Toronto, New Jersey, New Jersey…". Whose rows these are
 // is not a security question, it is part of the question being asked.
 export const myLocations = async () => {
   const session = await currentSession();

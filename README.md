@@ -2,8 +2,8 @@
 
 A product of Velari.
 
-The daily morning dashboard for folding-carton plants — Mississauga, Guelph, Pickering,
-Owen Sound and Markham.
+The daily morning dashboard for folding-carton plants — Toronto, New Jersey, Nashville,
+Springfield and Chicago.
 
 It replaces `Daily_Morning_Dashboard_Vr 22.html`, a single HTML file on the `Z:` share
 that saved to one browser's local storage. That file worked, and its design is the
@@ -53,8 +53,8 @@ problem being solved, not a step toward solving it.
 - database policies are authoritative; the client cannot grant itself anything
 - built by `scripts/publish.sh` and served by GitHub Pages from the `gh-pages` branch
 
-Structure and spacing come from MaxDock so the two products feel like one system. The
-identity colour does not: MaxDock owns the corporate blue and status owns green, amber and
+Structure and spacing come from Metriq so the two products feel like one system. The
+identity colour does not: Metriq owns the corporate blue and status owns green, amber and
 red, so Metriq takes violet. A brand element wearing a status colour would read as a
 verdict on the number beside it.
 
@@ -75,7 +75,7 @@ scripts/                the architecture rules, the build, and publishing
 
 ## Database
 
-Supabase project `maxmetrics-development` (ca-central-1).
+Supabase project `metriq-development` (ca-central-1).
 `supabase/migrations/0001_metriq_schema.sql` is the whole database; applying it to an
 empty project reproduces it exactly.
 

@@ -1,5 +1,5 @@
 -- Every operator is still here, and targets belong to a year.
--- Applied to maxmetrics-development on 2026-08-06.
+-- Applied to metriq-development on 2026-08-06.
 --
 -- Two corrections and one addition.
 --
@@ -10,7 +10,7 @@
 -- manager whose login other people use; both stay, as does everyone else.
 --
 -- The addition: targets were a single number per department, which cannot survive a new
--- year. They actually live per machine — the plant's own sheet is titled "Mississauga 2026
+-- year. They actually live per machine — the plant's own sheet is titled "Toronto 2026
 -- Machine KPIs" — and a department target is the mean of its machines'. Modelling it that
 -- way means 2027 is a new row rather than an overwrite, so last year's numbers keep being
 -- judged against last year's target, and changing one machine moves its department the way
@@ -21,7 +21,7 @@
 update public.operators
    set active = true, confirmed = true,
        note = case when note = 'Left the plant.' then '' else note end
- where location_id = 'mississauga';
+ where location_id = 'toronto';
 
 comment on column public.operators.active is
   'Whether the name is offered for new entry. A gap in shifts is not absence — the plant '
@@ -79,23 +79,23 @@ create policy machine_targets_write on public.machine_targets
                        where m.id = machine_id and private.can_edit_location(m.location_id)));
 
 insert into public.machines (location_id, dept_key, code, name, aliases, sort_order) values
-  ('mississauga', 'printing',   '40',     '40" Press',       '{}',            1),
-  ('mississauga', 'printing',   '41',     '41" Press',       '{}',            2),
-  ('mississauga', 'diecutting', '2017',   'Die Cutter 2017', '{106-17}',      1),
-  ('mississauga', 'diecutting', '2018',   'Die Cutter 2018', '{106-18}',      2),
-  ('mississauga', 'gluing',     'Hdlbrg', 'Heidelberg',      '{Heidelberg}',  1),
-  ('mississauga', 'gluing',     'Bobst',  'Bobst',           '{}',            2),
-  ('mississauga', 'gluing',     'Omega',  'Omega',           '{}',            3);
+  ('toronto', 'printing',   '40',     '40" Press',       '{}',            1),
+  ('toronto', 'printing',   '41',     '41" Press',       '{}',            2),
+  ('toronto', 'diecutting', '2017',   'Die Cutter 2017', '{106-17}',      1),
+  ('toronto', 'diecutting', '2018',   'Die Cutter 2018', '{106-18}',      2),
+  ('toronto', 'gluing',     'Hdlbrg', 'Heidelberg',      '{Heidelberg}',  1),
+  ('toronto', 'gluing',     'Bobst',  'Bobst',           '{}',            2),
+  ('toronto', 'gluing',     'Omega',  'Omega',           '{}',            3);
 
 -- Retired, but kept so historical rows still resolve to a machine rather than being
 -- dropped on import.
 insert into public.machines (location_id, dept_key, code, name, active, sort_order) values
-  ('mississauga', 'printing',   '29',   '29" Press',       false, 9),
-  ('mississauga', 'diecutting', 'TR',   'TR',              false, 9),
-  ('mississauga', 'diecutting', 'JRK',  'JRK',             false, 9),
-  ('mississauga', 'diecutting', 'Bobst','Bobst die cutter',false, 9);
+  ('toronto', 'printing',   '29',   '29" Press',       false, 9),
+  ('toronto', 'diecutting', 'TR',   'TR',              false, 9),
+  ('toronto', 'diecutting', 'JRK',  'JRK',             false, 9),
+  ('toronto', 'diecutting', 'Bobst','Bobst die cutter',false, 9);
 
--- 2026, read from `Dept KPIs` in Mississauga_KPIs.xlsx.
+-- 2026, read from `Dept KPIs` in Toronto_KPIs.xlsx.
 insert into public.machine_targets (machine_id, year, speed_target, mr_target, uptime_target)
 select m.id, 2026, t.speed, t.mr, t.uptime
   from public.machines m
@@ -106,7 +106,7 @@ select m.id, 2026, t.speed, t.mr, t.uptime
     ('gluing','Omega',13000,1.30,0.92)
   ) as t(dept, code, speed, mr, uptime)
     on t.dept = m.dept_key and t.code = m.code
- where m.location_id = 'mississauga';
+ where m.location_id = 'toronto';
 
 -- ── A department's target for a year ────────────────────────────────────────────
 

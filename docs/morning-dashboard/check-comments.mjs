@@ -5,7 +5,7 @@
 import { chromium } from 'playwright';
 
 const FILE = 'file://' + (process.argv[2]
-  || '/home/user/MaxMetrics/docs/morning-dashboard/Mississauga_Morning_Dashboard.html');
+  || '/home/user/Metriq/docs/morning-dashboard/Toronto_Morning_Dashboard.html');
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
 
 const DISK = {};

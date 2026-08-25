@@ -1,5 +1,5 @@
 -- Three quality readings the plant asks for and the dashboard could not hold.
--- Applied to maxmetrics-development on 2026-08-07.
+-- Applied to metriq-development on 2026-08-07.
 --
 -- Quality has been sharing a section with safety since the start, and sharing it thinly:
 -- a shortage count and two cost-of-quality figures. Those three are what the old dashboard

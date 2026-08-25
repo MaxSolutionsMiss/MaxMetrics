@@ -18,7 +18,7 @@
 -- day in the months either side. If the corruption were something other than accumulation,
 -- both of those checks would fail.
 
--- Run against maxmetrics-development on 20 August 2026. 186 rows rewritten. The rows as
+-- Run against metriq-development on 20 August 2026. 186 rows rewritten. The rows as
 -- they stood beforehand are kept in `dd_backup_2026_02_04`, so this is reversible.
 --
 -- After: February die cutting reads 2,041,432 sheets over 1,013 crewed hours, against
@@ -36,7 +36,7 @@ with s as (
          lag(hours)    over w as prev_hours,
          lag(mr_count) over w as prev_mr
   from daily_departments
-  where location_id = 'mississauga'
+  where location_id = 'toronto'
     and metric_date >= date '2026-02-01'
     and metric_date <  date '2026-05-01'
   window w as (partition by location_id, dept_key, date_trunc('month', metric_date)

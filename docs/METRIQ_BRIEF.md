@@ -7,14 +7,14 @@ from it without seeing the code. Prepared 11 August 2026.*
 
 ## 1. What it replaces
 
-Max Solutions is a folding-carton manufacturer. Its Mississauga plant runs a stand-up
+Velari is a folding-carton manufacturer. Its Toronto plant runs a stand-up
 production meeting every weekday morning, in front of a screen, lasting two or three minutes.
 Until now that meeting read from **a single HTML file — "Daily Morning Dashboard v22"** — kept
 on a network share and edited by hand each morning by one person, who copied numbers out of
 several spreadsheets into it.
 
-The plant has nine sites (Mississauga, Guelph, Pickering, Owen Sound, Markham, Concord,
-Milton, Bristol, Sturgis). Only Mississauga is live so far.
+The plant has nine sites (Toronto, New Jersey, Nashville, Springfield, Chicago, 
+Sturgis). Only Toronto is live so far.
 
 **Metriq** replaces that file. It is a web app that assembles the same morning from a
 database, lets several people fill in the parts they own, and shows it three ways: as a page
@@ -48,7 +48,7 @@ in one of them; the rest are things no file can know.
 | Source | What it fills | Notes |
 |---|---|---|
 | **DOR V9.xlsx** (`Y:\QC Dept`) | all of Production | 11 MB, 18 tabs, one row per machine per shift since 2013. Three tabs are read: Printing Data, Die Cutting Data, Gluing Data. Its own `Formulas` tab defines the plant's arithmetic: `NNN Speed = Net Imps / Crewed Hours`, `Uptime = (MR Hrs + Run Hrs) / Crewed Hours`, `Avg MR Time = MR Hrs / # of MR's` |
-| **Mississauga_Monthly KPI Raw Data.xlsx** (OneDrive) | cost of quality, NCR and complaint counts, sales, OTIF roll-ups | A monthly roll-up sheet plus two raw logs, one row per NCR and one per customer complaint, each dated |
+| **Toronto_Monthly KPI Raw Data.xlsx** (OneDrive) | cost of quality, NCR and complaint counts, sales, OTIF roll-ups | A monthly roll-up sheet plus two raw logs, one row per NCR and one per customer complaint, each dated |
 | **OTIF sheet** (OneDrive) | jobs, on time, late, short | Parser written; not yet run against the real file |
 
 **Left to a person:** two safety dates, jobs short, cartons, overtime shifts and machines,
@@ -126,7 +126,7 @@ department reflows the whole screen correctly without anybody re-tuning anything
 quality, the floor, what left the building, then what the room has to say about it — with the
 maintenance list full width underneath. Every value a file already filled is shown greyed with
 the file named beside it: correctable, but not chased. The counter at the top counts only what
-no file can know — on Mississauga's numbers, about two boxes and a sentence.
+no file can know — on Toronto's numbers, about two boxes and a sentence.
 
 **Present, one page** is one grid of identical cards — same size, same type scale — with the
 sections told apart by the colour of the bar and a legend. It fits exactly one screen at 1366,

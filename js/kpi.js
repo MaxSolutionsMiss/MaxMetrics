@@ -66,9 +66,13 @@ export const MEASURES = [
   { key: 'shorts', area: 'Supply chain', name: 'Short', hint: 'jobs that went incomplete',
     table: 'daily_metrics', col: 'shorts', agg: 'sum', unit: '', dp: 0, up: false },
 
+  // Checked against the column, not assumed: coq runs 0.09 to 0.59 against a target of
+  // 0.85, so it is already a percentage. It was carrying scale:100 on the guess that it
+  // matched uptime, which would have drawn 0.35% as 35% — a plant a hundredfold worse
+  // than it is, against a target drawn at 85%.
   { key: 'coq', area: 'Quality', name: 'Cost of quality', hint: 'share of sales lost to getting it wrong',
     table: 'daily_metrics', col: 'coq', agg: 'avg', unit: '%', dp: 2, up: false,
-    scale: 100, target: 'coq_target' },
+    target: 'coq_target' },
   { key: 'ncr', area: 'Quality', name: 'Non-conformances', hint: 'raised that day',
     table: 'daily_metrics', col: 'ncr_today', agg: 'sum', unit: '', dp: 0, up: false },
   { key: 'compint', area: 'Quality', name: 'Complaints, internal', hint: 'caught before the customer',
@@ -81,10 +85,13 @@ export const MEASURES = [
   { key: 'shippedy', area: 'Money', name: 'Shipped, year to date', hint: 'value out the door this year',
     table: 'daily_metrics', col: 'fin_actual_ytd', agg: 'last', unit: '', dp: 0, up: true, money: true },
 
-  { key: 'nearmiss', area: 'Safety', name: 'Near misses', hint: 'days since the last one',
-    table: 'daily_metrics', col: 'near_miss_last', agg: 'last', unit: ' days', dp: 0, up: true },
-  { key: 'injury', area: 'Safety', name: 'Days since injury', hint: 'the number nobody wants reset',
-    table: 'daily_metrics', col: 'injury_last', agg: 'last', unit: ' days', dp: 0, up: true },
+  // These two columns hold a DATE — the day it last happened — not a count of days.
+  // Read as numbers they came back NaN and both safety measures drew "—". `since` counts
+  // the days from that date to the newest morning in the answer.
+  { key: 'nearmiss', area: 'Safety', name: 'Days since a near miss', hint: 'how long since the last one',
+    table: 'daily_metrics', col: 'near_miss_last', agg: 'since', unit: ' days', dp: 0, up: true },
+  { key: 'injury', area: 'Safety', name: 'Days since an injury', hint: 'the number nobody wants reset',
+    table: 'daily_metrics', col: 'injury_last', agg: 'since', unit: ' days', dp: 0, up: true },
 
   { key: 'ot', area: 'People', name: 'Overtime shifts', hint: 'shifts worked over',
     table: 'daily_labour', col: 'ot_shifts', agg: 'sum', unit: '', dp: 0, up: false },
@@ -210,7 +217,23 @@ const n = v => (v === null || v === undefined || v === '' ? null : Number(v));
 
 // One group of rows, one figure. Returns null rather than 0 when there is nothing to
 // add up — an absent reading is not a zero, and drawing it as one is how a chart lies.
+const DAY = 86400000;
+
 export function reduceRows(m, rows) {
+  // A date column, counted as days rather than read as a number. The answer is "how long
+  // has it been", measured to the newest morning the question covers — not to today, or
+  // asking about last March would report the gap to now.
+  if (m.agg === 'since') {
+    const dated = rows
+      .filter(r => r[m.col] && r.metric_date)
+      .sort((a, b) => (a.metric_date < b.metric_date ? -1 : 1));
+    const last = dated[dated.length - 1];
+    if (!last) return null;
+    const days = Math.round(
+      (Date.parse(last.metric_date + 'T00:00:00Z') - Date.parse(last[m.col] + 'T00:00:00Z')) / DAY);
+    return Number.isFinite(days) ? Math.max(0, days) : null;
+  }
+
   const vals = rows.map(r => n(r[m.col])).filter(v => v !== null && !Number.isNaN(v));
   if (!vals.length) return null;
   const k = m.scale || 1;

@@ -20,7 +20,7 @@ the plant does not need it), leaked-password protection (not a concern), backups
 
 Both pages load `supabase-js` from `cdn.jsdelivr.net`. If jsDelivr is slow, blocked by the
 plant's network, or down at 07:40, the dashboard does not open at all — no cards, no cached
-copy, no explanation. A morning meeting depends on a host nobody at Max Solutions has a
+copy, no explanation. A morning meeting depends on a host nobody at Velari has a
 relationship with.
 
 **Do:** vendor the pinned build into `assets/`, load it from the same origin as everything

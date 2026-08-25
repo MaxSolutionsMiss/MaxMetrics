@@ -1,5 +1,5 @@
 -- The plant manager's answer on the six operators whose last shift was months back.
--- Applied to maxmetrics-development on 2026-08-06.
+-- Applied to metriq-development on 2026-08-06.
 --
 -- `active` was seeded from twelve months of shifts, which is a guess dressed as a fact:
 -- the sheet knows when someone last ran a machine, not whether they still work here. Two
@@ -19,13 +19,13 @@ comment on column public.operators.confirmed is
   'A person who knows the plant has ruled on this row, rather than it being inferred from shift dates.';
 
 update public.operators set active = false, confirmed = true, note = 'Left the plant.'
- where location_id = 'mississauga'
+ where location_id = 'toronto'
    and name in ('Amado Aquino', 'Kevin Hudson', 'Tehseen Khan', 'Edmund Agbeko');
 
 update public.operators set active = true, confirmed = true,
        note = 'On leave, returning.'
- where location_id = 'mississauga' and name = 'Pawan Jeet';
+ where location_id = 'toronto' and name = 'Pawan Jeet';
 
 update public.operators set active = true, confirmed = true,
        note = 'Manager. Her login is also used by others, so shifts under this name are not all hers.'
- where location_id = 'mississauga' and name = 'Clarissa Mendonca';
+ where location_id = 'toronto' and name = 'Clarissa Mendonca';

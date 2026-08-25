@@ -67,7 +67,7 @@ for (const [w,h,name] of [[3840,2160,'boardroom TV, 4K'],[2560,1440,'wide monito
   const c=await b.newContext({viewport:{width:w,height:h}});
   const p=await c.newPage(); const errs=[];
   p.on('pageerror',e=>errs.push(e.message));
-  await p.goto('file://'+process.cwd()+'/Mississauga_Morning_Dashboard.html');
+  await p.goto('file://'+process.cwd()+'/Toronto_Morning_Dashboard.html');
   await p.waitForTimeout(1300);
   await p.evaluate(SEED); await p.waitForTimeout(300);
 

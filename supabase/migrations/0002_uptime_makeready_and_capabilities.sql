@@ -1,5 +1,5 @@
 -- Two more daily readings, and a place for the ones not everyone should see.
--- Applied to maxmetrics-development on 2026-08-06.
+-- Applied to metriq-development on 2026-08-06.
 --
 -- Uptime and make-ready are already in the DOR beside the volumes the plant reads every
 -- morning, and Dept KPIs sets a target for both on every machine. They cost no new source
@@ -15,11 +15,11 @@ alter table public.location_departments
   add column mr_target     numeric;
 
 update public.location_departments set uptime_target = 0.88,  mr_target = 1.10
-  where location_id = 'mississauga' and key = 'printing';
+  where location_id = 'toronto' and key = 'printing';
 update public.location_departments set uptime_target = 0.91,  mr_target = 1.55
-  where location_id = 'mississauga' and key = 'diecutting';
+  where location_id = 'toronto' and key = 'diecutting';
 update public.location_departments set uptime_target = 0.907, mr_target = 1.12
-  where location_id = 'mississauga' and key = 'gluing';
+  where location_id = 'toronto' and key = 'gluing';
 
 -- Who may see what.
 --

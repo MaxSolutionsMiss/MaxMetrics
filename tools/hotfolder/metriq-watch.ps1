@@ -45,9 +45,9 @@ $settings = Get-Content $Config -Raw | ConvertFrom-Json
 
 # The key is an environment variable rather than a line in the config file, because the
 # config file sits beside the folders it names and gets copied around with them.
-$key = $env:MAXMETRICS_INGEST_KEY
+$key = $env:METRIQ_INGEST_KEY
 if (-not $key) {
-  Write-Line 'MAXMETRICS_INGEST_KEY is not set for this account. setx MAXMETRICS_INGEST_KEY "..." and sign out and in.' 'Red'
+  Write-Line 'METRIQ_INGEST_KEY is not set for this account. setx METRIQ_INGEST_KEY "..." and sign out and in.' 'Red'
   exit 2
 }
 if (-not $settings.endpoint) { Write-Line 'The configuration has no endpoint.' 'Red'; exit 2 }
@@ -133,9 +133,9 @@ foreach ($source in $settings.sources) {
       }
 
       $headers = @{
-        'x-maxmetrics-key'      = $key
-        'x-maxmetrics-location' = $source.location
-        'x-maxmetrics-filename' = $file.Name
+        'x-metriq-key'      = $key
+        'x-metriq-location' = $source.location
+        'x-metriq-filename' = $file.Name
         'x-metriq-date'     = $date
         'content-type'          = 'application/octet-stream'
       }

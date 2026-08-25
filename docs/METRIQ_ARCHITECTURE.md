@@ -312,7 +312,7 @@ They were one section in the sense that both were a note. Maintenance is a sched
 status. Overtime is a cost the plant is choosing to spend this morning, and the meeting's
 question about it is always the same two-part one: which departments, and how many shifts.
 
-That question has no source. `Overtime` in Mississauga_KPIs is per pay period with no
+That question has no source. `Overtime` in Toronto_KPIs is per pay period with no
 department and no shift breakdown — it answers how much was spent two weeks ago, not what
 is running today. So it is typed, one row per department per morning, in **shifts** rather
 than hours: shifts are the unit the floor talks in and the one a supervisor can answer
@@ -867,7 +867,7 @@ page keeps it, because on the page the prompt is an invitation to write one.
 
 ## A card can be moved
 
-Which reading matters most is a plant's opinion. Mississauga wants Printing first because
+Which reading matters most is a plant's opinion. Toronto wants Printing first because
 Printing is where its mornings go wrong; a plant that runs on its gluers reads that row
 first. Until now the order was whatever the code emitted.
 
@@ -1161,9 +1161,9 @@ bulk load safe hold here too: the day is created if missing, and a reading someb
 is never replaced. A flow that fires twice writes the same morning twice and changes
 nothing the second time.
 
-The endpoint authenticates with a shared secret in `x-maxmetrics-key`, compared in full
+The endpoint authenticates with a shared secret in `x-metriq-key`, compared in full
 rather than short-circuiting, because the caller is a flow and not a person — there is no
-sign-in to attach it to. Without `MAXMETRICS_INGEST_KEY` set in the project's environment
+sign-in to attach it to. Without `METRIQ_INGEST_KEY` set in the project's environment
 the function refuses everything, which is the correct state for it to be deployed in until
 somebody is actually sending files.
 

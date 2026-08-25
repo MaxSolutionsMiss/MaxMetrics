@@ -51,7 +51,7 @@ targets and daily department targets are stored per day and are safe; these thre
 **Fix: yes. Cheap, and the fix is small.**
 
 **④ Enter asks for far more than it needs.** I counted it: **66 controls, of which 2 are
-actually outstanding** on a normal Mississauga morning, and 21 are values a file has already
+actually outstanding** on a normal Toronto morning, and 21 are values a file has already
 filled. The review's diagnosis is right even if I would not take all of its prescription.
 **Fix: yes, but see §6 for where I differ.**
 
@@ -239,7 +239,7 @@ is zero.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│  MISSISSAUGA                                        Tuesday 11 August 2026    │
+│  TORONTO                                        Tuesday 11 August 2026    │
 │                                                                               │
 │   SAFETY               QUALITY               PRODUCTION                       │
 │                                                                               │

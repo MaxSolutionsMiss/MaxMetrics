@@ -1,9 +1,9 @@
 {
   "_comment": [
     "Copy this to sources.json beside the script and edit the folders. The key is not in",
-    "here on purpose — it lives in the MAXMETRICS_INGEST_KEY environment variable.",
+    "here on purpose — it lives in the METRIQ_INGEST_KEY environment variable.",
     "",
-    "location   one of: mississauga, guelph, pickering, owen-sound, markham",
+    "location   one of: toronto, new-jersey, nashville, springfield, chicago",
     "folder     any path this account can already open — a mapped drive, a UNC path, or a",
     "           synced OneDrive folder under %USERPROFILE%",
     "match      a wildcard, not a regular expression",
@@ -18,33 +18,33 @@
 
   "sources": [
     {
-      "name": "Mississauga DOR",
-      "location": "mississauga",
+      "name": "Toronto DOR",
+      "location": "toronto",
       "folder": "Y:\\QC Dept",
       "match": "DOR V9.xlsx",
       "dateFrom": "modified",
       "newestOnly": true
     },
     {
-      "name": "Mississauga OTIF",
-      "location": "mississauga",
-      "folder": "C:\\Users\\jresa\\OneDrive - Max Solutions, Inc\\Working Files\\Production KPIs & Stats",
+      "name": "Toronto OTIF",
+      "location": "toronto",
+      "folder": "C:\\Users\\demo\\OneDrive - Velari\\Working Files\\Production KPIs & Stats",
       "match": "*OTIF*.xls*",
       "dateFrom": "modified",
       "newestOnly": true
     },
     {
-      "name": "Mississauga monthly KPI",
-      "location": "mississauga",
-      "folder": "C:\\Users\\jresa\\OneDrive - Max Solutions, Inc\\Working Files\\Production KPIs & Stats",
+      "name": "Toronto monthly KPI",
+      "location": "toronto",
+      "folder": "C:\\Users\\demo\\OneDrive - Velari\\Working Files\\Production KPIs & Stats",
       "match": "*KPI*Raw*Data*.xls*",
       "dateFrom": "today",
       "newestOnly": true
     },
     {
-      "name": "Guelph DOR",
-      "location": "guelph",
-      "folder": "\\\\maxfs01\\Guelph\\Reports",
+      "name": "New Jersey DOR",
+      "location": "new-jersey",
+      "folder": "\\\\maxfs01\\New Jersey\\Reports",
       "match": "DOR*.xlsx",
       "dateFrom": "modified",
       "newestOnly": true,

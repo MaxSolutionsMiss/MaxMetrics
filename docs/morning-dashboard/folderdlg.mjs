@@ -3,7 +3,7 @@ const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});
 let bad=0; const say=(o,t)=>{console.log((o?'  ok   ':'  FAIL ')+t);if(!o)bad++;};
 const p=await b.newPage({viewport:{width:1400,height:850},deviceScaleFactor:2});
 p.on('pageerror',e=>say(false,'error: '+e.message));
-await p.goto('file://'+process.cwd()+'/'+(process.argv[2]||'Mississauga_Morning_Dashboard.html'));
+await p.goto('file://'+process.cwd()+'/'+(process.argv[2]||'Toronto_Morning_Dashboard.html'));
 await p.waitForTimeout(1200);
 const open=async()=>(await p.$$('.mdl-bg')).length;
 await p.click('#editBtn'); await p.waitForTimeout(400);

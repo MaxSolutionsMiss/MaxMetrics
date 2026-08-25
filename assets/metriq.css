@@ -1,12 +1,12 @@
 /* Metriq - the one stylesheet.
-   Every token below the accent is copied verbatim from MaxDock. That is deliberate and it
+   Every token below the accent is copied verbatim from Metriq. That is deliberate and it
    is the whole point: two products of one company should differ by their colour and by
    nothing else. What used to differ was everything - a condensed display face against
-   MaxDock's single family, a 22px type ramp against its 21, 14px card corners against its
-   7, a shadow under every card where MaxDock has none. Each of those was defensible alone
+   Metriq's single family, a 22px type ramp against its 21, 14px card corners against its
+   7, a shadow under every card where Metriq has none. Each of those was defensible alone
    and together they made a second product.
 
-   The accent is the one thing Metriq owns. MaxDock has the corporate blue; green,
+   The accent is the one thing Metriq owns. Metriq has the corporate blue; green,
    amber and red are spoken for by status, so a brand element in any of them would read as
    a verdict on the number beside it. Violet sits outside all four. */
 @font-face{
@@ -35,7 +35,7 @@
   /* THE ACCENT - the five values Metriq changes, and the only ones. */
   --brand:#6C4BB6; --brand-hover:#583D96; --brand-wash:#EFEAF8; --brand-deep:#3F2A6E;
 
-  /* NEUTRALS - identical to MaxDock. These are what make the two products siblings. */
+  /* NEUTRALS - identical to Metriq. These are what make the two products siblings. */
   --ground:#F6F8F9; --surface:#FFFFFF; --sunk:#EFF2F4;
   --rule:#DCE2E6; --rule-strong:#C2CBD1;
   --ink:#16202A; --ink-muted:#55636E; --ink-faint:#8A959E;
@@ -58,7 +58,7 @@
 
   /* ONE FACE, INCLUDING NUMBERS.
      Metriq set every title, label and figure in Barlow Condensed. The family matched
-     nothing MaxDock does and the width matched nothing either: a condensed face is narrower
+     nothing Metriq does and the width matched nothing either: a condensed face is narrower
      at every size, so the two products read as two products even where the colours agreed.
      Columns of digits still line up, because `body` sets `font-variant-numeric:tabular-nums`
      globally - that, and not a second typeface, is what aligns figures.
@@ -87,7 +87,7 @@
      for a section named longer than any of these. */
 
   /* One shadow in the product, and it is for things that float above the page. A card is
-     not one of those: MaxDock's cards are a border on a white ground and nothing else. */
+     not one of those: Metriq's cards are a border on a white ground and nothing else. */
   --shadow-overlay:0 12px 32px rgba(22,32,42,.16),0 2px 6px rgba(22,32,42,.08);
   --shadow:none;
   --chart-track:#E7ECEF;
@@ -127,7 +127,7 @@
   --card-bar:#4A5162;
   --card-r-max:1.45;
 }
-/* Dark is Metriq' own - MaxDock ships light only - so it keeps the same relationships
+/* Dark is Metriq' own - Metriq ships light only - so it keeps the same relationships
    rather than inventing new ones: the neutrals slide, the accent lifts enough to hold
    contrast on a dark ground, and status keeps its meaning. */
 @media (prefers-color-scheme:dark){:root[data-theme="auto"]{
@@ -362,8 +362,8 @@ html[data-rail="mini"]{--rail-w:62px}
    a row of cards starting at the left edge gives the eye two different places to begin. */
 .sec__head{display:flex;align-items:center;gap:var(--s3)}
 body.tv .sec__head::before{content:"";flex:1;height:1.5px;background:var(--rule)}
-/* MaxDock's page title: 21px, 600, tightened, sentence case. It was 14px, uppercase and
-   letterspaced to .16em - a treatment MaxDock uses nowhere, and one that reads as a label
+/* Metriq's page title: 21px, 600, tightened, sentence case. It was 14px, uppercase and
+   letterspaced to .16em - a treatment Metriq uses nowhere, and one that reads as a label
    for the section rather than as the name of it. */
 .sec__title{font-size:var(--t-title);font-weight:600;letter-spacing:-.015em;
   color:var(--ink);margin:0;white-space:nowrap;text-transform:none}
@@ -2388,14 +2388,14 @@ body.tv .content.wall{display:flex;flex-direction:column;gap:var(--s4);
 .src__w{font-size:var(--t-micro);color:var(--ink-faint);white-space:nowrap;
   max-width:26rem;overflow:hidden;text-overflow:ellipsis}
 .src__w--bad{color:var(--stop);white-space:normal;grid-column:1/-1}
-/* A second rail inside a pane, the shape MaxDock uses for its settings. A pane about four
+/* A second rail inside a pane, the shape Metriq uses for its settings. A pane about four
    subjects at once is four panels stacked down a screen with the important one the same
    size as a paragraph. */
 /* A second rail, inside the pane.
    Configure's panes were each one long scrolling page — Cards ran to twenty-four rows of
    tick boxes across nine sections, which is the settings screen this product exists to
    avoid. The subject splits down the left the same way the plant already knows from
-   MaxDock, and what is in front of you is one subject at a time. It falls back to a row of
+   Metriq, and what is in front of you is one subject at a time. It falls back to a row of
    chips on a narrow screen rather than eating half the width. */
 .sub{display:grid;grid-template-columns:minmax(10rem,14rem) minmax(0,1fr);
   gap:var(--s4);align-items:start}
@@ -2978,7 +2978,7 @@ body.tv .util{display:none}
 /* Under the work, not at the far edge of the pane.
    Spanning the grid put Save and Publish against the right-hand end of a row whose content
    stopped a long way short of it - on Safety, a card 544px wide and its buttons eight
-   hundred pixels away, reading as though they belonged to nothing. MaxDock never floats an
+   hundred pixels away, reading as though they belonged to nothing. Metriq never floats an
    action away from the thing it acts on: it sits in the head of the panel or directly under
    it. This is directly under it, packed left, where the eye already is after the last box. */
 .fill__end{grid-column:1/-1;display:flex;align-items:center;justify-content:flex-start;

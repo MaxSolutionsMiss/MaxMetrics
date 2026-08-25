@@ -43,7 +43,7 @@ const reply = (body: unknown, status = 200) =>
 // before it calls Auth and it cannot reach this file. It is enforced here rather than
 // trusted from there — a page can send anything, and what an account is keyed on is not
 // something to take on a page's word.
-const USERS_DOMAIN = 'users.maxmetrics.invalid';
+const USERS_DOMAIN = 'users.metriq.invalid';
 const USERNAME_RULE = /^[a-z0-9][a-z0-9._-]{1,29}$/;
 
 // An address is itself; a name becomes one; anything else is nothing.

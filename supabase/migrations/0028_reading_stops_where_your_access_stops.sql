@@ -6,7 +6,7 @@
 -- rather than "is this person's business here?". Nothing has gone wrong because of it.
 -- The plant is one site and everybody in the building knows everybody else's name. But the
 -- product now carries nine plants, and the reason to fix this is not the plant — it is that
--- an account which should only ever have seen Mississauga could list all nine, and any
+-- an account which should only ever have seen Toronto could list all nine, and any
 -- account at all could read every row of `profiles` and learn precisely which four people
 -- are administrators. That is a target list, handed over on request, to anybody who has
 -- ever been given a password and not had it taken away again.

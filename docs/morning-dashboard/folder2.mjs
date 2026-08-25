@@ -3,7 +3,7 @@ import {chromium} from 'playwright';
 const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});
 const p=await b.newPage();
 p.on('pageerror',e=>console.log('ERR',e.message));
-await p.goto('file://'+process.cwd()+'/'+(process.argv[2]||'Mississauga_Morning_Dashboard.html'));
+await p.goto('file://'+process.cwd()+'/'+(process.argv[2]||'Toronto_Morning_Dashboard.html'));
 await p.waitForTimeout(1200);
 for(const pick of ['Data','Morning Dashboard']){
   const r=await p.evaluate(async(name)=>{

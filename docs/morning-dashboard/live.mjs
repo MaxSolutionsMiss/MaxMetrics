@@ -9,7 +9,7 @@ async function person(name,ini){
   p.on('pageerror',e=>say(false,name+' error: '+e.message));
   await p.exposeFunction('_read', n=>DISK[n]??null);
   await p.exposeFunction('_write',(n,t)=>{DISK[n]=t;});
-  await p.goto('file://'+process.cwd()+'/'+(process.argv[2]||'Mississauga_Morning_Dashboard.html'));
+  await p.goto('file://'+process.cwd()+'/'+(process.argv[2]||'Toronto_Morning_Dashboard.html'));
   await p.waitForTimeout(1200);
   await p.evaluate(({name,ini})=>{
     localStorage.setItem(meKey,JSON.stringify({name,ini}));

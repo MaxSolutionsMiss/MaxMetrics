@@ -2,7 +2,7 @@ import {chromium} from 'playwright';
 const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});
 let bad=0; const say=(o,t)=>{console.log((o?'  ok   ':'  FAIL ')+t);if(!o)bad++;};
 const p=await b.newPage({viewport:{width:1400,height:820},deviceScaleFactor:2});
-await p.goto('file://'+process.cwd()+'/'+(process.argv[2]||'Mississauga_Morning_Dashboard.html'));
+await p.goto('file://'+process.cwd()+'/'+(process.argv[2]||'Toronto_Morning_Dashboard.html'));
 await p.waitForTimeout(1200);
 await p.click('#editBtn'); await p.waitForTimeout(500);
 const card=await p.$eval('.maintenance-card',n=>({scroll:n.scrollWidth,client:n.clientWidth,

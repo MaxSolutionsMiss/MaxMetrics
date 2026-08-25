@@ -1,5 +1,5 @@
 -- Writing a morning that is not today.
--- Applied to maxmetrics-development on 2026-08-07.
+-- Applied to metriq-development on 2026-08-07.
 --
 -- The plant has been running `Daily_Morning_Dashboard_Vr 22.html` since January and it can
 -- write a day out as JSON. Those files are the only record of the mornings before
@@ -59,7 +59,7 @@ begin
   where t.location_id = loc and t.metric_date = d;
 
   -- A department in the file that this plant does not run is skipped rather than invented.
-  -- The old dashboard was Mississauga's, so its three keys are the ones that appear; a key
+  -- The old dashboard was Toronto's, so its three keys are the ones that appear; a key
   -- with no `location_departments` row behind it would produce a card with no name.
   for key, body in select * from jsonb_each(coalesce(depts, '{}'::jsonb)) loop
     if exists (select 1 from public.location_departments ld

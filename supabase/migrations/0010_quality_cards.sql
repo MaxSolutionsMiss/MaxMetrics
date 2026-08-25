@@ -1,5 +1,5 @@
 -- Which quality cards a plant shows.
--- Applied to maxmetrics-development on 2026-08-07.
+-- Applied to metriq-development on 2026-08-07.
 --
 -- NCRs, internal complaints and customer complaints are the readings a quality manager is
 -- asked for — at the plants that raise them. Not every plant does, and a card that reads a

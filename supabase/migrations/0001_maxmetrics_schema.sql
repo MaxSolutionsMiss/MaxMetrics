@@ -1,7 +1,7 @@
 -- Metriq schema, consolidated.
 --
 -- This is the whole database as it stands, in the order a fresh project needs it. It was
--- applied to maxmetrics-development on 2026-08-06 in four steps; those steps are folded
+-- applied to metriq-development on 2026-08-06 in four steps; those steps are folded
 -- together here because the project has no production history to preserve and a single
 -- readable file is worth more than an accurate archaeology of how it got written.
 --
@@ -170,7 +170,7 @@ create index field_edits_day on public.field_edits (location_id, metric_date, ed
 -- ────────────────────────────────────────────────────────────────────────────────
 -- Access
 --
--- A plant's numbers belong to that plant. Guelph signing in sees Guelph. Access is a
+-- A plant's numbers belong to that plant. New Jersey signing in sees New Jersey. Access is a
 -- grant per person per location, so a regional manager holding several and a plant
 -- manager holding exactly one are the same case, not two.
 -- ────────────────────────────────────────────────────────────────────────────────
@@ -384,34 +384,34 @@ alter publication supabase_realtime add table public.daily_review;
 alter publication supabase_realtime add table public.maintenance_items;
 
 insert into public.locations (id, name, sort_order) values
-  ('mississauga', 'Mississauga', 1),
-  ('guelph',      'Guelph',      2),
-  ('pickering',   'Pickering',   3),
-  ('owen-sound',  'Owen Sound',  4),
-  ('markham',     'Markham',     5);
+  ('toronto', 'Toronto', 1),
+  ('new-jersey',      'New Jersey',      2),
+  ('nashville',   'Nashville',   3),
+  ('springfield',  'Springfield',  4),
+  ('chicago',     'Chicago',     5);
 
--- Mississauga's shape as it runs today. The other plants set their own on first use.
+-- Toronto's shape as it runs today. The other plants set their own on first use.
 insert into public.location_departments (location_id, key, name, unit, target, sort_order) values
-  ('mississauga', 'printing',   'Printing',    'sheets',   3050, 1),
-  ('mississauga', 'diecutting', 'Die Cutting', 'sheets',   2025, 2),
-  ('mississauga', 'gluing',     'Gluing',      'cartons', 11933, 3);
+  ('toronto', 'printing',   'Printing',    'sheets',   3050, 1),
+  ('toronto', 'diecutting', 'Die Cutting', 'sheets',   2025, 2),
+  ('toronto', 'gluing',     'Gluing',      'cartons', 11933, 3);
 
 -- Shipping appears in the 24-hour review but is not a production rate, so it is a
 -- review-only entry rather than a department with a target.
 insert into public.location_departments
   (location_id, key, name, unit, target, sort_order, on_metrics, on_review) values
-  ('mississauga', 'shipping', 'Shipping', 'jobs', 0, 4, false, true);
+  ('toronto', 'shipping', 'Shipping', 'jobs', 0, 4, false, true);
 
 insert into public.location_budgets (location_id, year, month, amount) values
-  ('mississauga', 2026,  1, 3042361.53),
-  ('mississauga', 2026,  2, 2853492.74),
-  ('mississauga', 2026,  3, 3282808.64),
-  ('mississauga', 2026,  4, 2617223.77),
-  ('mississauga', 2026,  5, 2445602.32),
-  ('mississauga', 2026,  6, 2733541.79),
-  ('mississauga', 2026,  7, 2929498.53),
-  ('mississauga', 2026,  8, 3032625.82),
-  ('mississauga', 2026,  9, 2935786.16),
-  ('mississauga', 2026, 10, 3265862.12),
-  ('mississauga', 2026, 11, 2644116.73),
-  ('mississauga', 2026, 12, 1797856.93);
+  ('toronto', 2026,  1, 3042361.53),
+  ('toronto', 2026,  2, 2853492.74),
+  ('toronto', 2026,  3, 3282808.64),
+  ('toronto', 2026,  4, 2617223.77),
+  ('toronto', 2026,  5, 2445602.32),
+  ('toronto', 2026,  6, 2733541.79),
+  ('toronto', 2026,  7, 2929498.53),
+  ('toronto', 2026,  8, 3032625.82),
+  ('toronto', 2026,  9, 2935786.16),
+  ('toronto', 2026, 10, 3265862.12),
+  ('toronto', 2026, 11, 2644116.73),
+  ('toronto', 2026, 12, 1797856.93);

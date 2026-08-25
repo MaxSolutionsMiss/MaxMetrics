@@ -13,11 +13,11 @@ assistant cannot reach them, everything it needs is below.
 
 ## 1. What the plant does, and what this replaces
 
-Max Solutions runs folding-carton plants — they print, die-cut and glue paperboard into
-cartons. Nine sites; **Mississauga is the only one live** on this product, and the rest are
+Velari runs folding-carton plants — they print, die-cut and glue paperboard into
+cartons. Nine sites; **Toronto is the only one live** on this product, and the rest are
 meant to come on with no code changes, only configuration.
 
-Every weekday at about 07:45 the Mississauga management team holds a **morning meeting**.
+Every weekday at about 07:45 the Toronto management team holds a **morning meeting**.
 Ten to fifteen people — plant manager, quality, scheduling, shipping, customer service,
 prepress, the die shop, maintenance — stand around a screen and walk through what happened
 in the last twenty-four hours. It takes fifteen minutes. It is the only time in the day the

@@ -18,17 +18,17 @@ const rows    = () => p.$eval('.stamp',n=>n.textContent.replace(/\s+/g,' ').trim
 
 console.log('\n── Javad · Owner, both plants ──');
 say((await mods()).length===5,'sees all five modules');
-say((await locs()).join()==='Mississauga,Brampton','can switch between two plants');
+say((await locs()).join()==='Toronto,Brampton','can switch between two plants');
 say(!(await p.$eval('#locSel',n=>n.disabled)),'the picker is live');
 say(await p.$eval('#roFlag',n=>getComputedStyle(n).display==='none'),'no read-only badge');
 const missCartons = await total();
-say(missCartons>0,'Mississauga has data — '+Math.round(missCartons).toLocaleString()+' cartons');
-say((await caption()).startsWith('Mississauga'),'the chart says which plant it is');
+say(missCartons>0,'Toronto has data — '+Math.round(missCartons).toLocaleString()+' cartons');
+say((await caption()).startsWith('Toronto'),'the chart says which plant it is');
 const missRows = await rows();
 await p.selectOption('#locSel','Brampton'); await p.waitForTimeout(350);
 const bramCartons = await total();
 say((await caption()).startsWith('Brampton'),
-  'and it changes with the plant, so Brampton is never labelled Mississauga — "'+await caption()+'"');
+  'and it changes with the plant, so Brampton is never labelled Toronto — "'+await caption()+'"');
 say((await rows())!==missRows,'the row count moves too — '+await rows());
 say(bramCartons>0 && bramCartons<missCartons,
   'Brampton is a smaller plant — '+Math.round(bramCartons).toLocaleString()+' cartons');
@@ -37,15 +37,15 @@ await p.$eval('[data-key=machine]',n=>n.click()); await p.waitForTimeout(250);
 const bramMachines = await p.$$eval('#viz table tr td:first-child',n=>n.map(x=>x.textContent));
 say(bramMachines.includes('KBA 28') && !bramMachines.includes('KBA 40'),
   'and Brampton has its own machines — '+bramMachines.filter(x=>x!=='Total').join(', '));
-await p.selectOption('#locSel','Mississauga'); await p.waitForTimeout(300);
+await p.selectOption('#locSel','Toronto'); await p.waitForTimeout(300);
 
-console.log('\n── Angela · plant manager, Mississauga only ──');
+console.log('\n── Angela · plant manager, Toronto only ──');
 await asUser('angelaw');
-say((await locs()).join()==='Mississauga','one plant only');
+say((await locs()).join()==='Toronto','one plant only');
 say(await p.$eval('#locSel',n=>n.disabled),'and no way to switch');
 say(!(await mods()).includes('people'),'People is not even in her menu');
 say((await mods()).length===4,'the other four are');
-say(Math.abs(await total()-missCartons)<1,'she sees the whole Mississauga figure');
+say(Math.abs(await total()-missCartons)<1,'she sees the whole Toronto figure');
 say(!(await p.$eval('#saveBtn',n=>getComputedStyle(n).display==='none')),'she can save a view');
 
 console.log('\n── Deep · plant manager, Brampton only ──');
@@ -54,7 +54,7 @@ say((await locs()).join()==='Brampton','Brampton only');
 say(Math.abs(await total()-bramCartons)<1,'and sees only Brampton numbers');
 const deepM = await p.$$eval('#viz table tr td:first-child',n=>n.map(x=>x.textContent));
 say(!deepM.some(m=>/KBA 40|Bobst 106|Jagenberg/.test(m)),
-  'no Mississauga machine appears anywhere for him');
+  'no Toronto machine appears anywhere for him');
 
 console.log('\n── Joe · read only ──');
 await asUser('joet');
@@ -72,7 +72,7 @@ say((await p.$eval('#crumb',n=>n.textContent)).startsWith('Brampton'),
 say((await p.$eval('#morningSub',n=>n.textContent)).includes('Brampton'),
   'and so does the line under the title');
 await asUser('angelaw');
-say((await p.$eval('#crumb',n=>n.textContent)).startsWith('Mississauga'),
+say((await p.$eval('#crumb',n=>n.textContent)).startsWith('Toronto'),
   'switching accounts switches the plant with it');
 await asUser('joet');
 

@@ -1,6 +1,6 @@
 // The architecture rules, checked rather than remembered.
 //
-// Every rule here exists because breaking it caused a specific problem in MaxDock or in
+// Every rule here exists because breaking it caused a specific problem in Metriq or in
 // the twenty-two versions of the dashboard this replaces. A rule that cannot say what it
 // is protecting does not belong in this file.
 

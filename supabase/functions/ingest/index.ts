@@ -21,7 +21,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.52.1';
 
 const URL_ = Deno.env.get('SUPABASE_URL')!;
 const SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const SECRET = Deno.env.get('MAXMETRICS_INGEST_KEY') ?? '';
+const SECRET = Deno.env.get('METRIQ_INGEST_KEY') ?? '';
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body, null, 2), {
@@ -40,8 +40,8 @@ const looksLikeWorkbook = (bytes: Uint8Array) =>
 function sourceFor(name: string, sources: { id: string; kind: string; name: string }[]) {
   // The name first, the kind only as a tie-break.
   //
-  // Keyword-on-kind was the whole rule and it put two files in one slot. Mississauga keeps
-  // `Mississauga KPI's.xlsx` and `Mississauga_Monthly KPI Raw Data.xlsx` in the same folder;
+  // Keyword-on-kind was the whole rule and it put two files in one slot. Toronto keeps
+  // `Toronto KPI's.xlsx` and `Toronto_Monthly KPI Raw Data.xlsx` in the same folder;
   // both contain "kpi", both resolved to the single source of kind `kpi`, and both were
   // written to `<location>/<that id>.xlsx` — so every morning the flow uploaded one workbook
   // and then overwrote it with the other, and which one survived depended on the order the
@@ -83,15 +83,15 @@ Deno.serve(async request => {
   // A shared secret rather than a signed-in user: the caller is a flow, not a person.
   // Compared in full rather than short-circuiting, so a wrong key cannot be found a
   // character at a time.
-  const offered = request.headers.get('x-maxmetrics-key') ?? '';
+  const offered = request.headers.get('x-metriq-key') ?? '';
   if (!SECRET || offered.length !== SECRET.length ||
       !offered.split('').reduce((same, c, i) => same & (c === SECRET[i] ? 1 : 0), 1)) {
     return json({ error: 'Not authorised.' }, 401);
   }
 
-  const location = request.headers.get('x-maxmetrics-location') ?? '';
-  const name = request.headers.get('x-maxmetrics-filename') ?? 'upload.xlsx';
-  if (!location) return json({ error: 'x-maxmetrics-location is required.' }, 400);
+  const location = request.headers.get('x-metriq-location') ?? '';
+  const name = request.headers.get('x-metriq-filename') ?? 'upload.xlsx';
+  if (!location) return json({ error: 'x-metriq-location is required.' }, 400);
 
   // Three shapes, because Power Automate sends whichever it feels like.
   //

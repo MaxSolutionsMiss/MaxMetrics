@@ -400,7 +400,7 @@ tr.tot td{border-bottom:0;border-top:2px solid var(--line);font-weight:600}
     <tr><th>Source</th><th>Where it comes from</th><th>Last read</th><th>Rows</th><th>Metrics</th></tr>
     <tr><td><span class="dot ok"></span>OTIF Tracker</td><td class="mono">SharePoint · Plant KPIs</td>
       <td>05:32 today</td><td>994</td><td>4</td></tr>
-    <tr><td><span class="dot ok"></span>Mississauga KPI</td><td class="mono">SharePoint · Plant KPIs</td>
+    <tr><td><span class="dot ok"></span>Toronto KPI</td><td class="mono">SharePoint · Plant KPIs</td>
       <td>05:32 today</td><td>2,140</td><td>11</td></tr>
     <tr><td><span class="dot ok"></span>Quality KPI</td><td class="mono">SharePoint · Quality</td>
       <td>05:33 today</td><td>386</td><td>5</td></tr>
@@ -470,7 +470,7 @@ const D = k => DIMS.find(d=>d.key===k);
    Shaped exactly like the warehouse rows will be, so the builder above it never
    learns it was reading a sample. Seeded, so the numbers hold still.          */
 const LOCS = [
-  {id:'Mississauga', scale:1.00, machines:{'Printing':['KBA 40','Heidelberg 28'],
+  {id:'Toronto', scale:1.00, machines:{'Printing':['KBA 40','Heidelberg 28'],
     'Die Cutting':['Bobst 106','Bobst 76'],'Gluing':['Jagenberg','Vega']}},
   {id:'Brampton',    scale:0.58, machines:{'Printing':['KBA 28'],
     'Die Cutting':['Bobst 76 II'],'Gluing':['Vega II']}},
@@ -504,20 +504,20 @@ LOCS.forEach(L => DEPTS.forEach((dept,di) => L.machines[dept].forEach(machine =>
    modules and the buttons — nothing here is decoration.                       */
 const USERS = [
   {id:'javadresa', name:'Javad R',   ini:'JR', role:'Owner',
-   locs:['Mississauga','Brampton'], can:['read','fill','publish','admin']},
-  {id:'angelaw',   name:'Angela Wu', ini:'AW', role:'Plant manager · Mississauga',
-   locs:['Mississauga'],            can:['read','fill','publish']},
+   locs:['Toronto','Brampton'], can:['read','fill','publish','admin']},
+  {id:'angelaw',   name:'Angela Wu', ini:'AW', role:'Plant manager · Toronto',
+   locs:['Toronto'],            can:['read','fill','publish']},
   {id:'deepb',     name:'Deep Brar', ini:'DB', role:'Plant manager · Brampton',
    locs:['Brampton'],               can:['read','fill','publish']},
-  {id:'joet',      name:'Joe Tran',  ini:'JT', role:'Read only · Mississauga',
-   locs:['Mississauga'],            can:['read']},
+  {id:'joet',      name:'Joe Tran',  ini:'JT', role:'Read only · Toronto',
+   locs:['Toronto'],            can:['read']},
 ];
 let me = USERS[0];
 const can = c => me.can.includes(c) || me.can.includes('admin');
 
 /* ══ state ════════════════════════════════════════════════════════════════ */
 const state = {
-  loc:'Mississauga',
+  loc:'Toronto',
   rows:['dept'], cols:['month'], values:['cartons','perhour'], filters:[],
   chart:'column', labels:false, target:true, totals:true,
 };

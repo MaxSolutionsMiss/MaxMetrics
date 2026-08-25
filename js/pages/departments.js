@@ -1,7 +1,7 @@
 // Configure departments.
 //
-// Mississauga prints, die cuts and glues, and those three were seeded by a migration. Every
-// other plant runs something Mississauga does not — Guelph windows and foil stamps — and
+// Toronto prints, die cuts and glues, and those three were seeded by a migration. Every
+// other plant runs something Toronto does not — New Jersey windows and foil stamps — and
 // until this screen existed the only way for a plant to see its own floor was for somebody
 // to write SQL. A dashboard the plant cannot shape is a dashboard about somebody else.
 //
@@ -82,7 +82,7 @@ const panes = () => PANES.filter(p => !p.admin || state.me?.is_admin);
 // rows of tick boxes over nine sections, all of it on screen at once, which is exactly the
 // settings screen the rest of this product exists to avoid. So the subject splits down the
 // left — the same shape as the rail outside it, the same shape the plant already knows from
-// MaxDock — and what is in front of you is one subject.
+// Metriq — and what is in front of you is one subject.
 //
 // `tag` is the count that belongs on the rail rather than in the body: "6 of 7 on" is the
 // answer somebody came to this screen for, and putting it next to the name means they often
@@ -647,7 +647,7 @@ function sourcesPanel() {
         <div class="src__u">
           <input class="inp" type="url" data-source="${esc(source.id)}"
             aria-label="${esc(source.name)} link"
-            placeholder="https://maxsolutionsinc.sharepoint.com/..." value="${esc(source.url || '')}">
+            placeholder="https://velari.sharepoint.com/..." value="${esc(source.url || '')}">
           <button class="btn btn--go" data-save-source="${esc(source.id)}">Save</button>
           <button class="btn" data-test-source="${esc(source.id)}">Test</button>
         </div>
@@ -746,7 +746,7 @@ function sourcesPanel() {
         <b>Why <code>Sites.Selected</code> rather than <code>Sites.Read.All</code>.</b>
         <code>Sites.Read.All</code> lets the app read <i>every</i> SharePoint site in the
         company, which is a fair reason for IT to refuse. <code>Sites.Selected</code> grants
-        nothing by itself \u2014 step 7 gives it read on the Mississauga site and nowhere
+        nothing by itself \u2014 step 7 gives it read on the Toronto site and nowhere
         else. If your administrator would rather skip step 7, <code>Sites.Read.All</code>
         works too and everything else is the same.</p>
       <p class="cfg__none" style="font-style:normal;color:var(--ink-muted)">
@@ -785,7 +785,7 @@ function sourcesPanel() {
 // size as a paragraph about printing.
 //
 // A second rail, the same shape as the one on the left. It is a pattern the plant already
-// knows from MaxDock, and it means the pane in front of you is about one thing.
+// knows from Metriq, and it means the pane in front of you is about one thing.
 const DATA_TABS = [
   { key: 'linked', name: 'Linked files', sub: 'Where the numbers come from' },
   // Named for the thing somebody does every morning, not for the three things the screen
@@ -946,7 +946,7 @@ function peoplePane() {
         isUsername(person.email) ? ' <span class="pill pill--info">Username</span>' : ''}</td>
       <td class="ppl__l">${(() => {
         // Which plants, not what level here. "Can edit" told an administrator nothing about
-        // the question they came to answer, which is whether this person can see Guelph.
+        // the question they came to answer, which is whether this person can see New Jersey.
         const mine = plantsFor(person);
         if (!mine.length) return '<span class="soft">No plants</span>';
         return `<span class="plst">${mine.map(pl =>
@@ -1044,7 +1044,7 @@ function peoplePane() {
   const tabs = [
     // Name things the way the people using them do. "Everybody" and "Add somebody" are how
     // this was described in conversation; on a screen they are a category and a verb that
-    // neither MaxDock nor anything else in the product uses.
+    // neither Metriq nor anything else in the product uses.
     { key: 'all', name: 'Users', sub: 'Accounts and the plants they may open',
       tag: `${people.length}` },
     { key: 'add', name: 'Add new user', sub: 'Make an account and hand over a password' },
@@ -1518,7 +1518,7 @@ const sortedPeople = people => [...(people || [])].sort((a, b) => {
 async function loadPeople() {
   try {
     // Three answers, together: who exists, which plants there are, and who can reach which.
-    // The third is what makes "this person sees Mississauga and Guelph and nothing else" a
+    // The third is what makes "this person sees Toronto and New Jersey and nothing else" a
     // thing an administrator can set rather than a thing they have to trust.
     const [people, plants, matrix] = await Promise.all([
       peopleAt(state.location),

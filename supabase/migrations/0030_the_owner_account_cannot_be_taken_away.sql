@@ -2,7 +2,7 @@
 --
 -- Access here is flat: `is_admin` is a boolean, every administrator can do everything, and
 -- that includes removing any account, renaming it, and — the one that matters — issuing it
--- a new password. Four people at Mississauga hold that flag. Any of them can, today, press
+-- a new password. Four people at Toronto hold that flag. Any of them can, today, press
 -- Reset beside the person who built this product, read the temporary password off their own
 -- screen, and sign in as them. Nothing about that is a bug; it is what "administrator"
 -- has meant on this product since accounts were added, and with one plant and one team in

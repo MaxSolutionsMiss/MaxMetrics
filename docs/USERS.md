@@ -1,7 +1,7 @@
 # Accounts
 
-Metriq and MaxDock are **separate Supabase projects** — `maxmetrics-development`
-(`mlmurglqeqilqutxzawq`) and `maxdock-development` (`rywzqepzramurbrpmept`). Separate
+Metriq and Metriq are **separate Supabase projects** — `metriq-development`
+(`mlmurglqeqilqutxzawq`) and `metriq-development` (`rywzqepzramurbrpmept`). Separate
 projects mean separate `auth.users` tables, so an account on one is not an account on the
 other and nothing is shared automatically.
 
@@ -13,7 +13,7 @@ read back what somebody types.
 
 What *can* be done is copy the hash. Bcrypt verifies the same way in either project, so a
 person carried across with their hash intact signs in to Metriq with the password they
-already use for MaxDock, and never has to be told anything. That is the migration below.
+already use for Metriq, and never has to be told anything. That is the migration below.
 
 The alternative is to create the account without a password and let Supabase send a
 set-password link. Choose that when somebody should *not* keep using an old password —
@@ -21,8 +21,8 @@ a shared or demo login, or anyone whose access is being narrowed rather than cop
 
 ## Two things to decide before running it
 
-**Addresses that cannot receive mail.** Four of MaxDock's eight accounts are
-`@maxdock.internal`, which is not a real mail domain. They work for signing in, but a
+**Addresses that cannot receive mail.** Four of Metriq's eight accounts are
+`@metriq.internal`, which is not a real mail domain. They work for signing in, but a
 password reset or an invitation can never reach them. Two of those four (`maxdemo`,
 `democo`) are demo logins. Carrying a demo login into a plant's real dashboard gives a
 shared password access to live numbers, so name them explicitly if you want them — this
@@ -35,7 +35,7 @@ location. Setting only the first gives an administrator who cannot open a plant.
 
 ## Carrying people across
 
-Run against **MaxDock** to read the accounts, listing exactly the addresses wanted:
+Run against **Metriq** to read the accounts, listing exactly the addresses wanted:
 
 ```sql
 select u.id, u.email, u.encrypted_password, u.raw_user_meta_data->>'full_name' as full_name
@@ -45,11 +45,11 @@ where u.email in ('...', '...');
 
 Then against **Metriq**, for each person. The user id is carried over deliberately: it
 keeps a person the same row in both systems, which is what makes a later join between
-MaxDock and Metriq answer questions about one person rather than two.
+Metriq and Metriq answer questions about one person rather than two.
 
 ```sql
 -- 1. The account. `confirmed` is set so the first sign-in is not blocked waiting on an
---    email that an @maxdock.internal address can never receive.
+--    email that an @metriq.internal address can never receive.
 insert into auth.users
   (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
    raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
@@ -89,7 +89,7 @@ group by p.full_name, u.email, p.is_admin
 order by p.is_admin desc, p.full_name;
 ```
 
-Five plants are configured — Mississauga, Guelph, Pickering, Owen Sound and Markham — so
+Five plants are configured — Toronto, New Jersey, Nashville, Springfield and Chicago — so
 somebody with full autonomy should read `plants_editable = 5`.
 
 ## Taking access away

@@ -1204,7 +1204,7 @@ const machineNames = key => otMachines(key).map(m => m.name).join(', ');
 // graph to reach a box, and the box was on a card sized for a room ten metres away.
 //
 // The number this screen is measured against is how many boxes a person has to touch. Of the
-// values on a Mississauga morning, most already exist in a file — the DOR carries production,
+// values on a Toronto morning, most already exist in a file — the DOR carries production,
 // the KPI workbook carries quality and the money. Those are shown, quietly, with the file
 // that filled them named beside them; they can be corrected but nobody has to visit them. The
 // ones nobody can know from a file — whether somebody got hurt, how many jobs went short,
@@ -2777,7 +2777,7 @@ const FIT_STEPS = [0.32, 0.16, 0.08, 0.04, 0.02];
 
 // ── Rearranging the cards ───────────────────────────────────────────────────────
 //
-// Which reading matters most is a plant's opinion, not the product's. Mississauga wants
+// Which reading matters most is a plant's opinion, not the product's. Toronto wants
 // Printing first because Printing is where its mornings go wrong; another plant runs on its
 // gluers and reads that row first. Until now the order was whatever the code emitted, and
 // the only way to change it was to change the code.
@@ -3895,8 +3895,8 @@ document.addEventListener('focusout', event => {
 async function open(location, date) {
   state.live?.leave();
   state.location = location; state.date = date;
-  // A grant is per plant. Somebody who may edit Mississauga and only read Guelph must not
-  // be offered Configure on Guelph, and switching plants used to leave the first plant's
+  // A grant is per plant. Somebody who may edit Toronto and only read New Jersey must not
+  // be offered Configure on New Jersey, and switching plants used to leave the first plant's
   // answer standing.
   state.canEdit = state.locations.find(l => l.id === location)?.canEdit ?? false;
   $('#content').innerHTML = '<div class="loading">Loading the morning…</div>';
@@ -5230,7 +5230,7 @@ const toCsv = rows => rows.map(r => r.map(csvCell).join(',')).join('\r\n');
 function downloadFile(name, text, type = 'text/csv;charset=utf-8') {
   const link = document.createElement('a');
   // The BOM is what makes Excel open a UTF-8 CSV as UTF-8 rather than as the system code
-  // page — the difference between "Mississauga" and mojibake.
+  // page — the difference between "Toronto" and mojibake.
   link.href = URL.createObjectURL(new Blob([type.startsWith('text/csv') ? '﻿' : '', text], { type }));
   link.download = name;
   link.click();

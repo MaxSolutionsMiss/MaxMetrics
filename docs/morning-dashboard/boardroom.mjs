@@ -3,7 +3,7 @@
 import {chromium} from 'playwright';
 const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});
 let bad=0; const say=(o,t)=>{console.log((o?'  ok   ':'  FAIL ')+t);if(!o)bad++;};
-const FILE=process.argv[2]||'Mississauga_Morning_Dashboard.html';
+const FILE=process.argv[2]||'Toronto_Morning_Dashboard.html';
 
 /* The shared folder as the plant left it, and a drive that refuses every write. */
 const SEED = (canWrite) => {

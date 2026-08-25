@@ -181,7 +181,7 @@ Metriq therefore **computes OTD and OTIF** and no longer asks anyone to type the
 MTD and YTD OTIF are still entered; both are running averages the sheet keeps in its
 right-hand columns, and both could be derived from our own stored days later.
 
-## Mississauga_KPIs.xlsx — targets and quality
+## Toronto_KPIs.xlsx — targets and quality
 
 **`Dept KPIs`** holds the real targets, per machine, and the department averages the
 dashboard actually uses:
@@ -195,7 +195,7 @@ dashboard actually uses:
 So a department target is the mean of its machines' targets, and changing a machine moves
 it. The same sheet carries **make-ready** and **uptime** targets per machine.
 
-The sheet is titled *Mississauga **2026** Machine KPIs*, and that word is the whole design
+The sheet is titled *Toronto **2026** Machine KPIs*, and that word is the whole design
 of how Metriq stores this. A target is a property of a machine **in a year**, not of a
 department forever: 2027 will have its own, and last year's rate must go on being judged
 against last year's number rather than being retroactively re-marked. So targets live in
@@ -258,7 +258,7 @@ same counts `OTDOTIF.xlsx` holds daily.
 Quality data lives in a SharePoint library under an individual's personal OneDrive:
 
 ```
-.../personal/antonbirman_maxpkgsolutions_com/Documents/KPI Reporting/Mississauga/2026/
+.../personal/antonbirman_maxpkgsolutions_com/Documents/KPI Reporting/Toronto/2026/
 ```
 
 Worth saying plainly: KPI reporting for a plant sitting in one person's personal OneDrive
@@ -307,7 +307,7 @@ known spellings per field, including the misspellings already present:
 The header row is found by scanning for the first row that matches several known columns,
 rather than assuming row 1 — these exports carry title blocks above their headers.
 
-## The rest of Mississauga_KPIs.xlsx
+## The rest of Toronto_KPIs.xlsx
 
 The sheets beyond `Dept KPIs` and `COQ` are all **monthly or per-pay-period**, not daily.
 That matters: none of them belongs on a morning dashboard, because a number that moves
