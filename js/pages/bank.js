@@ -8,8 +8,8 @@
 import {
   currentSession, signOut, myProfile, myLocations,
   dataSources, bankCounts,
-} from '../db.js?v=5615a94a2be1';
-import { esc, shortDate } from '../readings.js?v=5615a94a2be1';
+} from '../db.js?v=48bf77d19129';
+import { esc, shortDate } from '../readings.js?v=48bf77d19129';
 
 const $ = s => document.querySelector(s);
 const el = (tag, cls, html) => {

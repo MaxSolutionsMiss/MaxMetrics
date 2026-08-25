@@ -18,7 +18,7 @@
 // to record. Neither is a warning, and neither holds up an import. An alarm that fires
 // every Monday about a Sunday nobody worked is one people learn to close without reading.
 
-import { openWorkbook, serialToISO } from './xlsx.js?v=5615a94a2be1';
+import { openWorkbook, serialToISO } from './xlsx.js?v=48bf77d19129';
 
 // ── Matching a column ───────────────────────────────────────────────────────────
 
@@ -379,7 +379,7 @@ export function shippingPeriod(days, through) {
 //
 // The tab test stays as the fallback, because a plant that drags the file in under some
 // other name should still be read. But it is the fallback and not the rule: it was written
-// from a description of Mississauga's two tabs rather than from the file, and a workbook
+// from a description of Toronto's two tabs rather than from the file, and a workbook
 // whose tabs get renamed — or whose second tab turns out never to have said "log" and
 // "booked" in the first place — must not silently stop being customer service.
 const looksLikeCsr = (names, filename = '') =>
@@ -785,7 +785,7 @@ export async function readKpi(workbook, { date }) {
 
 // ── A plant's own cost-of-quality sheet ─────────────────────────────────────────
 //
-// Mississauga keeps cost of quality in a second workbook, on a tab called `COQ 2025` that
+// Toronto keeps cost of quality in a second workbook, on a tab called `COQ 2025` that
 // holds 2026 — one row per month with the money, the sales it is a share of, that share, and
 // the target. It is the cleanest quality data the plant has and nothing was reading it,
 // because `readKpi` wants a tab called `PLZ DO NOT TOUCH` and this workbook has none.
@@ -1237,7 +1237,7 @@ export async function readFiles(files, { date, reported = [], operators = [] } =
   let json = null;
   // The sheet whose only subject is cost of quality is held back and applied last.
   //
-  // Mississauga's two quality workbooks disagree about the COQ target: the monthly roll-up
+  // Toronto's two quality workbooks disagree about the COQ target: the monthly roll-up
   // says one per cent and the plant's own COQ sheet says 0.85, on every row, in a column
   // headed `Taget`. Both were being read and the later file won — which meant a threshold
   // the room is judged against was being decided by the order two files happen to sit in a
@@ -1303,7 +1303,7 @@ export async function readFiles(files, { date, reported = [], operators = [] } =
           sources.push({ file: file.name, kind: 'quality', rows: Object.keys(read.metrics).length });
         }
       } else if (looksLikeCoq(names)) {
-        // A workbook with a COQ tab and no `PLZ DO NOT TOUCH` — Mississauga's second quality
+        // A workbook with a COQ tab and no `PLZ DO NOT TOUCH` — Toronto's second quality
         // file. It goes through the same door as the one above: one dated record of readings,
         // previewed and never overwriting anything typed.
         const read = await readCoqSheet(workbook, { date });

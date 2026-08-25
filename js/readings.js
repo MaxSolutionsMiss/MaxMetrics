@@ -171,7 +171,7 @@ export const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday'
 // Two things were wrong with `new Date().toISOString().slice(0, 10)`, and both pages had
 // their own copy of it.
 //
-// It was UTC. Mississauga is four or five hours behind, so at eight in the evening the
+// It was UTC. Toronto is four or five hours behind, so at eight in the evening the
 // dashboard quietly moved to tomorrow — a fresh, empty morning, in the middle of the
 // afternoon shift, with everything anybody had typed that day apparently gone. Nobody had
 // caught it because nobody opens the dashboard at eight at night.
