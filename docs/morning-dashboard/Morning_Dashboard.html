@@ -574,11 +574,6 @@ body.locked-folder .folderbar{display:flex;background:#eff5ff;border-color:#d3e2
   border-left-color:#2563eb;color:#1e3a63}
 body.locked-folder .folderbar button{background:#2563eb}
 /* A screen does not need the buttons for filling a morning in. */
-body.display-only #draftBtn,
-body.display-only #pubBtn,
-body.display-only #editBtn,
-body.display-only .rail-act.act-save,
-body.display-only .rail-act.act-edit{display:none!important}
 body.pres-mode .msg-acts{display:none}
 @media print{.msg-acts{display:none}}
 
@@ -2663,24 +2658,31 @@ async function adoptFolder(h){
   DIR=h; PENDING=null; folderBadge();
   await pullLayout(); await pullFromFolder();
   warnAboutStrays();
+  /* A refused test write is worth knowing about. It is not worth taking the controls away.
+
+     Save, Publish and Edit Mode used to disappear whenever this probe failed, on the
+     reasoning that hiding them is kinder than losing a morning at the last moment. What it
+     actually did was lock somebody out of their own dashboard on the strength of one
+     throwaway file - and the boardroom PC is exactly where a person wants to add a comment
+     during the meeting.
+
+     A refused save is no longer a silent loss: it stops, says so plainly, and keeps the
+     morning on the PC. That is a better guard than a hidden button, because it is true at
+     the moment it matters instead of guessed in advance. */
   const probe=await canWriteHere();
   if(!probe.ok){
-    /* It can read the folder and not write to it. Rather than let somebody fill
-       in a morning here and lose it at the last moment, the machine becomes what
-       it can actually be: a screen. Save, Publish and Edit go; Present stays. If
-       the share is fixed later this runs again on the next open and they return. */
     const why=writeExcuse(probe.err);
-    document.body.classList.add('display-only');
-    showToast('This PC can show the morning but not save it','#b7791f');
-    console.warn('folder is readable but not writable —',why.name);
-    if(!sessionStorage.getItem('displayOnlyTold')){
-      sessionStorage.setItem('displayOnlyTold','1');
-      modal('\u2139 This computer is set up to show, not to fill in',
-        '<p class="mdl-p">It can read <code>'+esc(DIR.name)+'</code> and pull up any morning, '
-       +'but Windows will not let it save into that folder \u2014 so <b>Press Present</b> and '
-       +'it will show the latest for whatever day you pick.</p>'
-       +'<p class="mdl-p">Save, Publish and Edit Mode are hidden here so nobody fills in a '
-       +'morning that cannot be shared. Fill the morning in on a plant-floor PC as usual.</p>'
+    console.warn('the folder took a read but refused a test write \u2014',why.name);
+    showToast('A test write was refused \u2014 saving will say if it fails','#b7791f');
+    if(!sessionStorage.getItem('probeTold')){
+      sessionStorage.setItem('probeTold','1');
+      modal('\u2139 A test write to that folder was refused',
+        '<p class="mdl-p">This PC can read <code>'+esc(DIR.name)+'</code> and show any '
+       +'morning. A harmless test file could not be written there, which often means a real '
+       +'save will be refused too.</p>'
+       +'<p class="mdl-p"><b>Everything still works from here.</b> Edit Mode and Save are '
+       +'where they always are. If a save is refused you will be told, and the morning is '
+       +'kept on this PC rather than lost.</p>'
        +'<p class="mdl-p" style="color:#6b7a90">'+why.body+'</p>', null, 'Understood');
     }
   }
