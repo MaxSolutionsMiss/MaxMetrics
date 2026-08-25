@@ -2869,13 +2869,32 @@ function mergeDay(base, mine, baseline){
   return out;
 }
 
+/* Two completely different things used to come back from here as null: "nobody has
+   saved this morning yet", which is normal and means there is nothing to merge with,
+   and "the read did not work", which on a shared drive is an ordinary Tuesday — the
+   network blinks, or somebody else is halfway through writing the same file.
+
+   mergeDay() treats a null base as an empty day, so the second case quietly produced a
+   merge containing only what was on THIS screen, wrote it over the good file, and
+   reported a clean save. That is how a morning loses other people's comments with
+   nobody doing anything wrong, and why which comments vanish looked random: it depended
+   on whose read happened to fail.
+
+   Now only a genuinely absent file is null. Anything else throws, and the caller
+   refuses to save rather than saving something with other people's work missing. */
 async function readDayFile(date){
   if (!DIR) return null;
+  const d = await dataDir();
+  let handle;
   try {
-    const d = await dataDir();
-    const f = await d.getFileHandle(date + '.json');
-    return JSON.parse(await (await f.getFile()).text());
-  } catch (e) { return null; }
+    handle = await d.getFileHandle(date + '.json');
+  } catch (e) {
+    if (e && e.name === 'NotFoundError') return null;   /* first save of the day */
+    throw e;                                            /* locked, offline, no rights */
+  }
+  /* A file caught mid-write by somebody else parses as garbage. That is a failed read,
+     not an empty morning, so let it throw too. */
+  return JSON.parse(await (await handle.getFile()).text());
 }
 
 /* what this browser believes the day looks like, for the next diff */
@@ -2951,7 +2970,28 @@ async function mergeAndWrite(date){
     showToast('Saved on this PC only — no shared folder chosen', '#b7791f');
     return;
   }
-  const base = await readDayFile(date);
+  /* If the shared copy cannot be read, there is nothing to merge against, and writing
+     now would replace everybody else's morning with this screen's. Stopping is the
+     only safe move: the morning is already kept on this PC, so waiting costs nothing. */
+  let base;
+  try {
+    base = await readDayFile(date);
+  } catch (e) {
+    const badge = document.getElementById('statusBadge');
+    if (badge) { badge.className = 'badge badge-draft'; badge.textContent = 'On this PC only'; }
+    modal('⚠ Could not read the shared morning',
+      '<p class="mdl-p">Nothing has been saved to <code>' + esc(DIR.name) + '</code>, and '
+     +'<b>nothing has been lost</b> — this morning is still on this PC.</p>'
+     +'<p class="mdl-p">The file for this day is there but could not be read just now. That '
+     +'usually means somebody else is saving at this exact moment, or the drive dropped for '
+     +'a second. Saving anyway would write over whatever they have just added, so it stopped '
+     +'instead.</p>'
+     +'<p class="mdl-p" style="color:#6b7a90">Wait a few seconds and press Save again. Chrome '
+     +'called it <code>' + esc((e && e.name) || 'an error') + '</code>.</p>');
+    showToast('NOT shared — could not read the folder', '#b94444');
+    return;
+  }
+
   const mineIds = new Set();
   Object.keys(mine.comments || {}).forEach(th => (mine.comments[th] || []).forEach(c => {
     if (c) mineIds.add(c.id || legacyId(c)); }));
