@@ -1897,7 +1897,29 @@ function getStore(){
     return {};
   }catch(e){return{}}
 }
-function setStore(s){try{localStorage.setItem(STORE_KEY,JSON.stringify(s))}catch(e){}}
+/* Every "nothing has been lost, it is still on this PC" message in this file rests on
+   this line working. It can fail — storage full, or a policy that blocks it — and
+   swallowing that turned those reassurances into guesses. It says so now, once, loudly,
+   because a person told their work is safe will stop trying to protect it. */
+let storeToldBroken=false;
+function setStore(s){
+  try{ localStorage.setItem(STORE_KEY,JSON.stringify(s)); return true; }
+  catch(e){
+    if(!storeToldBroken){
+      storeToldBroken=true;
+      modal('⚠ This PC cannot keep the morning',
+        '<p class="mdl-p">Chrome refused to store the morning on this computer '
+       +'(<code>'+esc((e&&e.name)||'error')+'</code>). Saving to the shared folder still '
+       +'works, but <b>nothing is being kept here as a safety net</b>.</p>'
+       +'<p class="mdl-p">Until this is sorted, press <b>Save</b> often, and do not rely on '
+       +'closing the tab and coming back.</p>'
+       +'<p class="mdl-p" style="color:#6b7a90">Usually this is browser storage being full '
+       +'or blocked by policy. Clearing old site data for this page normally fixes it.</p>',
+        null, 'I understand');
+    }
+    return false;
+  }
+}
 const TF=['injDate','injRec','nmDate','nmRec','short','cukm','cukm-tgt','cukm-month','cukytd','cukytd-tgt',
   
   'jobs','jobsOT','cartons','late','shorts','otd','otif','mtdotif','ytdotif','mnote','snote'];
@@ -2398,6 +2420,23 @@ function shortWhen(w){
   const mon=MON[+m[2]-1]; if(!mon)return String(w);
   return (+m[3])+' '+mon+' '+m[4].trim();
 }
+/* A comment lived in this variable and nowhere else until somebody pressed Save. Change
+   the day, reload the tab, or let anything call loadDay() — which reads the comments back
+   out of the store — and it was gone, because it had never been put in the store. That is
+   almost certainly the everyday version of "my comment disappeared": no drive involved, no
+   other person involved, just a note that was only ever in memory.
+
+   Every add, edit and delete now lands on this PC straight away. It does not touch the
+   shared folder; that is still Save's job. It only makes sure the thing you typed is
+   somewhere other than the screen. */
+function stashComments(){
+  const d=document.getElementById('dashDate').value;
+  if(!d)return;
+  const store=getStore();
+  store[d]={...(store[d]||{}), comments:COMMENTS, deleted:DELETED};
+  setStore(store);
+}
+
 function renderComments(){
   document.querySelectorAll('[data-thread]').forEach(box=>{
     const key=box.dataset.thread, list=COMMENTS[key]||[], me=(()=>{try{return JSON.parse(localStorage.getItem(meKey)||'null')}catch(e){return null}})();
@@ -2429,7 +2468,7 @@ function addComment(key,text,dept){
     const when=new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
     (COMMENTS[key]=COMMENTS[key]||[]).push({id:cid(),at:Date.now(),
       ini:who.ini,name:who.name,text:text.trim(),when:d+' '+when});
-    renderComments();
+    stashComments(); renderComments();
   }
   whoAmI(false, write);
 }
@@ -2446,7 +2485,7 @@ document.addEventListener('click',e=>{
   if(del){
     const[k,i]=del.split('|'); const c=COMMENTS[k][+i]; if(!c)return;
     const drop=()=>{ if(c.id&&DELETED.indexOf(c.id)<0)DELETED.push(c.id);
-      COMMENTS[k].splice(+i,1);renderComments();};
+      COMMENTS[k].splice(+i,1);stashComments();renderComments();};
     if(mine(c))return drop();
     /* somebody else wrote it — one confirmation, then it goes */
     modal('Delete this comment?',
@@ -2460,7 +2499,7 @@ document.addEventListener('click',e=>{
     const[k,i]=ed.split('|'); const c=COMMENTS[k][+i]; if(!c)return;
     askText(mine(c)?'Edit your comment':'Edit '+c.name+'\u2019s comment',
       [{key:'t',label:'Comment',value:c.text,required:true,area:true}],
-      o=>{ if(o.t!==c.text){c.text=o.t;c.edited=true;c.editedAt=Date.now();} renderComments(); });
+      o=>{ if(o.t!==c.text){c.text=o.t;c.edited=true;c.editedAt=Date.now();stashComments();} renderComments(); });
   }
 });
 document.addEventListener('keydown',e=>{
@@ -2744,12 +2783,29 @@ async function warnAboutStrays(){
    +'be deleted.</p>', null, 'I understand');
 }
 
+/* This used to do `store[date] = file` — the shared copy replacing this screen's copy
+   outright. Changing the day runs it (see the loadDay wrapper further down), so anything
+   typed and not yet saved was thrown away by the act of looking at another date and
+   coming back, with nothing said. Comments typed during the meeting are exactly the
+   thing most likely to be sitting unsaved when that happens.
+
+   It merges now, the same way the fifteen-second refresh already did. Two paths into the
+   same folder had two different ideas about whose copy wins; there is one idea now. */
 async function pullFromFolder(){
   if(!DIR)return;
   const date=document.getElementById('dashDate').value;
-  try{const d=await dataDir();const f=await d.getFileHandle(date+'.json');
-    const j=JSON.parse(await (await f.getFile()).text());
-    const st=getStore();st[date]=j;setStore(st);loadDay();}catch(e){/* no file for that day yet */}
+  let file;
+  try {
+    file = await readDayFile(date);
+  } catch (e) {
+    /* Same rule as saving: a read that failed is not an empty morning. Leave this
+       screen alone and say so, rather than quietly showing less than there is. */
+    showToast('Could not read the shared morning — showing this PC', '#b7791f');
+    return;
+  }
+  if(!file) return;                       /* nobody has saved this day yet */
+  const mine = { ...currentPicture(), deleted: DELETED };
+  adopt(date, mergeDay(file, mine, BASELINE[date]), file);
 }
 
 async function pushLayout(){
