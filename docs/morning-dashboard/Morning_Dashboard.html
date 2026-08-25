@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-build="2026-08-25">
+<html lang="en" data-build="27" data-built="2026-08-25">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1998,7 +1998,11 @@ function setFormData(data){
 function saveDraft(){applyAll();
   const store=getStore(),date=document.getElementById('dashDate').value;
   const now=new Date();
-  const data={...getFormData(),comments:COMMENTS,layout:LAYOUT,
+  /* `deleted` was left out of this, so every Save wiped the record of what had been
+     removed from the copy kept on this PC. Reload the tab and the deletions were
+     forgotten — and the next merge, seeing no deletions, put back comments somebody
+     had taken out. */
+  const data={...getFormData(),comments:COMMENTS,deleted:DELETED,layout:LAYOUT,
               status:'saved',savedAt:now.toISOString()};
   store[date]=data;store.__deptConfig=deptConfig.map(d=>({...d}));
   store.__reviewConfig=reviewConfig.map(d=>({...d}));setStore(store);
@@ -2449,19 +2453,27 @@ function renderComments(){
     const key=box.dataset.thread, list=COMMENTS[key]||[], me=(()=>{try{return JSON.parse(localStorage.getItem(meKey)||'null')}catch(e){return null}})();
     /* on the wall an empty thread is just a heading over a blank box */
     box.classList.toggle('thread-empty',!list.length);
-    box.querySelector('.msgs').innerHTML=list.map((c,i)=>
+    /* Edit and Delete carry the comment's id, not its position in the list.
+       Position was a live wire. The folder is re-read every fifteen seconds, and a
+       refresh that brings in somebody else's comment re-sorts this thread — so the
+       row that was third when the buttons were drawn is fourth by the time anybody
+       clicks one. Deleting "the third one" then deletes a different person's note,
+       and editing it edits a comment nobody was looking at. An id means the button
+       still refers to the comment it was drawn under, however the list has moved. */
+    box.querySelector('.msgs').innerHTML=list.map(c=>{
+      if(!c.id)c.id=legacyId(c);
       /* The initials used to sit in a dark tile in front of every comment. On a
          card with four notes that is four dark squares down the left, and the eye
          goes to them before it goes to a word anybody wrote. The name is already
          under the comment; it did not need saying twice, once loudly. */
-      `<div class="msg"><div class="msg-b">
+      return `<div class="msg"><div class="msg-b">
          <div class="msg-t">${esc(c.text)}</div>
          <div class="msg-m" title="${esc(c.name)}">${esc(firstName(c.name,c.ini))} &middot; ${esc(shortWhen(c.when))}${c.edited?' &middot; edited':''}</div>
          <div class="msg-acts">
-           <button class="msg-btn" data-edit="${key}|${i}">&#9998; Edit</button>
-           <button class="msg-btn del" data-del="${key}|${i}">&#10005; Delete</button>
+           <button class="msg-btn" data-edit="${key}|${esc(c.id)}">&#9998; Edit</button>
+           <button class="msg-btn del" data-del="${key}|${esc(c.id)}">&#10005; Delete</button>
          </div>
-       </div></div>`).join('');
+       </div></div>`;}).join('');
   });
   /* the priorities card nags until the meeting has answered it */
   const prio=document.getElementById('c-priorities');
@@ -2489,10 +2501,30 @@ document.addEventListener('click',e=>{
   const del=delEl&&delEl.dataset.del, ed=edEl&&edEl.dataset.edit;
   const mine=c=>{try{const m=JSON.parse(localStorage.getItem(meKey)||'null');
     return m&&m.ini===c.ini;}catch(x){return false;}};
+
+  /* Look the comment up NOW, by id, in whatever the thread holds at this instant.
+     Holding on to the object found when the button was drawn was the quiet killer:
+     a refresh from the folder rebuilds COMMENTS out of the freshly-read file, so the
+     object the dialog was still pointing at is an orphan nobody can see. Typing into
+     it and pressing Save changed a detached copy, the screen redrew from the real
+     list, and the comment came back exactly as it was — which is the "I edited it,
+     I saved, and nothing changed" the plant kept reporting. It is intermittent
+     because it only bites when somebody else saves while the dialog is open. */
+  const find=(k,id)=>{
+    const list=COMMENTS[k]||[];
+    const i=list.findIndex(c=>c&&c.id===id);
+    return i<0?null:{list,i,c:list[i]};
+  };
+  const vanished=()=>modal('That comment is no longer there',
+    '<p class="mdl-p">While this was open, somebody else deleted it from the shared '
+   +'morning. Nothing has been changed.</p>', null, 'Close');
+
   if(del){
-    const[k,i]=del.split('|'); const c=COMMENTS[k][+i]; if(!c)return;
-    const drop=()=>{ if(c.id&&DELETED.indexOf(c.id)<0)DELETED.push(c.id);
-      COMMENTS[k].splice(+i,1);stashComments();renderComments();};
+    const[k,id]=del.split('|'); const hit=find(k,id); if(!hit)return;
+    const c=hit.c;
+    const drop=()=>{ const now=find(k,id); if(!now)return vanished();
+      if(id&&DELETED.indexOf(id)<0)DELETED.push(id);
+      now.list.splice(now.i,1);stashComments();renderComments();};
     if(mine(c))return drop();
     /* somebody else wrote it — one confirmation, then it goes */
     modal('Delete this comment?',
@@ -2503,10 +2535,18 @@ document.addEventListener('click',e=>{
     return;
   }
   if(ed){
-    const[k,i]=ed.split('|'); const c=COMMENTS[k][+i]; if(!c)return;
-    askText(mine(c)?'Edit your comment':'Edit '+c.name+'\u2019s comment',
-      [{key:'t',label:'Comment',value:c.text,required:true,area:true}],
-      o=>{ if(o.t!==c.text){c.text=o.t;c.edited=true;c.editedAt=Date.now();stashComments();} renderComments(); });
+    const[k,id]=ed.split('|'); const hit=find(k,id); if(!hit)return;
+    const was=hit.c.text;
+    askText(mine(hit.c)?'Edit your comment':'Edit '+hit.c.name+'\u2019s comment',
+      [{key:'t',label:'Comment',value:was,required:true,area:true}],
+      o=>{
+        const now=find(k,id);            /* the list may have been rebuilt meanwhile */
+        if(!now)return vanished();
+        if(o.t!==now.c.text){
+          now.c.text=o.t;now.c.edited=true;now.c.editedAt=Date.now();stashComments();
+        }
+        renderComments();
+      });
   }
 });
 document.addEventListener('keydown',e=>{
@@ -2559,6 +2599,17 @@ function paintFolderBar(){
   const bar=document.getElementById('folderBar'); if(!bar)return;
   const state=(typeof folderState==='function')?folderState():(DIR?'ok':'none');
   const locked=!DIR && !!PENDING;
+  /* An out-of-date copy is worth a permanent bar, not one dismissible warning: the
+     person who dismissed it is still the person whose saves are wiping fields. */
+  if(typeof STALE!=='undefined' && STALE){
+    document.body.classList.add('no-folder');
+    document.body.classList.remove('locked-folder');
+    bar.innerHTML='<div class="fb-t"><b>This is an old copy of the dashboard.</b><br>'
+      +'Somebody is running a newer one, and saves from here can blank out boxes this '
+      +'copy does not know about. Close this tab and open '
+      +'<code>Morning_Dashboard.html</code> from the shared folder itself.</div>';
+    return;
+  }
   document.body.classList.toggle('no-folder',state==='none'&&!locked);
   document.body.classList.toggle('locked-folder',locked);
   if(state==='ok')return;
@@ -2687,7 +2738,10 @@ function pcReport(){
   add('Browser', (navigator.userAgentData && navigator.userAgentData.brands
       ? navigator.userAgentData.brands.map(b=>b.brand+' '+b.version).join(', ')
       : navigator.userAgent.slice(0,90)));
-  add('Page version', document.documentElement.dataset.build || 'not stamped');
+  add('Page version', 'build ' + (typeof BUILD!=='undefined' ? BUILD : '?')
+      + '  (' + (document.documentElement.dataset.built || 'undated') + ')');
+  if (typeof STALE !== 'undefined' && STALE)
+    add('\u26a0 This copy is out of date', 'the folder has been written by a newer one', true);
 
   return {rows, localDay, shown};
 }
@@ -2716,7 +2770,7 @@ async function pcFolderCheck(){
     /* Field by field, screen against file. */
     const mine = currentPicture();
     const skip = ['comments','deleted','layout','custom','maintRows','deptConfig',
-                  'reviewConfig','savedAt','status','publishedAt','location'];
+                  'reviewConfig','savedAt','status','publishedAt','location','build'];
     const differ = [];
     const keys = new Set([...Object.keys(file), ...Object.keys(mine)].filter(k => !skip.includes(k)));
     keys.forEach(k => {
@@ -2856,8 +2910,43 @@ async function adoptFolder(h){
 async function dataDir(){
   return DIR || null;
 }
+/* ══ Which copy of this page am I ═════════════════════════════════════════════════
+   Everything in this file is one file, which is its virtue and its trap: it gets
+   emailed, downloaded, and copied to desktops, and then four vintages of it are all
+   writing the same folder. The one that printed the morning this was written for was
+   running out of C:\Users\...\Downloads.
+
+   An older copy is not harmless. It does not know about fields added since, so it
+   saves them blank over everybody's; it does not know how comments are matched, so
+   it can put back a note somebody deleted. That is the whole shape of "it works on
+   my computer and not on hers", and no amount of reading the code finds it, because
+   the code being read is not the code being run.
+
+   So every save stamps the number below into the day file, and a copy that finds a
+   higher number knows, for certain, that it is the old one. */
+const BUILD = 27;
+
+let STALE = false;                 /* a newer copy of this page has written this folder */
+function noteBuild(file){
+  if(!file || typeof file.build !== 'number') return;
+  if(file.build > BUILD && !STALE){
+    STALE = true;
+    if(typeof paintFolderBar==='function')paintFolderBar();
+    modal('\u26A0 This copy of the dashboard is out of date',
+      '<p class="mdl-p">The shared morning was last saved by a <b>newer version</b> of this '
+     +'page (build ' + file.build + '; this copy is build ' + BUILD + ').</p>'
+     +'<p class="mdl-p">Saving from an old copy is how numbers go missing: it does not know '
+     +'about boxes added since, so it writes them back empty over everybody else\u2019s. '
+     +'<b>Nothing has been lost yet.</b></p>'
+     +'<p class="mdl-p">Close this tab and open <code>Morning_Dashboard.html</code> from the '
+     +'shared folder itself, rather than a copy in Downloads or on the desktop. Then this '
+     +'message will stop.</p>', null, 'Understood');
+  }
+}
+
 async function pushToFolder(date,data){
   if(!DIR)return {ok:false,err:new Error('no folder chosen')};
+  data = {...data, build: BUILD};
   try{const d=await dataDir();const f=await d.getFileHandle(date+'.json',{create:true});
     const w=await f.createWritable();await w.write(JSON.stringify(data,null,2));await w.close();
     return {ok:true};}
@@ -3041,7 +3130,7 @@ function stampComments(obj){
 
 const SAME = (a,b) => JSON.stringify(a===undefined?null:a) === JSON.stringify(b===undefined?null:b);
 const NOT_A_FIELD = ['comments','deleted','maintRows','deptConfig','reviewConfig','custom',
-                     'layout','status','savedAt','publishedAt','location','date'];
+                     'layout','status','savedAt','publishedAt','location','date','build'];
 
 function mergeDay(base, mine, baseline){
   base = base || {}; mine = mine || {}; baseline = baseline || {};
@@ -3118,7 +3207,9 @@ async function readDayFile(date){
   }
   /* A file caught mid-write by somebody else parses as garbage. That is a failed read,
      not an empty morning, so let it throw too. */
-  return JSON.parse(await (await handle.getFile()).text());
+  const file = JSON.parse(await (await handle.getFile()).text());
+  if (typeof noteBuild === 'function') noteBuild(file);
+  return file;
 }
 
 /* what this browser believes the day looks like, for the next diff */
@@ -3196,6 +3287,11 @@ const countAll = c => Object.keys(c || {}).reduce((n,k) => n + (c[k] || []).leng
 let refreshing = false;
 async function refreshFromFolder(){
   if (!DIR || refreshing) return;
+  /* Never redraw the page out from under an open dialog. Somebody typing a comment
+     into the edit box is holding a conversation with a version of the morning; pulling
+     the floor out mid-sentence is how that conversation ends up applied to the wrong
+     thing. The folder will still be there in fifteen seconds. */
+  if (document.querySelector('.mdl-bg')) return;
   refreshing = true;
   try {
     const date = document.getElementById('dashDate').value;
@@ -3284,7 +3380,7 @@ async function mergeAndWrite(date){
   adopt(date, merged);
   const after = currentPicture();
   const SKIP = ['comments','deleted','layout','custom','maintRows','deptConfig',
-                'reviewConfig','savedAt','status','publishedAt','location'];
+                'reviewConfig','savedAt','status','publishedAt','location','build'];
   const moved = [...new Set([...Object.keys(before), ...Object.keys(after)])]
     .filter(k => !SKIP.includes(k))
     .filter(k => String(before[k] ?? '') !== String(after[k] ?? ''));
@@ -3390,8 +3486,18 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(syncBaseline,0));
 if(document.readyState!=='loading')setTimeout(syncBaseline,0);
 (function(){const orig=window.loadDay;window.loadDay=function(){
   const r=orig.apply(this,arguments); setTimeout(syncBaseline,0); return r;};})();
+/* pullFromFolder ends in adopt(), which has already set the baseline to the FILE —
+   the only thing a later save can sensibly measure "what did I change" against.
+   Overwriting it here with the merged screen said the opposite: that everything now
+   showing had been agreed with the file. Anything this PC held that the file did not
+   then looked untouched at the next save, so the merge handed the box back to the
+   file's value and the number quietly reverted. Only fill a baseline in if the pull
+   never got as far as taking one. */
 (function(){const orig=window.pullFromFolder;window.pullFromFolder=async function(){
-  const r=await orig.apply(this,arguments); setTimeout(syncBaseline,0); return r;};})();
+  const r=await orig.apply(this,arguments);
+  setTimeout(()=>{const d=document.getElementById('dashDate').value;
+    if(d&&!BASELINE[d])syncBaseline();},0);
+  return r;};})();
 
 /* Changing the day looks in the folder first. */
 (function(){const orig=window.loadDay;let busy=false;window.loadDay=function(){
