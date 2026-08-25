@@ -1,5 +1,13 @@
 /* A whole morning: type it, Save, wipe the browser, read it back out of the
-   folder — using a fake folder that behaves like a real one. */
+   folder — using a fake folder that behaves like a real one.
+
+   "Behaves like a real one" includes the errors. Chrome throws NotFoundError for a file
+   that is not there, and the dashboard leans on that name: a genuinely missing file is
+   the first save of the day, while any other failure is a read that did not work and
+   must not be saved over — that distinction is what stopped mornings losing other
+   people's comments. A stub that throws a plain Error is saying "the folder is broken",
+   so the save correctly refuses, and the test then blames the page for the stub being
+   unfaithful. It has caught us out three times in three different files now. */
 import {chromium} from 'playwright';
 const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});
 let bad=0; const say=(ok,t)=>{console.log((ok?'  ok   ':'  FAIL ')+t);if(!ok)bad++;};
@@ -14,7 +22,9 @@ await p.evaluate(()=>{
   DIR={name:'Data',
     getDirectoryHandle(){return Promise.resolve(DIR);},
     getFileHandle(n,o){
-      if(!(n in window.FAKE)&&!(o&&o.create))return Promise.reject(new Error('not found'));
+      /* NotFoundError, the way Chrome does it — see the note at the top of this file. */
+      if(!(n in window.FAKE)&&!(o&&o.create))
+        return Promise.reject(Object.assign(new Error('not found'),{name:'NotFoundError'}));
       return Promise.resolve({
         createWritable:async()=>({write:async t=>{window.FAKE[n]=t;},close:async()=>{}}),
         getFile:async()=>({text:async()=>window.FAKE[n]})});
@@ -61,7 +71,9 @@ await p.evaluate(async()=>{
   DIR={name:'Data',
     getDirectoryHandle(){return Promise.resolve(DIR);},
     getFileHandle(n,o){
-      if(!(n in window.FAKE)&&!(o&&o.create))return Promise.reject(new Error('not found'));
+      /* NotFoundError, the way Chrome does it — see the note at the top of this file. */
+      if(!(n in window.FAKE)&&!(o&&o.create))
+        return Promise.reject(Object.assign(new Error('not found'),{name:'NotFoundError'}));
       return Promise.resolve({
         createWritable:async()=>({write:async t=>{window.FAKE[n]=t;},close:async()=>{}}),
         getFile:async()=>({text:async()=>window.FAKE[n]})});
