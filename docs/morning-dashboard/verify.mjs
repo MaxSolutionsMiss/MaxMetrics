@@ -1,6 +1,6 @@
 /* Everything that must be true before this file goes to anybody. */
 import fs from 'fs'; import vm from 'vm'; import {chromium} from 'playwright';
-const F=process.argv[2]||'Toronto_Morning_Dashboard.html';
+const F=process.argv[2]||'Morning_Dashboard.html';
 const s=fs.readFileSync(F,'utf8');
 let bad=0; const say=(ok,t)=>{console.log((ok?'  ok   ':'  FAIL ')+t); if(!ok)bad++;};
 const URL='file://'+process.cwd()+'/'+F;

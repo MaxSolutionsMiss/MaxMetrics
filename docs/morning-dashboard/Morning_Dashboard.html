@@ -399,9 +399,7 @@ textarea.ei{height:60px;resize:vertical;font-size:11px;padding:5px 8px;line-heig
 .folderbar{display:none;align-items:center;gap:14px;flex-wrap:wrap;
   background:#fdf1f1;border:1px solid var(--red-border);border-left:6px solid var(--red);
   border-radius:12px;padding:13px 18px;margin:0 0 14px;color:#7f2d2b}
-body.no-folder .folderbar,body.wrong-folder .folderbar{display:flex}
-body.wrong-folder .folderbar{background:#fdf8ea;border-color:var(--amber-border);
-  border-left-color:var(--amber);color:#7a5a12}
+body.no-folder .folderbar{display:flex}
 .folderbar b{font-family:var(--font-condensed);font-size:19px;letter-spacing:.02em}
 .folderbar .fb-t{flex:1;min-width:260px;font-size:13.5px;line-height:1.5}
 .folderbar code{font-family:var(--font-mono,monospace);font-size:12.5px;
@@ -409,7 +407,6 @@ body.wrong-folder .folderbar{background:#fdf8ea;border-color:var(--amber-border)
 .folderbar button{font-family:var(--font-body);font-size:13.5px;font-weight:600;
   padding:10px 20px;border-radius:9px;border:0;background:var(--red);color:#fff;cursor:pointer;
   white-space:nowrap}
-body.wrong-folder .folderbar button{background:var(--amber)}
 .folderbar button:hover{filter:brightness(1.08)}
 @media print{.folderbar{display:none!important}}
 
@@ -2554,7 +2551,6 @@ function paintFolderBar(){
   const locked=!DIR && !!PENDING;
   document.body.classList.toggle('no-folder',state==='none'&&!locked);
   document.body.classList.toggle('locked-folder',locked);
-  document.body.classList.toggle('wrong-folder',state==='other');
   if(state==='ok')return;
   if(locked){
     /* Not forgotten — Chrome simply drops the write permission when it closes,
@@ -2689,10 +2685,14 @@ async function adoptFolder(h){
     }
   }
 }
+/* The morning goes in the folder you picked. Nothing else.
+   This used to quietly redirect into a "Data" subfolder — creating one if it had to —
+   whenever the chosen folder was not itself called Data, and fall back to the parent if
+   that failed. Two people could therefore point at the same folder and write to two
+   different places, and neither would be told. Pick a folder, get that folder.
+   No change for the usual setup, which points straight at Data already. */
 async function dataDir(){
-  if(!DIR)return null;
-  if(/^data$/i.test(DIR.name))return DIR;
-  try{return await DIR.getDirectoryHandle('Data',{create:true});}catch(e){return DIR;}
+  return DIR || null;
 }
 async function pushToFolder(date,data){
   if(!DIR)return {ok:false,err:new Error('no folder chosen')};
@@ -2827,10 +2827,16 @@ async function pullLayout(){
    but this PC.  So Save and Publish both check the folder first: right folder,
    it saves and names the file; wrong folder or none, it stops and says so
    before anything is typed twice.                                             */
-const EXPECTED_FOLDER='Data';
+/* Any folder will do.
+   This used to insist the chosen folder be named exactly "Data" and refuse to save into
+   anything else — an amber bar, and a modal that would not let go until you picked the
+   one blessed name. That protects a single fixed setup and gets in the way of every other
+   one, including simply trying the thing out somewhere else first.
+   The morning goes wherever you point it. Whether everybody points at the same place is
+   a decision for the people, not a rule the page enforces. */
+const EXPECTED_FOLDER='Data';        /* still the suggested name, no longer a requirement */
 function folderState(){
-  if(!DIR)return 'none';
-  return (DIR.name||'').trim().toLowerCase()===EXPECTED_FOLDER.toLowerCase()?'ok':'other';
+  return DIR ? 'ok' : 'none';
 }
 
 /* ══ Four people, one morning ══════════════════════════════════════════════════
@@ -3120,32 +3126,22 @@ async function present(){
             fresh?'#2f7d4a':'#b7791f');
 }
 
+/* The only thing still worth stopping for is having no folder at all — there is nowhere
+   to write, so there is nothing to do but ask. Whichever folder comes back is accepted. */
 function checkFolderThen(go){
-  const state=folderState();
-  if(state==='ok')return go();
-  const body = state==='none'
-    ? `<p class="mdl-p">No shared folder has been picked on this PC yet. The morning has to go
-         into the folder everybody reads:</p>
-       <p class="mdl-p"><code>Z:\\Morning Dashboard\\${EXPECTED_FOLDER}</code></p>
-       <p class="mdl-p">You only do this once on each computer.</p>`
-    : `<p class="mdl-p">This computer is pointed at <b>${esc(DIR.name)}</b>, which is not the
-         folder the morning meeting reads:</p>
-       <p class="mdl-p"><code>Z:\\Morning Dashboard\\${EXPECTED_FOLDER}</code></p>
-       <p class="mdl-p">Nothing saved anywhere else will turn up there.</p>`;
-  const bg=modal('\u26A0 This is not saving where everybody looks', body,
-    ()=>{ /* the only way on is to pick the folder */ }, 'Choose the folder');
+  if(folderState()==='ok')return go();
+  const bg=modal('Choose where the morning is saved',
+    `<p class="mdl-p">No folder has been picked on this PC yet, so there is nowhere to put
+       the morning. Pick one — any folder will do, and everybody who should read the same
+       morning wants to be pointed at the same one.</p>
+     <p class="mdl-p" style="color:#6b7a90">Usually <code>Z:\\Morning Dashboard\\${EXPECTED_FOLDER}</code>.</p>
+     <p class="mdl-p">You only do this once on each computer.</p>`,
+    ()=>{}, 'Choose the folder');
   const ok=bg.querySelector('[data-ok]');
   ok.textContent='Choose the folder';
   ok.onclick=async()=>{
     const got=await chooseFolder(true);
     if(!got)return;                       /* they backed out of the picker */
-    if(folderState()!=='ok'){             /* they picked the wrong one again */
-      bg.querySelector('.mdl-b').innerHTML=
-        '<p class="mdl-p">That is <b>'+esc(DIR.name)+'</b>, not <b>'+EXPECTED_FOLDER+'</b>. '
-        +'Open <code>Z:\\Morning Dashboard</code> and pick the <code>'+EXPECTED_FOLDER
-        +'</code> folder inside it.</p>';
-      return;
-    }
     bg.remove(); go();
   };
 }

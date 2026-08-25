@@ -1,7 +1,7 @@
 import {chromium} from 'playwright';
 const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});
 let bad=0; const say=(ok,t)=>{console.log((ok?'  ok   ':'  FAIL ')+t); if(!ok)bad++;};
-const URL='file://'+process.cwd()+'/'+(process.argv[2]||'Toronto_Morning_Dashboard.html');
+const URL='file://'+process.cwd()+'/'+(process.argv[2]||'Morning_Dashboard.html');
 const top=(p,s)=>p.$$eval('.mdl-bg',(g,x)=>g[g.length-1].querySelector(x).click(),s);
 const setTop=(p,s,v)=>p.$$eval('.mdl-bg',(g,[x,v])=>{g[g.length-1].querySelector(x).value=v;},[s,v]);
 const openN=async p=>(await p.$$('.mdl-bg')).length;

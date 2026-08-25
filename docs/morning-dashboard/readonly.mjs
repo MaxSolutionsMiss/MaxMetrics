@@ -2,7 +2,7 @@
 import {chromium} from 'playwright';
 const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});
 let bad=0; const say=(o,t)=>{console.log((o?'  ok   ':'  FAIL ')+t);if(!o)bad++;};
-const URL='file://'+process.cwd()+'/Toronto_Morning_Dashboard.html';
+const URL='file://'+process.cwd()+'/Morning_Dashboard.html';
 
 /* A folder that hands over files happily and throws the named error on any
    attempt to write — which is exactly what a read-only share does. */

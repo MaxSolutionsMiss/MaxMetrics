@@ -5,7 +5,7 @@ const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});
 let bad=0; const say=(o,t)=>{console.log((o?'  ok   ':'  FAIL ')+t);if(!o)bad++;};
 const c=await b.newContext({viewport:{width:1600,height:1000},deviceScaleFactor:2});
 const p=await c.newPage(); const errs=[]; p.on('pageerror',e=>errs.push(e.message));
-await p.goto('file://'+process.cwd()+'/Toronto_Morning_Dashboard.html');
+await p.goto('file://'+process.cwd()+'/Morning_Dashboard.html');
 await p.waitForTimeout(1400);
 
 await p.evaluate(()=>{

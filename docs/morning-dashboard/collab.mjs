@@ -3,7 +3,7 @@
 import {chromium} from 'playwright';
 const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});
 let bad=0; const say=(ok,t)=>{console.log((ok?'  ok   ':'  FAIL ')+t);if(!ok)bad++;};
-const URL='file://'+process.cwd()+'/'+(process.argv[2]||'Toronto_Morning_Dashboard.html');
+const URL='file://'+process.cwd()+'/'+(process.argv[2]||'Morning_Dashboard.html');
 
 /* one folder on disk, shared by every browser in this test */
 const DISK={};

@@ -3,7 +3,7 @@ const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});
 let bad=0; const say=(o,t)=>{console.log((o?'  ok   ':'  FAIL ')+t);if(!o)bad++;};
 const p=await b.newPage({viewport:{width:1400,height:900},deviceScaleFactor:2});
 p.on('pageerror',e=>say(false,'error: '+e.message));
-await p.goto('file://'+process.cwd()+'/'+(process.argv[2]||'Toronto_Morning_Dashboard.html'));
+await p.goto('file://'+process.cwd()+'/'+(process.argv[2]||'Morning_Dashboard.html'));
 await p.waitForTimeout(1400);
 const vis=a=>p.$eval(`.rail-act[data-act=${a}]`,n=>getComputedStyle(n).display!=='none');
 

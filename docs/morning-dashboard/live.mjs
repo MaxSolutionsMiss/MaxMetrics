@@ -9,13 +9,16 @@ async function person(name,ini){
   p.on('pageerror',e=>say(false,name+' error: '+e.message));
   await p.exposeFunction('_read', n=>DISK[n]??null);
   await p.exposeFunction('_write',(n,t)=>{DISK[n]=t;});
-  await p.goto('file://'+process.cwd()+'/'+(process.argv[2]||'Toronto_Morning_Dashboard.html'));
+  await p.goto('file://'+process.cwd()+'/'+(process.argv[2]||'Morning_Dashboard.html'));
   await p.waitForTimeout(1200);
   await p.evaluate(({name,ini})=>{
     localStorage.setItem(meKey,JSON.stringify({name,ini}));
     DIR={name:'Data', getDirectoryHandle(){return Promise.resolve(DIR);},
       async getFileHandle(n,o){ const cur=await window._read(n);
-        if(cur===null&&!(o&&o.create))throw new Error('none');
+        /* Chrome signals an absent file with NotFoundError, and the dashboard now tells
+           that apart from a read that failed. A generic Error here would be read as a
+           broken drive and the save would correctly refuse. */
+        if(cur===null&&!(o&&o.create)){const e=new Error('none');e.name='NotFoundError';throw e;}
         return {createWritable:async()=>({write:async t=>{await window._write(n,t);},close:async()=>{}}),
                 getFile:async()=>({text:async()=>window._read(n)})};}};
   },{name,ini});

@@ -5,7 +5,7 @@ const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});
 let bad=0; const say=(ok,t)=>{console.log((ok?'  ok   ':'  FAIL ')+t);if(!ok)bad++;};
 const p=await b.newPage({viewport:{width:1500,height:950}});
 p.on('pageerror',e=>say(false,'page error: '+e.message));
-await p.goto('file://'+process.cwd()+'/'+(process.argv[2]||'Toronto_Morning_Dashboard.html'));
+await p.goto('file://'+process.cwd()+'/'+(process.argv[2]||'Morning_Dashboard.html'));
 await p.waitForTimeout(1200);
 
 /* a folder that actually keeps what is written to it */
