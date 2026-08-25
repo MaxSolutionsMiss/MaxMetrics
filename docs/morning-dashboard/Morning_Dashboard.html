@@ -927,8 +927,8 @@ body.pres-mode #c-priorities.awaiting{animation:none}
     <div class="stat-num" id="d-injDays">&mdash;</div>
     <div class="stat-sub" id="d-injSub">Last: &mdash; &nbsp;&middot;&nbsp; Record: &mdash;</div>
     <div class="ez hidden" id="ez-inj">
-      <div class="er"><span class="el">Last injury</span><input class="ei" id="i-injDate" type="date" onchange="calcSafety()"></div>
-      <div class="er"><span class="el">Record days</span><input class="ei" id="i-injRec" type="number" value="136" oninput="calcSafety()"></div>
+      <div class="er"><span class="el">Last injury</span><input class="ei" id="i-injDate" type="date" onchange="applyAll()"></div>
+      <div class="er"><span class="el">Record days</span><input class="ei" id="i-injRec" type="number" value="136" oninput="applyAll()"></div>
     </div>
   </div>
 
@@ -937,8 +937,8 @@ body.pres-mode #c-priorities.awaiting{animation:none}
     <div class="stat-num" id="d-nmDays">&mdash;</div>
     <div class="stat-sub" id="d-nmSub">Last: &mdash; &nbsp;&middot;&nbsp; Record: &mdash;</div>
     <div class="ez hidden" id="ez-nm">
-      <div class="er"><span class="el">Last near-miss</span><input class="ei" id="i-nmDate" type="date" onchange="calcSafety()"></div>
-      <div class="er"><span class="el">Record days</span><input class="ei" id="i-nmRec" type="number" value="89" oninput="calcSafety()"></div>
+      <div class="er"><span class="el">Last near-miss</span><input class="ei" id="i-nmDate" type="date" onchange="applyAll()"></div>
+      <div class="er"><span class="el">Record days</span><input class="ei" id="i-nmRec" type="number" value="89" oninput="applyAll()"></div>
     </div>
   </div>
 
@@ -1810,6 +1810,14 @@ function applyAll(){
   // Quality
   const sh=n('i-short');
   document.getElementById('d-short').textContent=sh;
+  /* Pre-production, drawn from its own boxes. Nothing read these before: the inputs
+     existed, the cards existed, and no line of code joined the two. */
+  ['ppLogged','ppBooked'].forEach(k=>{
+    const box=document.getElementById('i-'+k), out=document.getElementById('d-'+k);
+    if(!out)return;
+    const raw=box&&String(box.value).trim();
+    out.textContent = raw ? Number(raw).toLocaleString() : '\u2014';
+  });
   setCardX('c-short',shortageStatus(sh),'stat-card');
   ['cukm','cukytd'].forEach(k=>{
     const el=document.getElementById('i-'+k);if(!el||el.value==='')return;
@@ -1914,7 +1922,11 @@ function setStore(s){
 }
 const TF=['injDate','injRec','nmDate','nmRec','short','cukm','cukm-tgt','cukm-month','cukytd','cukytd-tgt',
   
-  'jobs','jobsOT','cartons','late','shorts','otd','otif','mtdotif','ytdotif','mnote','snote'];
+  'jobs','jobsOT','cartons','late','shorts','otd','otif','mtdotif','ytdotif','mnote','snote',
+  /* Pre-production. These two were never in this list, so nothing ever saved them —
+     not to the file, not even to this PC. Typing in them and pressing Save changed
+     nothing, and both cards read \u2014 for everybody, always. */
+  'ppLogged','ppBooked'];
 const RD=['pr','dc','gl','sh'];
 function getFormData(){
   const data={custom:(typeof customValues==='function'?customValues():{}),
@@ -2042,7 +2054,7 @@ function loadDay(){
       // Days Since Injury / Near-Miss auto-recalculate from stored dates against new dashDate.
       // All production, shipping, COQ values carry over for the user to edit.
       setFormData(store[prevDate]);
-      renderProductionSection(false);renderReviewSection(false);applyAll();applyDeptData(store[prevDate]); // calcSafety() inside will auto-update days counts for the new date
+      renderProductionSection(false);renderReviewSection(false);applyAll();applyDeptData(store[prevDate]); // applyAll() inside recomputes the days-since counts for the new date
       document.body.classList.remove('pres-mode');
       const b=document.getElementById('statusBadge');
       b.className='badge badge-pre';b.textContent='Pre-filled · Not saved';b.classList.remove('hidden');
@@ -2978,8 +2990,39 @@ function adopt(date, merged, fileAsBaseline){
   DELETED  = merged.deleted || [];
   if (merged.layout) LAYOUT = merged.layout;
   setFormData(merged);
+
+  /* The other half of the morning.
+     setFormData fills the fixed fields. Everything built from the plant's configuration —
+     the department figures, the previous week's table, the production review — is rendered
+     from deptConfig/reviewConfig and then filled by applyDeptData, which adopt() never
+     called. loadDay does. So a morning read out of a file arrived with those three sections
+     blank on every PC except the one that typed it: twenty-seven of sixty-two fields,
+     including Jobs logged, Booked in GT and the whole Previous week table.
+
+     The rows are only rebuilt when the configuration in the file differs from what is on
+     screen. Re-rendering on every fifteen-second refresh would throw away the row somebody
+     is typing in; applyDeptData on its own just sets values, and the caret is put back
+     below. */
+  const sameCfg = (a, b) => JSON.stringify(a || []) === JSON.stringify(b || []);
+  let rebuild = false;
+  if (Array.isArray(merged.deptConfig) && merged.deptConfig.length
+      && typeof normalizeDeptConfig === 'function'
+      && !sameCfg(merged.deptConfig, deptConfig)) {
+    deptConfig = merged.deptConfig.map(d => normalizeDeptConfig(d)); rebuild = true;
+  }
+  if (Array.isArray(merged.reviewConfig) && merged.reviewConfig.length
+      && typeof normalizeReviewConfig === 'function'
+      && !sameCfg(merged.reviewConfig, reviewConfig)) {
+    reviewConfig = merged.reviewConfig.map(d => normalizeReviewConfig(d)); rebuild = true;
+  }
+  if (rebuild) {
+    if (typeof renderProductionSection === 'function') renderProductionSection(false);
+    if (typeof renderReviewSection === 'function') renderReviewSection(false);
+  }
+
   if (typeof restoreCustom === 'function') restoreCustom(merged.custom);
   if (typeof applyAll === 'function') applyAll();
+  if (typeof applyDeptData === 'function') applyDeptData(merged);
   if (typeof applyLayout === 'function') applyLayout();
   if (typeof renderComments === 'function') renderComments();
   if (caret && document.contains(caret.el)) {
