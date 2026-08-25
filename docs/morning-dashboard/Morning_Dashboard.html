@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-build="2026-08-25">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -881,6 +881,9 @@ body.pres-mode #c-priorities.awaiting{animation:none}
           title="Export a copy" aria-label="Export a copy"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 9.4V2.8"/><path d="M5.3 5.5L8 2.8l2.7 2.7"/><path d="M2.8 11.2v2.2h10.4v-2.2"/></svg></button>
         <button class="btn btn-ghost btn-sq" onclick="document.getElementById('importFile').click()"
           title="Import a file" aria-label="Import a file"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.6v6.6"/><path d="M5.3 6.6L8 9.3l2.7-2.7"/><path d="M2.8 11.2v2.2h10.4v-2.2"/></svg></button>
+        <button class="btn btn-ghost btn-sq no-print" onclick="checkThisPC()"
+          title="Check this PC \u2014 clock, folder, and whether the screen matches the shared file"
+          aria-label="Check this PC"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.4l2.2 1.4"/></svg></button>
         <button class="btn btn-ghost btn-sq" onclick="printDashboard()"
           title="Print or save as PDF" aria-label="Print or save as PDF"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.6 6.2V2.6h6.8v3.6"/><path d="M2.6 6.2h10.8v4.4H2.6z"/><path d="M4.6 9.6h6.8v3.8H4.6z"/></svg></button>
       </span>
@@ -2641,6 +2644,151 @@ async function canWriteHere(){
     return {ok:true};
   }catch(e){ return {ok:false, err:e}; }
 }
+
+/* ══ Check this PC ═══════════════════════════════════════════════════════════════
+   A fault that happens on one computer and nowhere else cannot be found by reading
+   the code — the code is the same on every computer. What differs is the machine:
+   its clock, its folder, its permissions, its stored history, its browser. So the
+   dashboard says what it sees, on the machine where the trouble is.
+
+   Everything here is read, never changed. Running it is safe mid-meeting. */
+
+function pcReport(){
+  const now = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  const localDay = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+  const shown = document.getElementById('dashDate').value;
+  const rows = [];
+  const add = (label, value, bad) => rows.push({label, value, bad: !!bad});
+
+  /* The clock is first because it decides which file this PC even opens. A machine a
+     day out reads and writes a different morning from everybody else, and every symptom
+     that follows looks like corruption rather than a wrong date. */
+  add('This PC thinks today is', localDay + '  (' + now.toLocaleTimeString() + ')');
+  add('The dashboard is showing', shown, shown !== localDay);
+  if (shown !== localDay) {
+    add('⚠ Those differ', 'this PC is reading ' + shown + '.json while a PC set to '
+      + localDay + ' reads a different file');
+  }
+  try { add('Time zone', Intl.DateTimeFormat().resolvedOptions().timeZone || 'unknown'); }
+  catch(e){ add('Time zone','unknown'); }
+
+  add('Folder', DIR ? DIR.name : 'none chosen', !DIR);
+
+  /* Storage on this PC. Everything the page promises about "nothing is lost, it is
+     still here" rests on this working. */
+  let held = 0, storeOK = true;
+  try {
+    const s = getStore();
+    held = Object.keys(s).filter(k => !k.startsWith('__')).length;
+  } catch(e){ storeOK = false; }
+  add('Days kept on this PC', storeOK ? String(held) : 'cannot read storage', !storeOK);
+
+  add('Browser', (navigator.userAgentData && navigator.userAgentData.brands
+      ? navigator.userAgentData.brands.map(b=>b.brand+' '+b.version).join(', ')
+      : navigator.userAgent.slice(0,90)));
+  add('Page version', document.documentElement.dataset.build || 'not stamped');
+
+  return {rows, localDay, shown};
+}
+
+/* The part that touches the folder: does the day file exist, can it be read, can it be
+   written, and does what is in it match what is on the screen. The last one is the
+   answer to "it changed my numbers when I saved" — it says which fields disagree
+   BEFORE anybody presses Save. */
+async function pcFolderCheck(){
+  const out = [];
+  const date = document.getElementById('dashDate').value;
+  if (!DIR) { out.push({label:'Folder', value:'none chosen — nothing to check', bad:true}); return out; }
+
+  let file = null, readErr = null;
+  try { file = await readDayFile(date); }
+  catch(e){ readErr = e; }
+
+  if (readErr) {
+    out.push({label:'Reading ' + date + '.json', value:'FAILED — ' + (readErr.name||'error'), bad:true});
+  } else if (!file) {
+    out.push({label:'Reading ' + date + '.json', value:'no file yet for this day'});
+  } else {
+    out.push({label:'Reading ' + date + '.json', value:'ok'
+      + (file.savedAt ? ' — last saved ' + new Date(file.savedAt).toLocaleString() : '')});
+
+    /* Field by field, screen against file. */
+    const mine = currentPicture();
+    const skip = ['comments','deleted','layout','custom','maintRows','deptConfig',
+                  'reviewConfig','savedAt','status','publishedAt','location'];
+    const differ = [];
+    const keys = new Set([...Object.keys(file), ...Object.keys(mine)].filter(k => !skip.includes(k)));
+    keys.forEach(k => {
+      const a = mine[k] == null ? '' : String(mine[k]);
+      const b = file[k] == null ? '' : String(file[k]);
+      if (a !== b) differ.push(k + ': screen "' + a + '" vs file "' + b + '"');
+    });
+    out.push({label:'Fields that differ from the file', value: differ.length
+      ? differ.length + ' — ' + differ.slice(0,8).join('; ') + (differ.length>8?' …':'')
+      : 'none, the screen matches the file', bad: differ.length > 0});
+
+    const n = Object.keys(file.comments||{}).reduce((t,k)=>t+(file.comments[k]||[]).length,0);
+    const m = Object.keys(COMMENTS||{}).reduce((t,k)=>t+(COMMENTS[k]||[]).length,0);
+    out.push({label:'Comments', value:'file has ' + n + ', this screen has ' + m,
+      bad: n !== m});
+  }
+
+  /* The clock question, answered by the folder rather than by trust. If a morning exists
+     dated later than this PC believes today to be, this PC is behind — and it has been
+     reading and writing a different day from everybody else, which looks like every
+     symptom at once. */
+  try {
+    const d = await dataDir();
+    if (d && d.values) {
+      const days = [];
+      for await (const h of d.values()) {
+        const m = h.name && h.name.match(/^(\d{4}-\d{2}-\d{2})\.json$/);
+        if (m) days.push(m[1]);
+      }
+      days.sort();
+      const newest = days[days.length - 1];
+      if (newest) {
+        out.push({label:'Newest morning in the folder', value: newest
+          + (newest > date ? '  \u2014 later than this PC\u2019s date' : ''),
+          bad: newest > date});
+        if (newest > date) out.push({label:'\u26a0 This PC\u2019s clock looks wrong',
+          value:'somebody has saved ' + newest + ' and this PC thinks it is ' + date
+            + '. Fix the date on this PC and everything else should follow.', bad:true});
+      }
+      out.push({label:'Mornings in the folder', value:String(days.length)});
+    }
+  } catch(e){ out.push({label:'Listing the folder', value:'could not \u2014 ' + (e.name||'error'), bad:true}); }
+
+  const probe = await canWriteHere();
+  out.push({label:'Writing to the folder',
+    value: probe.ok ? 'ok' : 'REFUSED — ' + ((probe.err&&probe.err.name)||'error'),
+    bad: !probe.ok});
+  return out;
+}
+
+async function checkThisPC(){
+  const {rows} = pcReport();
+  const body = list => list.map(r =>
+    '<tr><td style="padding:4px 14px 4px 0;color:#6b7a90;white-space:nowrap;vertical-align:top">'
+    + esc(r.label) + '</td><td style="padding:4px 0;font-weight:600;'
+    + (r.bad?'color:#b94444':'') + '">' + esc(String(r.value)) + '</td></tr>').join('');
+
+  const bg = modal('Check this PC',
+    '<p class="mdl-p">What this computer looks like right now. Nothing here changes '
+   + 'anything.</p><table style="font-size:13px;border-collapse:collapse">'
+   + body(rows) + '</table>'
+   + '<p class="mdl-p" id="pc-folder" style="color:#6b7a90">Checking the folder…</p>',
+    null, 'Close');
+
+  const folder = await pcFolderCheck();
+  const slot = bg.querySelector('#pc-folder');
+  if (slot) slot.outerHTML = '<table style="font-size:13px;border-collapse:collapse;margin-top:10px">'
+    + body(folder) + '</table>'
+    + '<p class="mdl-p" style="color:#6b7a90">Read this out and it says which of the two '
+    + 'is wrong: this computer, or the file everybody shares.</p>';
+}
+
 /* A folder somebody has already chosen, waiting on one click to be usable again. */
 let PENDING=null;
 
@@ -3128,11 +3276,37 @@ async function mergeAndWrite(date){
     showToast('NOT shared — saved on this PC only', '#b94444');
     return;
   }
+  /* "I pressed Save and it changed my numbers."
+     It does, sometimes, and correctly: a save merges, so a box this person did not touch
+     takes the shared file's value. Saying nothing about it is what makes it feel like the
+     page invented something. Note which boxes the merge moved, and name them. */
+  const before = currentPicture();
   adopt(date, merged);
+  const after = currentPicture();
+  const SKIP = ['comments','deleted','layout','custom','maintRows','deptConfig',
+                'reviewConfig','savedAt','status','publishedAt','location'];
+  const moved = [...new Set([...Object.keys(before), ...Object.keys(after)])]
+    .filter(k => !SKIP.includes(k))
+    .filter(k => String(before[k] ?? '') !== String(after[k] ?? ''));
+
   const added = fromOthers;
-  showToast(added
-    ? 'Saved to ' + DIR.name + '\\' + date + '.json — ' + added + ' from other people merged in'
-    : 'Saved to ' + DIR.name + '\\' + date + '.json', '#2f7d4a');
+  const where = 'Saved to ' + DIR.name + '\\' + date + '.json';
+  if (moved.length) {
+    showToast(where + ' \u2014 ' + moved.length
+      + (moved.length === 1 ? ' box' : ' boxes') + ' took the shared value', '#2f7d4a');
+    modal('Saved \u2014 and ' + moved.length + ' '
+      + (moved.length === 1 ? 'box was' : 'boxes were') + ' updated from the shared file',
+      '<p class="mdl-p">Your changes are saved. These boxes were <b>not</b> ones you had '
+     + 'changed, so they took the value already in the shared morning:</p>'
+     + '<p class="mdl-p"><code>' + esc(moved.slice(0, 20).join(', '))
+     + (moved.length > 20 ? ', \u2026' : '') + '</code></p>'
+     + '<p class="mdl-p" style="color:#6b7a90">That is the merge doing its job \u2014 somebody '
+     + 'else filled those in. If the values look wrong, press <b>Check this PC</b> on the '
+     + 'toolbar: it compares this screen against the file and says which is out of step.</p>',
+      null, 'Understood');
+  } else {
+    showToast(added ? where + ' \u2014 ' + added + ' from other people merged in' : where, '#2f7d4a');
+  }
 }
 
 /* Publishing and presenting were one button, so the boardroom PC — which only
