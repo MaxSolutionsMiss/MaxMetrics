@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-build="29" data-built="2026-08-25">
+<html lang="en" data-build="30" data-built="2026-08-26">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -2716,6 +2716,15 @@ async function canWriteHere(){
     const w = await f.createWritable();
     await w.write('probe'); await w.close();
     try{ await d.removeEntry(name); }catch(e){ /* written is what mattered */ }
+    /* If that delete was refused — a folder can allow create and not remove — the probe
+       file stays behind, and one per PC per launch becomes hundreds in a year with nobody
+       left who knows what they are. Sweep any that earlier runs left. */
+    try{
+      if(d.values) for await (const e of d.values()){
+        if(e.kind==='file' && /^\.write-test-\d+\.tmp$/.test(e.name) && e.name!==name)
+          try{ await d.removeEntry(e.name); }catch(x){}
+      }
+    }catch(e){}
     return {ok:true};
   }catch(e){ return {ok:false, err:e}; }
 }
@@ -2948,7 +2957,7 @@ async function dataDir(){
 
    So every save stamps the number below into the day file, and a copy that finds a
    higher number knows, for certain, that it is the old one. */
-const BUILD = 29;
+const BUILD = 30;
 
 let STALE = false;                 /* a newer copy of this page has written this folder */
 function noteBuild(file){
@@ -3650,6 +3659,10 @@ function modal(title, bodyHTML, onOK, okLabel){
      when somebody pressed "I understand". */
   bg.querySelector('[data-ok]').onclick=()=>{
     if(typeof onOK!=='function' || onOK(bg)!==false) close(); };
+  /* A dialog with nothing to decide has nothing to cancel. "Check this PC" and every
+     warning offered Cancel and Close side by side — two buttons for one act, and the
+     reader has to work out that they do the same thing. One way out is clearer. */
+  if(typeof onOK!=='function') bg.querySelector('[data-x]').style.display='none';
   document.addEventListener('keydown',esc);
   const f=bg.querySelector('input,select,textarea'); if(f)f.focus();
   return bg;
