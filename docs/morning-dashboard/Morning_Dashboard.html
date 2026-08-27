@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-build="31" data-built="2026-08-26">
+<html lang="en" data-build="32" data-built="2026-08-26">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -479,6 +479,12 @@ body.no-folder .folderbar{display:flex}
 .dept-slot{grid-template-columns:28px 54px 1.1fr .7fr .9fr .85fr .95fr 36px;gap:8px;align-items:end}
 .dept-slot .ei{height:30px;font-size:12px}
 .dept-mini-lbl{font-family:var(--font-condensed);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:3px}
+/* An icon is only editable while the morning is being edited, and says so only then —
+   a dashed ring the moment Edit is on, so nobody has to be told the icon is a button. */
+.ic-edit{border-radius:7px}
+body.editing .ic-edit{cursor:pointer;outline:1.5px dashed rgba(15,118,110,.55);outline-offset:3px}
+body.editing .ic-edit:hover{outline-color:#0f766e;background:rgba(15,118,110,.09)}
+body.pres-mode .ic-edit{outline:none!important;background:none!important;cursor:default}
 .dept-config-field{display:flex;flex-direction:column;gap:3px}
 .pw-edit-grid{display:grid;grid-template-columns:1fr;gap:10px;margin-top:10px}
 .pw-edit-dept{display:grid;grid-template-columns:minmax(120px,.75fr) repeat(2,minmax(150px,1fr));gap:10px;align-items:end;padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:#fff}
@@ -1578,7 +1584,7 @@ function renderProductionSection(inEditMode){
     const qLabel=labelForQty(cfg), hLabel=labelForHrs(cfg), tLabel=labelForTarget(cfg), rLabel=labelForRate(cfg);
     html+=`
     <div class="card metric-card" id="c-dept-${i}">
-      <div class="c-head"><span class="c-icon">${iconHTML(cfg.icon||defaultIconFor(opt.id))}</span><span class="c-lbl">${opt.name}</span></div>
+      <div class="c-head"><span class="c-icon ic-edit" onclick="editDeptIcon(${i})" title="Change this icon">${iconHTML(cfg.icon||defaultIconFor(opt.id))}</span><span class="c-lbl">${opt.name}</span></div>
       <div class="metric-rate" id="d-dept-${i}-rate">—</div>
       <div class="metric-unit">${rLabel}</div>
       <div class="metric-total" id="d-dept-${i}-total" style="display:none"></div>
@@ -1724,6 +1730,37 @@ function changeDeptSlot(i,id){
   const opt=getDeptOpt(id);
   tempConfig[i]=normalizeDeptConfig({optionId:id,target:opt.defaultTarget,qtyLabel:defaultQtyLabel(opt),hrsLabel:'Hours',targetLabel:'Target/hr',rateLabel:opt.label});
   renderConfigSlots();
+}
+/* Changing an icon from the card, rather than from inside Configure.
+   Configure is where you decide which cards exist; the icon is a property of the
+   card in front of you, so it is changed by clicking it. Only in edit mode — on
+   the wall the icon is just an icon. */
+function editingNow(){ return document.body.classList.contains('editing'); }
+function saveSectionConfigs(){
+  const store=getStore();
+  store.__deptConfig=deptConfig.map(d=>({...d}));
+  store.__reviewConfig=reviewConfig.map(d=>({...d}));
+  setStore(store);
+}
+function editDeptIcon(i){
+  if(!editingNow()||!deptConfig[i])return;
+  pickIcon(deptConfig[i].icon||defaultIconFor(deptConfig[i].optionId), ic=>{
+    const snap=captureDynamicValues();
+    deptConfig[i].icon=ic; saveSectionConfigs();
+    renderProductionSection(true); renderReviewSection(true);
+    restoreDynamicValues(snap); applyAll();
+    showToast('Icon changed','#0f766e');
+  });
+}
+function editReviewIcon(i){
+  if(!editingNow()||!reviewConfig[i])return;
+  pickIcon(reviewConfig[i].icon||inheritedIcon(reviewConfig[i].optionId), ic=>{
+    const snap=captureDynamicValues();
+    reviewConfig[i].icon=ic; saveSectionConfigs();
+    renderReviewSection(true);
+    restoreDynamicValues(snap); applyAll(); renderComments();
+    showToast('Icon changed','#0f766e');
+  });
 }
 function pickDeptIcon(i){
   pickIcon(tempConfig[i].icon||defaultIconFor(tempConfig[i].optionId),
@@ -1895,7 +1932,7 @@ function renderReviewSection(inEditMode){
   reviewConfig.forEach((cfg,i)=>{
     const opt=getReviewOpt(cfg.optionId);
     html+=`<div class="card review-card" id="c-rev-${i}">
-      <div class="c-head"><span class="c-icon">${iconHTML(cfg.icon||inheritedIcon(opt.id))}</span><span class="c-lbl">${opt.name}</span></div>
+      <div class="c-head"><span class="c-icon ic-edit" onclick="editReviewIcon(${i})" title="Change this icon">${iconHTML(cfg.icon||inheritedIcon(opt.id))}</span><span class="c-lbl">${opt.name}</span></div>
       <div class="review-status"><span class="sdot" id="dot-rev-${i}"></span><span class="review-note" id="d-rev-${i}">—</span></div>
       <div class="talk" data-thread="rev-${opt.id}"><div class="msgs"></div>
         <div class="say"><input placeholder="Add a comment…"><button>Add</button></div></div>
@@ -3049,7 +3086,7 @@ async function dataDir(){
 
    So every save stamps the number below into the day file, and a copy that finds a
    higher number knows, for certain, that it is the old one. */
-const BUILD = 31;
+const BUILD = 32;
 
 let STALE = false;                 /* a newer copy of this page has written this folder */
 function noteBuild(file){
